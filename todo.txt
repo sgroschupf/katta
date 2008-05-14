@@ -1,0 +1,70 @@
++ port build to graidl.(low)
++ switch on assert
++ start many zk on the same machine.
++ improve dependencies in hadoop pom xml 
++ master fail over by monitoring /katta/masters
+D + name all indexes or indicies?
+D + slaves listen to indexes and remove them in case they are gone..
+D + if we have a notification for /something and list children for /something do we lose the notification than? 
+D Do we might need to reniew it?
+D + make sure in case one server has the same shard twice that it does not overwrites it.
+
+D+ might be not such a good idea to sync against zk
+D4/26/08 1:22:50 AM PDT [NIOServerCnxn.java@163][14]: =====> Goodbye cruel world <======
+DException in thread "EventThread" java.lang.NullPointerException
+D    at net.sf.katta.ZKClient.getChildren(ZKClient.java:168)
+D    at net.sf.katta.Master$IndexListener.process(Master.java:201)
+D    at net.sf.katta.ZKClient.process(ZKClient.java:188)
+D    at com.yahoo.zookeeper.ClientCnxn$EventThread.run(ClientCnxn.java:253)
+D    
++ would be cool to have query logs...
++ make query logs configurable.
++ we need a master fail over...
++ check syncronisation in slave...
++ gt Details.. for slave...
+D !!!!+ we might want a folder that exists in the moment a index starts be fully deployed... used a flag...
++ shold we use mina and udp for query multicasting???
+D + checken if this is a correct vindex by checking for shards in the folder...
++ !! we need to cleanup the local shard folder during start and clode down..
++ improve logging..
+x add remove of shards from slave
+x refactor the index structure in the test folder
+x sort the result by score in the client
+o if master starts again it doesn't know that it was the master
+X compression
+X decompression
+o change compare order in our equal methods
+o check parallel search with katta multi searcher
+x check result lists for multithreading
+x enable/disable logging
+
+o change check for index deployment
+o write status of slave and master to zookeeper
+o show time how long it took to deploy an index...
+o make event service may be as as inner class of client...
+o port to latest zookeeper version!
+o remove "/" with an constant in IPath
+o should we have a custom shutdown hook?
+o implement remove shard..
+o do we need to start slave port listener on 0.0.0.0 or 127.0.0.1 ?
+o set exception in slave in case one happens to be seen in SlaveMataData
+o wrong shard assignment if index is still deployed - where hadoop got all shards - sg
+o in HitsMapWritable we should only deal with String and convert to Text only if we serialize and back to lower the number of - merge with Hits - ms
+x object instantiaten we do - ms
+o the hit objects needs some major clean up - sg
+o implement slave server test.. - sg
+o remove all ThreadSleepMethods with joins for the given processes - sg
+X checkout sdd post about lucene performance 
+o could you skip df first roundtrip for single term queries? - ???
+x client.search throws KattaException, KatteIOException to KattaException - ms
+o test sort methode in Hits 
+x in command line also show details when searching. - ms
+X add IOExceptions for zkClient.
+o clean up status updates in slave. - sg
+o add support for warm up linux script... - ms
+o use shardName everywhere and not key .. - sg
+x add remove index.. - sg
+x pass also query to selction plolicy so you can decide that you route a given query on a set of given notes. - sg
+x add more java doc to slave and multisearcher. - sg
+o test remove in slave test - sg
+o use fastes sort... - sg

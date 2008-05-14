@@ -1,0 +1,9 @@
+<user>
+	<name>
+		<first>foo</first>
+		<last>bar</last>
+	</name>
+	<age>29</age>
+	<login>foobar</login>
+	<password>pwd</password>
+</user>

@@ -1,0 +1,154 @@
+#!/usr/bin/env bash
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+
+# The Katta command script
+#
+# Environment Variables
+#
+#   JAVA_HOME        The java implementation to use.  Overrides JAVA_HOME.
+#
+#   KATTA_CLASSPATH Extra Java CLASSPATH entries.
+#
+#   KATTA_HEAPSIZE  The maximum amount of heap to use, in MB. 
+#                    Default is 1000.
+#
+#   KATTA_OPTS      Extra Java runtime options.
+#
+#   KATTA_CONF_DIR  Alternate conf dir. Default is ${KATTA_HOME}/conf.
+#
+#   KATTA_ROOT_LOGGER The root appender. Default is INFO,console
+#
+
+bin=`dirname "$0"`
+bin=`cd "$bin"; pwd`
+
+. "$bin"/katta-config.sh
+
+cygwin=false
+case "`uname`" in
+CYGWIN*) cygwin=true;;
+esac
+
+# if no args specified, show usage
+if [ $# = 0 ]; then
+  echo "Usage: katta [--config confdir] COMMAND [options]"
+  echo "where COMMAND is one of:"
+  echo "  startSlave          run a Slave" 
+  echo "  startMaster         run a Master"
+  echo "  addIndex            run a client command"
+  echo "  listIndexes         run a client command"
+  echo "  search              run a client command"
+  echo "  listSlaves          run a client command"
+  echo "Most commands print help when invoked w/o parameters."
+  exit 1
+fi
+
+if [ -f "${KATTA_CONF_DIR}/hadoop-env.sh" ]; then
+  . "${KATTA_CONF_DIR}/hadoop-env.sh"
+fi
+
+# some Java parameters
+if [ "$JAVA_HOME" != "" ]; then
+  #echo "run java in $JAVA_HOME"
+  JAVA_HOME=$JAVA_HOME
+fi
+  
+if [ "$JAVA_HOME" = "" ]; then
+  echo "Error: JAVA_HOME is not set."
+  exit 1
+fi
+
+JAVA=$JAVA_HOME/bin/java
+JAVA_HEAP_MAX=-Xmx1000m 
+
+# check envvars which might override default args
+if [ "$KATTA_HEAPSIZE" != "" ]; then
+  #echo "run with heapsize $KATTA_HEAPSIZE"
+  JAVA_HEAP_MAX="-Xmx""$KATTA_HEAPSIZE""m"
+  #echo $JAVA_HEAP_MAX
+fi
+
+# CLASSPATH initially contains $KATTA_CONF_DIR
+CLASSPATH="${KATTA_CONF_DIR}"
+
+# for developers, add Katta classes to CLASSPATH
+if [ -d "$KATTA_HOME/target/classes" ]; then
+  CLASSPATH=${CLASSPATH}:$KATTA_HOME/target/classes
+fi
+
+if [ -d "$KATTA_HOME/target/test-classes" ]; then
+  CLASSPATH=${CLASSPATH}:$KATTA_HOME/target/test-classes
+fi
+
+# so that filenames w/ spaces are handled correctly in loops below
+IFS= \n
+
+# for releases, add core katta jar to CLASSPATH
+for f in $KATTA_HOME/katta-*.jar; do
+  CLASSPATH=${CLASSPATH}:$f;
+done
+
+# add libs to CLASSPATH
+echo "get jars..."
+
+
+for file in `find ./repository -name "*.jar"`
+do
+  CLASSPATH=${CLASSPATH}:$file
+done
+
+# add user-specified CLASSPATH last
+if [ "$KATTA_CLASSPATH" != "" ]; then
+  CLASSPATH=${CLASSPATH}:${KATTA_CLASSPATH}
+fi
+
+# default log directory & file
+if [ "$KATTA_LOG_DIR" = "" ]; then
+  KATTA_LOG_DIR="$KATTA_HOME/logs"
+fi
+if [ "$KATTA_LOGFILE" = "" ]; then
+  KATTA_LOGFILE='katta.log'
+fi
+
+# cygwin path translation
+if $cygwin; then
+  CLASSPATH=`cygpath -p -w "$CLASSPATH"`
+  KATTA_HOME=`cygpath -d "$KATTA_HOME"`
+  KATTA_LOG_DIR=`cygpath -d "$KATTA_LOG_DIR"`
+fi
+
+# cygwin path translation
+if $cygwin; then
+  JAVA_LIBRARY_PATH=`cygpath -p "$JAVA_LIBRARY_PATH"`
+fi
+ 
+# restore ordinary behaviour
+unset IFS
+
+CLASS='net.sf.katta.Katta'
+
+#KATTA_OPTS="$KATTA_OPTS -Dkatta.log.dir='$KATTA_LOG_DIR'"
+#KATTA_OPTS="$KATTA_OPTS -Dkatta.log.file='$KATTA_LOGFILE'"
+KATTA_OPTS="$KATTA_OPTS -Dkatta.home.dir=$KATTA_HOME"
+KATTA_OPTS="$KATTA_OPTS -Dkatta.id.str=$KATTA_IDENT_STRING"
+KATTA_OPTS="$KATTA_OPTS -Dkatta.root.logger=${KATTA_ROOT_LOGGER:-INFO,console}"
+if [ "x$JAVA_LIBRARY_PATH" != "x" ]; then
+  KATTA_OPTS="$KATTA_OPTS -Djava.library.path=$JAVA_LIBRARY_PATH"
+fi
+
+# run it
+exec "$JAVA" $JAVA_HEAP_MAX $KATTA_OPTS -classpath "$CLASSPATH" $CLASS "$@"
