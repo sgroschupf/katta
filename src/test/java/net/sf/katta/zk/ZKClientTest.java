@@ -52,7 +52,7 @@ public class ZKClientTest extends TestCase {
     final Server server = new Server(conf);
     final ZKClient client = new ZKClient(conf);
     final String path = "/katta";
-    client.waitForZooKeeper(5000);
+    client.waitForZooKeeper(10000);
     if (client.exists(path)) {
       assertTrue(client.deleteRecursiv(path));
     }
@@ -86,7 +86,7 @@ public class ZKClientTest extends TestCase {
     final ZkConfiguration conf = new ZkConfiguration();
     final Server server = new Server(conf);
     final ZKClient client = new ZKClient(conf);
-    client.waitForZooKeeper(5000);
+    client.waitForZooKeeper(10000);
     final MyListener listener = new MyListener();
     final String katta = "/katta";
     if (client.exists(katta)) {
@@ -110,7 +110,7 @@ public class ZKClientTest extends TestCase {
     final ZkConfiguration conf = new ZkConfiguration();
     final Server server = new Server(conf);
     final ZKClient client = new ZKClient(conf);
-    client.waitForZooKeeper(5000);
+    client.waitForZooKeeper(10000);
     final MyListener listener = new MyListener();
     final String katta = "/katta";
     if (client.exists(katta)) {
