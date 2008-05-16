@@ -57,9 +57,13 @@ public class ZKClient implements Watcher {
 
   private final HashMap<String, HashSet<IZKEventListener>> _dataListener = new HashMap<String, HashSet<IZKEventListener>>();
 
+  private final int _port;
+
   public ZKClient(final ZkConfiguration configuration) {
+
     final String servers = configuration.getZKServers();
-    System.out.println("trying to connect to: " + servers);
+    _port = configuration.getZKClientPort();
+    Logger.info("trying to connect to: " + servers);
     if (_zk == null) {
       try {
         _zk = new ZooKeeper(servers, configuration.getZKTimeOut(), this);
@@ -87,8 +91,8 @@ public class ZKClient implements Watcher {
    * @param listener
    * @return list of children nodes for given path.
    * @throws KattaException
-   *             Thrown in case we can't read the children nodes. Note that we
-   *             also remove the notification listener.
+   *    Thrown in case we can't read the children nodes. Note that we also
+   *    remove the notification listener.
    */
   public ArrayList<String> subscribeChildChanges(final String path, final IZKEventListener listener)
       throws KattaException {
@@ -229,8 +233,8 @@ public class ZKClient implements Watcher {
   }
 
   /**
-   * Deletes a given path. For recursive deletes use
-   * {@link #deleteRecursiv(String)}.
+   * Deletes a given path. For recursive deletes use {@link
+   * #deleteRecursiv(String)}.
    * 
    * @param path
    * @return
@@ -322,7 +326,8 @@ public class ZKClient implements Watcher {
   /*
    * (non-Javadoc)
    * 
-   * @see com.yahoo.zookeeper.Watcher#process(com.yahoo.zookeeper.proto.WatcherEvent)
+   * @see
+   * com.yahoo.zookeeper.Watcher#process(com.yahoo.zookeeper.proto.WatcherEvent)
    */
   public void process(final WatcherEvent event) {
     synchronized (_mutex) {
@@ -534,6 +539,10 @@ public class ZKClient implements Watcher {
     if (!exists(IPaths.SHARD_TO_SLAVE)) {
       create(IPaths.SHARD_TO_SLAVE);
     }
+  }
+
+  public int getPort() {
+    return _port;
   }
 
 }

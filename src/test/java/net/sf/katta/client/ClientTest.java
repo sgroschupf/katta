@@ -60,8 +60,8 @@ public class ClientTest extends TestCase {
     }
     master.startMasterOrSlave(zkclient, true);
 
-    final Slave server1 = SlaveServerTest.startSlaveServer();
-    final Slave server2 = SlaveServerTest.startSlaveServer();
+    final Slave server1 = SlaveServerTest.startSlaveServer("/katta.zk.slave1.properties");
+    final Slave server2 = SlaveServerTest.startSlaveServer("/katta.zk.slave2.properties");
 
     while (zkclient.getChildren(IPaths.SLAVES).size() != 2) {
       Thread.sleep(500);
@@ -76,9 +76,11 @@ public class ClientTest extends TestCase {
 
     // wait for index deployment.
     final IndexMetaData data = new IndexMetaData("", "", false);
-    while (!data.isDeployed()) {
+    final IndexMetaData data2 = new IndexMetaData("", "", false);
+    while (!data.isDeployed() || !data2.isDeployed()) {
       Thread.sleep(500);
       zkclient.readData(IPaths.INDEXES + "/index1", data);
+      zkclient.readData(IPaths.INDEXES + "/index2", data2);
     }
 
     final IClient client = new Client();
@@ -113,7 +115,7 @@ public class ClientTest extends TestCase {
     }
     master.startMasterOrSlave(zkclient, true);
 
-    final Slave server = SlaveServerTest.startSlaveServer();
+    final Slave server = SlaveServerTest.startSlaveServer("/katta.zk.slave1.properties");
     while (zkclient.getChildren(IPaths.SLAVES).size() != 1) {
       Thread.sleep(500);
     }
@@ -147,7 +149,7 @@ public class ClientTest extends TestCase {
     }
     master.startMasterOrSlave(zkclient, true);
 
-    final Slave server = SlaveServerTest.startSlaveServer();
+    final Slave server = SlaveServerTest.startSlaveServer("/katta.zk.slave1.properties");
     while (zkclient.getChildren(IPaths.SLAVES).size() != 1) {
       Thread.sleep(500);
     }
@@ -185,7 +187,7 @@ public class ClientTest extends TestCase {
     }
     master.startMasterOrSlave(zkclient, true);
 
-    final Slave server = SlaveServerTest.startSlaveServer();
+    final Slave server = SlaveServerTest.startSlaveServer("/katta.zk.slave1.properties");
     while (zkclient.getChildren(IPaths.SLAVES).size() != 1) {
       Thread.sleep(500);
     }
@@ -230,8 +232,8 @@ public class ClientTest extends TestCase {
     }
     master.startMasterOrSlave(zkclient, true);
 
-    final Slave server1 = SlaveServerTest.startSlaveServer();
-    final Slave server2 = SlaveServerTest.startSlaveServer();
+    final Slave server1 = SlaveServerTest.startSlaveServer("/katta.zk.slave1.properties");
+    final Slave server2 = SlaveServerTest.startSlaveServer("/katta.zk.slave2.properties");
 
     while (zkclient.getChildren(IPaths.SLAVES).size() != 2) {
       Thread.sleep(500);

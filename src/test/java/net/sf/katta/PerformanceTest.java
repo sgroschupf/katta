@@ -61,8 +61,8 @@ public class PerformanceTest extends TestCase {
     }
     master.startMasterOrSlave(zkclient, true);
 
-    final Slave server1 = SlaveServerTest.startSlaveServer();
-    final Slave server2 = SlaveServerTest.startSlaveServer();
+    final Slave server1 = SlaveServerTest.startSlaveServer("/katta.zk.slave1.properties");
+    final Slave server2 = SlaveServerTest.startSlaveServer("/katta.zk.slave1.properties");
     Thread.sleep(2000);
     zkclient.create(IPaths.INDEXES + "/index1", new IndexMetaData("src/test/testIndexA", StandardAnalyzer.class
         .getName(), false));

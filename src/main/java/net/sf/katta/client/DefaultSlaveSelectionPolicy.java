@@ -71,7 +71,7 @@ public class DefaultSlaveSelectionPolicy implements ISlaveSelectionPolicy {
   private Map<String, List<Map<String, List<String>>>> computeMap(final Map<String, List<String>> indexToShards,
       final Map<String, List<String>> shardsToSlave) {
     if (indexToShards.size() == 0 || shardsToSlave.size() == 0) {
-      throw new IllegalArgumentException("IndexToShards or shardsToSlave can't be empthy.");
+      throw new IllegalArgumentException("IndexToShards or shardsToSlave can't be empty.");
     }
     // a list of slave to shards for each index..
     final Map<String, List<Map<String, List<String>>>> result = new HashMap<String, List<Map<String, List<String>>>>();

@@ -103,7 +103,8 @@ public class Server {
         client.createDefaultStructure();
         final String localhostName = NetworkUtil.getLocalhostName();
         // no master so this one will be master
-        final MasterMetaData freshMaster = new MasterMetaData(localhostName, System.currentTimeMillis());
+        final MasterMetaData freshMaster = new MasterMetaData(localhostName, client.getPort(), System
+            .currentTimeMillis());
         if (!client.exists(IPaths.MASTER)) {
           Logger.info("Creating master node: " + localhostName);
           client.createEphemeral(IPaths.MASTER, freshMaster);
@@ -113,7 +114,7 @@ public class Server {
           // server wrote.
           final MasterMetaData oldMaster = new MasterMetaData();
           client.readData(IPaths.MASTER, oldMaster);
-          if (oldMaster.getMasterName().equals(localhostName)) {
+          if (oldMaster.getMasterName().equals(localhostName) && (client.getPort() == oldMaster.getPort())) {
             // looks like I'm the master ..
             Logger.info("Old master file was found ...");
             client.createEphemeral(IPaths.MASTER, freshMaster);

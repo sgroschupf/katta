@@ -404,9 +404,9 @@ public class SlaveServerTest extends TestCase {
   // server.shutdown();
   // }
   //
-  public static Slave startSlaveServer() {
+  public static Slave startSlaveServer(final String configPath) {
 
-    final Slave slave = new Slave(new ZKClient(new ZkConfiguration()));
+    final Slave slave = new Slave(new ZKClient(new ZkConfiguration(configPath)));
     new Thread(new Runnable() {
       public void run() {
         try {

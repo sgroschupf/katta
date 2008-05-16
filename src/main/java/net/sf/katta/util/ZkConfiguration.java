@@ -42,6 +42,10 @@ public class ZkConfiguration extends KattaConfiguration {
     super("/katta.zk.properties");
   }
 
+  public ZkConfiguration(final String path) {
+    super(path);
+  }
+
   public String getZKServers() {
     final String property = _properties.getProperty(ZOOKEEPER_SERVERS);
     assert property != null;

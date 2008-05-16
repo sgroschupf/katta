@@ -177,7 +177,7 @@ public class Slave implements ISearch {
     for (int i = serverPort; i < (serverPort + 10000); i++) {
       try {
         System.out.println("starting RPC server on : " + hostName);
-        _server = RPC.getServer(this, "127.0.0.1", i, new Configuration());
+        _server = RPC.getServer(this, "0.0.0.0", i, new Configuration());
         serverPort = i;
         break;
       } catch (final BindException e) {
@@ -193,7 +193,6 @@ public class Slave implements ISearch {
    * When starting a slave there might be shards assigned that are still on
    * local hhd. Therefore we compare what is assigned, what can be re-used and
    * which shards we need to load from the remote hdd.
-   * 
    */
   private void checkAndDeployExistingShards(final ArrayList<String> shardsToDeploy) throws KattaException {
     synchronized (_shardFolder) {
@@ -479,10 +478,10 @@ public class Slave implements ISearch {
    * (non-Javadoc)
    * 
    * @see net.sf.katta.slave.ISearch#search(net.sf.katta.slave.IQuery,
-   *      net.sf.katta.slave.DocumentFrequenceWritable, java.lang.String[])
+   * net.sf.katta.slave.DocumentFrequenceWritable, java.lang.String[])
    */
   public HitsMapWritable search(final IQuery query, final DocumentFrequenceWritable freqs, final String[] shards)
-  throws IOException {
+      throws IOException {
     return search(query, freqs, shards, Integer.MAX_VALUE - 1);
   }
 
@@ -490,7 +489,7 @@ public class Slave implements ISearch {
    * (non-Javadoc)
    * 
    * @see net.sf.katta.slave.ISearch#search(net.sf.katta.slave.IQuery,
-   *      net.sf.katta.slave.DocumentFrequenceWritable, java.lang.String[], int)
+   * net.sf.katta.slave.DocumentFrequenceWritable, java.lang.String[], int)
    */
   public HitsMapWritable search(final IQuery query, final DocumentFrequenceWritable freqs, final String[] shards,
       final int count) throws IOException {
@@ -548,7 +547,7 @@ public class Slave implements ISearch {
    * (non-Javadoc)
    * 
    * @see net.sf.katta.slave.ISearch#getDocFreqs(net.sf.katta.slave.IQuery,
-   *      java.lang.String[])
+   * java.lang.String[])
    */
   public DocumentFrequenceWritable getDocFreqs(final IQuery input, final String[] shards) throws IOException {
     Query luceneQuery;
@@ -610,7 +609,7 @@ public class Slave implements ISearch {
    * (non-Javadoc)
    * 
    * @see net.sf.katta.slave.ISearch#getDetails(java.lang.String, int,
-   *      java.lang.String[])
+   * java.lang.String[])
    */
   public MapWritable getDetails(final String shard, final int docId, final String[] fieldNames) throws IOException {
     final MapWritable result = new MapWritable();
@@ -632,7 +631,7 @@ public class Slave implements ISearch {
    * (non-Javadoc)
    * 
    * @see net.sf.katta.slave.ISearch#getResultCount(net.sf.katta.slave.IQuery,
-   *      java.lang.String[])
+   * java.lang.String[])
    */
   public int getResultCount(final IQuery query, final String[] shards) throws IOException {
     final DocumentFrequenceWritable docFreqs = getDocFreqs(query, shards);
@@ -658,7 +657,6 @@ public class Slave implements ISearch {
   /*
    * Listens to events within the slaveToShard zookeeper folder. Those events
    * are fired if a shard is assigned or removed for this slave.
-   * 
    */
   private class ShardListener implements IZKEventListener {
     public void process(final WatcherEvent event) {
