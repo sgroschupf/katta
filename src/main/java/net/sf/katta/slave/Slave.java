@@ -176,7 +176,7 @@ public class Slave implements ISearch {
     final String hostName = NetworkUtil.getLocalhostName();
     for (int i = serverPort; i < (serverPort + 10000); i++) {
       try {
-        System.out.println("starting RPC server on : " + hostName);
+        Logger.info("starting RPC server on : " + hostName);
         _server = RPC.getServer(this, "0.0.0.0", i, new Configuration());
         serverPort = i;
         break;
