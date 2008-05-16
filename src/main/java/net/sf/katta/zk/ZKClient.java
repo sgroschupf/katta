@@ -277,6 +277,10 @@ public class ZKClient implements Watcher {
 
       try {
         _zk.delete(path, -1);
+      } catch (final KeeperException e) {
+        if (e.getCode() != KeeperException.Code.NoNode) {
+          throw new KattaException("unable to delete:" + path, e);
+        }
       } catch (final Exception e) {
         throw new KattaException("unable to delete:" + path, e);
       }
