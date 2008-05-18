@@ -119,10 +119,8 @@ public class Slave implements ISearch {
 
     final String shardFolder = configuration.getShardFolder();
     _shardFolder = new File(shardFolder);
-    synchronized (_shardFolder) {
-      if (!_shardFolder.exists()) {
-        _shardFolder.mkdirs();
-      }
+    if (!_shardFolder.exists()) {
+      _shardFolder.mkdirs();
     }
     _slave = startRPCServer(configuration);
     final ArrayList<String> shardsToServe = announceSlave();
