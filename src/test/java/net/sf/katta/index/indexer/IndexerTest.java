@@ -19,15 +19,8 @@
  */
 package net.sf.katta.index.indexer;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.File;
-import java.io.IOException;
-import java.util.Iterator;
-
 import junit.framework.TestCase;
 import net.sf.katta.index.indexer.Indexer.DocumentCounter;
-
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.BytesWritable;
@@ -47,10 +40,16 @@ import org.apache.lucene.index.IndexReader;
 import org.jmock.Expectations;
 import org.jmock.Mockery;
 
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.File;
+import java.io.IOException;
+import java.util.Iterator;
+
 public class IndexerTest extends TestCase {
 
   private static File _folder = new File(System.getProperty("java.io.tmpdir") + File.separator
-      + IndexerTest.class.getName());
+    + IndexerTest.class.getName());
   private final Mockery _mockery = new Mockery();
 
   public static class DummyFactory implements IDocumentFactory<WritableComparable, Writable> {

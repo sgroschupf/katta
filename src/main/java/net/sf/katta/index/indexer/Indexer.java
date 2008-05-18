@@ -19,10 +19,6 @@
  */
 package net.sf.katta.index.indexer;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.Iterator;
-
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.DataInputBuffer;
@@ -36,13 +32,16 @@ import org.apache.lucene.document.Document;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.store.FSDirectory;
 
+import java.io.File;
+import java.io.IOException;
+import java.util.Iterator;
+
 public class Indexer implements Reducer<WritableComparable, Writable, WritableComparable, Writable> {
 
   public static enum DocumentCounter {
     DOCUMENT_COUNT
   }
 
-  ;
 
   private IDocumentFactory<WritableComparable, Writable> _factory;
 
@@ -68,12 +67,14 @@ public class Indexer implements Reducer<WritableComparable, Writable, WritableCo
 
   private Writable _inputValue;
 
+  final DataInputBuffer _inputBuffer = new DataInputBuffer();
+
   public void configure(final JobConf jobConf) {
     _factory = getConverter(jobConf);
     _indexPublisher = getPublisher(jobConf);
     _zipService = getZipper(jobConf);
     _tmpIndexDirectory = jobConf.get(IndexJobConf.INDEX_TMP_DIRECTORY, (System.getProperty("java.io.tmpdir")
-        + File.separator + System.currentTimeMillis()));
+      + File.separator + System.currentTimeMillis()));
     _indexFlushThreshold = jobConf.getInt(IndexJobConf.FLUSH_THRESHOLD, 10);
     _indexerMaxMerge = jobConf.getInt(IndexJobConf.INDEXER_MAX_MERGE, 10);
     _indexerMergeFactor = jobConf.getInt(IndexJobConf.INDEXER_MERGE_FACTOR, 10);
@@ -87,13 +88,13 @@ public class Indexer implements Reducer<WritableComparable, Writable, WritableCo
       _inputValue = (Writable) inputValueClass.newInstance();
     } catch (final Exception e) {
       throw new RuntimeException("can not instantiate input key '" + inputKeyClass.getName() + "' and input value '"
-          + inputValueClass.getName() + "'class: ", e);
+        + inputValueClass.getName() + "'class: ", e);
     }
 
   }
 
   public void reduce(final WritableComparable key, final Iterator<Writable> values,
-      final OutputCollector<WritableComparable, Writable> collector, final Reporter reporter) throws IOException {
+                     final OutputCollector<WritableComparable, Writable> collector, final Reporter reporter) throws IOException {
     final File indexDirectory = new File(_tmpIndexDirectory, key.toString());
     final FSDirectory directory = FSDirectory.getDirectory(indexDirectory);
     final IndexWriter indexWriter = new IndexWriter(directory, _factory.getIndexAnalyzer());
@@ -110,11 +111,11 @@ public class Indexer implements Reducer<WritableComparable, Writable, WritableCo
       counter++;
       final Writable value = values.next();
       final BytesWritable bytesWritable = (BytesWritable) value;
-      final DataInputBuffer inputBuffer = new DataInputBuffer();
+
       final byte[] bytes = bytesWritable.get();
-      inputBuffer.reset(bytes, bytes.length);
-      _inputKey.readFields(inputBuffer);
-      _inputValue.readFields(inputBuffer);
+      _inputBuffer.reset(bytes, bytes.length);
+      _inputKey.readFields(_inputBuffer);
+      _inputValue.readFields(_inputBuffer);
 
       final Document document = _factory.convert(_inputKey, _inputValue);
       indexWriter.addDocument(document);
@@ -198,27 +199,27 @@ public class Indexer implements Reducer<WritableComparable, Writable, WritableCo
       distributer.configure(configuration);
     } catch (final Exception e) {
       throw new RuntimeException("exception while configure the index publisher '" + distributer.getClass().getName()
-          + "'", e);
+        + "'", e);
     }
     return distributer;
   }
 
   @SuppressWarnings("unchecked")
   private IDocumentFactory<WritableComparable, Writable> getConverter(final JobConf configuration) {
-    IDocumentFactory<WritableComparable, Writable> factory = null;
+    IDocumentFactory<WritableComparable, Writable> factory;
     final String converterClass = configuration.get(IndexJobConf.DOCUMENT_FACTORY_CLASS);
     try {
       final Class<IDocumentFactory> clazz = (Class<IDocumentFactory>) Class.forName(converterClass);
       factory = clazz.newInstance();
     } catch (final Exception e) {
       throw new RuntimeException("can not create document factory '" + converterClass
-          + "', because it is not available", e);
+        + "', because it is not available", e);
     }
     try {
       factory.configure(configuration);
     } catch (final IOException e) {
       throw new RuntimeException(
-          "exception while configure the document factory'" + factory.getClass().getName() + "'", e);
+        "exception while configure the document factory'" + factory.getClass().getName() + "'", e);
     }
     return factory;
   }
