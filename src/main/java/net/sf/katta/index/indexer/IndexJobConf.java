@@ -88,16 +88,22 @@ public class IndexJobConf extends JobConf {
     return create(null, inputStream);
   }
 
+  /**
+   *
+   * @param configuration
+   * @param inputStream
+   * @return a new created JobConf with settet mapOutputKey(Value) and Mapper,Reducer. No jobjar is settet. 
+   * @throws Exception
+   */
   public JobConf create(final Configuration configuration, final InputStream inputStream) throws Exception {
     JobConf jobConf;
     if (configuration != null) {
-      jobConf = new JobConf(configuration, Indexer.class);
+      jobConf = new JobConf(configuration);
     } else {
-      jobConf = new JobConf(Indexer.class);
+      jobConf = new JobConf();
     }
 
     jobConf.setJobName("Index Xml");
-    jobConf.setJarByClass(Indexer.class);
     final Properties properties = new Properties();
     properties.load(inputStream);
 
@@ -114,7 +120,6 @@ public class IndexJobConf extends JobConf {
         jobConf.set(key.toString(), value.toString());
       }
     }
-    // TODO set mappper and reducer
     inputStream.close();
 
     jobConf.setMapOutputKeyClass(Text.class);
