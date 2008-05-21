@@ -25,11 +25,13 @@ import java.io.InputStream;
 import java.util.Properties;
 import java.util.Set;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.InputFormat;
 import org.apache.hadoop.mapred.JobConf;
+
 
 public class IndexJobConf extends JobConf {
 
@@ -37,6 +39,7 @@ public class IndexJobConf extends JobConf {
    * Katta Related *
    */
   public static final String INDEX_ZIP_CLASS = "index.zip.class";
+
 
   public static final String DOCUMENT_FACTORY_CLASS = "document.factory.class";
 
@@ -82,7 +85,17 @@ public class IndexJobConf extends JobConf {
   public static final String INPUT_VALUE_CLASS = "index.input.value.class";
 
   public JobConf create(final InputStream inputStream) throws Exception {
-    final JobConf jobConf = new JobConf(Indexer.class);
+    return create(null, inputStream);
+  }
+
+  public JobConf create(final Configuration configuration, final InputStream inputStream) throws Exception {
+    JobConf jobConf;
+    if (configuration != null) {
+      jobConf = new JobConf(configuration, Indexer.class);
+    } else {
+      jobConf = new JobConf(Indexer.class);
+    }
+
     jobConf.setJobName("Index Xml");
     jobConf.setJarByClass(Indexer.class);
     final Properties properties = new Properties();
@@ -116,4 +129,7 @@ public class IndexJobConf extends JobConf {
     return create(new FileInputStream(file));
   }
 
+  public JobConf create(final Configuration configuration, final File file) throws Exception {
+    return create(configuration, new FileInputStream(file));
+  }
 }
