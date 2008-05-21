@@ -75,7 +75,7 @@ public class Server {
 
   public void startMasterOrSlave(final ZKClient client, final boolean master) throws KattaException {
     // we might need to wait for the server to startup..
-    System.out.println("Server.startMasterOrSlave()");
+    Logger.info("Server.startMasterOrSlave()");
     client.waitForZooKeeper(30000);
 
     final boolean masterConfigured = beMaster(client);
@@ -223,6 +223,8 @@ public class Server {
   }
 
   public void join() {
+    // TODO: nioFactory and _zk and (_quorumPeer or _slave) doesn't exclude each
+    // other?
     if (_quorumPeer != null) {
       try {
         _quorumPeer.join();
@@ -237,6 +239,7 @@ public class Server {
         Logger.info("Nio server was interruped.", e);
       }
       _zk.shutdown();
+      ServerStats.unregister();
     } else if (_slave != null) {
       try {
         _slave.join();
@@ -290,6 +293,7 @@ public class Server {
     if (_zk != null) {
       _zk.shutdown();
     }
+    ServerStats.unregister();
     try {
       Thread.sleep(1000);
     } catch (final InterruptedException e) {
