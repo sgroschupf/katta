@@ -45,6 +45,8 @@ public class ZKClientTest extends TestCase {
     }
     final Server server = new Server(conf);
     client.waitForZooKeeper(3000);// now should work
+    client.close();
+    server.shutdown();
   }
 
   public void testCreateFolder() throws KattaException, InterruptedException {
@@ -78,7 +80,7 @@ public class ZKClientTest extends TestCase {
     assertEquals(2, children.size());
     client.deleteRecursiv(path);
     client.close();
-    Thread.sleep(200);
+    Thread.sleep(2000);
     server.shutdown();
   }
 
