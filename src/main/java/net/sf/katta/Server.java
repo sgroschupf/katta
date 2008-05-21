@@ -51,8 +51,6 @@ public class Server {
 
   private Factory _nioFactory;
 
-  private Master _master;
-
   // private ZkConfiguration _conf;
 
   private Slave _slave;
@@ -73,7 +71,7 @@ public class Server {
     startZooKeeperServer(conf);
   }
 
-  public void startMasterOrSlave(final ZKClient client, final boolean master) throws KattaException {
+  public void startMasterOrSlave(final ZKClient client, final boolean willBeMaster) throws KattaException {
     // we might need to wait for the server to startup..
     Logger.info("Server.startMasterOrSlave()");
     client.waitForZooKeeper(30000);
@@ -81,15 +79,15 @@ public class Server {
     final boolean masterConfigured = beMaster(client);
     if (Logger.isDebug()) {
       Logger.debug("MasterConfigured: " + masterConfigured);
-      Logger.debug("Master name: " + master);
+      Logger.debug("Master name: " + willBeMaster);
     }
-    if (masterConfigured && master) {
+    if (masterConfigured && willBeMaster) {
       // TODO make policy configurable
       Logger.info("Starting Master...");
-      _master = new Master(client, new DefaultDistributionPolicy());
-      _master.start();
-    } else if (!masterConfigured && master) {
-      // TODO make a master fail over here
+      Master master = new Master(client, new DefaultDistributionPolicy());
+      master.start();
+    } else if (!masterConfigured && willBeMaster) {
+      // TODO make a willBeMaster fail over here
     } else {
       Logger.info("Starting Slave...");
       _slave = new Slave(client);
