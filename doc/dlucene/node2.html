@@ -1,0 +1,100 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+
+<!--Converted with LaTeX2HTML 2002-2-1 (1.71)
+original version by:  Nikos Drakos, CBLU, University of Leeds
+* revised and updated by:  Marcus Hennecke, Ross Moore, Herb Swan
+* with significant contributions from:
+  Jens Lippmann, Marek Rouchal, Martin Wilck and others -->
+<HTML>
+<HEAD>
+<TITLE>Hadoop architectural style</TITLE>
+<META NAME="description" CONTENT="Hadoop architectural style">
+<META NAME="keywords" CONTENT="dlucene">
+<META NAME="resource-type" CONTENT="document">
+<META NAME="distribution" CONTENT="global">
+
+<META NAME="Generator" CONTENT="LaTeX2HTML v2002-2-1">
+<META HTTP-EQUIV="Content-Style-Type" CONTENT="text/css">
+
+<LINK REL="STYLESHEET" HREF="dlucene.css">
+
+<LINK REL="next" HREF="node3.html">
+<LINK REL="previous" HREF="node1.html">
+<LINK REL="up" HREF="node1.html">
+<LINK REL="next" HREF="node3.html">
+</HEAD>
+
+<BODY >
+
+<DIV CLASS="navigation"><!--Navigation Panel-->
+<A NAME="tex2html52"
+  HREF="node3.html">
+<IMG WIDTH="37" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="next"
+ SRC="/usr/share/latex2html/icons/next.png"></A> 
+<A NAME="tex2html50"
+  HREF="node1.html">
+<IMG WIDTH="26" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="up"
+ SRC="/usr/share/latex2html/icons/up.png"></A> 
+<A NAME="tex2html44"
+  HREF="node1.html">
+<IMG WIDTH="63" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="previous"
+ SRC="/usr/share/latex2html/icons/prev.png"></A>   
+<BR>
+<B> Next:</B> <A NAME="tex2html53"
+  HREF="node3.html">Distributed Lucene</A>
+<B> Up:</B> <A NAME="tex2html51"
+  HREF="node1.html">Introduction</A>
+<B> Previous:</B> <A NAME="tex2html45"
+  HREF="node1.html">Introduction</A>
+<BR>
+<BR></DIV>
+<!--End of Navigation Panel-->
+
+<H2><A NAME="SECTION00011000000000000000">
+Hadoop architectural style</A>
+</H2>
+A good starting point for understanding some important aspects of the architectural design used in Hadoop is the Hadoop Distributed File System, HDFS [<A
+ HREF="node12.html#borthakur2008">Bor08</A>]. A HDFS cluster consists of a <SPAN  CLASS="textit">name node</SPAN>, and one or more racks of <SPAN  CLASS="textit">data nodes</SPAN>. HDFS is designed to store very large files by splitting them into a sequence of blocks, typically 64 MB in size. The blocks will be distributed across the cluster and replicated for fault tolerance. Typically a replication factor of three is used, with replicas distributed between two racks in order to guard against rack failure as well as data node failure. HDFS was also designed to target a specific type of application, that write data once but read it many times at streaming speeds. 
+
+<P>
+The data nodes store HDFS blocks in files in their local file systems. Each data node has no knowledge about HDFS files, as this information is held on the name node. When a data node starts up, it scans through its local file system and generates a list of all HDFS data blocks that correspond to each of these local files. This information is called a <SPAN  CLASS="textit">BlockReport</SPAN>. 
+
+<P>
+The name node has an in-memory data structure called <SPAN  CLASS="textit">FsImage</SPAN> that contains the entire file system namespace and maps the files on to blocks. It also keeps a log file called <SPAN  CLASS="textit">EditLog</SPAN> on disc that records all the transactions since the FsImage was updated on disc. At startup, changes from EditLog are incorporated into FsImage and the updated version is written back to disc. The name node also makes all decisions regarding replication of blocks. The name node tracks which blocks need to be replicated and initiates replication whenever necessary. HDFS is designed in such a way that user data never flows through the name node, by using a client library that caches metadata from the master, and then performs as much computation as possible on the client.  
+
+<P>
+The data nodes send regular <SPAN  CLASS="textit">heartbeats</SPAN> to the name node so the name node can detect data node failure. If the name node does not receive heartbeats from data nodes for a predetermined period, it marks them as dead and does not forward any new read, write or replication requests to them. The heartbeat message includes the BlockReport from the data node. By design, the name node never initiates any remote procedure calls (RPCs). Instead, it only responds to RPC requests issued by data nodes or clients. It replies to heartbeats with replication requests for the specific data node. 
+
+<P>
+Hadoop uses its own RPC protocol that requires custom serialization and deserialization code to be written for objects. This approach allows the serialization format to be very efficient in comparison to standard Java serialization. 
+
+<P>
+
+<DIV CLASS="navigation"><HR>
+<!--Navigation Panel-->
+<A NAME="tex2html52"
+  HREF="node3.html">
+<IMG WIDTH="37" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="next"
+ SRC="/usr/share/latex2html/icons/next.png"></A> 
+<A NAME="tex2html50"
+  HREF="node1.html">
+<IMG WIDTH="26" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="up"
+ SRC="/usr/share/latex2html/icons/up.png"></A> 
+<A NAME="tex2html44"
+  HREF="node1.html">
+<IMG WIDTH="63" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="previous"
+ SRC="/usr/share/latex2html/icons/prev.png"></A>   
+<BR>
+<B> Next:</B> <A NAME="tex2html53"
+  HREF="node3.html">Distributed Lucene</A>
+<B> Up:</B> <A NAME="tex2html51"
+  HREF="node1.html">Introduction</A>
+<B> Previous:</B> <A NAME="tex2html45"
+  HREF="node1.html">Introduction</A></DIV>
+<!--End of Navigation Panel-->
+<ADDRESS>
+Mark Butler
+2008-05-23
+</ADDRESS>
+</BODY>
+</HTML>

@@ -1,0 +1,118 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+
+<!--Converted with LaTeX2HTML 2002-2-1 (1.71)
+original version by:  Nikos Drakos, CBLU, University of Leeds
+* revised and updated by:  Marcus Hennecke, Ross Moore, Herb Swan
+* with significant contributions from:
+  Jens Lippmann, Marek Rouchal, Martin Wilck and others -->
+<HTML>
+<HEAD>
+<TITLE>Data nodes and name nodes</TITLE>
+<META NAME="description" CONTENT="Data nodes and name nodes">
+<META NAME="keywords" CONTENT="dlucene">
+<META NAME="resource-type" CONTENT="document">
+<META NAME="distribution" CONTENT="global">
+
+<META NAME="Generator" CONTENT="LaTeX2HTML v2002-2-1">
+<META HTTP-EQUIV="Content-Style-Type" CONTENT="text/css">
+
+<LINK REL="STYLESHEET" HREF="dlucene.css">
+
+<LINK REL="next" HREF="node7.html">
+<LINK REL="previous" HREF="node5.html">
+<LINK REL="up" HREF="node3.html">
+<LINK REL="next" HREF="node7.html">
+</HEAD>
+
+<BODY >
+
+<DIV CLASS="navigation"><!--Navigation Panel-->
+<A NAME="tex2html98"
+  HREF="node7.html">
+<IMG WIDTH="37" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="next"
+ SRC="/usr/share/latex2html/icons/next.png"></A> 
+<A NAME="tex2html96"
+  HREF="node3.html">
+<IMG WIDTH="26" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="up"
+ SRC="/usr/share/latex2html/icons/up.png"></A> 
+<A NAME="tex2html90"
+  HREF="node5.html">
+<IMG WIDTH="63" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="previous"
+ SRC="/usr/share/latex2html/icons/prev.png"></A>   
+<BR>
+<B> Next:</B> <A NAME="tex2html99"
+  HREF="node7.html">Sharding</A>
+<B> Up:</B> <A NAME="tex2html97"
+  HREF="node3.html">Distributed Lucene</A>
+<B> Previous:</B> <A NAME="tex2html91"
+  HREF="node5.html">Leases</A>
+<BR>
+<BR></DIV>
+<!--End of Navigation Panel-->
+
+<H3><A NAME="SECTION00012300000000000000">
+Data nodes and name nodes</A>
+</H3>
+
+<P>
+Next, we will consider the API used by data nodes and name nodes. As already noted, name nodes never initiate RPC communication, so there is an API for data nodes to call data nodes, and for data nodes to call name nodes. There are three methods that data nodes can use to call name nodes, as shown in Figure <A HREF="#DataNodeToNameNodeProtocol">3</A>: heartbeating, requests for leases, and requests to relinquish leases when transactions complete. The data node to data node API has two methods as shown in Figure <A HREF="#DataNodeToDataNodeProtocol">4</A>, one to find out what files are associated with a particular IndexVersion, and the other to retrieve a specific file associated with an IndexVersion. These methods support replication.  
+
+<P>
+Data nodes have three types of threads: one to service requests, one to send heartbeats to the master to inform it that the worker is alive, and one to process replication tasks. Name nodes have two types of threads: one to service requests, the other to perform failure detection and compute a replication plan. A subset of this plan is then sent back to each data node in response to their heartbeat.
+
+<P>
+
+<DIV ALIGN="CENTER"><A NAME="DataNodeToNameNodeProtocol"></A><A NAME="64"></A>
+<TABLE>
+<CAPTION ALIGN="BOTTOM"><STRONG>Figure 3:</STRONG>
+DataNodeToNameNodeProtocol</CAPTION>
+<TR><TD><IMG
+ WIDTH="568" HEIGHT="470" BORDER="0"
+ SRC="img3.png"
+ ALT="\begin{figure}\lstinputlisting[firstline=24]{src/main/java/org/apache/hadoop/contrib/dlucene/DataNodeToNameNodeProtocol.java}\end{figure}"></TD></TR>
+</TABLE>
+</DIV>
+
+<P>
+
+<DIV ALIGN="CENTER"><A NAME="DataNodeToDataNodeProtocol"></A><A NAME="69"></A>
+<TABLE>
+<CAPTION ALIGN="BOTTOM"><STRONG>Figure 4:</STRONG>
+DataNodeToDataNodeProtocol</CAPTION>
+<TR><TD><IMG
+ WIDTH="568" HEIGHT="343" BORDER="0"
+ SRC="img4.png"
+ ALT="\begin{figure}\lstinputlisting[firstline=24]{src/main/java/org/apache/hadoop/contrib/dlucene/DataNodeToDataNodeProtocol.java}\end{figure}"></TD></TR>
+</TABLE>
+</DIV>
+
+<P>
+
+<DIV CLASS="navigation"><HR>
+<!--Navigation Panel-->
+<A NAME="tex2html98"
+  HREF="node7.html">
+<IMG WIDTH="37" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="next"
+ SRC="/usr/share/latex2html/icons/next.png"></A> 
+<A NAME="tex2html96"
+  HREF="node3.html">
+<IMG WIDTH="26" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="up"
+ SRC="/usr/share/latex2html/icons/up.png"></A> 
+<A NAME="tex2html90"
+  HREF="node5.html">
+<IMG WIDTH="63" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="previous"
+ SRC="/usr/share/latex2html/icons/prev.png"></A>   
+<BR>
+<B> Next:</B> <A NAME="tex2html99"
+  HREF="node7.html">Sharding</A>
+<B> Up:</B> <A NAME="tex2html97"
+  HREF="node3.html">Distributed Lucene</A>
+<B> Previous:</B> <A NAME="tex2html91"
+  HREF="node5.html">Leases</A></DIV>
+<!--End of Navigation Panel-->
+<ADDRESS>
+Mark Butler
+2008-05-23
+</ADDRESS>
+</BODY>
+</HTML>

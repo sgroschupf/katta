@@ -1,0 +1,83 @@
+\newcommand{\etalchar}[1]{$^{#1}$}
+\begin{thebibliography}{CDG{\etalchar{+}}06}
+
+\bibitem[bai]{bailey}
+Bailey.
+\newblock http://www.sourceforge.net/projects/bailey.
+
+\bibitem[BDH03]{barroso2003}
+L.~A. Barroso, Jeffrey Dean, and U.~H\"olzle.
+\newblock Web search for a planet: The {G}oogle cluster architecture.
+\newblock {\em IEEE Micro}, pages 22--28, March-April 2003.
+
+\bibitem[Bor08]{borthakur2008}
+Dhruba Borthakur.
+\newblock The {Hadoop Distributed File System}: Architecture and design.
+\newblock Document on Hadoop Wiki, 2008.
+
+\bibitem[Bur06]{Bur06}
+Mike Burrows.
+\newblock The chubby lock service for loosely-coupled distributed systems.
+\newblock In {\em USENIX'06: Proceedings of the 7th conference on USENIX
+  Symposium on Operating Systems Design and Implementation}, pages 24--24,
+  Berkeley, CA, USA, 2006. USENIX Association.
+
+\bibitem[CDG{\etalchar{+}}06]{citeulike:2259592}
+Fay Chang, Jeffrey Dean, Sanjay Ghemawat, Wilson~C. Hsieh, Deborah~A. Wallach,
+  Mike Burrows, Tushar Chandra, Andrew Fikes, and Robert~E. Gruber.
+\newblock Bigtable: a distributed storage system for structured data.
+\newblock In {\em OSDI '06: Proceedings of the 7th symposium on Operating
+  systems design and implementation}, pages 205--218, Berkeley, CA, USA, 2006.
+  USENIX Association.
+
+\bibitem[CGR07]{paxos-live}
+Tushar~D. Chandra, Robert Griesemer, and Joshua Redstone.
+\newblock Paxos made live: an engineering perspective.
+\newblock In {\em PODC '07: Proceedings of the twenty-sixth annual ACM
+  symposium on Principles of distributed computing}, pages 398--407, New York,
+  NY, USA, 2007. ACM Press.
+
+\bibitem[Cut]{cutting2006}
+Doug Cutting.
+\newblock Proposal: index server project.
+\newblock Email message on Lucene-General email list.
+
+\bibitem[DG]{citeulike:430834}
+Jeffrey Dean and Sanjay Ghemawat.
+\newblock Mapreduce: Simplified data processing on large clusters.
+\newblock pages 137--150.
+
+\bibitem[dyn]{dynamo}
+Amazon dynamo.
+\newblock http://www.allthingsdistributed.com/2007/10/amazons\_dynamo.html.
+
+\bibitem[GGL03]{citeulike:300020}
+Sanjay Ghemawat, Howard Gobioff, and Shun-Tak Leung.
+\newblock The google file system.
+\newblock In {\em SOSP '03: Proceedings of the nineteenth ACM symposium on
+  Operating systems principles}, pages 29--43, New York, NY, USA, 2003. ACM
+  Press.
+
+\bibitem[had]{hadoop}
+Hadoop.
+\newblock http://hadoop.apache.org/core/.
+
+\bibitem[kat]{katta}
+Katta.
+\newblock http://www.sourceforge.net/projects/katta/.
+
+\bibitem[luc]{lucene}
+Lucene.
+\newblock http://lucene.apache.org/java/docs/index.html.
+
+\bibitem[Vog]{vogelBlog}
+Werner Vogel.
+\newblock Eventually consistent.
+\newblock
+  http://www.allthingsdistributed.com/2007/12/eventually\_consistent.html.
+
+\bibitem[zoo]{zookeeper}
+Zookeeeper.
+\newblock http://www.sourceforge.net/projects/zookeeper/.
+
+\end{thebibliography}

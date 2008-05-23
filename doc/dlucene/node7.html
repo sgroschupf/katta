@@ -1,0 +1,123 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+
+<!--Converted with LaTeX2HTML 2002-2-1 (1.71)
+original version by:  Nikos Drakos, CBLU, University of Leeds
+* revised and updated by:  Marcus Hennecke, Ross Moore, Herb Swan
+* with significant contributions from:
+  Jens Lippmann, Marek Rouchal, Martin Wilck and others -->
+<HTML>
+<HEAD>
+<TITLE>Sharding</TITLE>
+<META NAME="description" CONTENT="Sharding">
+<META NAME="keywords" CONTENT="dlucene">
+<META NAME="resource-type" CONTENT="document">
+<META NAME="distribution" CONTENT="global">
+
+<META NAME="Generator" CONTENT="LaTeX2HTML v2002-2-1">
+<META HTTP-EQUIV="Content-Style-Type" CONTENT="text/css">
+
+<LINK REL="STYLESHEET" HREF="dlucene.css">
+
+<LINK REL="next" HREF="node8.html">
+<LINK REL="previous" HREF="node6.html">
+<LINK REL="up" HREF="node3.html">
+<LINK REL="next" HREF="node8.html">
+</HEAD>
+
+<BODY >
+
+<DIV CLASS="navigation"><!--Navigation Panel-->
+<A NAME="tex2html108"
+  HREF="node8.html">
+<IMG WIDTH="37" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="next"
+ SRC="/usr/share/latex2html/icons/next.png"></A> 
+<A NAME="tex2html106"
+  HREF="node3.html">
+<IMG WIDTH="26" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="up"
+ SRC="/usr/share/latex2html/icons/up.png"></A> 
+<A NAME="tex2html100"
+  HREF="node6.html">
+<IMG WIDTH="63" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="previous"
+ SRC="/usr/share/latex2html/icons/prev.png"></A>   
+<BR>
+<B> Next:</B> <A NAME="tex2html109"
+  HREF="node8.html">Details</A>
+<B> Up:</B> <A NAME="tex2html107"
+  HREF="node3.html">Distributed Lucene</A>
+<B> Previous:</B> <A NAME="tex2html101"
+  HREF="node6.html">Data nodes and name</A>
+<BR>
+<BR></DIV>
+<!--End of Navigation Panel-->
+
+<H3><A NAME="SECTION00012400000000000000">
+Sharding</A>
+</H3>
+Like leases, on first examination sharding seems to require metadata to stored on the name node, hence making name node failover more complicated. However, to avoid this, the decision was taken to perform sharding in the client library. This is done by adopting a simple naming convention is used for shards. When an index is sharded, a hyphen and a number is appended to the name, so for example the index <SPAN  CLASS="textit">myindex</SPAN> might have the following shards:
+
+<P>
+<PRE>
+myindex-1
+myindex-2
+myindex-3
+</PRE>
+
+<P>
+This way the cluster knows nothing about sharding as it is all done by the client library, which hides the underlying sharding from users. This way a sharded index looks like a single index to the user, although they have to add shards to an index manually. Performing sharding in the client library considerably simplifies implementation. In order to better understand how this works, it is useful to look at the Cached Client API. CachedClient, shown in Figure <A HREF="#CachedClient">5</A>, has four methods: one to create an index, and indicate if it is sharded. More shards can be added to an index by calling create multiple times. There are also methods to get an IndexUpdater to modify an index, to determine the number of documents in an index, to query an index and to get a list of all indexes available on the cluster. Then IndexUpdater API is shown in Figure <A HREF="#IndexUpdater">6</A> and has methods to add documents, remove documents or commit an update. 
+
+<P>
+
+<DIV ALIGN="CENTER"><A NAME="CachedClient"></A><A NAME="80"></A>
+<TABLE>
+<CAPTION ALIGN="BOTTOM"><STRONG>Figure 5:</STRONG>
+CachedClient</CAPTION>
+<TR><TD><IMG
+ WIDTH="568" HEIGHT="623" BORDER="0"
+ SRC="img5.png"
+ ALT="\begin{figure}\lstinputlisting[firstline=26]{src/main/java/org/apache/hadoop/contrib/dlucene/ICachedClient.java}\end{figure}"></TD></TR>
+</TABLE>
+</DIV>
+
+<P>
+
+<DIV ALIGN="CENTER"><A NAME="IndexUpdater"></A><A NAME="85"></A>
+<TABLE>
+<CAPTION ALIGN="BOTTOM"><STRONG>Figure 6:</STRONG>
+IndexUpdater</CAPTION>
+<TR><TD><IMG
+ WIDTH="568" HEIGHT="369" BORDER="0"
+ SRC="img6.png"
+ ALT="\begin{figure}\lstinputlisting[firstline=25]{src/main/java/org/apache/hadoop/contrib/dlucene/IIndexUpdater.java}\end{figure}"></TD></TR>
+</TABLE>
+</DIV>
+
+<P>
+
+<DIV CLASS="navigation"><HR>
+<!--Navigation Panel-->
+<A NAME="tex2html108"
+  HREF="node8.html">
+<IMG WIDTH="37" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="next"
+ SRC="/usr/share/latex2html/icons/next.png"></A> 
+<A NAME="tex2html106"
+  HREF="node3.html">
+<IMG WIDTH="26" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="up"
+ SRC="/usr/share/latex2html/icons/up.png"></A> 
+<A NAME="tex2html100"
+  HREF="node6.html">
+<IMG WIDTH="63" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="previous"
+ SRC="/usr/share/latex2html/icons/prev.png"></A>   
+<BR>
+<B> Next:</B> <A NAME="tex2html109"
+  HREF="node8.html">Details</A>
+<B> Up:</B> <A NAME="tex2html107"
+  HREF="node3.html">Distributed Lucene</A>
+<B> Previous:</B> <A NAME="tex2html101"
+  HREF="node6.html">Data nodes and name</A></DIV>
+<!--End of Navigation Panel-->
+<ADDRESS>
+Mark Butler
+2008-05-23
+</ADDRESS>
+</BODY>
+</HTML>

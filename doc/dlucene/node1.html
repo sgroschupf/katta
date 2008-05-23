@@ -1,0 +1,127 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+
+<!--Converted with LaTeX2HTML 2002-2-1 (1.71)
+original version by:  Nikos Drakos, CBLU, University of Leeds
+* revised and updated by:  Marcus Hennecke, Ross Moore, Herb Swan
+* with significant contributions from:
+  Jens Lippmann, Marek Rouchal, Martin Wilck and others -->
+<HTML>
+<HEAD>
+<TITLE>Introduction</TITLE>
+<META NAME="description" CONTENT="Introduction">
+<META NAME="keywords" CONTENT="dlucene">
+<META NAME="resource-type" CONTENT="document">
+<META NAME="distribution" CONTENT="global">
+
+<META NAME="Generator" CONTENT="LaTeX2HTML v2002-2-1">
+<META HTTP-EQUIV="Content-Style-Type" CONTENT="text/css">
+
+<LINK REL="STYLESHEET" HREF="dlucene.css">
+
+<LINK REL="next" HREF="node12.html">
+<LINK REL="previous" HREF="dlucene.html">
+<LINK REL="up" HREF="dlucene.html">
+<LINK REL="next" HREF="node2.html">
+</HEAD>
+
+<BODY >
+
+<DIV CLASS="navigation"><!--Navigation Panel-->
+<A NAME="tex2html32"
+  HREF="node2.html">
+<IMG WIDTH="37" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="next"
+ SRC="/usr/share/latex2html/icons/next.png"></A> 
+<A NAME="tex2html30"
+  HREF="dlucene.html">
+<IMG WIDTH="26" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="up"
+ SRC="/usr/share/latex2html/icons/up.png"></A> 
+<A NAME="tex2html24"
+  HREF="dlucene.html">
+<IMG WIDTH="63" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="previous"
+ SRC="/usr/share/latex2html/icons/prev.png"></A>   
+<BR>
+<B> Next:</B> <A NAME="tex2html33"
+  HREF="node2.html">Hadoop architectural style</A>
+<B> Up:</B> <A NAME="tex2html31"
+  HREF="dlucene.html">Distributed Lucene : A</A>
+<B> Previous:</B> <A NAME="tex2html25"
+  HREF="dlucene.html">Distributed Lucene : A</A>
+<BR>
+<BR></DIV>
+<!--End of Navigation Panel-->
+
+<H1><A NAME="SECTION00010000000000000000">
+Introduction</A>
+</H1>
+<SPAN  CLASS="textit">Hadoop</SPAN> is an open source Apache Software Foundation project, sponsored by Yahoo![<A
+ HREF="node12.html#hadoop">had</A>] and led by Doug Cutting. It attempts to replicate the proprietary software infrastructure that Google have developed to support applications requiring high scalability such as web search. It provides components to support <SPAN  CLASS="textit">MapReduce</SPAN> parallel processing [<A
+ HREF="node12.html#citeulike:430834">DG</A>], a distributed file system called <SPAN  CLASS="textit">HDFS</SPAN> inspired by the Google File System [<A
+ HREF="node12.html#citeulike:300020">GGL03</A>], and a distributed database called <SPAN  CLASS="textit">HBase</SPAN> based on a Google database called [<A
+ HREF="node12.html#citeulike:2259592">CDG<SUP>+</SUP>06</A>]. 
+
+<P>
+Given the origins of Hadoop, it is very natural it should be used as the basis of web search engines. It is currently used in <SPAN  CLASS="textit">Apache Nutch</SPAN>, an open source web crawler that creates the data set for a search engine. Nutch is often used with <SPAN  CLASS="textit">Apache Lucene</SPAN>, which provides a free text index [<A
+ HREF="node12.html#lucene">luc</A>]. Doug Cutting is lead on all three projects. Despite the link between Hadoop and Lucene, at the time of writing there is no easy, off the shelf way to use Hadoop to implement a parallel search engine with a similar architecture to the Google search engine [<A
+ HREF="node12.html#barroso2003">BDH03</A>]. However in 2006, Doug Cutting came up with an initial design for creating a distributed free-text index using Hadoop and Lucene [<A
+ HREF="node12.html#cutting2006">Cut</A>]. This technical report describes work at HP Labs to implement a distributed free text index based on this design. This work was undertaken in order to better understand the architectural style used in Hadoop. Since this work commenced, two other external open source projects have started work on the same problem. Katta [<A
+ HREF="node12.html#katta">kat</A>] is a distributed free text index using Hadoop, with contributions from 101tec. Bailey [<A
+ HREF="node12.html#bailey">bai</A>] does not use Hadoop, but this project is being led by Doug Cutting so clearly it is influenced by Hadoop, with contributions from Yahoo and IBM. 
+
+<P>
+<BR><HR>
+<!--Table of Child-Links-->
+<A NAME="CHILD_LINKS"><STRONG>Subsections</STRONG></A>
+
+<UL CLASS="ChildLinks">
+<LI><A NAME="tex2html34"
+  HREF="node2.html">Hadoop architectural style</A>
+<LI><A NAME="tex2html35"
+  HREF="node3.html">Distributed Lucene</A>
+<UL>
+<LI><A NAME="tex2html36"
+  HREF="node4.html">Basic design</A>
+<LI><A NAME="tex2html37"
+  HREF="node5.html">Leases</A>
+<LI><A NAME="tex2html38"
+  HREF="node6.html">Data nodes and name nodes</A>
+<LI><A NAME="tex2html39"
+  HREF="node7.html">Sharding</A>
+<LI><A NAME="tex2html40"
+  HREF="node8.html">Details</A>
+<LI><A NAME="tex2html41"
+  HREF="node9.html">Current limitations</A>
+<LI><A NAME="tex2html42"
+  HREF="node10.html">Comparison with other projects</A>
+<LI><A NAME="tex2html43"
+  HREF="node11.html">Conclusions</A>
+</UL></UL>
+<!--End of Table of Child-Links-->
+
+<DIV CLASS="navigation"><HR>
+<!--Navigation Panel-->
+<A NAME="tex2html32"
+  HREF="node2.html">
+<IMG WIDTH="37" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="next"
+ SRC="/usr/share/latex2html/icons/next.png"></A> 
+<A NAME="tex2html30"
+  HREF="dlucene.html">
+<IMG WIDTH="26" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="up"
+ SRC="/usr/share/latex2html/icons/up.png"></A> 
+<A NAME="tex2html24"
+  HREF="dlucene.html">
+<IMG WIDTH="63" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="previous"
+ SRC="/usr/share/latex2html/icons/prev.png"></A>   
+<BR>
+<B> Next:</B> <A NAME="tex2html33"
+  HREF="node2.html">Hadoop architectural style</A>
+<B> Up:</B> <A NAME="tex2html31"
+  HREF="dlucene.html">Distributed Lucene : A</A>
+<B> Previous:</B> <A NAME="tex2html25"
+  HREF="dlucene.html">Distributed Lucene : A</A></DIV>
+<!--End of Navigation Panel-->
+<ADDRESS>
+Mark Butler
+2008-05-23
+</ADDRESS>
+</BODY>
+</HTML>

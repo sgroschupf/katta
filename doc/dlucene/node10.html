@@ -1,0 +1,97 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+
+<!--Converted with LaTeX2HTML 2002-2-1 (1.71)
+original version by:  Nikos Drakos, CBLU, University of Leeds
+* revised and updated by:  Marcus Hennecke, Ross Moore, Herb Swan
+* with significant contributions from:
+  Jens Lippmann, Marek Rouchal, Martin Wilck and others -->
+<HTML>
+<HEAD>
+<TITLE>Comparison with other projects</TITLE>
+<META NAME="description" CONTENT="Comparison with other projects">
+<META NAME="keywords" CONTENT="dlucene">
+<META NAME="resource-type" CONTENT="document">
+<META NAME="distribution" CONTENT="global">
+
+<META NAME="Generator" CONTENT="LaTeX2HTML v2002-2-1">
+<META HTTP-EQUIV="Content-Style-Type" CONTENT="text/css">
+
+<LINK REL="STYLESHEET" HREF="dlucene.css">
+
+<LINK REL="next" HREF="node11.html">
+<LINK REL="previous" HREF="node9.html">
+<LINK REL="up" HREF="node3.html">
+<LINK REL="next" HREF="node11.html">
+</HEAD>
+
+<BODY >
+
+<DIV CLASS="navigation"><!--Navigation Panel-->
+<A NAME="tex2html138"
+  HREF="node11.html">
+<IMG WIDTH="37" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="next"
+ SRC="/usr/share/latex2html/icons/next.png"></A> 
+<A NAME="tex2html136"
+  HREF="node3.html">
+<IMG WIDTH="26" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="up"
+ SRC="/usr/share/latex2html/icons/up.png"></A> 
+<A NAME="tex2html130"
+  HREF="node9.html">
+<IMG WIDTH="63" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="previous"
+ SRC="/usr/share/latex2html/icons/prev.png"></A>   
+<BR>
+<B> Next:</B> <A NAME="tex2html139"
+  HREF="node11.html">Conclusions</A>
+<B> Up:</B> <A NAME="tex2html137"
+  HREF="node3.html">Distributed Lucene</A>
+<B> Previous:</B> <A NAME="tex2html131"
+  HREF="node9.html">Current limitations</A>
+<BR>
+<BR></DIV>
+<!--End of Navigation Panel-->
+
+<H3><A NAME="SECTION00012700000000000000">
+Comparison with other projects</A>
+</H3>
+
+<P>
+Bailey [<A
+ HREF="node12.html#bailey">bai</A>] is an open source project creating a scalable, distributed document database led by Doug Cutting. The design is strongly influenced by Amazon Dynamic [<A
+ HREF="node12.html#vogelBlog">Vog</A>],[<A
+ HREF="node12.html#dynamo">dyn</A>]. Here they calculate a hash of each document, and map it onto a document identifier hash space that is arranged as a ring. To achieve three way replication, the document is also stored on the node after and the node before. That way if the node fails, or if a new node is added, the document is still available. Replication then occurs to balance the location of documents in the cluster. Like distributed Lucene, it performs replication using differences to minimize network traffic.
+
+<P>
+Katta [<A
+ HREF="node12.html#katta">kat</A>] is an open source project created to provide a distributed Lucene index by 101tec. This project currently seems to be the most mature project of the three, but unlike distributed Lucene, it does not allow on-line updates to the underlying Lucene indexes. In contrast to distributed Lucene, it stores the Lucene indexes in HDFS and uses Zookeeper [<A
+ HREF="node12.html#zookeeper">zoo</A>] to perform locking and also to distribute metadata about the cluster, rather than using a heartbeating mechanism.
+
+<P>
+
+<DIV CLASS="navigation"><HR>
+<!--Navigation Panel-->
+<A NAME="tex2html138"
+  HREF="node11.html">
+<IMG WIDTH="37" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="next"
+ SRC="/usr/share/latex2html/icons/next.png"></A> 
+<A NAME="tex2html136"
+  HREF="node3.html">
+<IMG WIDTH="26" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="up"
+ SRC="/usr/share/latex2html/icons/up.png"></A> 
+<A NAME="tex2html130"
+  HREF="node9.html">
+<IMG WIDTH="63" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="previous"
+ SRC="/usr/share/latex2html/icons/prev.png"></A>   
+<BR>
+<B> Next:</B> <A NAME="tex2html139"
+  HREF="node11.html">Conclusions</A>
+<B> Up:</B> <A NAME="tex2html137"
+  HREF="node3.html">Distributed Lucene</A>
+<B> Previous:</B> <A NAME="tex2html131"
+  HREF="node9.html">Current limitations</A></DIV>
+<!--End of Navigation Panel-->
+<ADDRESS>
+Mark Butler
+2008-05-23
+</ADDRESS>
+</BODY>
+</HTML>

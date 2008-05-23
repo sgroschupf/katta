@@ -1,0 +1,113 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+
+<!--Converted with LaTeX2HTML 2002-2-1 (1.71)
+original version by:  Nikos Drakos, CBLU, University of Leeds
+* revised and updated by:  Marcus Hennecke, Ross Moore, Herb Swan
+* with significant contributions from:
+  Jens Lippmann, Marek Rouchal, Martin Wilck and others -->
+<HTML>
+<HEAD>
+<TITLE>Distributed Lucene</TITLE>
+<META NAME="description" CONTENT="Distributed Lucene">
+<META NAME="keywords" CONTENT="dlucene">
+<META NAME="resource-type" CONTENT="document">
+<META NAME="distribution" CONTENT="global">
+
+<META NAME="Generator" CONTENT="LaTeX2HTML v2002-2-1">
+<META HTTP-EQUIV="Content-Style-Type" CONTENT="text/css">
+
+<LINK REL="STYLESHEET" HREF="dlucene.css">
+
+<LINK REL="previous" HREF="node2.html">
+<LINK REL="up" HREF="node1.html">
+<LINK REL="next" HREF="node4.html">
+</HEAD>
+
+<BODY >
+
+<DIV CLASS="navigation"><!--Navigation Panel-->
+<A NAME="tex2html60"
+  HREF="node4.html">
+<IMG WIDTH="37" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="next"
+ SRC="/usr/share/latex2html/icons/next.png"></A> 
+<A NAME="tex2html58"
+  HREF="node1.html">
+<IMG WIDTH="26" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="up"
+ SRC="/usr/share/latex2html/icons/up.png"></A> 
+<A NAME="tex2html54"
+  HREF="node2.html">
+<IMG WIDTH="63" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="previous"
+ SRC="/usr/share/latex2html/icons/prev.png"></A>   
+<BR>
+<B> Next:</B> <A NAME="tex2html61"
+  HREF="node4.html">Basic design</A>
+<B> Up:</B> <A NAME="tex2html59"
+  HREF="node1.html">Introduction</A>
+<B> Previous:</B> <A NAME="tex2html55"
+  HREF="node2.html">Hadoop architectural style</A>
+<BR>
+<BR></DIV>
+<!--End of Navigation Panel-->
+
+<H2><A NAME="SECTION00012000000000000000">
+Distributed Lucene</A>
+</H2>
+Although the code for distributed Lucene is heavily influence by HDFS and was written by examining the HDFS code, it does not use HDFS directly. It does reuse the Hadoop IPC layer and some code to model network topology. There are four reasons for this decision not to use HDFS: First, in HDFS it is not possible for multiple clients to write to the same index. Here it is desirable for multiple clients to be able to access the same index, in order to parallelize index creation. Second, Lucene indexes generally contain a number of different files, some of which may be smaller than the 64MB block size for HDFS, so storing them in HDFS may not be efficient. Third, creating an implementation specifically for Lucene gives the author a better understanding of the Hadoop architectural style. Fourth, in the future it might be desirable to have an abstract layer in Hadoop, that can be used to implement different storage and parallel processing services. By implementing distributed Lucene separately from HDFS, it is possible start to understand what this might look like and what software components could be shared by these services. Also, on first examination, the fact that HDFS is write only would appear to be a problem as any modifications to an index require a new copy of the index. However, because the design specified by Doug Cutting [<A
+ HREF="node12.html#cutting2006">Cut</A>] uses a versioning mechanism that requires a new version of an index to be made when changes are applied, it would be possible to implement this design on a write-only index. 
+
+<P>
+One of the design goals of distributed Lucene was to avoid storing metadata on the name node. In HDFS, the name node stores FSImage and EditLog. This means when the name node fails, switching over to another namenode is more complicated because the other name node requires these files. Here, the aim is to keep primary metadata on data nodes, not the name node, so that name node metadata can be recovered automatically from data nodes. 
+
+<P>
+<BR><HR>
+<!--Table of Child-Links-->
+<A NAME="CHILD_LINKS"><STRONG>Subsections</STRONG></A>
+
+<UL CLASS="ChildLinks">
+<LI><A NAME="tex2html62"
+  HREF="node4.html">Basic design</A>
+<LI><A NAME="tex2html63"
+  HREF="node5.html">Leases</A>
+<LI><A NAME="tex2html64"
+  HREF="node6.html">Data nodes and name nodes</A>
+<LI><A NAME="tex2html65"
+  HREF="node7.html">Sharding</A>
+<LI><A NAME="tex2html66"
+  HREF="node8.html">Details</A>
+<LI><A NAME="tex2html67"
+  HREF="node9.html">Current limitations</A>
+<LI><A NAME="tex2html68"
+  HREF="node10.html">Comparison with other projects</A>
+<LI><A NAME="tex2html69"
+  HREF="node11.html">Conclusions</A>
+</UL>
+<!--End of Table of Child-Links-->
+
+<DIV CLASS="navigation"><HR>
+<!--Navigation Panel-->
+<A NAME="tex2html60"
+  HREF="node4.html">
+<IMG WIDTH="37" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="next"
+ SRC="/usr/share/latex2html/icons/next.png"></A> 
+<A NAME="tex2html58"
+  HREF="node1.html">
+<IMG WIDTH="26" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="up"
+ SRC="/usr/share/latex2html/icons/up.png"></A> 
+<A NAME="tex2html54"
+  HREF="node2.html">
+<IMG WIDTH="63" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="previous"
+ SRC="/usr/share/latex2html/icons/prev.png"></A>   
+<BR>
+<B> Next:</B> <A NAME="tex2html61"
+  HREF="node4.html">Basic design</A>
+<B> Up:</B> <A NAME="tex2html59"
+  HREF="node1.html">Introduction</A>
+<B> Previous:</B> <A NAME="tex2html55"
+  HREF="node2.html">Hadoop architectural style</A></DIV>
+<!--End of Navigation Panel-->
+<ADDRESS>
+Mark Butler
+2008-05-23
+</ADDRESS>
+</BODY>
+</HTML>

@@ -1,0 +1,108 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+
+<!--Converted with LaTeX2HTML 2002-2-1 (1.71)
+original version by:  Nikos Drakos, CBLU, University of Leeds
+* revised and updated by:  Marcus Hennecke, Ross Moore, Herb Swan
+* with significant contributions from:
+  Jens Lippmann, Marek Rouchal, Martin Wilck and others -->
+<HTML>
+<HEAD>
+<TITLE>Current limitations</TITLE>
+<META NAME="description" CONTENT="Current limitations">
+<META NAME="keywords" CONTENT="dlucene">
+<META NAME="resource-type" CONTENT="document">
+<META NAME="distribution" CONTENT="global">
+
+<META NAME="Generator" CONTENT="LaTeX2HTML v2002-2-1">
+<META HTTP-EQUIV="Content-Style-Type" CONTENT="text/css">
+
+<LINK REL="STYLESHEET" HREF="dlucene.css">
+
+<LINK REL="next" HREF="node10.html">
+<LINK REL="previous" HREF="node8.html">
+<LINK REL="up" HREF="node3.html">
+<LINK REL="next" HREF="node10.html">
+</HEAD>
+
+<BODY >
+
+<DIV CLASS="navigation"><!--Navigation Panel-->
+<A NAME="tex2html128"
+  HREF="node10.html">
+<IMG WIDTH="37" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="next"
+ SRC="/usr/share/latex2html/icons/next.png"></A> 
+<A NAME="tex2html126"
+  HREF="node3.html">
+<IMG WIDTH="26" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="up"
+ SRC="/usr/share/latex2html/icons/up.png"></A> 
+<A NAME="tex2html120"
+  HREF="node8.html">
+<IMG WIDTH="63" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="previous"
+ SRC="/usr/share/latex2html/icons/prev.png"></A>   
+<BR>
+<B> Next:</B> <A NAME="tex2html129"
+  HREF="node10.html">Comparison with other projects</A>
+<B> Up:</B> <A NAME="tex2html127"
+  HREF="node3.html">Distributed Lucene</A>
+<B> Previous:</B> <A NAME="tex2html121"
+  HREF="node8.html">Details</A>
+<BR>
+<BR></DIV>
+<!--End of Navigation Panel-->
+
+<H3><A NAME="SECTION00012600000000000000">
+Current limitations</A>
+</H3>
+
+<P>
+Currently the code for distributed Lucene is alpha quality and at the time of writing there are currently a number of items of missing functionality:
+
+<P>
+
+<UL>
+<LI>First, sorting does not work on sharded indexes, as the client library should sort the results obtained from the data nodes. As each result set from a datanode will be sorted, n-way merge sort would be an efficient algorithm.
+</LI>
+<LI>Second, there is no thread that delete old versions of indexes. This should be done after a predetermined time, as in HDFS. 
+</LI>
+<LI>Third, although the code can use Lucene's RAM based indexes for testing, this is useless for a real cluster as the indexes are no longer persistant. Clearly it would be useful to cache often queried indexes in RAM. 
+</LI>
+<LI>Fourth, HDFS provides a ``throttler'' to avoid a single client using all available bandwidth. There is no equivalent of a throttler in distributed Lucene. 
+</LI>
+<LI>Fifth, although replication will use older index versions to reduce replication data transfer, the replication assignment algorithm should make use of this, by scheduling replicas on nodes that already have some of the index data. Currently it is purely random. 
+</LI>
+<LI>Sixth, there are no benchmarks on index performance. 
+</LI>
+<LI>Finally, HDFS uses a chained approach to data replication. When a client wants to write a block, it retrieves a list of data nodes from the name node that will host a replica of that block. The client then sends the data block to the first data node. This data node saves the data, and forwards it to the second replica. The same pipelining is used for the third replica. Distributed Lucene does not use pipelining. 
+</LI>
+</UL>
+
+<P>
+
+<DIV CLASS="navigation"><HR>
+<!--Navigation Panel-->
+<A NAME="tex2html128"
+  HREF="node10.html">
+<IMG WIDTH="37" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="next"
+ SRC="/usr/share/latex2html/icons/next.png"></A> 
+<A NAME="tex2html126"
+  HREF="node3.html">
+<IMG WIDTH="26" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="up"
+ SRC="/usr/share/latex2html/icons/up.png"></A> 
+<A NAME="tex2html120"
+  HREF="node8.html">
+<IMG WIDTH="63" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="previous"
+ SRC="/usr/share/latex2html/icons/prev.png"></A>   
+<BR>
+<B> Next:</B> <A NAME="tex2html129"
+  HREF="node10.html">Comparison with other projects</A>
+<B> Up:</B> <A NAME="tex2html127"
+  HREF="node3.html">Distributed Lucene</A>
+<B> Previous:</B> <A NAME="tex2html121"
+  HREF="node8.html">Details</A></DIV>
+<!--End of Navigation Panel-->
+<ADDRESS>
+Mark Butler
+2008-05-23
+</ADDRESS>
+</BODY>
+</HTML>

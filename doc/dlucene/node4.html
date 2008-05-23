@@ -1,0 +1,122 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+
+<!--Converted with LaTeX2HTML 2002-2-1 (1.71)
+original version by:  Nikos Drakos, CBLU, University of Leeds
+* revised and updated by:  Marcus Hennecke, Ross Moore, Herb Swan
+* with significant contributions from:
+  Jens Lippmann, Marek Rouchal, Martin Wilck and others -->
+<HTML>
+<HEAD>
+<TITLE>Basic design</TITLE>
+<META NAME="description" CONTENT="Basic design">
+<META NAME="keywords" CONTENT="dlucene">
+<META NAME="resource-type" CONTENT="document">
+<META NAME="distribution" CONTENT="global">
+
+<META NAME="Generator" CONTENT="LaTeX2HTML v2002-2-1">
+<META HTTP-EQUIV="Content-Style-Type" CONTENT="text/css">
+
+<LINK REL="STYLESHEET" HREF="dlucene.css">
+
+<LINK REL="next" HREF="node5.html">
+<LINK REL="previous" HREF="node3.html">
+<LINK REL="up" HREF="node3.html">
+<LINK REL="next" HREF="node5.html">
+</HEAD>
+
+<BODY >
+
+<DIV CLASS="navigation"><!--Navigation Panel-->
+<A NAME="tex2html78"
+  HREF="node5.html">
+<IMG WIDTH="37" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="next"
+ SRC="/usr/share/latex2html/icons/next.png"></A> 
+<A NAME="tex2html76"
+  HREF="node3.html">
+<IMG WIDTH="26" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="up"
+ SRC="/usr/share/latex2html/icons/up.png"></A> 
+<A NAME="tex2html70"
+  HREF="node3.html">
+<IMG WIDTH="63" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="previous"
+ SRC="/usr/share/latex2html/icons/prev.png"></A>   
+<BR>
+<B> Next:</B> <A NAME="tex2html79"
+  HREF="node5.html">Leases</A>
+<B> Up:</B> <A NAME="tex2html77"
+  HREF="node3.html">Distributed Lucene</A>
+<B> Previous:</B> <A NAME="tex2html71"
+  HREF="node3.html">Distributed Lucene</A>
+<BR>
+<BR></DIV>
+<!--End of Navigation Panel-->
+
+<H3><A NAME="SECTION00012100000000000000">
+Basic design</A>
+</H3>
+Each data node contains information about all the versions of an index it stores. These versions are represented by an identifier known as an <SPAN  CLASS="textit">IndexVersion</SPAN> which consists of an <SPAN  CLASS="textit">index name</SPAN> and a <SPAN  CLASS="textit">version number</SPAN>. Because there may be several replicas of a specific IndexVersion, there is another identifier known as an <SPAN  CLASS="textit">IndexLocation</SPAN> that also contains the socket address of the data node that stores the replica and indicates the state of index i.e. if it is uncommitted, replicating or live. 
+
+<P>
+To understand the design, we will start with the basic client API. In order to simplify implementation, this API does not implement sharding. Instead this is done by a higher level client API, and the mechanism for this will be explained later. As shown in Figure <A HREF="#ClientToNameNodeProtocol">1</A>, a client can call the name node to get metadata about the cluster or to get an identifier for a random data node. A client can call a data node as shown in Figure <A HREF="#ClientToDataNodeProtocol">2</A> to create new indexes, add or remove documents from indexes, commit indexes, search indexes, add one index to another, and determine the number of documents in an index. When a client adds documents to or removes documents from an index, this creates a new uncommitted IndexVersion which needs to be explicitly committed in order to be searched. Only one uncommitted IndexVersion can be open for any index at once. When a new index version is created, or a data node fails, this changes the replication state of the cluster. This will be detected by the name node at the next heartbeat, and it will schedule replication tasks in order to maintain the required level of replication. 
+
+<P>
+
+<DIV ALIGN="CENTER"><A NAME="ClientToNameNodeProtocol"></A><A NAME="45"></A>
+<TABLE>
+<CAPTION ALIGN="BOTTOM"><STRONG>Figure 1:</STRONG>
+ClientToNameNodeProtocol</CAPTION>
+<TR><TD><IMG
+ WIDTH="568" HEIGHT="241" BORDER="0"
+ SRC="img1.png"
+ ALT="\begin{figure}\lstinputlisting[firstline=22]{src/main/java/org/apache/hadoop/contrib/dlucene/ClientToNameNodeProtocol.java}\end{figure}"></TD></TR>
+</TABLE>
+</DIV>
+
+<P>
+
+<DIV ALIGN="CENTER"><A NAME="ClientToDataNodeProtocol"></A><A NAME="50"></A>
+<TABLE>
+<CAPTION ALIGN="BOTTOM"><STRONG>Figure 2:</STRONG>
+ClientToDataNodeProtocol</CAPTION>
+<TR><TD><IMG
+ WIDTH="568" HEIGHT="980" BORDER="0"
+ SRC="img2.png"
+ ALT="\begin{figure}\lstinputlisting[firstline=29]{src/main/java/org/apache/hadoop/contrib/dlucene/ClientToDataNodeProtocol.java}\end{figure}"></TD></TR>
+</TABLE>
+</DIV>
+
+<P>
+At startup, all the data nodes send heartbeats to the name node. The heartbeat contains information about the status of the data node, the IndexLocations of all the indexes it holds, and any leases it holds. The name node stores this information in order to manage the cluster. 
+
+<P>
+Lucene makes it easy to compare two different versions of the same index and determine what has changed, because it adds files to an index to store changes. This means when indexes are replicated, if the receiving node has an older copy of the index it is not necessary to transmit the entire index between data nodes, because it just needs the changes that have happened since the latest version it has of the index. 
+
+<P>
+
+<DIV CLASS="navigation"><HR>
+<!--Navigation Panel-->
+<A NAME="tex2html78"
+  HREF="node5.html">
+<IMG WIDTH="37" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="next"
+ SRC="/usr/share/latex2html/icons/next.png"></A> 
+<A NAME="tex2html76"
+  HREF="node3.html">
+<IMG WIDTH="26" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="up"
+ SRC="/usr/share/latex2html/icons/up.png"></A> 
+<A NAME="tex2html70"
+  HREF="node3.html">
+<IMG WIDTH="63" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="previous"
+ SRC="/usr/share/latex2html/icons/prev.png"></A>   
+<BR>
+<B> Next:</B> <A NAME="tex2html79"
+  HREF="node5.html">Leases</A>
+<B> Up:</B> <A NAME="tex2html77"
+  HREF="node3.html">Distributed Lucene</A>
+<B> Previous:</B> <A NAME="tex2html71"
+  HREF="node3.html">Distributed Lucene</A></DIV>
+<!--End of Navigation Panel-->
+<ADDRESS>
+Mark Butler
+2008-05-23
+</ADDRESS>
+</BODY>
+</HTML>
