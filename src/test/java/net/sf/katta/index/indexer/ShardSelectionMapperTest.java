@@ -35,10 +35,6 @@ import org.apache.hadoop.mapred.Reporter;
 import org.jmock.Expectations;
 import org.jmock.Mockery;
 
-/**
- * Created by IntelliJ IDEA. User: mb Date: May 9, 2008 Time: 9:26:24 PM To
- * change this template use File | Settings | File Templates.
- */
 public class ShardSelectionMapperTest extends TestCase {
 
   public static class DummyKeyGenerator implements IShardKeyGenerator {
