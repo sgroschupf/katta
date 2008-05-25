@@ -24,6 +24,7 @@ import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.FilenameFilter;
 import java.io.IOException;
 import java.net.BindException;
 import java.net.URI;
@@ -51,6 +52,7 @@ import net.sf.katta.zk.ZKClient;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.DataOutputBuffer;
@@ -148,7 +150,10 @@ public class Slave implements ISearch {
 
   public void shutdown() {
     _timer.cancel();
-    _zk.close();
+    // TODO do we really need to close the zk here?
+    if (_zk != null) {
+      _zk.close();
+    }
     _server.stop();
   }
 
@@ -194,22 +199,32 @@ public class Slave implements ISearch {
    */
   private void checkAndDeployExistingShards(final ArrayList<String> shardsToDeploy) throws KattaException {
     synchronized (_shardFolder) {
-      final String[] localShards = _shardFolder.list();
-      // in case no shards are assigned we want to remove local shards.
+      final String[] localShards = _shardFolder.list(new FilenameFilter() {
+        public boolean accept(final File dir, final String name) {
+          return !name.startsWith(".");
+        }
+      });
+      // in case not shards are assigned we want to remove local shards.
       if (shardsToDeploy == null || shardsToDeploy.size() == 0) {
-        for (final String localShard : localShards) {
-          final File file = new File(_shardFolder, localShard);
-          if (file.exists()) {
-            if (!deleteFolder(file)) {
-              throw new RuntimeException("unable to delete local shard: " + file.getAbsolutePath());
+        LocalFileSystem localFileSystem;
+        try {
+          localFileSystem = FileSystem.getLocal(new Configuration());
+          for (final String localShard : localShards) {
+            final Path localShardPath = new Path(_shardFolder.getAbsolutePath(), localShard);
+            if (localFileSystem.exists(localShardPath)) {
+              if (!localFileSystem.delete(localShardPath)) {
+                throw new RuntimeException("unable to delete local shard: " + localShardPath.toString());
+              }
             }
           }
+        } catch (final IOException e) {
+          throw new KattaException("Faild use local hadoop file system.", e);
         }
       }
       // remove those we do not need anymore
       final List<String> localShardList = Arrays.asList(localShards);
       final List<String> toRemove = ComparisonUtil.getRemoved(localShardList, shardsToDeploy);
-      removeShards(toRemove);
+      //      removeShards(toRemove);
 
       // now only download those we do not yet have local or we can't deploy
       if (shardsToDeploy != null && shardsToDeploy.size() != 0) {
@@ -476,10 +491,10 @@ public class Slave implements ISearch {
    * (non-Javadoc)
    * 
    * @see net.sf.katta.slave.ISearch#search(net.sf.katta.slave.IQuery,
-   * net.sf.katta.slave.DocumentFrequenceWritable, java.lang.String[])
+   *      net.sf.katta.slave.DocumentFrequenceWritable, java.lang.String[])
    */
   public HitsMapWritable search(final IQuery query, final DocumentFrequenceWritable freqs, final String[] shards)
-      throws IOException {
+  throws IOException {
     return search(query, freqs, shards, Integer.MAX_VALUE - 1);
   }
 
@@ -487,7 +502,7 @@ public class Slave implements ISearch {
    * (non-Javadoc)
    * 
    * @see net.sf.katta.slave.ISearch#search(net.sf.katta.slave.IQuery,
-   * net.sf.katta.slave.DocumentFrequenceWritable, java.lang.String[], int)
+   *      net.sf.katta.slave.DocumentFrequenceWritable, java.lang.String[], int)
    */
   public HitsMapWritable search(final IQuery query, final DocumentFrequenceWritable freqs, final String[] shards,
       final int count) throws IOException {
@@ -545,7 +560,7 @@ public class Slave implements ISearch {
    * (non-Javadoc)
    * 
    * @see net.sf.katta.slave.ISearch#getDocFreqs(net.sf.katta.slave.IQuery,
-   * java.lang.String[])
+   *      java.lang.String[])
    */
   public DocumentFrequenceWritable getDocFreqs(final IQuery input, final String[] shards) throws IOException {
     Query luceneQuery;
@@ -607,7 +622,7 @@ public class Slave implements ISearch {
    * (non-Javadoc)
    * 
    * @see net.sf.katta.slave.ISearch#getDetails(java.lang.String, int,
-   * java.lang.String[])
+   *      java.lang.String[])
    */
   public MapWritable getDetails(final String shard, final int docId, final String[] fieldNames) throws IOException {
     final MapWritable result = new MapWritable();
@@ -629,7 +644,7 @@ public class Slave implements ISearch {
    * (non-Javadoc)
    * 
    * @see net.sf.katta.slave.ISearch#getResultCount(net.sf.katta.slave.IQuery,
-   * java.lang.String[])
+   *      java.lang.String[])
    */
   public int getResultCount(final IQuery query, final String[] shards) throws IOException {
     final DocumentFrequenceWritable docFreqs = getDocFreqs(query, shards);

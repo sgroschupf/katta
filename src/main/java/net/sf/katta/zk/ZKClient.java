@@ -91,11 +91,11 @@ public class ZKClient implements Watcher {
    * @param listener
    * @return list of children nodes for given path.
    * @throws KattaException
-   *    Thrown in case we can't read the children nodes. Note that we also
-   *    remove the notification listener.
+   *             Thrown in case we can't read the children nodes. Note that we
+   *             also remove the notification listener.
    */
   public ArrayList<String> subscribeChildChanges(final String path, final IZKEventListener listener)
-      throws KattaException {
+  throws KattaException {
     addChildListener(path, listener);
     synchronized (_zk) {
       try {
@@ -330,8 +330,7 @@ public class ZKClient implements Watcher {
   /*
    * (non-Javadoc)
    * 
-   * @see
-   * com.yahoo.zookeeper.Watcher#process(com.yahoo.zookeeper.proto.WatcherEvent)
+   * @see com.yahoo.zookeeper.Watcher#process(com.yahoo.zookeeper.proto.WatcherEvent)
    */
   public void process(final WatcherEvent event) {
     synchronized (_mutex) {
@@ -411,13 +410,15 @@ public class ZKClient implements Watcher {
   public void close() {
     synchronized (_mutex) {
       try {
-        try {
-          _zk.disconnect();
-        } catch (final IOException e) {
-          throw new RuntimeException("unable to disconnect zookeeper");
+        if (_zk != null) {
+          try {
+            _zk.disconnect();
+          } catch (final IOException e) {
+            throw new RuntimeException("unable to disconnect zookeeper");
+          }
+          _zk.close();
+          _zk = null;
         }
-        _zk.close();
-        _zk = null;
       } catch (final InterruptedException e) {
         throw new RuntimeException("unable to close zookeeper");
       }
@@ -505,7 +506,6 @@ public class ZKClient implements Watcher {
    * @param ms
    */
   public void waitForZooKeeper(final long ms) {
-
     final long end = System.currentTimeMillis() + ms;
     try {
       while (_zk.getState() != ZooKeeper.States.CONNECTED) {
@@ -526,7 +526,6 @@ public class ZKClient implements Watcher {
    * @throws KattaException
    */
   public void createDefaultStructure() throws KattaException {
-    waitForZooKeeper(30000);
     Logger.debug("Creating default File structure if required....");
     if (!exists(IPaths.ROOT_PATH)) {
       create(IPaths.ROOT_PATH);

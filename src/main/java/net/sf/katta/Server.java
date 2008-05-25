@@ -55,7 +55,10 @@ public class Server {
 
   private Slave _slave;
 
+  private final ZkConfiguration _conf;
+
   public Server(final ZkConfiguration conf) {
+    _conf = conf;
     if (Logger.isInfo()) {
       final String[] localHostNames = NetworkUtil.getLocalHostNames();
       String names = "";
@@ -84,7 +87,7 @@ public class Server {
     if (masterConfigured && willBeMaster) {
       // TODO make policy configurable
       Logger.info("Starting Master...");
-      Master master = new Master(client, new DefaultDistributionPolicy());
+      final Master master = new Master(client, new DefaultDistributionPolicy());
       master.start();
     } else if (!masterConfigured && willBeMaster) {
       // TODO make a willBeMaster fail over here
@@ -137,33 +140,22 @@ public class Server {
       // yes this server needs to start a zookeeper server
       final int port = conf.getZKClientPort();
       // check if this maschine is already something running..
-      boolean free = false;
-      try {
-        final ServerSocket socket = new ServerSocket(port);
-        free = true;
-        socket.close();
-      } catch (final Exception e) {
-        free = false;
-      }
-      if (free) {
-        final String[] hosts = servers.split(",");
+      checkPort(port);
+      final String[] hosts = servers.split(",");
 
-        final int tickTime = conf.getZKTickTime();
-        final File dataDir = conf.getZKDataDir();
-        final File dataLogDir = conf.getZKDataLogDir();
-        dataDir.mkdirs();
-        dataLogDir.mkdirs();
+      final int tickTime = conf.getZKTickTime();
+      final File dataDir = conf.getZKDataDir();
+      final File dataLogDir = conf.getZKDataLogDir();
+      dataDir.mkdirs();
+      dataLogDir.mkdirs();
 
-        if (hosts.length > 1) {
-          // multiple zk servers
-          startQuorumPeer(conf, localhostHostNames, hosts, tickTime, dataDir, dataLogDir);
-        } else {
-          // single zk server
-          startSingleZkServer(conf, tickTime, dataDir, dataLogDir, port);
-          Logger.info("ZooKeeper server started...");
-        }
+      if (hosts.length > 1) {
+        // multiple zk servers
+        startQuorumPeer(conf, localhostHostNames, hosts, tickTime, dataDir, dataLogDir);
       } else {
-        Logger.warn("No zookeeper server was started, port is already blocked!");
+        // single zk server
+        startSingleZkServer(conf, tickTime, dataDir, dataLogDir, port);
+        Logger.info("ZooKeeper server started...");
       }
     } else {
       final String msg = "This is server is not configured to be a zookeeper server";
@@ -171,6 +163,15 @@ public class Server {
       throw new RuntimeException(msg);
     }
 
+  }
+
+  private void checkPort(final int port) {
+    try {
+      final ServerSocket socket = new ServerSocket(port);
+      socket.close();
+    } catch (final Exception e) {
+      throw new RuntimeException("Zookeeper port blocked.");
+    }
   }
 
   private void startSingleZkServer(final ZkConfiguration conf, final int tickTime, final File dataDir,
@@ -277,25 +278,35 @@ public class Server {
 
   public void shutdown() {
     Logger.info("Shutting down master...");
-    if (_quorumPeer != null) {
-      _quorumPeer.interrupt();
-      _quorumPeer.shutdown();
-    }
     if (_nioFactory != null) {
-      _nioFactory.interrupt();
       _nioFactory.shutdown();
+    }
+    // if (_zk != null) {
+    // _zk.shutdown();
+    // }
+    if (_quorumPeer != null) {
+      _quorumPeer.shutdown();
     }
     if (_slave != null) {
       _slave.shutdown();
-    }
-    if (_zk != null) {
-      _zk.shutdown();
     }
     ServerStats.unregister();
     try {
       Thread.sleep(1000);
     } catch (final InterruptedException e) {
       throw new RuntimeException("Waiting to shutodown the server was interrupted.", e);
+    }
+    final int port = _conf.getZKClientPort();
+    // check if this maschine is already something running..
+    while (true) {
+      try {
+        final ServerSocket socket = new ServerSocket(port);
+        socket.close();
+        Thread.sleep(2000);
+        break;
+      } catch (final Exception e) {
+        Logger.debug("port still blocked waiting....");
+      }
     }
   }
 }

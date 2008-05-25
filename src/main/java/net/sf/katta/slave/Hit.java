@@ -159,4 +159,9 @@ public class Hit implements Writable, Comparable<Hit> {
   public void setDocId(final int docId) {
     _docId = docId;
   }
+
+  @Override
+  public String toString() {
+    return getSlave() + " " + getShard() + " " + getDocId();
+  }
 }
