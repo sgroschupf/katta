@@ -36,6 +36,8 @@ import net.sf.katta.zk.ZKClient;
 
 public class Katta {
 
+  private final ZKClient _client = new ZKClient(new ZkConfiguration());
+
   public static void main(final String[] args) throws KattaException {
     if (args.length < 1) {
       usage();
@@ -52,42 +54,39 @@ public class Katta {
         katta.search(indexNames, query);
       }
     } else if (command.endsWith("addIndex")) {
-      addIndex(args[1], args[2], args[3]);
+      katta.addIndex(args[1], args[2], args[3]);
     } else if (command.endsWith("removeIndex")) {
-      removeIndex(args[1]);
+      katta.removeIndex(args[1]);
     } else if (command.endsWith("listIndexes")) {
-      listIndex();
+      katta.listIndex();
     } else if (command.endsWith("listSlaves")) {
-      listSlaves();
+      katta.listSlaves();
     } else if (command.endsWith("startSlave")) {
       startSlave();
     } else if (command.endsWith("startMaster")) {
       startMaster();
     } else if (command.endsWith("showStructure")) {
-      showStructure();
+      katta.showStructure();
     }
   }
 
-  private static void removeIndex(final String indexName) throws KattaException {
-    final ZkConfiguration configuration = new ZkConfiguration();
-    final ZKClient client = new ZKClient(configuration);
-    client.waitForZooKeeper(5000);
+  public void removeIndex(final String indexName) throws KattaException {
+    _client.waitForZooKeeper(5000);
     final String indexPath = IPaths.INDEXES + "/" + indexName;
-    if (client.exists(indexPath)) {
-      client.delete(indexPath);
+    if (_client.exists(indexPath)) {
+      _client.delete(indexPath);
     } else {
       System.err.println("Unknown index:" + indexName);
     }
 
   }
 
-  private static void showStructure() throws KattaException {
-    final ZKClient client = new ZKClient(new ZkConfiguration());
-    client.waitForZooKeeper(5000);
-    client.showFolders(System.out);
+  public void showStructure() throws KattaException {
+    _client.waitForZooKeeper(5000);
+    _client.showFolders(System.out);
   }
 
-  private static void startMaster() throws KattaException {
+  public static void startMaster() throws KattaException {
     final ZkConfiguration conf = new ZkConfiguration();
     final Server server = new Server(conf);
     final ZKClient client = new ZKClient(conf);
@@ -96,7 +95,7 @@ public class Katta {
     server.join();
   }
 
-  private static void startSlave() throws KattaException {
+  public static void startSlave() throws KattaException {
     final ZkConfiguration configuration = new ZkConfiguration();
     final ZKClient client = new ZKClient(configuration);
     client.waitForZooKeeper(5000);
@@ -105,30 +104,27 @@ public class Katta {
     slave.join();
   }
 
-  private static void listSlaves() throws KattaException {
-    final ZKClient client = new ZKClient(new ZkConfiguration());
-    client.waitForZooKeeper(5000);
-    final List<String> slaves = client.getChildren(IPaths.SLAVES);
+  public void listSlaves() throws KattaException {
+    _client.waitForZooKeeper(5000);
+    final List<String> slaves = _client.getChildren(IPaths.SLAVES);
     if (null != slaves) {
       // header
       System.out.println("name \t:\t start time  \t:\t is healthy  \t:\t status");
       for (final String slave : slaves) {
         final String path = IPaths.SLAVES + "/" + slave;
         final SlaveMetaData slaveMetaData = new SlaveMetaData();
-        client.readData(path, slaveMetaData);
+        _client.readData(path, slaveMetaData);
         System.out.println(slaveMetaData.toString());
-
       }
     }
   }
 
-  private static void listIndex() throws KattaException {
-    final ZKClient client = new ZKClient(new ZkConfiguration());
-    client.waitForZooKeeper(5000);
-    final List<String> indexes = client.getChildren(IPaths.INDEXES);
+  public void listIndex() throws KattaException {
+    _client.waitForZooKeeper(5000);
+    final List<String> indexes = _client.getChildren(IPaths.INDEXES);
     for (final String index : indexes) {
       final IndexMetaData indexMetaData = new IndexMetaData();
-      client.readData(IPaths.INDEXES + "/" + index, indexMetaData);
+      _client.readData(IPaths.INDEXES + "/" + index, indexMetaData);
       System.out.println("index: " + index + "\n\tisDeployed: " + indexMetaData.isDeployed() + "\n\tpath: "
           + indexMetaData.getPath());
       // maybe show shards
@@ -137,16 +133,20 @@ public class Katta {
     }
   }
 
-  private static void addIndex(final String name, final String path, final String analyzerClass) throws KattaException {
-    final ZKClient client = new ZKClient(new ZkConfiguration());
-    client.waitForZooKeeper(5000);
-    client.showFolders(System.out);
-    client.create(IPaths.INDEXES + "/" + name, new IndexMetaData(path, analyzerClass, false));
-    // may be wait until the index is deployed...
+  public void addIndex(final String name, final String path, final String analyzerClass) throws KattaException {
+    _client.waitForZooKeeper(5000);
+    _client.showFolders(System.out);
+    _client.create(IPaths.INDEXES + "/" + name, new IndexMetaData(path, analyzerClass, false));
+    boolean indexDeployed = false;
+    while (!indexDeployed) {
+      final IndexMetaData indexMetaData = new IndexMetaData();
+      _client.readData(IPaths.INDEXES + "/" + name, indexMetaData);
+      indexDeployed = indexMetaData.isDeployed();
+    }
     // maybe check if index is valid...
   }
 
-  private void search(final String[] indexNames, final String queryString, final int count) throws KattaException {
+  public void search(final String[] indexNames, final String queryString, final int count) throws KattaException {
     final IClient client = new Client();
     final IQuery query = new Query(queryString);
     final long start = System.currentTimeMillis();
@@ -164,7 +164,7 @@ public class Katta {
     }
   }
 
-  private void search(final String[] indexNames, final String queryString) throws KattaException {
+  public void search(final String[] indexNames, final String queryString) throws KattaException {
     final IClient client = new Client();
     final IQuery query = new Query(queryString);
     final long start = System.currentTimeMillis();
@@ -182,6 +182,7 @@ public class Katta {
     System.err.println("\tstartMaster\tStarts a local master.");
     System.err.println("\tstartSlave\tStarts a local slave.");
     System.err.println("\tshowStructure\tShows the structure of a Katta installation.");
+    System.err.println("\tremoveIndexes <index name>\tRemoves the supplied index from a Katta installation.");
     System.exit(1);
   }
 }
