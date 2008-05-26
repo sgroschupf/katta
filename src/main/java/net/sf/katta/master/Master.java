@@ -32,6 +32,7 @@ import net.sf.katta.index.IndexMetaData;
 import net.sf.katta.util.ComparisonUtil;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.Logger;
+import net.sf.katta.util.MasterConfiguration;
 import net.sf.katta.zk.IZKEventListener;
 import net.sf.katta.zk.ZKClient;
 
@@ -51,11 +52,18 @@ public class Master {
 
   protected List<String> _indexes = new ArrayList<String>();
 
-  private final IDistributionPolicy _policy;
+  private IDeployPolicy _policy;
 
-  public Master(final ZKClient client, final IDistributionPolicy policy) {
+  public Master(final ZKClient client, final IDeployPolicy policy) throws KattaException {
     _zk = client;
-    _policy = policy;
+    final MasterConfiguration masterConfiguration = new MasterConfiguration();
+    final String deployPolicy = masterConfiguration.getDeployPolicy();
+    try {
+      final Class<IDeployPolicy> policyClazz = (Class<IDeployPolicy>) Class.forName(deployPolicy);
+      _policy = policyClazz.newInstance();
+    } catch (final Exception e) {
+      throw new KattaException("Unable to instantiate deploy policy", e);
+    }
   }
 
   public void start() throws KattaException {

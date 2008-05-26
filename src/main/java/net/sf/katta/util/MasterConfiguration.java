@@ -17,16 +17,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package net.sf.katta.master;
+package net.sf.katta.util;
 
-import java.util.List;
-import java.util.Map;
+public class MasterConfiguration extends KattaConfiguration {
 
-import net.sf.katta.index.AssignedShard;
-import net.sf.katta.zk.ZKClient;
+  private final static String DEPLOY_POLICY = "master.deploy.policy";
 
-public interface IDistributionPolicy {
+  public MasterConfiguration() {
+    super("/katta.master.properties");
+  }
 
-  Map<String, List<AssignedShard>> ditribute(ZKClient client, List<String> slaves, List<AssignedShard> shards);
+  public String getDeployPolicy() {
+    return _properties.getProperty(DEPLOY_POLICY, "net.sf.katta.master.DefaultDistributionPolicy");
+  }
 
 }

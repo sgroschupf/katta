@@ -27,7 +27,7 @@ import java.util.Map;
 import net.sf.katta.index.AssignedShard;
 import net.sf.katta.zk.ZKClient;
 
-public class DefaultDistributionPolicy implements IDistributionPolicy {
+public class DefaultDistributionPolicy implements IDeployPolicy {
 
   /**
    * simply interate over all shards and asign them to the available slaves, no
