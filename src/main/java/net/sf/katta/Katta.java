@@ -38,7 +38,7 @@ public class Katta {
 
   private final ZKClient _client = new ZKClient(new ZkConfiguration());
 
-  public static void main(final String[] args) throws KattaException {
+  public static void main(final String[] args) throws KattaException, InterruptedException {
     if (args.length < 1) {
       usage();
     }
@@ -133,7 +133,8 @@ public class Katta {
     }
   }
 
-  public void addIndex(final String name, final String path, final String analyzerClass) throws KattaException {
+  public void addIndex(final String name, final String path, final String analyzerClass) throws KattaException,
+      InterruptedException {
     _client.waitForZooKeeper(5000);
     _client.showFolders(System.out);
     _client.create(IPaths.INDEXES + "/" + name, new IndexMetaData(path, analyzerClass, false));
@@ -142,6 +143,7 @@ public class Katta {
       final IndexMetaData indexMetaData = new IndexMetaData();
       _client.readData(IPaths.INDEXES + "/" + name, indexMetaData);
       indexDeployed = indexMetaData.isDeployed();
+      Thread.sleep(1000);
     }
     // maybe check if index is valid...
   }
