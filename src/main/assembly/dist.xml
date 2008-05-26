@@ -13,7 +13,10 @@
 			<directory>conf</directory>
 			<outputDirectory>katta-distribution/conf</outputDirectory>
 		</fileSet>
-		
+		<fileSet>
+			<directory>target/site/apidocs</directory>
+			<outputDirectory>katta-distribution/docs/apidocs</outputDirectory>
+		</fileSet>
 	</fileSets>
 	<dependencySets>
 		<dependencySet>
