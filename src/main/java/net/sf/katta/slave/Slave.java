@@ -166,7 +166,9 @@ public class Slave implements ISearch {
     final String slavePath = IPaths.SLAVES + "/" + _slave;
     final String slaveToShardPath = IPaths.SLAVE_TO_SHARD + "/" + _slave;
     _zk.createEphemeral(slavePath, metaData);
-    _zk.create(slaveToShardPath);
+    if (!_zk.exists(slaveToShardPath)) {
+      _zk.create(slaveToShardPath);
+    }
     return _zk.subscribeChildChanges(slaveToShardPath, new ShardListener());
   }
 
@@ -224,7 +226,7 @@ public class Slave implements ISearch {
       // remove those we do not need anymore
       final List<String> localShardList = Arrays.asList(localShards);
       final List<String> toRemove = ComparisonUtil.getRemoved(localShardList, shardsToDeploy);
-      //      removeShards(toRemove);
+      // removeShards(toRemove);
 
       // now only download those we do not yet have local or we can't deploy
       if (shardsToDeploy != null && shardsToDeploy.size() != 0) {
