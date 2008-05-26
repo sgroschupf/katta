@@ -138,9 +138,6 @@ public class Server {
     // check if this server needs to start a _zk server.
     if (NetworkUtil.hostNamesInList(servers, localhostHostNames)) {
       // yes this server needs to start a zookeeper server
-      final int port = conf.getZKClientPort();
-      // check if this maschine is already something running..
-      checkPort(port);
       final String[] hosts = servers.split(",");
 
       final int tickTime = conf.getZKTickTime();
@@ -153,8 +150,15 @@ public class Server {
         // multiple zk servers
         startQuorumPeer(conf, localhostHostNames, hosts, tickTime, dataDir, dataLogDir);
       } else {
+        final String[] hostSplitted = hosts[0].split(":");
+        int port = 2181;
+        if (hostSplitted.length > 1) {
+          port = Integer.parseInt(hostSplitted[1]);
+        }
+        // check if this maschine is already something running..
+        checkPort(port);
         // single zk server
-        startSingleZkServer(conf, tickTime, dataDir, dataLogDir, port);
+        startSingleZkServer(tickTime, dataDir, dataLogDir, port);
         Logger.info("ZooKeeper server started...");
       }
     } else {
@@ -174,8 +178,7 @@ public class Server {
     }
   }
 
-  private void startSingleZkServer(final ZkConfiguration conf, final int tickTime, final File dataDir,
-      final File dataLogDir, final int port) {
+  private void startSingleZkServer(final int tickTime, final File dataDir, final File dataLogDir, final int port) {
     try {
       ServerStats.registerAsConcrete();
       _zk = new ZooKeeperServer(dataDir, dataLogDir, tickTime);
