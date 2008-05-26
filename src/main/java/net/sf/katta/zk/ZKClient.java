@@ -339,7 +339,11 @@ public class ZKClient implements Watcher {
         final HashSet<IZKEventListener> listeners = _childListener.get(path);
         if (listeners != null) {
           for (final IZKEventListener listener : listeners) {
-            listener.process(event);
+            try {
+              listener.process(event);
+            } catch (final Throwable e) {
+              Logger.error("Faild to process event with listener: " + listener, e);
+            }
           }
           // re subscribe to event.
           try {
@@ -355,7 +359,11 @@ public class ZKClient implements Watcher {
         final HashSet<IZKEventListener> listeners = _dataListener.get(path);
         if (listeners != null) {
           for (final IZKEventListener listener : listeners) {
-            listener.process(event);
+            try {
+              listener.process(event);
+            } catch (final Throwable e) {
+              Logger.error("Faild to process event with listener: " + listener, e);
+            }
           }
           // re subscribe to event.
           try {
