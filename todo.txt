@@ -68,3 +68,4 @@ x pass also query to selction plolicy so you can decide that you route a given q
 x add more java doc to slave and multisearcher. - sg
 o test remove in slave test - sg
 o use fastes sort... - sg
+o use hadoop RPC parallel node calling
