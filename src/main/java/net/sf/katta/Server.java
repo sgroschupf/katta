@@ -136,49 +136,49 @@ public class Server {
     final String[] localhostHostNames = NetworkUtil.getLocalHostNames();
     final String servers = conf.getZKServers();
     // check if this server needs to start a _zk server.
-    if (NetworkUtil.hostNamesInList(servers, localhostHostNames)) {
+    int pos = -1;
+    if ((pos = NetworkUtil.hostNamesInList(servers, localhostHostNames)) != -1) {
       // yes this server needs to start a zookeeper server
       final String[] hosts = servers.split(",");
-
-      final int tickTime = conf.getZKTickTime();
-      final File dataDir = conf.getZKDataDir();
-      final File dataLogDir = conf.getZKDataLogDir();
-      dataDir.mkdirs();
-      dataLogDir.mkdirs();
-
-      if (hosts.length > 1) {
-        // multiple zk servers
-        startQuorumPeer(conf, localhostHostNames, hosts, tickTime, dataDir, dataLogDir);
-      } else {
-        final String[] hostSplitted = hosts[0].split(":");
-        int port = 2181;
-        if (hostSplitted.length > 1) {
-          port = Integer.parseInt(hostSplitted[1]);
-        }
-        // check if this maschine is already something running..
-        checkPort(port);
-        // single zk server
-        startSingleZkServer(tickTime, dataDir, dataLogDir, port);
-        Logger.info("ZooKeeper server started...");
+      final String[] hostSplitted = hosts[pos].split(":");
+      int port = 2181;
+      if (hostSplitted.length > 1) {
+        port = Integer.parseInt(hostSplitted[1]);
       }
-    } else {
-      final String msg = "This is server is not configured to be a zookeeper server";
-      Logger.error(msg);
-      throw new RuntimeException(msg);
-    }
+      // check if this machine is already something running..
+      if (isPortFree(port)) {
+        final int tickTime = conf.getZKTickTime();
+        final File dataDir = conf.getZKDataDir();
+        final File dataLogDir = conf.getZKDataLogDir();
+        dataDir.mkdirs();
+        dataLogDir.mkdirs();
 
+        if (hosts.length > 1) {
+          // multiple zk servers
+          startQuorumPeer(conf, localhostHostNames, hosts, tickTime, dataDir, dataLogDir);
+        } else {
+          // single zk server
+          startSingleZkServer(conf, tickTime, dataDir, dataLogDir, port);
+          Logger.info("ZooKeeper server started...");
+        }
+      } else {
+        Logger.error("Zookeeper port was already in use. Running in single machine mode?");
+      }
+    }
   }
 
-  private void checkPort(final int port) {
+  private boolean isPortFree(final int port) {
     try {
       final ServerSocket socket = new ServerSocket(port);
       socket.close();
+      return true;
     } catch (final Exception e) {
-      throw new RuntimeException("Zookeeper port blocked.");
+      return false;
     }
   }
 
-  private void startSingleZkServer(final int tickTime, final File dataDir, final File dataLogDir, final int port) {
+  private void startSingleZkServer(final ZkConfiguration conf, final int tickTime, final File dataDir,
+      final File dataLogDir, final int port) {
     try {
       ServerStats.registerAsConcrete();
       _zk = new ZooKeeperServer(dataDir, dataLogDir, tickTime);
@@ -301,14 +301,11 @@ public class Server {
     }
     final int port = _conf.getZKClientPort();
     // check if this maschine is already something running..
-    while (true) {
+    while (!isPortFree(port)) {
       try {
-        final ServerSocket socket = new ServerSocket(port);
-        socket.close();
         Thread.sleep(2000);
-        break;
-      } catch (final Exception e) {
-        Logger.debug("port still blocked waiting....");
+      } catch (final InterruptedException e) {
+        Logger.error("Failed to wait for zookeeper server release port", e);
       }
     }
   }
