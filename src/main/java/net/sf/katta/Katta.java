@@ -19,6 +19,7 @@
  */
 package net.sf.katta;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import net.sf.katta.client.Client;
@@ -36,54 +37,48 @@ import net.sf.katta.zk.ZKClient;
 
 public class Katta {
 
-  private final ZKClient _client = new ZKClient(new ZkConfiguration());
+  private final ZKClient _client;
 
-  public static void main(final String[] args) throws KattaException, InterruptedException {
+  public Katta() {
+    final ZkConfiguration configuration = new ZkConfiguration();
+    _client = new ZKClient(configuration);
+    _client.waitForZooKeeper(5000);
+  }
+
+  public static void main(final String[] args) throws KattaException {
     if (args.length < 1) {
       usage();
     }
     final String command = args[0];
-    final Katta katta = new Katta();
-    if (command.equals("search")) {
-      final String[] indexNames = args[1].split(",");
-      final String query = args[2];
-      if (args.length > 3) {
-        final int count = Integer.parseInt(args[3]);
-        katta.search(indexNames, query, count);
-      } else {
-        katta.search(indexNames, query);
-      }
-    } else if (command.endsWith("addIndex")) {
-      katta.addIndex(args[1], args[2], args[3]);
-    } else if (command.endsWith("removeIndex")) {
-      katta.removeIndex(args[1]);
-    } else if (command.endsWith("listIndexes")) {
-      katta.listIndex();
-    } else if (command.endsWith("listSlaves")) {
-      katta.listSlaves();
-    } else if (command.endsWith("startSlave")) {
+    // static methods first
+    if (command.endsWith("startSlave")) {
       startSlave();
     } else if (command.endsWith("startMaster")) {
       startMaster();
-    } else if (command.endsWith("showStructure")) {
-      katta.showStructure();
-    }
-  }
-
-  public void removeIndex(final String indexName) throws KattaException {
-    _client.waitForZooKeeper(5000);
-    final String indexPath = IPaths.INDEXES + "/" + indexName;
-    if (_client.exists(indexPath)) {
-      _client.delete(indexPath);
     } else {
-      System.err.println("Unknown index:" + indexName);
+      // non static methods
+      final Katta katta = new Katta();
+      if (command.equals("search")) {
+        final String[] indexNames = args[1].split(",");
+        final String query = args[2];
+        if (args.length > 3) {
+          final int count = Integer.parseInt(args[3]);
+          katta.search(indexNames, query, count);
+        } else {
+          katta.search(indexNames, query);
+        }
+      } else if (command.endsWith("addIndex")) {
+        katta.addIndex(args[1], args[2], args[3]);
+      } else if (command.endsWith("removeIndex")) {
+        katta.removeIndex(args[1]);
+      } else if (command.endsWith("listIndexes")) {
+        katta.listIndex();
+      } else if (command.endsWith("listSlaves")) {
+        katta.listSlaves();
+      } else if (command.endsWith("showStructure")) {
+        katta.showStructure();
+      }
     }
-
-  }
-
-  public void showStructure() throws KattaException {
-    _client.waitForZooKeeper(5000);
-    _client.showFolders(System.out);
   }
 
   public static void startMaster() throws KattaException {
@@ -104,48 +99,73 @@ public class Katta {
     slave.join();
   }
 
+  public void removeIndex(final String indexName) throws KattaException {
+    final String indexPath = IPaths.INDEXES + "/" + indexName;
+    if (_client.exists(indexPath)) {
+      _client.delete(indexPath);
+    } else {
+      System.err.println("Unknown index:" + indexName);
+    }
+
+  }
+
+  public void showStructure() throws KattaException {
+    _client.showFolders(System.out);
+  }
+
   public void listSlaves() throws KattaException {
-    _client.waitForZooKeeper(5000);
     final List<String> slaves = _client.getChildren(IPaths.SLAVES);
     if (null != slaves) {
       // header
-      System.out.println("name \t:\t start time  \t:\t is healthy  \t:\t status");
+      final Table table = new Table(new String[] { "Name", "Start time", "Healthy", "Status" });
+
       for (final String slave : slaves) {
         final String path = IPaths.SLAVES + "/" + slave;
         final SlaveMetaData slaveMetaData = new SlaveMetaData();
         _client.readData(path, slaveMetaData);
-        System.out.println(slaveMetaData.toString());
+        table.addRow(new String[] { slaveMetaData.getName(), slaveMetaData.getStartTimeAsDate(),
+            "" + slaveMetaData.isHealth(), slaveMetaData.getStatus() });
       }
+      System.out.println(table.toString());
     }
   }
 
   public void listIndex() throws KattaException {
-    _client.waitForZooKeeper(5000);
+    final Table t = new Table(new String[] { "Name", "Deployed", "Analyzer", "Path" });
+
     final List<String> indexes = _client.getChildren(IPaths.INDEXES);
     for (final String index : indexes) {
-      final IndexMetaData indexMetaData = new IndexMetaData();
-      _client.readData(IPaths.INDEXES + "/" + index, indexMetaData);
-      System.out.println("index: " + index + "\n\tisDeployed: " + indexMetaData.isDeployed() + "\n\tpath: "
-          + indexMetaData.getPath());
+      final IndexMetaData metaData = new IndexMetaData();
+      _client.readData(IPaths.INDEXES + "/" + index, metaData);
+      t.addRow(new String[] { index, "" + metaData.isDeployed(), metaData.getAnalyzerClassName(), metaData.getPath() });
       // maybe show shards
       // maybe show serving slaves..
       // maybe show replication level...
     }
+    System.out.println(t.toString());
   }
 
-  public void addIndex(final String name, final String path, final String analyzerClass) throws KattaException,
-      InterruptedException {
-    _client.waitForZooKeeper(5000);
-    _client.showFolders(System.out);
-    _client.create(IPaths.INDEXES + "/" + name, new IndexMetaData(path, analyzerClass, false));
-    boolean indexDeployed = false;
-    while (!indexDeployed) {
-      final IndexMetaData indexMetaData = new IndexMetaData();
-      _client.readData(IPaths.INDEXES + "/" + name, indexMetaData);
-      indexDeployed = indexMetaData.isDeployed();
-      Thread.sleep(1000);
+  public void addIndex(final String name, final String path, final String analyzerClass) throws KattaException {
+    final String indexPath = IPaths.INDEXES + "/" + name;
+    if (!_client.exists(indexPath)) {
+      _client.create(indexPath, new IndexMetaData(path, analyzerClass, false));
+      final IndexMetaData data = new IndexMetaData();
+      while (true) {
+        _client.readData(indexPath, data);
+        if (data.isDeployed()) {
+          break;
+        }
+        System.out.print(".");
+        try {
+          Thread.sleep(1000);
+        } catch (final InterruptedException e) {
+          e.printStackTrace();
+        }
+      }
+      System.out.println("deployed.");
+    } else {
+      System.out.println("Index with name " + name + " already exists.");
     }
-    // maybe check if index is valid...
   }
 
   public void search(final String[] indexNames, final String queryString, final int count) throws KattaException {
@@ -156,14 +176,13 @@ public class Katta {
     final long end = System.currentTimeMillis();
     System.out.println(hits.size() + " hits found in " + ((end - start) / 1000.0) + "sec.");
     int index = 0;
+    final Table table = new Table(new String[] { "Hit", "Slave", "Shard", "DocId", "Score" });
     for (final Hit hit : hits.getHits()) {
-      System.out.println("Hit: " + index);
-      System.out.println("\tSlave:\t" + hit.getSlave());
-      System.out.println("\tShard:\t" + hit.getShard());
-      System.out.println("\tDocId:\t" + hit.getDocId());
-      System.out.println("\tScore:\t" + hit.getScore());
+      table
+      .addRow(new String[] { "" + index, hit.getSlave(), hit.getShard(), "" + hit.getDocId(), "" + hit.getScore() });
       index++;
     }
+    System.out.println(table.toString());
   }
 
   public void search(final String[] indexNames, final String queryString) throws KattaException {
@@ -178,13 +197,79 @@ public class Katta {
   private static void usage() {
     System.err.println("Usage: ");
     System.err
-        .println("\tsearch <index name>[,<index name>,...] \"<query>\" [count]\tSearch in supplied indexes. The query should be in \". If you supply a result count hit details will be printed.");
+    .println("\tsearch <index name>[,<index name>,...] \"<query>\" [count]\tSearch in supplied indexes. The query should be in \". If you supply a result count hit details will be printed.");
     System.err.println("\tlistIndexes\tLists all indexes.");
     System.err.println("\tlistSlave\tLists all slave.");
     System.err.println("\tstartMaster\tStarts a local master.");
     System.err.println("\tstartSlave\tStarts a local slave.");
     System.err.println("\tshowStructure\tShows the structure of a Katta installation.");
-    System.err.println("\tremoveIndexes <index name>\tRemoves the supplied index from a Katta installation.");
     System.exit(1);
   }
+
+  private class Table {
+    private final String[] _header;
+    private final List<String[]> _rows = new ArrayList<String[]>();
+
+    public Table(final String[] header) {
+      _header = header;
+    }
+
+    public void addRow(final String[] row) {
+      _rows.add(row);
+    }
+
+    @Override
+    public String toString() {
+      final StringBuffer buffer = new StringBuffer();
+      buffer.append("\n");
+      final int[] columnSizes = getColumnSizes(_header, _rows);
+      int rowWidth = 0;
+      for (final int columnSize : columnSizes) {
+        rowWidth += columnSize + 2;
+      }
+      // header
+      buffer.append("| ");
+      for (int i = 0; i < _header.length; i++) {
+        final String column = _header[i];
+        buffer.append(column + getChar(columnSizes[i] - column.length(), " ") + " | ");
+      }
+      buffer.append("\n=");
+      buffer.append(getChar(rowWidth + columnSizes.length, "=") + "\n");
+
+      for (final String[] row : _rows) {
+        buffer.append("| ");
+        for (int i = 0; i < row.length; i++) {
+          buffer.append(row[i] + getChar(columnSizes[i] - row[i].length(), " ") + " | ");
+        }
+        buffer.append("\n-");
+        buffer.append(getChar(rowWidth + columnSizes.length, "-") + "\n");
+      }
+
+      return buffer.toString();
+    }
+
+    private String getChar(final int count, final String character) {
+      String spaces = "";
+      for (int j = 0; j < count; j++) {
+        spaces += character;
+      }
+      return spaces;
+    }
+
+    private int[] getColumnSizes(final String[] header, final List<String[]> rows) {
+      final int[] sizes = new int[header.length];
+      for (int i = 0; i < sizes.length; i++) {
+        int min = header[i].length();
+        for (final String[] row : rows) {
+          if (row[i].length() > min) {
+            min = row[i].length();
+          }
+        }
+        sizes[i] = min;
+      }
+
+      return sizes;
+    }
+  }
+
 }
