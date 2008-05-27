@@ -70,3 +70,5 @@ o test remove in slave test - sg
 o use fastes sort... - sg
 o use hadoop RPC parallel node calling
 o block addIndex... 
+x BUG! when a slave restarts after crash there might be still a node in zookeeper
+o fix index deployment when no slave is yet started. 
