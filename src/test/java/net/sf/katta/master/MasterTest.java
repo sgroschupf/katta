@@ -47,7 +47,7 @@ public class MasterTest extends TestCase {
     if (client.exists(IPaths.ROOT_PATH)) {
       client.deleteRecursiv(IPaths.ROOT_PATH);
     }
-    final Master master = new Master(client, new DefaultDistributionPolicy());
+    final Master master = new Master(client);
     master.start();
     synchronized (master._zk.getSyncMutex()) {
       client.createEphemeral("/katta/slaves/slave1");
@@ -75,7 +75,7 @@ public class MasterTest extends TestCase {
     if (client.exists(IPaths.ROOT_PATH)) {
       client.deleteRecursiv(IPaths.ROOT_PATH);
     }
-    final Master master = new Master(client, new DefaultDistributionPolicy());
+    final Master master = new Master(client);
     master.start();
     final File file = new File("./src/test/testIndexA");
     final String path = "file://" + file.getAbsolutePath();
