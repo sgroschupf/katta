@@ -25,7 +25,6 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.util.ArrayList;
 
-import net.sf.katta.master.DefaultDistributionPolicy;
 import net.sf.katta.master.IPaths;
 import net.sf.katta.master.Master;
 import net.sf.katta.master.MasterMetaData;
@@ -87,7 +86,7 @@ public class Server {
     if (masterConfigured && willBeMaster) {
       // TODO make policy configurable
       Logger.info("Starting Master...");
-      final Master master = new Master(client, new DefaultDistributionPolicy());
+      final Master master = new Master(client);
       master.start();
     } else if (!masterConfigured && willBeMaster) {
       // TODO make a willBeMaster fail over here
@@ -102,12 +101,21 @@ public class Server {
     synchronized (client.getSyncMutex()) {
       try {
         client.createDefaultStructure();
-        final String localhostName = NetworkUtil.getLocalhostName();
+
+        final String[] localhostHostNames = NetworkUtil.getLocalHostNames();
+        final String configuredMasters = _conf.getZKServers();
+        final String[] hostsAndPorts = configuredMasters.split(",");
+        final int pos = NetworkUtil.hostNamesInList(configuredMasters, localhostHostNames);
+        final String localMaster = hostsAndPorts[pos];
+        final String[] hostAndPort = localMaster.split(":");
+
+        final String host = hostAndPort[0];
+        final int port = Integer.parseInt(hostAndPort[1]);
+        final MasterMetaData freshMaster = new MasterMetaData(host, port, System.currentTimeMillis());
+
         // no master so this one will be master
-        final MasterMetaData freshMaster = new MasterMetaData(localhostName, client.getPort(), System
-            .currentTimeMillis());
         if (!client.exists(IPaths.MASTER)) {
-          Logger.info("Creating master node: " + localhostName);
+          Logger.info("Creating master node: " + localMaster);
           client.createEphemeral(IPaths.MASTER, freshMaster);
           return true;
         } else {
@@ -115,7 +123,7 @@ public class Server {
           // server wrote.
           final MasterMetaData oldMaster = new MasterMetaData();
           client.readData(IPaths.MASTER, oldMaster);
-          if (oldMaster.getMasterName().equals(localhostName) && (client.getPort() == oldMaster.getPort())) {
+          if (oldMaster.getMasterName().equals(host) && (port == oldMaster.getPort())) {
             // looks like I'm the master ..
             Logger.info("Old master file was found ...");
             client.createEphemeral(IPaths.MASTER, freshMaster);
