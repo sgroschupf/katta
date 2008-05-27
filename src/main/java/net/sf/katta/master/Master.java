@@ -54,7 +54,7 @@ public class Master {
 
   private IDeployPolicy _policy;
 
-  public Master(final ZKClient client, final IDeployPolicy policy) throws KattaException {
+  public Master(final ZKClient client) throws KattaException {
     _zk = client;
     final MasterConfiguration masterConfiguration = new MasterConfiguration();
     final String deployPolicy = masterConfiguration.getDeployPolicy();
@@ -67,10 +67,6 @@ public class Master {
   }
 
   public void start() throws KattaException {
-    // first we insall an shutdown hook to try to remove our file in zk
-    // cleanly
-    final MasterShutDownHook shutdownHook = new MasterShutDownHook();
-    Runtime.getRuntime().addShutdownHook(shutdownHook);
     // create default folder structure.....
     _zk.createDefaultStructure();
     // Announce me as master
@@ -119,7 +115,10 @@ public class Master {
     // add shards to index..
     final String indexPath = IPaths.INDEXES + "/" + index;
     for (final AssignedShard shard : shards) {
-      _zk.create(indexPath + "/" + shard.getShardName(), shard);
+      final String path = indexPath + "/" + shard.getShardName();
+      if (!_zk.exists(path)) {
+        _zk.create(path, shard);
+      }
     }
 
     // compute how to distribute shards to slaves
@@ -350,31 +349,18 @@ public class Master {
     }
   }
 
-  public List<String> readSlaves() throws KattaException {
+  protected List<String> readSlaves() throws KattaException {
     return _zk.getChildren(IPaths.SLAVES);
   }
 
-  public List<String> readIndexes() throws KattaException {
+  protected List<String> readIndexes() throws KattaException {
     return _zk.getChildren(IPaths.INDEXES);
   }
 
   @Override
   protected void finalize() throws Throwable {
     _zk.delete(IPaths.MASTER);
+    super.finalize();
   }
 
-  private class MasterShutDownHook extends Thread {
-    @Override
-    public void run() {
-      // if (_zk != null) {
-      // try {
-      // if (_zk.exists(IPaths.MASTER)) {
-      // _zk.delete(IPaths.MASTER);
-      // }
-      // } catch (final KattaException e) {
-      // Logger.error("Faild to delete master node in zookeeper.", e);
-      // }
-      // }
-    }
-  }
 }
