@@ -20,7 +20,6 @@
 package net.sf.katta.zk;
 
 import java.io.IOException;
-import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -333,6 +332,7 @@ public class ZKClient implements Watcher {
    * @see com.yahoo.zookeeper.Watcher#process(com.yahoo.zookeeper.proto.WatcherEvent)
    */
   public void process(final WatcherEvent event) {
+    System.out.println("ZKClient.process()" + event.getPath() + event.getType());
     synchronized (_mutex) {
       final String path = event.getPath();
       if (event.getType() == Watcher.Event.EventNodeChildrenChanged) {
@@ -355,7 +355,8 @@ public class ZKClient implements Watcher {
             throw new RuntimeException("Unable to re subscribe to child change notification for: " + path, e);
           }
         }
-      } else if (event.getType() == Watcher.Event.EventNodeDataChanged) {
+      } else if (event.getType() == Watcher.Event.EventNodeDataChanged
+          || event.getType() == Watcher.Event.EventNodeDeleted) {
         final HashSet<IZKEventListener> listeners = _dataListener.get(path);
         if (listeners != null) {
           for (final IZKEventListener listener : listeners) {
@@ -440,13 +441,13 @@ public class ZKClient implements Watcher {
    * @param out
    * @throws KattaException
    */
-  public void showFolders(final PrintStream out) throws KattaException {
+  public void showFolders() throws KattaException {
     final int level = 1;
     final StringBuffer buffer = new StringBuffer();
     final String startPath = "";
     addChildren(level, buffer, startPath);
     try {
-      out.write(buffer.toString().getBytes());
+      System.out.write(buffer.toString().getBytes());
     } catch (final IOException e) {
       e.printStackTrace();
     }
@@ -520,7 +521,7 @@ public class ZKClient implements Watcher {
         if (end < System.currentTimeMillis()) {
           throw new RuntimeException("No connection with zookeeper server could be established.");
         }
-        Logger.debug("Zookeeper Server not yet available, sleeping...");
+        Logger.debug("Zookeeper ZkServer not yet available, sleeping...");
         Thread.sleep(1000);
       }
     } catch (final InterruptedException e) {
@@ -533,7 +534,7 @@ public class ZKClient implements Watcher {
    * 
    * @throws KattaException
    */
-  public void createDefaultStructure() throws KattaException {
+  public void createDefaultNameSpace() throws KattaException {
     Logger.debug("Creating default File structure if required....");
     if (!exists(IPaths.ROOT_PATH)) {
       create(IPaths.ROOT_PATH);
