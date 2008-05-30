@@ -23,9 +23,10 @@ import java.io.IOException;
 import java.util.Set;
 
 import junit.framework.TestCase;
-import net.sf.katta.Server;
+import net.sf.katta.ZkServer;
 import net.sf.katta.index.IndexMetaData;
 import net.sf.katta.master.IPaths;
+import net.sf.katta.master.Master;
 import net.sf.katta.slave.Hit;
 import net.sf.katta.slave.Hits;
 import net.sf.katta.slave.Query;
@@ -45,35 +46,35 @@ import org.apache.lucene.queryParser.ParseException;
 
 public class ClientTest extends TestCase {
 
-  private Server _master;
+  private ZkServer _server;
   private ZKClient _zkclient;
   private Slave _server1;
   private Slave _server2;
-
+  private Master _master;
 
   @Override
   protected void setUp() throws Exception {
     // public void testname() throws Exception {
 
     final ZkConfiguration conf = new ZkConfiguration();
-    _master = new Server(conf);
+    _server = new ZkServer(conf);
     _zkclient = new ZKClient(conf);
     _zkclient.waitForZooKeeper(600000);
     if (_zkclient.exists(IPaths.ROOT_PATH)) {
       _zkclient.deleteRecursiv(IPaths.ROOT_PATH);
     }
-    _master.startMasterOrSlave(_zkclient, true);
-
+    _master = new Master(_zkclient);
+    _master.start();
 
     _server1 = SlaveServerTest.startSlaveServer(_zkclient);
     _server2 = SlaveServerTest.startSlaveServer(_zkclient);
     while (_zkclient.getChildren(IPaths.SLAVES).size() != 2) {
       Thread.sleep(500);
     }
-    //    _zkclient.showFolders(System.out);
+    // _zkclient.showFolders(System.out);
     final IndexMetaData index = new IndexMetaData("src/test/testIndexA/", StandardAnalyzer.class.getName(), false);
     _zkclient.create(IPaths.INDEXES + "/index", index);
-    //    _zkclient.showFolders(System.out);
+    // _zkclient.showFolders(System.out);
     // wait for index deployment.
     final IndexMetaData data0 = new IndexMetaData("", "", false);
     while (!data0.isDeployed()) {
@@ -97,16 +98,18 @@ public class ClientTest extends TestCase {
     }
 
   }
+
   //
   // @Override
   @Override
   protected void tearDown() throws Exception {
     _server1.shutdown();
     _server2.shutdown();
-    _master.shutdown();
+    _server.shutdown();
     _zkclient.close();
     RPC.stopClient();
   }
+
   //
   public void testCount() throws InterruptedException, IOException, ParseException, KattaException {
     System.out.println("ClientTest.testCount()");

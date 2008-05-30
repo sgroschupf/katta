@@ -88,7 +88,7 @@ public class Client implements IClient {
     synchronized (_client.getSyncMutex()) {
       _client.waitForZooKeeper(30000);
       // first get all changes on index..
-      _client.createDefaultStructure();
+      _client.createDefaultNameSpace();
       _client.subscribeChildChanges(IPaths.INDEXES, _indexPathChangeListener);
       loadIndexAndShardsData();
     }

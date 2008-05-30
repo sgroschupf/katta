@@ -35,7 +35,7 @@ public class SlaveServerTest extends TestCase {
   // InterruptedException {
   // final ZkConfiguration conf = new ZkConfiguration();
   // final ZKClient client = new ZKClient(conf);
-  // final Server server = new Server(conf);
+  // final ZkServer server = new ZkServer(conf);
   // Thread.sleep(3000);
   // if (client.exists(IPaths.ROOT_PATH)) {
   // client.deleteRecursiv(IPaths.ROOT_PATH);
@@ -69,7 +69,7 @@ public class SlaveServerTest extends TestCase {
   // InterruptedException {
   // final ZkConfiguration conf = new ZkConfiguration();
   // final ZKClient client = new ZKClient(conf);
-  // final Server server = new Server(conf);
+  // final ZkServer server = new ZkServer(conf);
   // Thread.sleep(3000);
   // if (client.exists(IPaths.ROOT_PATH)) {
   // client.deleteRecursiv(IPaths.ROOT_PATH);
@@ -125,7 +125,7 @@ public class SlaveServerTest extends TestCase {
   // InterruptedException {
   // final ZkConfiguration conf = new ZkConfiguration();
   // final ZKClient client = new ZKClient(conf);
-  // final Server server = new Server(conf);
+  // final ZkServer server = new ZkServer(conf);
   // Thread.sleep(3000);
   // if (client.exists(IPaths.ROOT_PATH)) {
   // client.deleteRecursiv(IPaths.ROOT_PATH);
@@ -192,7 +192,7 @@ public class SlaveServerTest extends TestCase {
   // InterruptedException {
   // final ZkConfiguration conf = new ZkConfiguration();
   // final ZKClient client = new ZKClient(conf);
-  // final Server server = new Server(conf);
+  // final ZkServer server = new ZkServer(conf);
   // Thread.sleep(3000);
   // if (client.exists(IPaths.ROOT_PATH)) {
   // client.deleteRecursiv(IPaths.ROOT_PATH);
@@ -256,7 +256,7 @@ public class SlaveServerTest extends TestCase {
   // ParseException, InterruptedException {
   // final ZkConfiguration conf = new ZkConfiguration();
   // final ZKClient client = new ZKClient(conf);
-  // final Server server = new Server(conf);
+  // final ZkServer server = new ZkServer(conf);
   // Thread.sleep(3000);
   // if (client.exists(IPaths.ROOT_PATH)) {
   // client.deleteRecursiv(IPaths.ROOT_PATH);
@@ -293,7 +293,7 @@ public class SlaveServerTest extends TestCase {
   // InterruptedException {
   // final ZkConfiguration conf = new ZkConfiguration();
   // final ZKClient client = new ZKClient(conf);
-  // final Server server = new Server(conf);
+  // final ZkServer server = new ZkServer(conf);
   // Thread.sleep(3000);
   // if (client.exists(IPaths.ROOT_PATH)) {
   // client.deleteRecursiv(IPaths.ROOT_PATH);
@@ -339,7 +339,7 @@ public class SlaveServerTest extends TestCase {
   // InterruptedException {
   // final ZkConfiguration conf = new ZkConfiguration();
   // final ZKClient client = new ZKClient(conf);
-  // final Server server = new Server(conf);
+  // final ZkServer server = new ZkServer(conf);
   // Thread.sleep(3000);
   // if (client.exists(IPaths.ROOT_PATH)) {
   // client.deleteRecursiv(IPaths.ROOT_PATH);
@@ -371,7 +371,7 @@ public class SlaveServerTest extends TestCase {
   // InterruptedException {
   // final ZkConfiguration conf = new ZkConfiguration();
   // final ZKClient client = new ZKClient(conf);
-  // final Server server = new Server(conf);
+  // final ZkServer server = new ZkServer(conf);
   // Thread.sleep(3000);
   // if (client.exists(IPaths.ROOT_PATH)) {
   // client.deleteRecursiv(IPaths.ROOT_PATH);

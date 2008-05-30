@@ -22,7 +22,7 @@ package net.sf.katta.zk;
 import java.util.List;
 
 import junit.framework.TestCase;
-import net.sf.katta.Server;
+import net.sf.katta.ZkServer;
 import net.sf.katta.index.IndexMetaData;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.ZkConfiguration;
@@ -43,15 +43,15 @@ public class ZKClientTest extends TestCase {
     } catch (final Exception e) {
       ;
     }
-    final Server server = new Server(conf);
+    final ZkServer zkServer = new ZkServer(conf);
     client.waitForZooKeeper(3000);// now should work
     client.close();
-    server.shutdown();
+    zkServer.shutdown();
   }
 
   public void testCreateFolder() throws KattaException, InterruptedException {
     final ZkConfiguration conf = new ZkConfiguration();
-    final Server server = new Server(conf);
+    final ZkServer zkServer = new ZkServer(conf);
     final ZKClient client = new ZKClient(conf);
     final String path = "/katta";
     client.waitForZooKeeper(10000);
@@ -81,12 +81,12 @@ public class ZKClientTest extends TestCase {
     client.deleteRecursiv(path);
     client.close();
     Thread.sleep(2000);
-    server.shutdown();
+    zkServer.shutdown();
   }
 
   public void testChildNotifications() throws Exception {
     final ZkConfiguration conf = new ZkConfiguration();
-    final Server server = new Server(conf);
+    final ZkServer zkServer = new ZkServer(conf);
     final ZKClient client = new ZKClient(conf);
     client.waitForZooKeeper(10000);
     final MyListener listener = new MyListener();
@@ -105,12 +105,12 @@ public class ZKClientTest extends TestCase {
     assertEquals(10, listener._counter);
     client.close();
     Thread.sleep(200);
-    server.shutdown();
+    zkServer.shutdown();
   }
 
   public void testDataNotifications() throws Exception {
     final ZkConfiguration conf = new ZkConfiguration();
-    final Server server = new Server(conf);
+    final ZkServer zkServer = new ZkServer(conf);
     final ZKClient client = new ZKClient(conf);
     client.waitForZooKeeper(10000);
     final MyListener listener = new MyListener();
@@ -130,7 +130,7 @@ public class ZKClientTest extends TestCase {
     assertEquals(10, listener._counter);
     client.close();
     Thread.sleep(200);
-    server.shutdown();
+    zkServer.shutdown();
   }
 
   public void testGetPath() throws Exception {
