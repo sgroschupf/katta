@@ -91,7 +91,7 @@ public class DataNodeStatus implements Writable {
    * 
    * @throws IOException
    */
-  void updateUsage() {
+  public void updateUsage() {
     try {
       this.capacity = usage.getCapacity();
       this.capacityUsed = dfsUsage.getUsed();
@@ -184,7 +184,7 @@ public class DataNodeStatus implements Writable {
    * 
    * @param task the location of the index to replicate
    */
-  void addReplicationTask(IndexLocation task) {
+  public void addReplicationTask(IndexLocation task) {
     try {
       lock.lock();
       replicationTasks.add(task);
