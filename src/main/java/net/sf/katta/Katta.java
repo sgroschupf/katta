@@ -26,10 +26,12 @@ import net.sf.katta.client.Client;
 import net.sf.katta.client.IClient;
 import net.sf.katta.index.IndexMetaData;
 import net.sf.katta.master.IPaths;
+import net.sf.katta.master.Master;
 import net.sf.katta.slave.Hit;
 import net.sf.katta.slave.Hits;
 import net.sf.katta.slave.IQuery;
 import net.sf.katta.slave.Query;
+import net.sf.katta.slave.Slave;
 import net.sf.katta.slave.SlaveMetaData;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.ZkConfiguration;
@@ -83,19 +85,18 @@ public class Katta {
 
   public static void startMaster() throws KattaException {
     final ZkConfiguration conf = new ZkConfiguration();
-    final Server server = new Server(conf);
+    final ZkServer zkServer = new ZkServer(conf);
     final ZKClient client = new ZKClient(conf);
-    client.waitForZooKeeper(5000);
-    server.startMasterOrSlave(client, true);
-    server.join();
+    client.waitForZooKeeper(30000);
+    final Master master = new Master(client);
+    zkServer.join();
   }
 
   public static void startSlave() throws KattaException {
     final ZkConfiguration configuration = new ZkConfiguration();
     final ZKClient client = new ZKClient(configuration);
-    client.waitForZooKeeper(5000);
-    final Server slave = new Server(configuration);
-    slave.startMasterOrSlave(client, false);
+    client.waitForZooKeeper(30000);
+    final Slave slave = new Slave(client);
     slave.join();
   }
 
@@ -110,7 +111,7 @@ public class Katta {
   }
 
   public void showStructure() throws KattaException {
-    _client.showFolders(System.out);
+    _client.showFolders();
   }
 
   public void listSlaves() throws KattaException {

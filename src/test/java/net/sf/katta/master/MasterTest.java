@@ -25,7 +25,7 @@ import java.util.Map;
 import java.util.Set;
 
 import junit.framework.TestCase;
-import net.sf.katta.Server;
+import net.sf.katta.ZkServer;
 import net.sf.katta.index.AssignedShard;
 import net.sf.katta.index.IndexMetaData;
 import net.sf.katta.util.ZkConfiguration;
@@ -41,7 +41,7 @@ public class MasterTest extends TestCase {
 
   public void testSlaves() throws Exception {
     final ZkConfiguration conf = new ZkConfiguration();
-    final Server server = new Server(conf);
+    final ZkServer zkServer = new ZkServer(conf);
     final ZKClient client = new ZKClient(conf);
     client.waitForZooKeeper(5000);
     if (client.exists(IPaths.ROOT_PATH)) {
@@ -49,7 +49,7 @@ public class MasterTest extends TestCase {
     }
     final Master master = new Master(client);
     master.start();
-    synchronized (master._zk.getSyncMutex()) {
+    synchronized (master._client.getSyncMutex()) {
       client.createEphemeral("/katta/slaves/slave1");
       client.create(IPaths.SLAVE_TO_SHARD + "/slave1");
       client.createEphemeral("/katta/slaves/slave2");
@@ -57,19 +57,19 @@ public class MasterTest extends TestCase {
       client.getSyncMutex().wait();
     }
     assertEquals(2, master.readSlaves().size());
-    synchronized (master._zk.getSyncMutex()) {
+    synchronized (master._client.getSyncMutex()) {
       assertTrue(client.delete("/katta/slaves/slave1"));
       client.getSyncMutex().wait();
     }
     assertEquals(1, master.readSlaves().size());
     client.close();
-    server.shutdown();
+    zkServer.shutdown();
     Thread.sleep(2000);
   }
 
   public void testDeployAndRemoveIndex() throws Exception {
     final ZkConfiguration conf = new ZkConfiguration();
-    final Server server = new Server(conf);
+    final ZkServer zkServer = new ZkServer(conf);
     final ZKClient client = new ZKClient(conf);
     client.waitForZooKeeper(5000);
     if (client.exists(IPaths.ROOT_PATH)) {
@@ -141,6 +141,6 @@ public class MasterTest extends TestCase {
     assertEquals(0, client.getChildren(IPaths.SLAVE_TO_SHARD + "/slave1").size());
 
     client.close();
-    server.shutdown();
+    zkServer.shutdown();
   }
 }

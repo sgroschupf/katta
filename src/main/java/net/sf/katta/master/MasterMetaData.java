@@ -31,28 +31,24 @@ public class MasterMetaData implements Writable {
 
   private String _masterName;
   private long _startTime;
-  private int _port;
 
   public MasterMetaData() {
     ;
   }
 
-  public MasterMetaData(final String masterName, final int port, final long startTime) {
+  public MasterMetaData(final String masterName, final long startTime) {
     _masterName = masterName;
-    _port = port;
     _startTime = startTime;
   }
 
   public void readFields(final DataInput in) throws IOException {
     _masterName = in.readUTF();
     _startTime = in.readLong();
-    _port = in.readInt();
   }
 
   public void write(final DataOutput out) throws IOException {
     out.writeUTF(_masterName);
     out.writeLong(_startTime);
-    out.write(_port);
   }
 
   public String getStartTimeAsString() {
@@ -63,7 +59,8 @@ public class MasterMetaData implements Writable {
     return _masterName;
   }
 
-  public int getPort() {
-    return _port;
+  public long getStartTime() {
+    return _startTime;
   }
+
 }

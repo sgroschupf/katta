@@ -22,9 +22,9 @@ package net.sf.katta.master;
 public interface IPaths {
   public static final String ROOT_PATH = "/katta";
 
-  public static final String SLAVES = "/katta/slaves";
-
   public static final String MASTER = ROOT_PATH + "/master";
+
+  public static final String SLAVES = ROOT_PATH + "/slaves";
 
   public static final String INDEXES = ROOT_PATH + "/indexes";
 

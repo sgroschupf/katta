@@ -2,7 +2,7 @@
 D+ switch on assert
 + start many zk on the same machine.
 + improve dependencies in hadoop pom xml 
-+ master fail over by monitoring /katta/masters
+x master fail over by monitoring /katta/masters
 D + name all indexes or indicies?
 D + slaves listen to indexes and remove them in case they are gone..
 D + if we have a notification for /something and list children for /something do we lose the notification than? 
@@ -19,7 +19,6 @@ D    at com.yahoo.zookeeper.ClientCnxn$EventThread.run(ClientCnxn.java:253)
 D    
 + would be cool to have query logs...
 + make query logs configurable.
-+ we need a master fail over...
 + check syncronisation in slave...
 D+ gt Details.. for slave...
 D !!!!+ we might want a folder that exists in the moment a index starts be fully deployed... used a flag...
@@ -69,6 +68,6 @@ x add more java doc to slave and multisearcher. - sg
 o test remove in slave test - sg
 o use fastes sort... - sg
 o use hadoop RPC parallel node calling
-o block addIndex... 
+x block addIndex... 
 x BUG! when a slave restarts after crash there might be still a node in zookeeper
 o fix index deployment when no slave is yet started. 

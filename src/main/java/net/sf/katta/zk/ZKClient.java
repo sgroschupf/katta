@@ -332,7 +332,6 @@ public class ZKClient implements Watcher {
    * @see com.yahoo.zookeeper.Watcher#process(com.yahoo.zookeeper.proto.WatcherEvent)
    */
   public void process(final WatcherEvent event) {
-    System.out.println("ZKClient.process()" + event.getPath() + event.getType());
     synchronized (_mutex) {
       final String path = event.getPath();
       if (event.getType() == Watcher.Event.EventNodeChildrenChanged) {

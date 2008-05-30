@@ -33,6 +33,7 @@ import net.sf.katta.util.ComparisonUtil;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.Logger;
 import net.sf.katta.util.MasterConfiguration;
+import net.sf.katta.util.NetworkUtil;
 import net.sf.katta.zk.IZKEventListener;
 import net.sf.katta.zk.ZKClient;
 
@@ -46,7 +47,7 @@ import com.yahoo.zookeeper.proto.WatcherEvent;
 
 public class Master {
 
-  ZKClient _zk;
+  ZKClient _client;
 
   protected List<String> _slaves = new ArrayList<String>();
 
@@ -54,8 +55,12 @@ public class Master {
 
   private IDeployPolicy _policy;
 
+  private boolean _isMaster;
+
   public Master(final ZKClient client) throws KattaException {
-    _zk = client;
+    _client = client;
+    _client.waitForZooKeeper(300000);
+    _client.createDefaultNameSpace();
     final MasterConfiguration masterConfiguration = new MasterConfiguration();
     final String deployPolicy = masterConfiguration.getDeployPolicy();
     try {
@@ -67,18 +72,46 @@ public class Master {
   }
 
   public void start() throws KattaException {
-    // create default folder structure.....
-    _zk.createDefaultStructure();
-    // Announce me as master
-    // boot up loading slaves and indexes..
-    loadSlaves();
-    loadIndexes();
+
+    if (becomeMaster()) {
+      // master
+      // Announce me as master
+      // boot up loading slaves and indexes..
+      loadSlaves();
+      loadIndexes();
+      _isMaster = true;
+    } else {
+      _isMaster = false;
+      // secondary master
+      _client.subscribeDataChanges(IPaths.MASTER, new MasterListener());
+      Logger.info("Secondary Master started...");
+
+    }
+  }
+
+  private boolean becomeMaster() {
+    synchronized (_client.getSyncMutex()) {
+      try {
+        final String hostName = NetworkUtil.getLocalhostName();
+        final MasterMetaData freshMaster = new MasterMetaData(hostName, System.currentTimeMillis());
+        // no master so this one will be master
+        if (!_client.exists(IPaths.MASTER)) {
+          _client.createEphemeral(IPaths.MASTER, freshMaster);
+          Logger.info("Master " + hostName + " started....");
+          return true;
+        } else {
+          return false;
+        }
+      } catch (final KattaException e) {
+        throw new RuntimeException("Failed to communicate with ZooKeeper", e);
+      }
+    }
   }
 
   private void loadIndexes() throws KattaException {
-    Logger.info("Loading Indexes...");
-    synchronized (_zk.getSyncMutex()) {
-      final ArrayList<String> indexes = _zk.subscribeChildChanges(IPaths.INDEXES, new IndexListener());
+    Logger.info("Loading indexes...");
+    synchronized (_client.getSyncMutex()) {
+      final ArrayList<String> indexes = _client.subscribeChildChanges(IPaths.INDEXES, new IndexListener());
       assert indexes != null;
       if (indexes.size() > 0) {
         addIndexes(indexes);
@@ -87,10 +120,10 @@ public class Master {
   }
 
   private void loadSlaves() throws KattaException {
-    Logger.info("Loading Slaves...");
-    synchronized (_zk.getSyncMutex()) {
-      final ArrayList<String> children = _zk.subscribeChildChanges(IPaths.SLAVES, new SlaveListener());
-      Logger.info("Found Slaves: " + children);
+    Logger.info("Loading slaves...");
+    synchronized (_client.getSyncMutex()) {
+      final ArrayList<String> children = _client.subscribeChildChanges(IPaths.SLAVES, new SlaveListener());
+      Logger.info("Found slaves: " + children);
       assert children != null;
       _slaves = children;
     }
@@ -100,7 +133,7 @@ public class Master {
     Logger.info("Adding indexes: " + indexes);
     for (final String index : indexes) {
       final IndexMetaData metaData = new IndexMetaData();
-      _zk.readData(IPaths.INDEXES + "/" + index, metaData);
+      _client.readData(IPaths.INDEXES + "/" + index, metaData);
       deployIndex(index, metaData);
     }
   }
@@ -116,15 +149,15 @@ public class Master {
     final String indexPath = IPaths.INDEXES + "/" + index;
     for (final AssignedShard shard : shards) {
       final String path = indexPath + "/" + shard.getShardName();
-      if (!_zk.exists(path)) {
-        _zk.create(path, shard);
+      if (!_client.exists(path)) {
+        _client.create(path, shard);
       }
     }
 
     // compute how to distribute shards to slaves
     final List<String> readSlaves = readSlaves();
     if (readSlaves != null && readSlaves.size() > 0) {
-      final Map<String, List<AssignedShard>> distributionMap = _policy.ditribute(_zk, readSlaves, shards);
+      final Map<String, List<AssignedShard>> distributionMap = _policy.ditribute(_client, readSlaves, shards);
       asignShards(distributionMap);
       // lets have a thread watching deployment is things are done we set the
       // flag in the meta data...
@@ -143,7 +176,7 @@ public class Master {
             }
             Logger.info("Finnaly the index is deployed...");
             metaData.setIsDeployed(true);
-            _zk.writeData(indexPath, metaData);
+            _client.writeData(indexPath, metaData);
           } catch (final KattaException e) {
             throw new RuntimeException("Failed to write data into zookeeper", e);
           }
@@ -200,7 +233,8 @@ public class Master {
       all += shardsToServe.size();
       for (final AssignedShard expectedShard : shardsToServe) {
         // lookup who is actually serving this shard.
-        final List<String> servingSlaves = _zk.getChildren(IPaths.SHARD_TO_SLAVE + "/" + expectedShard.getShardName());
+        final List<String> servingSlaves = _client.getChildren(IPaths.SHARD_TO_SLAVE + "/"
+            + expectedShard.getShardName());
         // is the slave we expect here already?
         boolean asExpected = false;
         for (final String servingSlave : servingSlaves) {
@@ -233,15 +267,15 @@ public class Master {
         final String shardName = shard.getShardName();
         final String shardServerPath = IPaths.SHARD_TO_SLAVE + "/" + shardName;
         Logger.info("adding shard: " + shardName);
-        if (!_zk.exists(shardServerPath)) {
-          _zk.create(shardServerPath);
+        if (!_client.exists(shardServerPath)) {
+          _client.create(shardServerPath);
         }
         // slave to shard
         Logger.info("signing shard " + shardName + " to slave: " + slave);
         final String slavePath = IPaths.SLAVE_TO_SHARD + "/" + slave;
         final String slaveShardPath = slavePath + "/" + shardName;
-        if (!_zk.exists(slaveShardPath)) {
-          _zk.create(slaveShardPath, shard);
+        if (!_client.exists(slaveShardPath)) {
+          _client.create(slaveShardPath, shard);
         }
       }
     }
@@ -251,8 +285,8 @@ public class Master {
   // for (final String slave : newSlaves) {
   // // String slavePath = IPaths.SLAVE_TO_SHARD + "/" + slave;
   // // make sure we have the slave in the slave to shard folder
-  // // if (!_zk.exists(slavePath)) {
-  // // _zk.create(slavePath);
+  // // if (!_client.exists(slavePath)) {
+  // // _client.create(slavePath);
   // // }
   // }
   // }
@@ -261,16 +295,16 @@ public class Master {
     for (final String slave : removedSlaves) {
       // get the shards this slave served...
       final String slaveToRemove = IPaths.SLAVE_TO_SHARD + "/" + slave;
-      final List<String> toAsignShards = _zk.getChildren(slaveToRemove);
+      final List<String> toAsignShards = _client.getChildren(slaveToRemove);
       final List<AssignedShard> shards = new ArrayList<AssignedShard>();
       for (final String shardName : toAsignShards) {
         final AssignedShard metaData = new AssignedShard();
-        _zk.readData(slaveToRemove + "/" + shardName, metaData);
+        _client.readData(slaveToRemove + "/" + shardName, metaData);
         shards.add(metaData);
       }
-      _zk.deleteRecursiv(slaveToRemove);
+      _client.deleteRecursiv(slaveToRemove);
       if (toAsignShards.size() != 0) {
-        final Map<String, List<AssignedShard>> asignmentMap = _policy.ditribute(_zk, readSlaves(), shards);
+        final Map<String, List<AssignedShard>> asignmentMap = _policy.ditribute(_client, readSlaves(), shards);
         asignShards(asignmentMap);
       }
       // assign this to new slaves
@@ -294,17 +328,17 @@ public class Master {
    * @throws KattaException
    */
   private void removeIndex(final String indexName) throws KattaException {
-    synchronized (_zk.getSyncMutex()) {
-      final List<String> slaves = _zk.getChildren(IPaths.SLAVE_TO_SHARD);
+    synchronized (_client.getSyncMutex()) {
+      final List<String> slaves = _client.getChildren(IPaths.SLAVE_TO_SHARD);
       for (final String slave : slaves) {
         final String slavePath = IPaths.SLAVE_TO_SHARD + "/" + slave;
-        final List<String> assignedShards = _zk.getChildren(slavePath);
+        final List<String> assignedShards = _client.getChildren(slavePath);
         for (final String shard : assignedShards) {
           final AssignedShard shardWritable = new AssignedShard();
           final String shardPath = slavePath + "/" + shard;
-          _zk.readData(shardPath, shardWritable);
+          _client.readData(shardPath, shardWritable);
           if (shardWritable.getIndexName().equalsIgnoreCase(indexName)) {
-            _zk.delete(shardPath);
+            _client.delete(shardPath);
           }
         }
       }
@@ -313,16 +347,16 @@ public class Master {
 
   private class SlaveListener implements IZKEventListener {
     public void process(final WatcherEvent event) {
-      synchronized (_zk.getSyncMutex()) {
+      synchronized (_client.getSyncMutex()) {
         List<String> currentSlaves;
         try {
-          currentSlaves = _zk.getChildren(event.getPath());
+          currentSlaves = _client.getChildren(event.getPath());
           final List<String> removedSlaves = ComparisonUtil.getRemoved(_slaves, currentSlaves);
           removeSlaves(removedSlaves);
           final List<String> newSlaves = ComparisonUtil.getNew(_slaves, currentSlaves);
           // addSlaves(newSlaves);
           _slaves = currentSlaves;
-          _zk.getSyncMutex().notifyAll();
+          _client.getSyncMutex().notifyAll();
         } catch (final KattaException e) {
           throw new RuntimeException("Faled to read zookeeper data.", e);
         }
@@ -332,16 +366,16 @@ public class Master {
 
   private class IndexListener implements IZKEventListener {
     public void process(final WatcherEvent event) {
-      synchronized (_zk.getSyncMutex()) {
+      synchronized (_client.getSyncMutex()) {
         List<String> freshIndexes;
         try {
-          freshIndexes = _zk.getChildren(event.getPath());
+          freshIndexes = _client.getChildren(event.getPath());
           final List<String> removedIndices = ComparisonUtil.getRemoved(_indexes, freshIndexes);
           removeIndexes(removedIndices);
           final List<String> newIndexes = ComparisonUtil.getNew(_indexes, freshIndexes);
           addIndexes(newIndexes);
           _indexes = freshIndexes;
-          _zk.getSyncMutex().notifyAll();
+          _client.getSyncMutex().notifyAll();
         } catch (final KattaException e) {
           throw new RuntimeException("Faild to read zookeeper data", e);
         }
@@ -349,18 +383,36 @@ public class Master {
     }
   }
 
+  private class MasterListener implements IZKEventListener {
+    public void process(final WatcherEvent event) {
+      synchronized (_client.getSyncMutex()) {
+        // start from scratch again...
+        Logger.info("An master failure was detected...");
+        try {
+          start();
+        } catch (final KattaException e) {
+          Logger.error("Faild to process Master change notificaiton.", e);
+        }
+      }
+    }
+  }
+
   protected List<String> readSlaves() throws KattaException {
-    return _zk.getChildren(IPaths.SLAVES);
+    return _client.getChildren(IPaths.SLAVES);
   }
 
   protected List<String> readIndexes() throws KattaException {
-    return _zk.getChildren(IPaths.INDEXES);
+    return _client.getChildren(IPaths.INDEXES);
   }
 
   @Override
   protected void finalize() throws Throwable {
-    _zk.delete(IPaths.MASTER);
+    _client.delete(IPaths.MASTER);
     super.finalize();
+  }
+
+  public boolean isMaster() {
+    return _isMaster;
   }
 
 }

@@ -40,7 +40,7 @@ public class ServerTest extends TestCase implements Watcher {
       fail("no server yet started");
     } catch (final Exception e) {
     }
-    final Server server = new Server(conf);
+    final ZkServer zkServer = new ZkServer(conf);
     final ZooKeeper zk = new ZooKeeper(conf.getZKServers(), conf.getZKClientPort(), this);
 
     final String katta = IPaths.ROOT_PATH;
@@ -60,7 +60,7 @@ public class ServerTest extends TestCase implements Watcher {
     zk.create("/katta/2", new byte[0], Ids.OPEN_ACL_UNSAFE, 0);
     zk.getChildren(katta, true);
     zk.create("/katta/3", new byte[0], Ids.OPEN_ACL_UNSAFE, 0);
-    server.shutdown();
+    zkServer.shutdown();
 
   }
 
