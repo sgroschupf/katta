@@ -19,17 +19,14 @@
  */
 package net.sf.katta.master;
 
-public interface IPaths {
-  public static final String ROOT_PATH = "/katta";
+import java.util.List;
+import java.util.Map;
 
-  public static final String MASTER = ROOT_PATH + "/master";
+import net.sf.katta.index.AssignedShard;
+import net.sf.katta.zk.ZKClient;
 
-  public static final String SLAVES = ROOT_PATH + "/slaves";
+public interface IDeployPolicy {
 
-  public static final String INDEXES = ROOT_PATH + "/indexes";
-
-  public static final String SLAVE_TO_SHARD = ROOT_PATH + "/slave-to-shard";
-
-  public static final String SHARD_TO_SLAVE = ROOT_PATH + "/shard-to-salve";
+  Map<String, List<AssignedShard>> ditribute(ZKClient client, List<String> slaves, List<AssignedShard> shards);
 
 }

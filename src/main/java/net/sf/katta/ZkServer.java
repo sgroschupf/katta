@@ -25,11 +25,6 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.util.ArrayList;
 
-import net.sf.katta.master.DefaultDistributionPolicy;
-import net.sf.katta.master.IPaths;
-import net.sf.katta.master.Master;
-import net.sf.katta.master.MasterMetaData;
-import net.sf.katta.slave.Slave;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.Logger;
 import net.sf.katta.util.NetworkUtil;
@@ -43,7 +38,7 @@ import com.yahoo.zookeeper.server.NIOServerCnxn.Factory;
 import com.yahoo.zookeeper.server.quorum.QuorumPeer;
 import com.yahoo.zookeeper.server.quorum.QuorumPeer.QuorumServer;
 
-public class Server {
+public class ZkServer {
 
   private QuorumPeer _quorumPeer;
 
@@ -51,11 +46,10 @@ public class Server {
 
   private Factory _nioFactory;
 
-  // private ZkConfiguration _conf;
+  private final ZkConfiguration _conf;
 
-  private Slave _slave;
-
-  public Server(final ZkConfiguration conf) {
+  public ZkServer(final ZkConfiguration conf) throws KattaException {
+    _conf = conf;
     if (Logger.isInfo()) {
       final String[] localHostNames = NetworkUtil.getLocalHostNames();
       String names = "";
@@ -66,88 +60,27 @@ public class Server {
           names += ",";
         }
       }
-      Logger.info("Starting Server on: " + names + "...");
+      Logger.info("Starting ZkServer on: [" + names + "] ...");
     }
     startZooKeeperServer(conf);
   }
 
-  public void startMasterOrSlave(final ZKClient client, final boolean willBeMaster) throws KattaException {
-    // we might need to wait for the server to startup..
-    Logger.info("Server.startMasterOrSlave()");
-    client.waitForZooKeeper(30000);
-
-    final boolean masterConfigured = beMaster(client);
-    if (Logger.isDebug()) {
-      Logger.debug("MasterConfigured: " + masterConfigured);
-      Logger.debug("Master name: " + willBeMaster);
-    }
-    if (masterConfigured && willBeMaster) {
-      // TODO make policy configurable
-      Logger.info("Starting Master...");
-      Master master = new Master(client, new DefaultDistributionPolicy());
-      master.start();
-    } else if (!masterConfigured && willBeMaster) {
-      // TODO make a willBeMaster fail over here
-    } else {
-      Logger.info("Starting Slave...");
-      _slave = new Slave(client);
-      _slave.start();
-    }
-  }
-
-  private boolean beMaster(final ZKClient client) {
-    synchronized (client.getSyncMutex()) {
-      try {
-        client.createDefaultStructure();
-        final String localhostName = NetworkUtil.getLocalhostName();
-        // no master so this one will be master
-        final MasterMetaData freshMaster = new MasterMetaData(localhostName, client.getPort(), System
-            .currentTimeMillis());
-        if (!client.exists(IPaths.MASTER)) {
-          Logger.info("Creating master node: " + localhostName);
-          client.createEphemeral(IPaths.MASTER, freshMaster);
-          return true;
-        } else {
-          // there is a master file, now we check if this is may be one this
-          // server wrote.
-          final MasterMetaData oldMaster = new MasterMetaData();
-          client.readData(IPaths.MASTER, oldMaster);
-          if (oldMaster.getMasterName().equals(localhostName) && (client.getPort() == oldMaster.getPort())) {
-            // looks like I'm the master ..
-            Logger.info("Old master file was found ...");
-            client.createEphemeral(IPaths.MASTER, freshMaster);
-            return true;
-          } else {
-            // TODO here goes the master fail over.
-            return false;
-          }
-        }
-      } catch (final KattaException e) {
-        throw new RuntimeException("Failed to communicate with ZooKeeper", e);
-      }
-    }
-  }
-
   // check if this server has to start a zookepper server
-  private void startZooKeeperServer(final ZkConfiguration conf) {
+  private void startZooKeeperServer(final ZkConfiguration conf) throws KattaException {
     final String[] localhostHostNames = NetworkUtil.getLocalHostNames();
     final String servers = conf.getZKServers();
-    // check if this server needs to start a _zk server.
-    if (NetworkUtil.hostNamesInList(servers, localhostHostNames)) {
+    // check if this server needs to start a _client server.
+    int pos = -1;
+    if ((pos = NetworkUtil.hostNamesInList(servers, localhostHostNames)) != -1) {
       // yes this server needs to start a zookeeper server
-      final int port = conf.getZKClientPort();
-      // check if this maschine is already something running..
-      boolean free = false;
-      try {
-        final ServerSocket socket = new ServerSocket(port);
-        free = true;
-        socket.close();
-      } catch (final Exception e) {
-        free = false;
+      final String[] hosts = servers.split(",");
+      final String[] hostSplitted = hosts[pos].split(":");
+      int port = 2181;
+      if (hostSplitted.length > 1) {
+        port = Integer.parseInt(hostSplitted[1]);
       }
-      if (free) {
-        final String[] hosts = servers.split(",");
-
+      // check if this machine is already something running..
+      if (isPortFree(port)) {
         final int tickTime = conf.getZKTickTime();
         final File dataDir = conf.getZKDataDir();
         final File dataLogDir = conf.getZKDataLogDir();
@@ -157,20 +90,30 @@ public class Server {
         if (hosts.length > 1) {
           // multiple zk servers
           startQuorumPeer(conf, localhostHostNames, hosts, tickTime, dataDir, dataLogDir);
+          Logger.info("Distributed zookeeper server started...");
         } else {
           // single zk server
           startSingleZkServer(conf, tickTime, dataDir, dataLogDir, port);
-          Logger.info("ZooKeeper server started...");
+          Logger.info("Single zookeeper server started...");
         }
+        // now if required we initialize our namespace
+        final ZKClient client = new ZKClient(conf);
+        client.waitForZooKeeper(30000);
+        client.createDefaultNameSpace();
       } else {
-        Logger.warn("No zookeeper server was started, port is already blocked!");
+        Logger.error("Zookeeper port was already in use. Running in single machine mode?");
       }
-    } else {
-      final String msg = "This is server is not configured to be a zookeeper server";
-      Logger.error(msg);
-      throw new RuntimeException(msg);
     }
+  }
 
+  private boolean isPortFree(final int port) {
+    try {
+      final ServerSocket socket = new ServerSocket(port);
+      socket.close();
+      return true;
+    } catch (final Exception e) {
+      return false;
+    }
   }
 
   private void startSingleZkServer(final ZkConfiguration conf, final int tickTime, final File dataDir,
@@ -190,7 +133,7 @@ public class Server {
 
   private void startQuorumPeer(final ZkConfiguration conf, final String[] localhostHostNames, final String[] hosts,
       final int tickTime, final File dataDir, final File dataLogDir) {
-    Logger.info("Starting ZooKeeper Server...");
+    Logger.info("Starting ZooKeeper ZkServer...");
     final ArrayList<QuorumServer> peers = new ArrayList<QuorumServer>();
     long myId = -1;
     int myPort = -1;
@@ -221,29 +164,24 @@ public class Server {
   }
 
   public void join() {
-    // TODO: nioFactory and _zk and (_quorumPeer or _slave) doesn't exclude each
-    // other?
     if (_quorumPeer != null) {
       try {
         _quorumPeer.join();
       } catch (final InterruptedException e) {
         Logger.info("QuorumPeer was interruped.", e);
+      } finally {
+        _quorumPeer.shutdown();
       }
-      _quorumPeer.shutdown();
     } else if (_nioFactory != null) {
       try {
         _nioFactory.join();
       } catch (final InterruptedException e) {
         Logger.info("Nio server was interruped.", e);
+      } finally {
+        _nioFactory.shutdown();
       }
       _zk.shutdown();
       ServerStats.unregister();
-    } else if (_slave != null) {
-      try {
-        _slave.join();
-      } catch (final InterruptedException e) {
-        Logger.info("Slave was interruped.", e);
-      }
     }
   }
 
@@ -252,50 +190,40 @@ public class Server {
       usage();
       System.exit(1);
     }
-    boolean master = false;
-    if (args[0].equalsIgnoreCase("-master")) {
-      master = true;
-    } else if (args[0].equalsIgnoreCase("-salve")) {
-      master = false;
-    } else {
-      usage();
-      System.exit(1);
-    }
 
     final ZkConfiguration conf = new ZkConfiguration();
-    final Server server = new Server(conf);
-    final ZKClient client = new ZKClient(conf);
-    client.waitForZooKeeper(5000);
-    server.startMasterOrSlave(client, master);
-    server.join();
+    final ZkServer zkServer = new ZkServer(conf);
+    zkServer.join();
   }
 
   private static void usage() {
-    System.out.println("net.sf.katta.Server -master|slave");
+    System.out.println("net.sf.katta.ZkServer");
 
   }
 
   public void shutdown() {
-    Logger.info("Shutting down master...");
-    if (_quorumPeer != null) {
-      _quorumPeer.interrupt();
-      _quorumPeer.shutdown();
-    }
+    Logger.info("Shutting down server...");
     if (_nioFactory != null) {
-      _nioFactory.interrupt();
       _nioFactory.shutdown();
     }
-    if (_slave != null) {
-      _slave.shutdown();
+    if (_quorumPeer != null) {
+      _quorumPeer.shutdown();
     }
-    if (_zk != null) {
-      _zk.shutdown();
-    }
+
     ServerStats.unregister();
     try {
       Thread.sleep(1000);
     } catch (final InterruptedException e) {
       throw new RuntimeException("Waiting to shutodown the server was interrupted.", e);
+    }
+    final int port = _conf.getZKClientPort();
+    // check if this machine is already something running..
+    while (!isPortFree(port)) {
+      try {
+        Thread.sleep(2000);
+      } catch (final InterruptedException e) {
+        Logger.error("Failed to wait for zookeeper server release port", e);
+      }
     }
   }
 }

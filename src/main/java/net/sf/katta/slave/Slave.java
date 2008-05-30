@@ -24,6 +24,7 @@ import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.FilenameFilter;
 import java.io.IOException;
 import java.net.BindException;
 import java.net.URI;
@@ -51,6 +52,7 @@ import net.sf.katta.zk.ZKClient;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.DataOutputBuffer;
@@ -84,7 +86,7 @@ public class Slave implements ISearch {
 
   private KattaMultiSearcher _searcher;
 
-  ZKClient _zk;
+  ZKClient _client;
 
   private final ArrayList<String> _deployed = new ArrayList<String>();
 
@@ -99,7 +101,7 @@ public class Slave implements ISearch {
   private final Timer _timer;
 
   public Slave(final ZKClient client) {
-    _zk = client;
+    _client = client;
     _startTime = System.currentTimeMillis();
     _timer = new Timer("QueryCounter", true);
     _timer.schedule(new StatusUpdater(), new Date(), 60 * 1000);
@@ -113,8 +115,8 @@ public class Slave implements ISearch {
 
   public void start() throws KattaException {
     Logger.debug("Starting slave...");
-    _zk.waitForZooKeeper(30000);
-    _zk.createDefaultStructure();
+    _client.waitForZooKeeper(30000);
+    _client.createDefaultNameSpace();
     final SlaveConfiguration configuration = new SlaveConfiguration();
 
     final String shardFolder = configuration.getShardFolder();
@@ -142,13 +144,20 @@ public class Slave implements ISearch {
     updateStatus("OK");
   }
 
-  public void join() throws InterruptedException {
-    _server.join();
+  public void join() {
+    try {
+      _server.join();
+    } catch (final InterruptedException e) {
+      throw new RuntimeException("Failed to join slave", e);
+    }
   }
 
   public void shutdown() {
     _timer.cancel();
-    _zk.close();
+    // TODO do we really need to close the zk here?
+    if (_client != null) {
+      _client.close();
+    }
     _server.stop();
   }
 
@@ -160,9 +169,11 @@ public class Slave implements ISearch {
     final SlaveMetaData metaData = new SlaveMetaData(_slave, "booting", true, _startTime);
     final String slavePath = IPaths.SLAVES + "/" + _slave;
     final String slaveToShardPath = IPaths.SLAVE_TO_SHARD + "/" + _slave;
-    _zk.createEphemeral(slavePath, metaData);
-    _zk.create(slaveToShardPath);
-    return _zk.subscribeChildChanges(slaveToShardPath, new ShardListener());
+    _client.createEphemeral(slavePath, metaData);
+    if (!_client.exists(slaveToShardPath)) {
+      _client.create(slaveToShardPath);
+    }
+    return _client.subscribeChildChanges(slaveToShardPath, new ShardListener());
   }
 
   /*
@@ -194,22 +205,32 @@ public class Slave implements ISearch {
    */
   private void checkAndDeployExistingShards(final ArrayList<String> shardsToDeploy) throws KattaException {
     synchronized (_shardFolder) {
-      final String[] localShards = _shardFolder.list();
-      // in case no shards are assigned we want to remove local shards.
+      final String[] localShards = _shardFolder.list(new FilenameFilter() {
+        public boolean accept(final File dir, final String name) {
+          return !name.startsWith(".");
+        }
+      });
+      // in case not shards are assigned we want to remove local shards.
       if (shardsToDeploy == null || shardsToDeploy.size() == 0) {
-        for (final String localShard : localShards) {
-          final File file = new File(_shardFolder, localShard);
-          if (file.exists()) {
-            if (!deleteFolder(file)) {
-              throw new RuntimeException("unable to delete local shard: " + file.getAbsolutePath());
+        LocalFileSystem localFileSystem;
+        try {
+          localFileSystem = FileSystem.getLocal(new Configuration());
+          for (final String localShard : localShards) {
+            final Path localShardPath = new Path(_shardFolder.getAbsolutePath(), localShard);
+            if (localFileSystem.exists(localShardPath)) {
+              if (!localFileSystem.delete(localShardPath)) {
+                throw new RuntimeException("unable to delete local shard: " + localShardPath.toString());
+              }
             }
           }
+        } catch (final IOException e) {
+          throw new KattaException("Faild use local hadoop file system.", e);
         }
       }
       // remove those we do not need anymore
       final List<String> localShardList = Arrays.asList(localShards);
       final List<String> toRemove = ComparisonUtil.getRemoved(localShardList, shardsToDeploy);
-      removeShards(toRemove);
+      // removeShards(toRemove);
 
       // now only download those we do not yet have local or we can't deploy
       if (shardsToDeploy != null && shardsToDeploy.size() != 0) {
@@ -395,7 +416,7 @@ public class Slave implements ISearch {
    */
   private AssignedShard getAssignedShard(final String shardName) throws KattaException {
     final AssignedShard assignedShard = new AssignedShard();
-    _zk.readData(IPaths.SLAVE_TO_SHARD + "/" + _slave + "/" + shardName, assignedShard);
+    _client.readData(IPaths.SLAVE_TO_SHARD + "/" + _slave + "/" + shardName, assignedShard);
     return assignedShard;
   }
 
@@ -408,10 +429,10 @@ public class Slave implements ISearch {
       final String shardPath = IPaths.SHARD_TO_SLAVE + "/" + deployedShard.getShardName();
       // announce that this slave serves this shard now...
       final String slavePath = shardPath + "/" + _slave;
-      if (!_zk.exists(slavePath)) {
-        _zk.createEphemeral(slavePath, deployedShard);
+      if (!_client.exists(slavePath)) {
+        _client.createEphemeral(slavePath, deployedShard);
       } else {
-        _zk.writeData(slavePath, deployedShard);
+        _client.writeData(slavePath, deployedShard);
       }
     } catch (final Exception e) {
       if (Logger.isError()) {
@@ -440,12 +461,12 @@ public class Slave implements ISearch {
       _deployed.remove(shardName);
       final String shardPath = IPaths.SHARD_TO_SLAVE + "/" + shardName;
       final String slavePath = shardPath + "/" + _slave;
-      if (_zk.exists(slavePath)) {
-        _zk.delete(slavePath);
+      if (_client.exists(slavePath)) {
+        _client.delete(slavePath);
       } // remove slave serving it.
-      if (_zk.getChildren(shardPath).size() == 0) {
+      if (_client.getChildren(shardPath).size() == 0) {
         // this was the last slave
-        _zk.delete(shardPath);
+        _client.delete(shardPath);
       }
       synchronized (_shardFolder) {
         deleteFolder(new File(_shardFolder, shardName));
@@ -476,10 +497,10 @@ public class Slave implements ISearch {
    * (non-Javadoc)
    * 
    * @see net.sf.katta.slave.ISearch#search(net.sf.katta.slave.IQuery,
-   * net.sf.katta.slave.DocumentFrequenceWritable, java.lang.String[])
+   *      net.sf.katta.slave.DocumentFrequenceWritable, java.lang.String[])
    */
   public HitsMapWritable search(final IQuery query, final DocumentFrequenceWritable freqs, final String[] shards)
-      throws IOException {
+  throws IOException {
     return search(query, freqs, shards, Integer.MAX_VALUE - 1);
   }
 
@@ -487,7 +508,7 @@ public class Slave implements ISearch {
    * (non-Javadoc)
    * 
    * @see net.sf.katta.slave.ISearch#search(net.sf.katta.slave.IQuery,
-   * net.sf.katta.slave.DocumentFrequenceWritable, java.lang.String[], int)
+   *      net.sf.katta.slave.DocumentFrequenceWritable, java.lang.String[], int)
    */
   public HitsMapWritable search(final IQuery query, final DocumentFrequenceWritable freqs, final String[] shards,
       final int count) throws IOException {
@@ -545,7 +566,7 @@ public class Slave implements ISearch {
    * (non-Javadoc)
    * 
    * @see net.sf.katta.slave.ISearch#getDocFreqs(net.sf.katta.slave.IQuery,
-   * java.lang.String[])
+   *      java.lang.String[])
    */
   public DocumentFrequenceWritable getDocFreqs(final IQuery input, final String[] shards) throws IOException {
     Query luceneQuery;
@@ -607,7 +628,7 @@ public class Slave implements ISearch {
    * (non-Javadoc)
    * 
    * @see net.sf.katta.slave.ISearch#getDetails(java.lang.String, int,
-   * java.lang.String[])
+   *      java.lang.String[])
    */
   public MapWritable getDetails(final String shard, final int docId, final String[] fieldNames) throws IOException {
     final MapWritable result = new MapWritable();
@@ -629,7 +650,7 @@ public class Slave implements ISearch {
    * (non-Javadoc)
    * 
    * @see net.sf.katta.slave.ISearch#getResultCount(net.sf.katta.slave.IQuery,
-   * java.lang.String[])
+   *      java.lang.String[])
    */
   public int getResultCount(final IQuery query, final String[] shards) throws IOException {
     final DocumentFrequenceWritable docFreqs = getDocFreqs(query, shards);
@@ -647,9 +668,9 @@ public class Slave implements ISearch {
   private void updateStatus(final String statusMsg) throws KattaException {
     final String path = IPaths.SLAVES + "/" + _slave;
     final SlaveMetaData metaData = new SlaveMetaData();
-    _zk.readData(path, metaData);
+    _client.readData(path, metaData);
     metaData.setStatus(statusMsg);
-    _zk.writeData(path, metaData);
+    _client.writeData(path, metaData);
   }
 
   /*
@@ -658,19 +679,19 @@ public class Slave implements ISearch {
    */
   private class ShardListener implements IZKEventListener {
     public void process(final WatcherEvent event) {
-      synchronized (_zk.getSyncMutex()) {
+      synchronized (_client.getSyncMutex()) {
         if (Logger.isDebug()) {
           Logger.debug("ShardListener.process()" + _slave);
         }
         final String path = event.getPath();
         List<String> newList;
         try {
-          newList = _zk.getChildren(path);
+          newList = _client.getChildren(path);
           final List<String> shardsToRemove = ComparisonUtil.getRemoved(_deployed, newList);
           removeShards(shardsToRemove);
           final List<String> shardsToServe = ComparisonUtil.getNew(_deployed, newList);
           deployAndAnnounceShards(shardsToServe);
-          _zk.getSyncMutex().notifyAll();
+          _client.getSyncMutex().notifyAll();
         } catch (final KattaException e) {
           throw new RuntimeException("Failed to read zookeeper information");
         }
@@ -691,10 +712,10 @@ public class Slave implements ISearch {
         final SlaveMetaData metaData = new SlaveMetaData();
         final String path = IPaths.SLAVES + "/" + _slave;
         try {
-          if (_zk.exists(path)) {
-            _zk.readData(path, metaData);
+          if (_client.exists(path)) {
+            _client.readData(path, metaData);
             metaData.setQueriesPerMinute(qpm);
-            _zk.writeData(path, metaData);
+            _client.writeData(path, metaData);
           }
         } catch (final KattaException e) {
           Logger.error("Failed to update data in zookeeper", e);

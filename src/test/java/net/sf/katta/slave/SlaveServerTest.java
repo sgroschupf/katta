@@ -21,7 +21,6 @@ package net.sf.katta.slave;
 
 import junit.framework.TestCase;
 import net.sf.katta.util.KattaException;
-import net.sf.katta.util.ZkConfiguration;
 import net.sf.katta.zk.ZKClient;
 
 public class SlaveServerTest extends TestCase {
@@ -36,7 +35,7 @@ public class SlaveServerTest extends TestCase {
   // InterruptedException {
   // final ZkConfiguration conf = new ZkConfiguration();
   // final ZKClient client = new ZKClient(conf);
-  // final Server server = new Server(conf);
+  // final ZkServer server = new ZkServer(conf);
   // Thread.sleep(3000);
   // if (client.exists(IPaths.ROOT_PATH)) {
   // client.deleteRecursiv(IPaths.ROOT_PATH);
@@ -70,7 +69,7 @@ public class SlaveServerTest extends TestCase {
   // InterruptedException {
   // final ZkConfiguration conf = new ZkConfiguration();
   // final ZKClient client = new ZKClient(conf);
-  // final Server server = new Server(conf);
+  // final ZkServer server = new ZkServer(conf);
   // Thread.sleep(3000);
   // if (client.exists(IPaths.ROOT_PATH)) {
   // client.deleteRecursiv(IPaths.ROOT_PATH);
@@ -126,7 +125,7 @@ public class SlaveServerTest extends TestCase {
   // InterruptedException {
   // final ZkConfiguration conf = new ZkConfiguration();
   // final ZKClient client = new ZKClient(conf);
-  // final Server server = new Server(conf);
+  // final ZkServer server = new ZkServer(conf);
   // Thread.sleep(3000);
   // if (client.exists(IPaths.ROOT_PATH)) {
   // client.deleteRecursiv(IPaths.ROOT_PATH);
@@ -193,7 +192,7 @@ public class SlaveServerTest extends TestCase {
   // InterruptedException {
   // final ZkConfiguration conf = new ZkConfiguration();
   // final ZKClient client = new ZKClient(conf);
-  // final Server server = new Server(conf);
+  // final ZkServer server = new ZkServer(conf);
   // Thread.sleep(3000);
   // if (client.exists(IPaths.ROOT_PATH)) {
   // client.deleteRecursiv(IPaths.ROOT_PATH);
@@ -257,7 +256,7 @@ public class SlaveServerTest extends TestCase {
   // ParseException, InterruptedException {
   // final ZkConfiguration conf = new ZkConfiguration();
   // final ZKClient client = new ZKClient(conf);
-  // final Server server = new Server(conf);
+  // final ZkServer server = new ZkServer(conf);
   // Thread.sleep(3000);
   // if (client.exists(IPaths.ROOT_PATH)) {
   // client.deleteRecursiv(IPaths.ROOT_PATH);
@@ -294,7 +293,7 @@ public class SlaveServerTest extends TestCase {
   // InterruptedException {
   // final ZkConfiguration conf = new ZkConfiguration();
   // final ZKClient client = new ZKClient(conf);
-  // final Server server = new Server(conf);
+  // final ZkServer server = new ZkServer(conf);
   // Thread.sleep(3000);
   // if (client.exists(IPaths.ROOT_PATH)) {
   // client.deleteRecursiv(IPaths.ROOT_PATH);
@@ -340,7 +339,7 @@ public class SlaveServerTest extends TestCase {
   // InterruptedException {
   // final ZkConfiguration conf = new ZkConfiguration();
   // final ZKClient client = new ZKClient(conf);
-  // final Server server = new Server(conf);
+  // final ZkServer server = new ZkServer(conf);
   // Thread.sleep(3000);
   // if (client.exists(IPaths.ROOT_PATH)) {
   // client.deleteRecursiv(IPaths.ROOT_PATH);
@@ -372,7 +371,7 @@ public class SlaveServerTest extends TestCase {
   // InterruptedException {
   // final ZkConfiguration conf = new ZkConfiguration();
   // final ZKClient client = new ZKClient(conf);
-  // final Server server = new Server(conf);
+  // final ZkServer server = new ZkServer(conf);
   // Thread.sleep(3000);
   // if (client.exists(IPaths.ROOT_PATH)) {
   // client.deleteRecursiv(IPaths.ROOT_PATH);
@@ -405,13 +404,13 @@ public class SlaveServerTest extends TestCase {
   // server.shutdown();
   // }
   //
-  public static Slave startSlaveServer(final String configPath) {
+  public static Slave startSlaveServer(final ZKClient client) {
 
-    final Slave slave = new Slave(new ZKClient(new ZkConfiguration(configPath)));
+    final Slave slave = new Slave(client);
     try {
-        slave.start();
-    } catch (KattaException e) {
-        e.printStackTrace();
+      slave.start();
+    } catch (final KattaException e) {
+      e.printStackTrace();
     }
     return slave;
   }

@@ -33,7 +33,7 @@ public class IndexMetaData implements Writable {
 
   private Text _analyzerClassName;
 
-  private BooleanWritable _isDeployed;
+  private BooleanWritable _isDeployed = new BooleanWritable(false);
 
   public IndexMetaData(final String path, final String analyzerName, final boolean isDeployed) {
     _path = new Text(path);

@@ -190,4 +190,9 @@ public class Hits implements Writable {
   public void addTotalHits(final int size) {
     _totalHits += size;
   }
+
+  @Override
+  public String toString() {
+    return getHits().toString();
+  }
 }

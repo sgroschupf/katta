@@ -57,17 +57,19 @@ public class NetworkUtil {
     return addrStr.toString();
   }
 
-  public static boolean hostNamesInList(final String serverList, final String[] hostNames) {
+  public static int hostNamesInList(final String serverList, final String[] hostNames) {
     final String[] serverNames = serverList.split(",");
-    for (final String hostname : hostNames) {
-      for (final String serverNameAndPort : serverNames) {
+    for (int i = 0; i < hostNames.length; i++) {
+      final String hostname = hostNames[i];
+      for (int j = 0; j < serverNames.length; j++) {
+        final String serverNameAndPort = serverNames[j];
         final String serverName = serverNameAndPort.split(":")[0];
         if (serverName.equalsIgnoreCase(hostname)) {
-          return true;
+          return j;
         }
       }
     }
-    return false;
+    return -1;
   }
 
   public static boolean hostNameInArray(final String[] hostNames, final String hostName) {

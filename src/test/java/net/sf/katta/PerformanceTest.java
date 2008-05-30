@@ -29,6 +29,7 @@ import net.sf.katta.client.Client;
 import net.sf.katta.client.IClient;
 import net.sf.katta.index.IndexMetaData;
 import net.sf.katta.master.IPaths;
+import net.sf.katta.master.Master;
 import net.sf.katta.slave.Hit;
 import net.sf.katta.slave.Hits;
 import net.sf.katta.slave.Query;
@@ -54,22 +55,22 @@ public class PerformanceTest extends TestCase {
   private void start() throws InterruptedException, IOException, ParseException, KattaException {
     final ZkConfiguration conf = new ZkConfiguration();
     final ZKClient zkclient = new ZKClient(conf);
-    final Server master = new Server(conf);
+    final ZkServer server = new ZkServer(conf);
     zkclient.waitForZooKeeper(5000);
     if (zkclient.exists(IPaths.ROOT_PATH)) {
       zkclient.deleteRecursiv(IPaths.ROOT_PATH);
     }
-    master.startMasterOrSlave(zkclient, true);
+    final Master master = new Master(zkclient);
 
-    final Slave server1 = SlaveServerTest.startSlaveServer("/katta.zk.slave1.properties");
-    final Slave server2 = SlaveServerTest.startSlaveServer("/katta.zk.slave1.properties");
+    final Slave server1 = SlaveServerTest.startSlaveServer(zkclient);
+    final Slave server2 = SlaveServerTest.startSlaveServer(zkclient);
     Thread.sleep(2000);
     zkclient.create(IPaths.INDEXES + "/index1", new IndexMetaData("src/test/testIndexA", StandardAnalyzer.class
         .getName(), false));
     zkclient.create(IPaths.INDEXES + "/index2", new IndexMetaData("src/test/testIndexB", StandardAnalyzer.class
         .getName(), false));
     Thread.sleep(5000);
-    zkclient.showFolders(System.out);
+    zkclient.showFolders();
     final IndexMetaData data = new IndexMetaData();
     zkclient.readData(IPaths.INDEXES + "/index1", data);
     if (!data.isDeployed()) {
@@ -93,7 +94,7 @@ public class PerformanceTest extends TestCase {
     server2.shutdown();
     Thread.sleep(3000);
     zkclient.close();
-    master.shutdown();
+    server.shutdown();
   }
 
   public void testSortSpeed() {

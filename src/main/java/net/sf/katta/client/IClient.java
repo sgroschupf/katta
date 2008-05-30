@@ -119,4 +119,9 @@ public interface IClient {
    */
   public abstract void addIndex(String indexName, String pathToIndex, Analyzer analyzer) throws KattaException;
 
+  /**
+   * Closes down the client.
+   */
+  public abstract void close();
+
 }

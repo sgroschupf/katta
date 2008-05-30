@@ -23,9 +23,10 @@ import java.io.IOException;
 import java.util.Set;
 
 import junit.framework.TestCase;
-import net.sf.katta.Server;
+import net.sf.katta.ZkServer;
 import net.sf.katta.index.IndexMetaData;
 import net.sf.katta.master.IPaths;
+import net.sf.katta.master.Master;
 import net.sf.katta.slave.Hit;
 import net.sf.katta.slave.Hits;
 import net.sf.katta.slave.Query;
@@ -45,44 +46,101 @@ import org.apache.lucene.queryParser.ParseException;
 
 public class ClientTest extends TestCase {
 
+  private ZkServer _server;
+  private ZKClient _zkclient;
+  private Slave _server1;
+  private Slave _server2;
+  private Master _master;
+
   @Override
   protected void setUp() throws Exception {
-    Thread.sleep(1000);
-  }
+    // public void testname() throws Exception {
 
-  public void testSearch() throws KattaException, InterruptedException, IOException {
     final ZkConfiguration conf = new ZkConfiguration();
-    final Server master = new Server(conf);
-    final ZKClient zkclient = new ZKClient(conf);
-    zkclient.waitForZooKeeper(5000);
-    if (zkclient.exists(IPaths.ROOT_PATH)) {
-      zkclient.deleteRecursiv(IPaths.ROOT_PATH);
+    _server = new ZkServer(conf);
+    _zkclient = new ZKClient(conf);
+    _zkclient.waitForZooKeeper(600000);
+    if (_zkclient.exists(IPaths.ROOT_PATH)) {
+      _zkclient.deleteRecursiv(IPaths.ROOT_PATH);
     }
-    master.startMasterOrSlave(zkclient, true);
+    _master = new Master(_zkclient);
+    _master.start();
 
-    final Slave server1 = SlaveServerTest.startSlaveServer("/katta.zk.slave1.properties");
-    final Slave server2 = SlaveServerTest.startSlaveServer("/katta.zk.slave2.properties");
-
-    while (zkclient.getChildren(IPaths.SLAVES).size() != 2) {
+    _server1 = SlaveServerTest.startSlaveServer(_zkclient);
+    _server2 = SlaveServerTest.startSlaveServer(_zkclient);
+    while (_zkclient.getChildren(IPaths.SLAVES).size() != 2) {
       Thread.sleep(500);
     }
-
+    // _zkclient.showFolders(System.out);
+    final IndexMetaData index = new IndexMetaData("src/test/testIndexA/", StandardAnalyzer.class.getName(), false);
+    _zkclient.create(IPaths.INDEXES + "/index", index);
+    // _zkclient.showFolders(System.out);
+    // wait for index deployment.
+    final IndexMetaData data0 = new IndexMetaData("", "", false);
+    while (!data0.isDeployed()) {
+      Thread.sleep(500);
+      _zkclient.readData(IPaths.INDEXES + "/index", data0);
+    }
     final IndexMetaData indexA = new IndexMetaData("src/test/testIndexA", StandardAnalyzer.class.getName(), false);
-    zkclient.create(IPaths.INDEXES + "/index1", indexA);
+    _zkclient.create(IPaths.INDEXES + "/index1", indexA);
 
     final IndexMetaData indexB = new IndexMetaData("src/test/testIndexB", StandardAnalyzer.class.getName(), false);
-    zkclient.create(IPaths.INDEXES + "/index2", indexB);
+    _zkclient.create(IPaths.INDEXES + "/index2", indexB);
     // wait for slaves
 
     // wait for index deployment.
-    final IndexMetaData data = new IndexMetaData("", "", false);
+    final IndexMetaData data1 = new IndexMetaData("", "", false);
     final IndexMetaData data2 = new IndexMetaData("", "", false);
-    while (!data.isDeployed() || !data2.isDeployed()) {
+    while (!data1.isDeployed() || !data2.isDeployed()) {
       Thread.sleep(500);
-      zkclient.readData(IPaths.INDEXES + "/index1", data);
-      zkclient.readData(IPaths.INDEXES + "/index2", data2);
+      _zkclient.readData(IPaths.INDEXES + "/index1", data1);
+      _zkclient.readData(IPaths.INDEXES + "/index2", data2);
     }
 
+  }
+
+  //
+  // @Override
+  @Override
+  protected void tearDown() throws Exception {
+    _server1.shutdown();
+    _server2.shutdown();
+    _server.shutdown();
+    _zkclient.close();
+    RPC.stopClient();
+  }
+
+  //
+  public void testCount() throws InterruptedException, IOException, ParseException, KattaException {
+    System.out.println("ClientTest.testCount()");
+    final IClient client = new Client();
+    final Query query = new Query("content: the");
+    final int count = client.count(query, new String[] { "index" });
+    assertEquals(937, count);
+    client.close();
+  }
+
+  public void testGetDetails() throws InterruptedException, IOException, ParseException, KattaException {
+    System.out.println("ClientTest.testGetDetails()");
+    final IClient client = new Client();
+    final Query query = new Query("content:the");
+    final Hits hits = client.search(query, new String[] { "index" }, 10);
+    assertNotNull(hits);
+    assertEquals(10, hits.getHits().size());
+    for (final Hit hit : hits.getHits()) {
+      final MapWritable details = client.getDetails(hit);
+      final Set<Writable> keySet = details.keySet();
+      assertFalse(keySet.isEmpty());
+      for (final Writable writable : keySet) {
+        System.out.println(writable);
+      }
+      final Writable writable = details.get(new Text("path"));
+      assertNotNull(writable);
+    }
+  }
+
+  public void testSearch() throws KattaException, InterruptedException, IOException {
+    System.out.println("ClientTest.testSearch()");
     final IClient client = new Client();
 
     final Query query = new Query("foo: bar");
@@ -97,166 +155,10 @@ public class ClientTest extends TestCase {
     for (final Hit hit : hits.getHits()) {
       Logger.info(hit.getSlave() + " -- " + hit.getScore() + " -- " + hit.getDocId());
     }
-    zkclient.close();
-    server1.shutdown();
-    server2.shutdown();
-    RPC.stopClient();
-    master.shutdown();
-  }
-
-  public void testCount() throws InterruptedException, IOException, ParseException, KattaException {
-    final ZkConfiguration conf = new ZkConfiguration();
-    final ZKClient zkclient = new ZKClient(conf);
-    final Server master = new Server(conf);
-    zkclient.waitForZooKeeper(5000);
-
-    if (zkclient.exists(IPaths.ROOT_PATH)) {
-      zkclient.deleteRecursiv(IPaths.ROOT_PATH);
-    }
-    master.startMasterOrSlave(zkclient, true);
-
-    final Slave server = SlaveServerTest.startSlaveServer("/katta.zk.slave1.properties");
-    while (zkclient.getChildren(IPaths.SLAVES).size() != 1) {
-      Thread.sleep(500);
-    }
-
-    final IndexMetaData index = new IndexMetaData("src/test/testIndexA/", StandardAnalyzer.class.getName(), false);
-    zkclient.create(IPaths.INDEXES + "/index", index);
-
-    // wait for index deployment.
-    final IndexMetaData data = new IndexMetaData("", "", false);
-    while (!data.isDeployed()) {
-      Thread.sleep(500);
-      zkclient.readData(IPaths.INDEXES + "/index", data);
-    }
-    final IClient client = new Client();
-    final Query query = new Query("content: the");
-    final int count = client.count(query, new String[] { "index" });
-    assertEquals(937, count);
-    zkclient.close();
-    server.shutdown();
-    RPC.stopClient();
-    master.shutdown();
-  }
-
-  public void testSearchSimiliarity() throws InterruptedException, IOException, ParseException, KattaException {
-    final ZkConfiguration conf = new ZkConfiguration();
-    final ZKClient zkclient = new ZKClient(conf);
-    final Server master = new Server(conf);
-    zkclient.waitForZooKeeper(5000);
-    if (zkclient.exists(IPaths.ROOT_PATH)) {
-      zkclient.deleteRecursiv(IPaths.ROOT_PATH);
-    }
-    master.startMasterOrSlave(zkclient, true);
-
-    final Slave server = SlaveServerTest.startSlaveServer("/katta.zk.slave1.properties");
-    while (zkclient.getChildren(IPaths.SLAVES).size() != 1) {
-      Thread.sleep(500);
-    }
-
-    final IndexMetaData index1 = new IndexMetaData("src/test/testIndexC/", StandardAnalyzer.class.getName(), false);
-    zkclient.create(IPaths.INDEXES + "/index1", index1);
-    // wait for index deployment.
-    final IndexMetaData data = new IndexMetaData("", "", false);
-    while (!data.isDeployed()) {
-      Thread.sleep(500);
-      zkclient.readData(IPaths.INDEXES + "/index1", data);
-    }
-    final IClient client = new Client();
-    final Query query = new Query("foo: bar");
-    final Hits hits = client.search(query, new String[] { "index1" });
-    assertNotNull(hits);
-    assertEquals(2, hits.getHits().size());
-    for (final Hit hit : hits.getHits()) {
-      Logger.info(hit.getSlave() + " -- " + hit.getScore() + " -- " + hit.getDocId());
-    }
-    zkclient.close();
-    server.shutdown();
-    RPC.stopClient();
-    Thread.sleep(3000);
-    master.shutdown();
-  }
-
-  public void testGetDetails() throws InterruptedException, IOException, ParseException, KattaException {
-    final ZkConfiguration conf = new ZkConfiguration();
-    final ZKClient zkclient = new ZKClient(conf);
-    final Server master = new Server(conf);
-    zkclient.waitForZooKeeper(5000);
-    if (zkclient.exists(IPaths.ROOT_PATH)) {
-      zkclient.deleteRecursiv(IPaths.ROOT_PATH);
-    }
-    master.startMasterOrSlave(zkclient, true);
-
-    final Slave server = SlaveServerTest.startSlaveServer("/katta.zk.slave1.properties");
-    while (zkclient.getChildren(IPaths.SLAVES).size() != 1) {
-      Thread.sleep(500);
-    }
-
-    final IndexMetaData indexA = new IndexMetaData("src/test/testIndexA/", StandardAnalyzer.class.getName(), false);
-    zkclient.create(IPaths.INDEXES + "/index1", indexA);
-    // wait for index deployment.
-    final IndexMetaData data = new IndexMetaData("", "", false);
-    while (!data.isDeployed()) {
-      Thread.sleep(500);
-      zkclient.readData(IPaths.INDEXES + "/index1", data);
-    }
-
-    final IClient client = new Client();
-    final Query query = new Query("content:the");
-    final Hits hits = client.search(query, new String[] { "index1" }, 10);
-    assertNotNull(hits);
-    assertEquals(10, hits.getHits().size());
-    for (final Hit hit : hits.getHits()) {
-      final MapWritable details = client.getDetails(hit);
-      final Set<Writable> keySet = details.keySet();
-      assertFalse(keySet.isEmpty());
-      for (final Writable writable : keySet) {
-        System.out.println(writable);
-      }
-      final Writable writable = details.get(new Text("path"));
-      assertNotNull(writable);
-    }
-    zkclient.close();
-    server.shutdown();
-    RPC.stopClient();
-    master.shutdown();
   }
 
   public void testSearchLimit() throws InterruptedException, IOException, ParseException, KattaException {
-    final ZkConfiguration conf = new ZkConfiguration();
-    final Server master = new Server(conf);
-    final ZKClient zkclient = new ZKClient(conf);
-    zkclient.waitForZooKeeper(5000);
-    if (zkclient.exists(IPaths.ROOT_PATH)) {
-      zkclient.deleteRecursiv(IPaths.ROOT_PATH);
-    }
-    master.startMasterOrSlave(zkclient, true);
-
-    final Slave server1 = SlaveServerTest.startSlaveServer("/katta.zk.slave1.properties");
-    final Slave server2 = SlaveServerTest.startSlaveServer("/katta.zk.slave2.properties");
-
-    while (zkclient.getChildren(IPaths.SLAVES).size() != 2) {
-      Thread.sleep(500);
-    }
-
-    final IndexMetaData indexA = new IndexMetaData("src/test/testIndexA", StandardAnalyzer.class.getName(), false);
-    zkclient.create(IPaths.INDEXES + "/index1", indexA);
-
-    final IndexMetaData indexB = new IndexMetaData("src/test/testIndexB", StandardAnalyzer.class.getName(), false);
-    zkclient.create(IPaths.INDEXES + "/index2", indexB);
-
-    // wait for index deployment.
-    IndexMetaData data = new IndexMetaData("", "", false);
-    while (!data.isDeployed()) {
-      Thread.sleep(500);
-      zkclient.readData(IPaths.INDEXES + "/index1", data);
-    }
-    data = new IndexMetaData("", "", false);
-    while (!data.isDeployed()) {
-      Thread.sleep(500);
-      zkclient.readData(IPaths.INDEXES + "/index2", data);
-    }
-
+    System.out.println("ClientTest.testSearchLimit()");
     final IClient client = new Client();
     final Query query = new Query("foo: bar");
     final Hits hits = client.search(query, new String[] { "index2", "index1" }, 1);
@@ -269,10 +171,21 @@ public class ClientTest extends TestCase {
     for (final Hit hit : hits.getHits()) {
       Logger.info(hit.getSlave() + " -- " + hit.getScore() + " -- " + hit.getDocId());
     }
-    zkclient.close();
-    server1.shutdown();
-    server2.shutdown();
-    RPC.stopClient();
-    master.shutdown();
+  }
+
+  //
+  public void testSearchSimiliarity() throws InterruptedException, IOException, ParseException, KattaException {
+    System.out.println("ClientTest.testSearchSimiliarity()");
+
+    final IClient client = new Client();
+    final Query query = new Query("foo: bar");
+    final Hits hits = client.search(query, new String[] { "index1" });
+    assertNotNull(hits);
+    System.out.println(hits);
+    assertEquals(4, hits.getHits().size());
+    for (final Hit hit : hits.getHits()) {
+      Logger.info(hit.getSlave() + " -- " + hit.getScore() + " -- " + hit.getDocId());
+    }
+
   }
 }

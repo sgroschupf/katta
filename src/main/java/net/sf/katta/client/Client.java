@@ -86,8 +86,9 @@ public class Client implements IClient {
     _policy = policy;
     _client = new ZKClient(config);
     synchronized (_client.getSyncMutex()) {
-      _client.waitForZooKeeper(5000);
+      _client.waitForZooKeeper(30000);
       // first get all changes on index..
+      _client.createDefaultNameSpace();
       _client.subscribeChildChanges(IPaths.INDEXES, _indexPathChangeListener);
       loadIndexAndShardsData();
     }
@@ -169,7 +170,7 @@ public class Client implements IClient {
    * (non-Javadoc)
    * 
    * @see net.sf.katta.client.IClient#search(net.sf.katta.slave.IQuery,
-   * java.lang.String[])
+   *      java.lang.String[])
    */
   public Hits search(final IQuery query, final String[] indexNames) throws KattaException {
     return search(query, indexNames, Integer.MAX_VALUE);
@@ -179,7 +180,7 @@ public class Client implements IClient {
    * (non-Javadoc)
    * 
    * @see net.sf.katta.client.IClient#search(net.sf.katta.slave.IQuery,
-   * java.lang.String[], int)
+   *      java.lang.String[], int)
    */
   public Hits search(final IQuery query, final String[] indexNames, final int count) throws KattaException {
     final Map<String, List<String>> slaveShardsMap = _policy.getSlaveShardsMap(query, indexNames);
@@ -310,7 +311,7 @@ public class Client implements IClient {
    * (non-Javadoc)
    * 
    * @see net.sf.katta.client.IClient#getDetails(net.sf.katta.slave.Hit,
-   * java.lang.String)
+   *      java.lang.String)
    */
   public MapWritable getDetails(final Hit hit, final String[] fields) throws IOException {
     final ISearch searchSlave = _slaves.get(hit.getSlave());
@@ -364,7 +365,7 @@ public class Client implements IClient {
    * (non-Javadoc)
    * 
    * @see net.sf.katta.client.IClient#count(net.sf.katta.slave.IQuery,
-   * java.lang.String[])
+   *      java.lang.String[])
    */
   public int count(final IQuery query, final String[] indexNames) {
     final Map<String, List<String>> slaveShardsMap = _policy.getSlaveShardsMap(query, indexNames);
@@ -393,6 +394,12 @@ public class Client implements IClient {
     }
 
     return resultCount;
+  }
+
+  public void close() {
+    if (_client != null) {
+      _client.close();
+    }
   }
 
   public void addIndex(final String indexName, final String pathToIndex, final Analyzer analyzer) throws KattaException {
