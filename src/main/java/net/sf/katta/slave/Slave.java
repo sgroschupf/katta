@@ -169,6 +169,10 @@ public class Slave implements ISearch {
     final SlaveMetaData metaData = new SlaveMetaData(_slave, "booting", true, _startTime);
     final String slavePath = IPaths.SLAVES + "/" + _slave;
     final String slaveToShardPath = IPaths.SLAVE_TO_SHARD + "/" + _slave;
+    if (_client.exists(slavePath)) {
+      Logger.debug("Old slave for this host detected, will be removed...");
+      _client.delete(slavePath);
+    }
     _client.createEphemeral(slavePath, metaData);
     if (!_client.exists(slaveToShardPath)) {
       _client.create(slaveToShardPath);
