@@ -17,7 +17,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package net.sf.katta.slave;
+package net.sf.katta.node;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -72,7 +72,7 @@ import org.apache.lucene.search.Query;
 
 import com.yahoo.zookeeper.proto.WatcherEvent;
 
-public class Slave implements ISearch {
+public class Node implements ISearch {
 
   public static final long _protocolVersion = 0;
 
@@ -102,11 +102,11 @@ public class Slave implements ISearch {
 
   private final SlaveConfiguration _configuration;
 
-  public Slave(final ZKClient client) {
+  public Node(final ZKClient client) {
     this(client, new SlaveConfiguration());
   }
 
-  public Slave(final ZKClient client, final SlaveConfiguration configuration) {
+  public Node(final ZKClient client, final SlaveConfiguration configuration) {
     _client = client;
     _configuration = configuration;
     _startTime = System.currentTimeMillis();
@@ -549,7 +549,7 @@ public class Slave implements ISearch {
     }
 
     long completeSearchTime = 0;
-    final HitsMapWritable result = new net.sf.katta.slave.HitsMapWritable(_slave);
+    final HitsMapWritable result = new net.sf.katta.node.HitsMapWritable(_slave);
     if (_searcher != null) {
       long start = 0;
       if (Logger.isDebug()) {

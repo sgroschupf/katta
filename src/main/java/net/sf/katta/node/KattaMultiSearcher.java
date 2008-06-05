@@ -17,7 +17,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package net.sf.katta.slave;
+package net.sf.katta.node;
 
 /**
  * Licensed to the Apache Software Foundation (ASF) under one or more

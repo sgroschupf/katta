@@ -29,10 +29,10 @@ import net.sf.katta.client.Client;
 import net.sf.katta.client.IClient;
 import net.sf.katta.master.IPaths;
 import net.sf.katta.master.Master;
-import net.sf.katta.slave.Hit;
-import net.sf.katta.slave.Hits;
-import net.sf.katta.slave.Query;
-import net.sf.katta.slave.Slave;
+import net.sf.katta.node.Hit;
+import net.sf.katta.node.Hits;
+import net.sf.katta.node.Node;
+import net.sf.katta.node.Query;
 import net.sf.katta.slave.SlaveServerTest;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.ZkConfiguration;
@@ -61,8 +61,8 @@ public class PerformanceTest extends TestCase {
     }
     final Master master = new Master(zkclient);
 
-    final Slave server1 = SlaveServerTest.startSlaveServer(zkclient);
-    final Slave server2 = SlaveServerTest.startSlaveServer(zkclient);
+    final Node server1 = SlaveServerTest.startSlaveServer(zkclient);
+    final Node server2 = SlaveServerTest.startSlaveServer(zkclient);
     TimingTestUtil.waitFor(zkclient, IPaths.SLAVES, 2);
 
     final Katta katta = new Katta();

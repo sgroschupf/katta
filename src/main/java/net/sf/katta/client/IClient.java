@@ -21,9 +21,9 @@ package net.sf.katta.client;
 
 import java.io.IOException;
 
-import net.sf.katta.slave.Hit;
-import net.sf.katta.slave.Hits;
-import net.sf.katta.slave.IQuery;
+import net.sf.katta.node.Hit;
+import net.sf.katta.node.Hits;
+import net.sf.katta.node.IQuery;
 import net.sf.katta.util.KattaException;
 
 import org.apache.hadoop.io.MapWritable;

@@ -30,12 +30,12 @@ import java.util.Set;
 
 import net.sf.katta.index.IndexMetaData;
 import net.sf.katta.master.IPaths;
-import net.sf.katta.slave.DocumentFrequenceWritable;
-import net.sf.katta.slave.Hit;
-import net.sf.katta.slave.Hits;
-import net.sf.katta.slave.HitsMapWritable;
-import net.sf.katta.slave.IQuery;
-import net.sf.katta.slave.ISearch;
+import net.sf.katta.node.DocumentFrequenceWritable;
+import net.sf.katta.node.Hit;
+import net.sf.katta.node.Hits;
+import net.sf.katta.node.HitsMapWritable;
+import net.sf.katta.node.IQuery;
+import net.sf.katta.node.ISearch;
 import net.sf.katta.util.ComparisonUtil;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.Logger;

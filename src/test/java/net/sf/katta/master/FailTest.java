@@ -23,8 +23,8 @@ import junit.framework.TestCase;
 import net.sf.katta.Katta;
 import net.sf.katta.ZkServer;
 import net.sf.katta.client.Client;
-import net.sf.katta.slave.Query;
-import net.sf.katta.slave.Slave;
+import net.sf.katta.node.Node;
+import net.sf.katta.node.Query;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.SlaveConfiguration;
 import net.sf.katta.util.ZkConfiguration;
@@ -52,7 +52,7 @@ public class FailTest extends TestCase {
     master.start();
     waitFor(client, IPaths.MASTER);
 
-    final Slave slave = new Slave(slaveClient);
+    final Node slave = new Node(slaveClient);
     slave.start();
     waitFor(client, IPaths.SLAVES, 1);
 
@@ -165,11 +165,11 @@ public class FailTest extends TestCase {
   private class DummySlave {
 
     private final ZKClient _client;
-    private final Slave _slave;
+    private final Node _slave;
 
     public DummySlave(final ZkConfiguration conf, final SlaveConfiguration slaveConfiguration) throws KattaException {
       _client = new ZKClient(conf);
-      _slave = new Slave(_client, slaveConfiguration);
+      _slave = new Node(_client, slaveConfiguration);
       _slave.start();
     }
 

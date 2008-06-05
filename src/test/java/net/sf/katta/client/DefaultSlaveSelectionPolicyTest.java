@@ -25,7 +25,7 @@ import java.util.List;
 import java.util.Map;
 
 import junit.framework.TestCase;
-import net.sf.katta.slave.Query;
+import net.sf.katta.node.Query;
 
 public class DefaultSlaveSelectionPolicyTest extends TestCase {
 

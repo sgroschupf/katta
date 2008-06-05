@@ -22,7 +22,7 @@ ship.  The ASF licenses this file
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package net.sf.katta.slave;
+package net.sf.katta.node;
 
 import java.io.DataInput;
 import java.io.DataOutput;

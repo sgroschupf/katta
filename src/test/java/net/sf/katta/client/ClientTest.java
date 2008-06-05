@@ -28,10 +28,10 @@ import net.sf.katta.TimingTestUtil;
 import net.sf.katta.ZkServer;
 import net.sf.katta.master.IPaths;
 import net.sf.katta.master.Master;
-import net.sf.katta.slave.Hit;
-import net.sf.katta.slave.Hits;
-import net.sf.katta.slave.Query;
-import net.sf.katta.slave.Slave;
+import net.sf.katta.node.Hit;
+import net.sf.katta.node.Hits;
+import net.sf.katta.node.Node;
+import net.sf.katta.node.Query;
 import net.sf.katta.slave.SlaveServerTest;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.Logger;
@@ -49,8 +49,8 @@ public class ClientTest extends TestCase {
 
   private ZkServer _server;
   private ZKClient _zkclient;
-  private Slave _server1;
-  private Slave _server2;
+  private Node _server1;
+  private Node _server2;
   private Master _master;
   private Katta _katta;
 

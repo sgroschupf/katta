@@ -20,6 +20,7 @@ tor license agreements.  See the NOTICE file
 package net.sf.katta.slave;
 
 import junit.framework.TestCase;
+import net.sf.katta.node.Node;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.SlaveConfiguration;
 import net.sf.katta.zk.ZKClient;
@@ -405,9 +406,9 @@ public class SlaveServerTest extends TestCase {
   // server.shutdown();
   // }
   //
-  public static Slave startSlaveServer(final ZKClient client) {
+  public static Node startSlaveServer(final ZKClient client) {
 
-    final Slave slave = new Slave(client, new SlaveConfiguration());
+    final Node slave = new Node(client, new SlaveConfiguration());
     try {
       slave.start();
     } catch (final KattaException e) {

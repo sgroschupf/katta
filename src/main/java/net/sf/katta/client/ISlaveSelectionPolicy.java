@@ -22,7 +22,7 @@ package net.sf.katta.client;
 import java.util.List;
 import java.util.Map;
 
-import net.sf.katta.slave.IQuery;
+import net.sf.katta.node.IQuery;
 
 /**
  * Returns a Map with Slaves and shards within those slaves that have to be

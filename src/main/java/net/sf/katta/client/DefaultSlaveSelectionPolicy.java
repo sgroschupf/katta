@@ -25,7 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import net.sf.katta.slave.IQuery;
+import net.sf.katta.node.IQuery;
 
 public class DefaultSlaveSelectionPolicy implements ISlaveSelectionPolicy {
 

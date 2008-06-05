@@ -27,12 +27,12 @@ import net.sf.katta.client.IClient;
 import net.sf.katta.index.IndexMetaData;
 import net.sf.katta.master.IPaths;
 import net.sf.katta.master.Master;
-import net.sf.katta.slave.Hit;
-import net.sf.katta.slave.Hits;
-import net.sf.katta.slave.IQuery;
-import net.sf.katta.slave.Query;
-import net.sf.katta.slave.Slave;
-import net.sf.katta.slave.SlaveMetaData;
+import net.sf.katta.node.Hit;
+import net.sf.katta.node.Hits;
+import net.sf.katta.node.IQuery;
+import net.sf.katta.node.Node;
+import net.sf.katta.node.Query;
+import net.sf.katta.node.SlaveMetaData;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.ZkConfiguration;
 import net.sf.katta.zk.ZKClient;
@@ -100,7 +100,7 @@ public class Katta {
     final ZkConfiguration configuration = new ZkConfiguration();
     final ZKClient client = new ZKClient(configuration);
     client.waitForZooKeeper(30000);
-    final Slave slave = new Slave(client);
+    final Node slave = new Node(client);
     slave.join();
   }
 
