@@ -109,7 +109,7 @@ public class Master {
   }
 
   private void loadIndexes() throws KattaException {
-    Logger.info("Loading indexes...");
+    Logger.debug("Loading indexes...");
     synchronized (_client.getSyncMutex()) {
       final ArrayList<String> indexes = _client.subscribeChildChanges(IPaths.INDEXES, new IndexListener());
       assert indexes != null;
@@ -120,10 +120,10 @@ public class Master {
   }
 
   private void loadSlaves() throws KattaException {
-    Logger.info("Loading slaves...");
+    Logger.debug("Loading slaves...");
     synchronized (_client.getSyncMutex()) {
       final ArrayList<String> children = _client.subscribeChildChanges(IPaths.SLAVES, new SlaveListener());
-      Logger.info("Found slaves: " + children);
+      Logger.debug("Found slaves: " + children);
       assert children != null;
       _slaves = children;
     }
@@ -139,12 +139,11 @@ public class Master {
   }
 
   private void deployIndex(final String index, final IndexMetaData metaData) throws KattaException {
-    Logger.info("Deploying index: " + index);
     final ArrayList<AssignedShard> shards = getShardsForIndex(index, metaData);
     if (shards.size() == 0) {
       throw new IllegalArgumentException("No shards in folder found, this is not a vailid katta virtual index.");
     }
-    Logger.info("Found Shards: " + shards);
+    Logger.info("Deploying index: " + index + " [" + shards + "]");
     // add shards to index..
     final String indexPath = IPaths.INDEXES + "/" + index;
     for (final AssignedShard shard : shards) {
@@ -157,7 +156,8 @@ public class Master {
     // compute how to distribute shards to slaves
     final List<String> readSlaves = readSlaves();
     if (readSlaves != null && readSlaves.size() > 0) {
-      final Map<String, List<AssignedShard>> distributionMap = _policy.ditribute(_client, readSlaves, shards);
+      final Map<String, List<AssignedShard>> distributionMap = _policy.ditribute(_client, readSlaves, shards, metaData
+          .getReplicationLevel());
       asignShards(distributionMap);
       // lets have a thread watching deployment is things are done we set the
       // flag in the meta data...
@@ -175,9 +175,15 @@ public class Master {
               }
             }
             Logger.info("Finnaly the index is deployed...");
-            metaData.setIsDeployed(true);
+            metaData.setState(IndexMetaData.IndexState.DEPLOYED);
             _client.writeData(indexPath, metaData);
           } catch (final KattaException e) {
+            metaData.setState(IndexMetaData.IndexState.DEPLOYED);
+            try {
+              _client.writeData(indexPath, metaData);
+            } catch (final KattaException ke) {
+              throw new RuntimeException("Failed to write Index deployError", ke);
+            }
             throw new RuntimeException("Failed to write data into zookeeper", e);
           }
         }
@@ -266,12 +272,11 @@ public class Master {
         // shard to server
         final String shardName = shard.getShardName();
         final String shardServerPath = IPaths.SHARD_TO_SLAVE + "/" + shardName;
-        Logger.info("adding shard: " + shardName);
         if (!_client.exists(shardServerPath)) {
           _client.create(shardServerPath);
         }
         // slave to shard
-        Logger.info("signing shard " + shardName + " to slave: " + slave);
+        Logger.info("Assigning:" + shardName + " to: " + slave);
         final String slavePath = IPaths.SLAVE_TO_SHARD + "/" + slave;
         final String slaveShardPath = slavePath + "/" + shardName;
         if (!_client.exists(slaveShardPath)) {
@@ -281,15 +286,7 @@ public class Master {
     }
   }
 
-  // private void addSlaves(final List<String> newSlaves) {
-  // for (final String slave : newSlaves) {
-  // // String slavePath = IPaths.SLAVE_TO_SHARD + "/" + slave;
-  // // make sure we have the slave in the slave to shard folder
-  // // if (!_client.exists(slavePath)) {
-  // // _client.create(slavePath);
-  // // }
-  // }
-  // }
+
 
   private void removeSlaves(final List<String> removedSlaves) throws KattaException {
     for (final String slave : removedSlaves) {
@@ -304,7 +301,9 @@ public class Master {
       }
       _client.deleteRecursiv(slaveToRemove);
       if (toAsignShards.size() != 0) {
-        final Map<String, List<AssignedShard>> asignmentMap = _policy.ditribute(_client, readSlaves(), shards);
+        // since we lost one shard, we want to use replication level 1, since
+        // all other replica still exists..
+        final Map<String, List<AssignedShard>> asignmentMap = _policy.ditribute(_client, readSlaves(), shards, 1);
         asignShards(asignmentMap);
       }
       // assign this to new slaves

@@ -23,7 +23,6 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
-import org.apache.hadoop.io.BooleanWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 
@@ -33,12 +32,43 @@ public class IndexMetaData implements Writable {
 
   private Text _analyzerClassName;
 
-  private BooleanWritable _isDeployed = new BooleanWritable(false);
+  private int _replicationLevel;
 
-  public IndexMetaData(final String path, final String analyzerName, final boolean isDeployed) {
+  private IndexState _state;
+
+  public enum IndexState {
+    ANNOUNCED(0), DEPLOYED(1), DEPLOY_ERROR(2), UNDEPLOYED(3);
+    private int _value;
+
+    IndexState(final int value) {
+      _value = value;
+    }
+
+    public int value() {
+      return _value;
+    }
+
+    public static IndexState valueOf(final int value) {
+      switch (value) {
+      case 0:
+        return ANNOUNCED;
+      case 1:
+        return DEPLOYED;
+      case 2:
+        return DEPLOY_ERROR;
+      case 3:
+        return UNDEPLOYED;
+      default:
+        return DEPLOY_ERROR;
+      }
+    }
+  }
+
+  public IndexMetaData(final String path, final String analyzerName, final int replicationLevel, final IndexState state) {
     _path = new Text(path);
     _analyzerClassName = new Text(analyzerName);
-    _isDeployed = new BooleanWritable(isDeployed);
+    _replicationLevel = replicationLevel;
+    _state = state;
   }
 
   public IndexMetaData() {
@@ -49,15 +79,17 @@ public class IndexMetaData implements Writable {
     _path.readFields(in);
     _analyzerClassName = new Text();
     _analyzerClassName.readFields(in);
-    _isDeployed = new BooleanWritable();
-    _isDeployed.readFields(in);
+    _replicationLevel = in.readInt();
+    _state = IndexState.valueOf(in.readInt());
 
   }
 
   public void write(final DataOutput out) throws IOException {
     _path.write(out);
     _analyzerClassName.write(out);
-    _isDeployed.write(out);
+    out.writeInt(_replicationLevel);
+    out.writeInt(_state.value());
+
   }
 
   public String getPath() {
@@ -68,12 +100,15 @@ public class IndexMetaData implements Writable {
     return _analyzerClassName.toString();
   }
 
-  public boolean isDeployed() {
-    return _isDeployed.get();
+  public IndexState getState() {
+    return _state;
   }
 
-  public void setIsDeployed(final boolean b) {
-    _isDeployed.set(b);
+  public void setState(final IndexState state) {
+    _state = state;
   }
 
+  public int getReplicationLevel() {
+    return _replicationLevel;
+  }
 }

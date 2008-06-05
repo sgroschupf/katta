@@ -118,11 +118,12 @@ public class ZKClientTest extends TestCase {
     if (client.exists(katta)) {
       client.deleteRecursiv(katta);
     }
-    client.create(katta, new IndexMetaData("path", "someAnalyzr", false));
+    client.create(katta, new IndexMetaData("path", "someAnalyzr", 3, IndexMetaData.IndexState.ANNOUNCED));
     client.subscribeDataChanges(katta, listener);
     for (int i = 0; i < 10; i++) {
       synchronized (_mutex) {
-        final IndexMetaData indexMetaData = new IndexMetaData("path", "someAnalyzr" + i, false);
+        final IndexMetaData indexMetaData = new IndexMetaData("path", "someAnalyzr" + i, 3,
+            IndexMetaData.IndexState.ANNOUNCED);
         client.writeData(katta, indexMetaData);
         _mutex.wait();
       }

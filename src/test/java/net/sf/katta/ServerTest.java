@@ -34,14 +34,17 @@ public class ServerTest extends TestCase implements Watcher {
   public void testServer() throws Exception {
     final ZkConfiguration conf = new ZkConfiguration();
     final String path = "/";
+    ZooKeeper zk = null;
     try {
-      final ZooKeeper zk = new ZooKeeper(conf.getZKServers(), conf.getZKClientPort(), this);
+      zk = new ZooKeeper(conf.getZKServers(), conf.getZKClientPort(), this);
       final String create = zk.create(path, null, Ids.OPEN_ACL_UNSAFE, 0);
       fail("no server yet started");
     } catch (final Exception e) {
+      zk.close();
     }
+
     final ZkServer zkServer = new ZkServer(conf);
-    final ZooKeeper zk = new ZooKeeper(conf.getZKServers(), conf.getZKClientPort(), this);
+    zk = new ZooKeeper(conf.getZKServers(), conf.getZKClientPort(), this);
 
     final String katta = IPaths.ROOT_PATH;
     final ZKClient client = new ZKClient(conf);
@@ -49,7 +52,7 @@ public class ServerTest extends TestCase implements Watcher {
     if (client.exists(IPaths.ROOT_PATH)) {
       client.deleteRecursiv(IPaths.ROOT_PATH);
     }
-
+    client.close();
     if (zk.exists(katta, false) != null) {
       zk.delete(katta, -1);
     }
@@ -60,8 +63,9 @@ public class ServerTest extends TestCase implements Watcher {
     zk.create("/katta/2", new byte[0], Ids.OPEN_ACL_UNSAFE, 0);
     zk.getChildren(katta, true);
     zk.create("/katta/3", new byte[0], Ids.OPEN_ACL_UNSAFE, 0);
-    zkServer.shutdown();
+    zk.close();
 
+    zkServer.shutdown();
   }
 
   public void process(final WatcherEvent event) {

@@ -70,7 +70,11 @@ public class Katta {
           katta.search(indexNames, query);
         }
       } else if (command.endsWith("addIndex")) {
-        katta.addIndex(args[1], args[2], args[3]);
+        int replication = 3;
+        if (args.length == 5) {
+          replication = Integer.parseInt(args[4]);
+        }
+        katta.addIndex(args[1], args[2], args[3], replication);
       } else if (command.endsWith("removeIndex")) {
         katta.removeIndex(args[1]);
       } else if (command.endsWith("listIndexes")) {
@@ -138,7 +142,8 @@ public class Katta {
     for (final String index : indexes) {
       final IndexMetaData metaData = new IndexMetaData();
       _client.readData(IPaths.INDEXES + "/" + index, metaData);
-      t.addRow(new String[] { index, "" + metaData.isDeployed(), metaData.getAnalyzerClassName(), metaData.getPath() });
+      t.addRow(new String[] { index, metaData.getState().toString(), metaData.getAnalyzerClassName(),
+          metaData.getPath() });
       // maybe show shards
       // maybe show serving slaves..
       // maybe show replication level...
@@ -146,14 +151,16 @@ public class Katta {
     System.out.println(t.toString());
   }
 
-  public void addIndex(final String name, final String path, final String analyzerClass) throws KattaException {
+  public void addIndex(final String name, final String path, final String analyzerClass, final int replicationLevel)
+  throws KattaException {
     final String indexPath = IPaths.INDEXES + "/" + name;
     if (!_client.exists(indexPath)) {
-      _client.create(indexPath, new IndexMetaData(path, analyzerClass, false));
+      _client.create(indexPath, new IndexMetaData(path, analyzerClass, replicationLevel,
+          IndexMetaData.IndexState.ANNOUNCED));
       final IndexMetaData data = new IndexMetaData();
       while (true) {
         _client.readData(indexPath, data);
-        if (data.isDeployed()) {
+        if (data.getState() == IndexMetaData.IndexState.DEPLOYED) {
           break;
         }
         System.out.print(".");
@@ -270,6 +277,12 @@ public class Katta {
       }
 
       return sizes;
+    }
+  }
+
+  public void close() {
+    if (_client != null) {
+      _client.close();
     }
   }
 

@@ -88,7 +88,7 @@ public class Slave implements ISearch {
 
   ZKClient _client;
 
-  private final ArrayList<String> _deployed = new ArrayList<String>();
+  private final ArrayList<String> _deployedShards = new ArrayList<String>();
 
   private File _shardFolder;
 
@@ -100,8 +100,15 @@ public class Slave implements ISearch {
 
   private final Timer _timer;
 
+  private final SlaveConfiguration _configuration;
+
   public Slave(final ZKClient client) {
+    this(client, new SlaveConfiguration());
+  }
+
+  public Slave(final ZKClient client, final SlaveConfiguration configuration) {
     _client = client;
+    _configuration = configuration;
     _startTime = System.currentTimeMillis();
     _timer = new Timer("QueryCounter", true);
     _timer.schedule(new StatusUpdater(), new Date(), 60 * 1000);
@@ -117,14 +124,13 @@ public class Slave implements ISearch {
     Logger.debug("Starting slave...");
     _client.waitForZooKeeper(30000);
     _client.createDefaultNameSpace();
-    final SlaveConfiguration configuration = new SlaveConfiguration();
 
-    final String shardFolder = configuration.getShardFolder();
+    final String shardFolder = _configuration.getShardFolder();
     _shardFolder = new File(shardFolder);
     if (!_shardFolder.exists()) {
       _shardFolder.mkdirs();
     }
-    _slave = startRPCServer(configuration);
+    _slave = startRPCServer(_configuration);
     final ArrayList<String> shardsToServe = announceSlave();
 
     updateStatus("STARTING");
@@ -159,6 +165,10 @@ public class Slave implements ISearch {
       _client.close();
     }
     _server.stop();
+  }
+
+  public ArrayList<String> getDeployShards() {
+    return _deployedShards;
   }
 
   /*
@@ -409,6 +419,7 @@ public class Slave implements ISearch {
     try {
       indexSearcher = new IndexSearcher(localShardFolder.getAbsolutePath());
       _searcher.addShard(shardName, indexSearcher);
+      _deployedShards.add(shardName);
       return indexSearcher.maxDoc();
     } catch (final Exception e) {
       throw new RuntimeException("Shard index " + shardName + " can't be started", e);
@@ -462,7 +473,7 @@ public class Slave implements ISearch {
         Logger.info("Removing shard: " + shardName);
       }
       _searcher.removeShard(shardName);
-      _deployed.remove(shardName);
+      _deployedShards.remove(shardName);
       final String shardPath = IPaths.SHARD_TO_SLAVE + "/" + shardName;
       final String slavePath = shardPath + "/" + _slave;
       if (_client.exists(slavePath)) {
@@ -691,9 +702,9 @@ public class Slave implements ISearch {
         List<String> newList;
         try {
           newList = _client.getChildren(path);
-          final List<String> shardsToRemove = ComparisonUtil.getRemoved(_deployed, newList);
+          final List<String> shardsToRemove = ComparisonUtil.getRemoved(_deployedShards, newList);
           removeShards(shardsToRemove);
-          final List<String> shardsToServe = ComparisonUtil.getNew(_deployed, newList);
+          final List<String> shardsToServe = ComparisonUtil.getNew(_deployedShards, newList);
           deployAndAnnounceShards(shardsToServe);
           _client.getSyncMutex().notifyAll();
         } catch (final KattaException e) {

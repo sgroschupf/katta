@@ -23,8 +23,9 @@ import java.io.IOException;
 import java.util.Set;
 
 import junit.framework.TestCase;
+import net.sf.katta.Katta;
+import net.sf.katta.TimingTestUtil;
 import net.sf.katta.ZkServer;
-import net.sf.katta.index.IndexMetaData;
 import net.sf.katta.master.IPaths;
 import net.sf.katta.master.Master;
 import net.sf.katta.slave.Hit;
@@ -51,6 +52,7 @@ public class ClientTest extends TestCase {
   private Slave _server1;
   private Slave _server2;
   private Master _master;
+  private Katta _katta;
 
   @Override
   protected void setUp() throws Exception {
@@ -68,34 +70,13 @@ public class ClientTest extends TestCase {
 
     _server1 = SlaveServerTest.startSlaveServer(_zkclient);
     _server2 = SlaveServerTest.startSlaveServer(_zkclient);
-    while (_zkclient.getChildren(IPaths.SLAVES).size() != 2) {
-      Thread.sleep(500);
-    }
-    // _zkclient.showFolders(System.out);
-    final IndexMetaData index = new IndexMetaData("src/test/testIndexA/", StandardAnalyzer.class.getName(), false);
-    _zkclient.create(IPaths.INDEXES + "/index", index);
-    // _zkclient.showFolders(System.out);
-    // wait for index deployment.
-    final IndexMetaData data0 = new IndexMetaData("", "", false);
-    while (!data0.isDeployed()) {
-      Thread.sleep(500);
-      _zkclient.readData(IPaths.INDEXES + "/index", data0);
-    }
-    final IndexMetaData indexA = new IndexMetaData("src/test/testIndexA", StandardAnalyzer.class.getName(), false);
-    _zkclient.create(IPaths.INDEXES + "/index1", indexA);
+    TimingTestUtil.waitFor(_zkclient, IPaths.SLAVES, 2);
 
-    final IndexMetaData indexB = new IndexMetaData("src/test/testIndexB", StandardAnalyzer.class.getName(), false);
-    _zkclient.create(IPaths.INDEXES + "/index2", indexB);
-    // wait for slaves
+    _katta = new Katta();
+    _katta.addIndex("index", "src/test/testIndexA/", StandardAnalyzer.class.getName(), 1);
 
-    // wait for index deployment.
-    final IndexMetaData data1 = new IndexMetaData("", "", false);
-    final IndexMetaData data2 = new IndexMetaData("", "", false);
-    while (!data1.isDeployed() || !data2.isDeployed()) {
-      Thread.sleep(500);
-      _zkclient.readData(IPaths.INDEXES + "/index1", data1);
-      _zkclient.readData(IPaths.INDEXES + "/index2", data2);
-    }
+    _katta.addIndex("index1", "src/test/testIndexA/", StandardAnalyzer.class.getName(), 1);
+    _katta.addIndex("index2", "src/test/testIndexA/", StandardAnalyzer.class.getName(), 1);
 
   }
 
@@ -103,6 +84,7 @@ public class ClientTest extends TestCase {
   // @Override
   @Override
   protected void tearDown() throws Exception {
+    _katta.close();
     _server1.shutdown();
     _server2.shutdown();
     _server.shutdown();

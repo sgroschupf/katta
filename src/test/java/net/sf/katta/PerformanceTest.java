@@ -27,7 +27,6 @@ import java.util.Random;
 import junit.framework.TestCase;
 import net.sf.katta.client.Client;
 import net.sf.katta.client.IClient;
-import net.sf.katta.index.IndexMetaData;
 import net.sf.katta.master.IPaths;
 import net.sf.katta.master.Master;
 import net.sf.katta.slave.Hit;
@@ -64,18 +63,12 @@ public class PerformanceTest extends TestCase {
 
     final Slave server1 = SlaveServerTest.startSlaveServer(zkclient);
     final Slave server2 = SlaveServerTest.startSlaveServer(zkclient);
-    Thread.sleep(2000);
-    zkclient.create(IPaths.INDEXES + "/index1", new IndexMetaData("src/test/testIndexA", StandardAnalyzer.class
-        .getName(), false));
-    zkclient.create(IPaths.INDEXES + "/index2", new IndexMetaData("src/test/testIndexB", StandardAnalyzer.class
-        .getName(), false));
-    Thread.sleep(5000);
-    zkclient.showFolders();
-    final IndexMetaData data = new IndexMetaData();
-    zkclient.readData(IPaths.INDEXES + "/index1", data);
-    if (!data.isDeployed()) {
-      throw new RuntimeException("index not yet deployed");
-    }
+    TimingTestUtil.waitFor(zkclient, IPaths.SLAVES, 2);
+
+    final Katta katta = new Katta();
+    katta.addIndex("index1", "src/test/testIndexA", StandardAnalyzer.class.getName(), 1);
+    katta.addIndex("index2", "src/test/testIndex2", StandardAnalyzer.class.getName(), 1);
+
     final IClient client = new Client();
     final Query query = new Query("foo: bar");
     long start = System.currentTimeMillis();
@@ -89,6 +82,7 @@ public class PerformanceTest extends TestCase {
       client.count(query, new String[] { "index2", "index1" });
     }
     System.out.println("count took: " + (System.currentTimeMillis() - start));
+    katta.close();
     RPC.stopClient();
     server1.shutdown();
     server2.shutdown();

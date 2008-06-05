@@ -79,7 +79,8 @@ public class MasterTest extends TestCase {
     master.start();
     final File file = new File("./src/test/testIndexA");
     final String path = "file://" + file.getAbsolutePath();
-    final IndexMetaData indexMetaData = new IndexMetaData(path, StandardAnalyzer.class.getName(), false);
+    final IndexMetaData indexMetaData = new IndexMetaData(path, StandardAnalyzer.class.getName(), 2,
+        IndexMetaData.IndexState.ANNOUNCED);
     client.createEphemeral("/katta/slaves/slave1");
     client.create(IPaths.SLAVE_TO_SHARD + "/slave1");
     client.createEphemeral("/katta/slaves/slave2");
@@ -96,10 +97,10 @@ public class MasterTest extends TestCase {
     assertEquals(2, client.getChildren(IPaths.SLAVE_TO_SHARD).size());
 
     // there should be two shards here now
-    assertEquals(2, client.getChildren(IPaths.SLAVE_TO_SHARD + "/slave1").size());
+    assertEquals(4, client.getChildren(IPaths.SLAVE_TO_SHARD + "/slave1").size());
 
     // there should be two shards here now
-    assertEquals(2, client.getChildren(IPaths.SLAVE_TO_SHARD + "/slave2").size());
+    assertEquals(4, client.getChildren(IPaths.SLAVE_TO_SHARD + "/slave2").size());
     // there should be 4 shards indexes now..
     assertEquals(4, client.getChildren(IPaths.SHARD_TO_SLAVE).size());
 
@@ -110,7 +111,8 @@ public class MasterTest extends TestCase {
     final List<AssignedShard> shards = master.getShardsForIndex("indexA", indexMetaData);
     final List<String> readSlaves = master.readSlaves();
     final DefaultDistributionPolicy defaultDistributionPolicy = new DefaultDistributionPolicy();
-    final Map<String, List<AssignedShard>> ditribute = defaultDistributionPolicy.ditribute(client, readSlaves, shards);
+    final Map<String, List<AssignedShard>> ditribute = defaultDistributionPolicy.ditribute(client, readSlaves, shards,
+        2);
     final Set<String> keySet = ditribute.keySet();
     for (final String slaveName : keySet) {
       final List<AssignedShard> toDistribteShards = ditribute.get(slaveName);
@@ -119,10 +121,10 @@ public class MasterTest extends TestCase {
       }
     }
     Thread.sleep(2000);
-
+    client.showFolders();
     final IndexMetaData metaData = new IndexMetaData();
     client.readData(indexPath, metaData);
-    assertTrue(metaData.isDeployed());
+    assertEquals(IndexMetaData.IndexState.DEPLOYED, metaData.getState());
 
     // now remove one slave...
     synchronized (client.getSyncMutex()) {

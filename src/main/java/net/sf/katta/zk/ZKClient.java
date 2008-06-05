@@ -62,7 +62,6 @@ public class ZKClient implements Watcher {
 
     final String servers = configuration.getZKServers();
     _port = configuration.getZKClientPort();
-    Logger.info("trying to connect to: " + servers);
     if (_zk == null) {
       try {
         _zk = new ZooKeeper(servers, configuration.getZKTimeOut(), this);

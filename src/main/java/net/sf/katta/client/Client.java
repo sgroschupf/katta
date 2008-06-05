@@ -46,7 +46,6 @@ import net.sf.katta.zk.ZKClient;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.MapWritable;
 import org.apache.hadoop.ipc.RPC;
-import org.apache.lucene.analysis.Analyzer;
 
 import com.yahoo.zookeeper.proto.WatcherEvent;
 
@@ -130,8 +129,8 @@ public class Client implements IClient {
       final String serverName = slave.substring(0, splitPoint);
       final String port = slave.substring(splitPoint + 1, slave.length());
       try {
-        slaveProxy = (ISearch) RPC.getProxy(ISearch.class, 0L,
-            new InetSocketAddress(serverName, Integer.parseInt(port)), configuration);
+        final InetSocketAddress inetSocketAddress = new InetSocketAddress(serverName, Integer.parseInt(port));
+        slaveProxy = (ISearch) RPC.getProxy(ISearch.class, 0L, inetSocketAddress, configuration);
       } catch (final IOException e) {
         Logger.warn("One of the slaves cannot be reached.", e);
       } catch (final NumberFormatException e) {
@@ -153,7 +152,7 @@ public class Client implements IClient {
     final String indexPath = IPaths.INDEXES + "/" + indexName;
     final IndexMetaData indexMetaData = new IndexMetaData();
     _client.readData(indexPath, indexMetaData);
-    if (indexMetaData.isDeployed()) {
+    if (indexMetaData.getState() == IndexMetaData.IndexState.DEPLOYED) {
       final List<String> indexShards = _client.getChildren(indexPath);
       _indexToShards.put(indexName, indexShards);
       for (final String shardName : indexShards) {
@@ -263,7 +262,7 @@ public class Client implements IClient {
         final IndexMetaData indexMetaData = new IndexMetaData();
         try {
           _client.readData(path, indexMetaData);
-          if (indexMetaData.isDeployed()) {
+          if (indexMetaData.getState() == IndexMetaData.IndexState.DEPLOYED) {
             final String indexName = _client.getNodeNameFromPath(path);
             loadShardsFromIndex(indexName);
             // set datat for policy
@@ -402,11 +401,6 @@ public class Client implements IClient {
     }
   }
 
-  public void addIndex(final String indexName, final String pathToIndex, final Analyzer analyzer) throws KattaException {
-    _client.create(IPaths.INDEXES + "/" + indexName, new IndexMetaData(pathToIndex, analyzer.getClass().getName(),
-        false));
-  }
-
   // threads for searching..
 
   private class GetDocumentFrequencyThread extends Thread {
@@ -537,7 +531,8 @@ public class Client implements IClient {
           Logger.debug("Wait for thread " + _slave + " tooks " + (endThread - startThread) / 1000.0 + "sec.");
         }
       } catch (final IOException e) {
-        Logger.error("Cannot open searcher.", e);
+        Logger.error("Cannot open searcher, remove " + _slave + " from connections.", e);
+        _slaves.remove(_slave);
       }
     }
 

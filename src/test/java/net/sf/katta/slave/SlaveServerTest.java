@@ -21,6 +21,7 @@ package net.sf.katta.slave;
 
 import junit.framework.TestCase;
 import net.sf.katta.util.KattaException;
+import net.sf.katta.util.SlaveConfiguration;
 import net.sf.katta.zk.ZKClient;
 
 public class SlaveServerTest extends TestCase {
@@ -406,7 +407,7 @@ public class SlaveServerTest extends TestCase {
   //
   public static Slave startSlaveServer(final ZKClient client) {
 
-    final Slave slave = new Slave(client);
+    final Slave slave = new Slave(client, new SlaveConfiguration());
     try {
       slave.start();
     } catch (final KattaException e) {

@@ -35,4 +35,8 @@ public class SlaveConfiguration extends KattaConfiguration {
   public String getShardFolder() {
     return _properties.getProperty(SHARD_FOLDER);
   }
+
+  public void setShardFolder(final String value) {
+    _properties.setProperty(SHARD_FOLDER, value);
+  }
 }

@@ -27,7 +27,6 @@ import net.sf.katta.slave.IQuery;
 import net.sf.katta.util.KattaException;
 
 import org.apache.hadoop.io.MapWritable;
-import org.apache.lucene.analysis.Analyzer;
 
 public interface IClient {
 
@@ -105,19 +104,6 @@ public interface IClient {
    */
   public abstract int count(IQuery query, String[] indexNames);
 
-  /**
-   * Adds a index to the Katta system. The index path is a URI that can point to
-   * a local filesystem or to a Hadoop DFS.
-   * 
-   * @param indexName
-   *            Name that represents the new index.
-   * @param pathToIndex
-   *            URI to the index. Should start with file:// or hdfs://.
-   * @param analyzer
-   *            The Lucene analyzer class name the index was created with.
-   * @throws KattaException
-   */
-  public abstract void addIndex(String indexName, String pathToIndex, Analyzer analyzer) throws KattaException;
 
   /**
    * Closes down the client.

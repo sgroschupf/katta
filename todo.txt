@@ -71,3 +71,9 @@ o use hadoop RPC parallel node calling
 x block addIndex... 
 x BUG! when a slave restarts after crash there might be still a node in zookeeper
 o fix index deployment when no slave is yet started. 
+o use Katta.java to deploy index in client test to reduce code.
+o add a better usage and maybe --help to each command in CL.
+o speed up RPC client failure.
+o do we wanna write the exeption into the IndexMetaData in case it failed to deploy
+o table in katta.java works only for one liner texts since we use string.length and not searching for the first line breat...
+o if we reasign shards to a datanode from a failed datanode we want to make sure we do not assign the same shard to a server that already serve that shard...

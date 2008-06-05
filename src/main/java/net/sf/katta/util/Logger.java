@@ -32,7 +32,7 @@ public class Logger {
   static {
     String logLevel = System.getProperty("KATTA_LOG_LEVEL");
     if (logLevel == null) {
-      logLevel = "DEBUG";
+      logLevel = "INFO";
     }
     if (logLevel.equalsIgnoreCase("DEBUG")) {
       DEBUG = true;
