@@ -540,14 +540,14 @@ public class ZKClient implements Watcher {
     if (!exists(IPaths.INDEXES)) {
       create(IPaths.INDEXES);
     }
-    if (!exists(IPaths.SLAVES)) {
-      create(IPaths.SLAVES);
+    if (!exists(IPaths.NODES)) {
+      create(IPaths.NODES);
     }
-    if (!exists(IPaths.SLAVE_TO_SHARD)) {
-      create(IPaths.SLAVE_TO_SHARD);
+    if (!exists(IPaths.NODE_TO_SHARD)) {
+      create(IPaths.NODE_TO_SHARD);
     }
-    if (!exists(IPaths.SHARD_TO_SLAVE)) {
-      create(IPaths.SHARD_TO_SLAVE);
+    if (!exists(IPaths.SHARD_TO_NODE)) {
+      create(IPaths.SHARD_TO_NODE);
     }
   }
 

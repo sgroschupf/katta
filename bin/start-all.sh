@@ -29,4 +29,4 @@ bin=`cd "$bin"; pwd`
 sleep 10
 
 # start salves daemons
-"$bin"/katta-daemons.sh start katta\ startSlave --config $KATTA_CONF_DIR
+"$bin"/katta-daemons.sh start katta\ startNode --config $KATTA_CONF_DIR

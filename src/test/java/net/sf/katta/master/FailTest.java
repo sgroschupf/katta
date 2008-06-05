@@ -26,7 +26,7 @@ import net.sf.katta.client.Client;
 import net.sf.katta.node.Node;
 import net.sf.katta.node.Query;
 import net.sf.katta.util.KattaException;
-import net.sf.katta.util.SlaveConfiguration;
+import net.sf.katta.util.NodeConfiguration;
 import net.sf.katta.util.ZkConfiguration;
 import net.sf.katta.zk.ZKClient;
 
@@ -39,8 +39,8 @@ public class FailTest extends TestCase {
     final ZkServer zkServer = new ZkServer(zkConf);
     final ZKClient client = new ZKClient(zkConf);
     client.waitForZooKeeper(100000);
-    final ZKClient slaveClient = new ZKClient(zkConf);
-    slaveClient.waitForZooKeeper(100000);
+    final ZKClient nodeClient = new ZKClient(zkConf);
+    nodeClient.waitForZooKeeper(100000);
     final ZKClient masterClient = new ZKClient(zkConf);
     masterClient.waitForZooKeeper(100000);
     final ZKClient secMasterClient = new ZKClient(zkConf);
@@ -52,9 +52,9 @@ public class FailTest extends TestCase {
     master.start();
     waitFor(client, IPaths.MASTER);
 
-    final Node slave = new Node(slaveClient);
-    slave.start();
-    waitFor(client, IPaths.SLAVES, 1);
+    final Node node = new Node(nodeClient);
+    node.start();
+    waitFor(client, IPaths.NODES, 1);
 
     // start secondary master..
     final Master secMaster = new Master(secMasterClient);
@@ -72,7 +72,7 @@ public class FailTest extends TestCase {
     assertTrue(secMaster.isMaster());
     zkServer.shutdown();
     client.close();
-    slaveClient.close();
+    nodeClient.close();
     secMasterClient.close();
   }
 
@@ -83,7 +83,7 @@ public class FailTest extends TestCase {
     }
   }
 
-  public void testSlaveFailure() throws Exception {
+  public void testNodeFailure() throws Exception {
 
     final ZkConfiguration zkConf = new ZkConfiguration();
     final ZkServer zkServer = new ZkServer(zkConf);
@@ -98,16 +98,16 @@ public class FailTest extends TestCase {
     master.start();
     waitFor(zkClient, IPaths.MASTER);
 
-    // create 3 slaves
-    final SlaveConfiguration sconf = new SlaveConfiguration();
+    // create 3 nodes
+    final NodeConfiguration sconf = new NodeConfiguration();
     final String defaulFolder = sconf.getShardFolder();
     sconf.setShardFolder(defaulFolder + "/" + 1);
-    final DummySlave s1 = new DummySlave(zkConf, sconf);
+    final DummyNode s1 = new DummyNode(zkConf, sconf);
     sconf.setShardFolder(defaulFolder + "/" + 2);
-    final DummySlave s2 = new DummySlave(zkConf, sconf);
+    final DummyNode s2 = new DummyNode(zkConf, sconf);
     sconf.setShardFolder(defaulFolder + "/" + 2);
-    final DummySlave s3 = new DummySlave(zkConf, sconf);
-    waitFor(zkClient, IPaths.SLAVES, 3);
+    final DummyNode s3 = new DummyNode(zkConf, sconf);
+    waitFor(zkClient, IPaths.NODES, 3);
     // deploy index
 
     final Katta katta = new Katta();
@@ -126,14 +126,14 @@ public class FailTest extends TestCase {
     Thread.sleep(2000);
     assertEquals(2, client.count(new Query("foo:bar"), new String[] { indexName }));
 
-    // add count Shards to Slave Object... and check why no reasignment
+    // add count Shards to Node Object... and check why no reasignment
     // happens....
 
-    // kill 2 slaves
+    // kill 2 nodes
 
     // we should be still be able to search
 
-    // bring back 2 slaves
+    // bring back 2 nodes
 
     // things should be good distributed again.
     katta.close();
@@ -162,24 +162,24 @@ public class FailTest extends TestCase {
     }
   }
 
-  private class DummySlave {
+  private class DummyNode {
 
     private final ZKClient _client;
-    private final Node _slave;
+    private final Node _node;
 
-    public DummySlave(final ZkConfiguration conf, final SlaveConfiguration slaveConfiguration) throws KattaException {
+    public DummyNode(final ZkConfiguration conf, final NodeConfiguration nodeConfiguration) throws KattaException {
       _client = new ZKClient(conf);
-      _slave = new Node(_client, slaveConfiguration);
-      _slave.start();
+      _node = new Node(_client, nodeConfiguration);
+      _node.start();
     }
 
     public int countShards() {
-      return _slave.getDeployShards().size();
+      return _node.getDeployShards().size();
     }
 
     void close() {
       _client.close();
-      _slave.shutdown();
+      _node.shutdown();
     }
   }
 

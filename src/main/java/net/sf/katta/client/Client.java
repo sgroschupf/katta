@@ -63,25 +63,25 @@ public class Client implements IClient {
 
   private final Map<String, List<String>> _indexToShards = new HashMap<String, List<String>>();
 
-  private final Map<String, List<String>> _shardsToSlave = new HashMap<String, List<String>>();
+  private final Map<String, List<String>> _shardsToNode = new HashMap<String, List<String>>();
 
-  private final Map<String, ISearch> _slaves = new HashMap<String, ISearch>();
+  private final Map<String, ISearch> _nodes = new HashMap<String, ISearch>();
 
-  private final ISlaveSelectionPolicy _policy;
+  private final INodeSelectionPolicy _policy;
 
   private long _queryCount = 0;
 
   private final long _start;
 
-  public Client(final ISlaveSelectionPolicy slaveSelectionPolicy) throws KattaException {
-    this(slaveSelectionPolicy, new ZkConfiguration());
+  public Client(final INodeSelectionPolicy nodeSelectionPolicy) throws KattaException {
+    this(nodeSelectionPolicy, new ZkConfiguration());
   }
 
   public Client() throws KattaException {
-    this(new DefaultSlaveSelectionPolicy(), new ZkConfiguration());
+    this(new DefaultNodeSelectionPolicy(), new ZkConfiguration());
   }
 
-  public Client(final ISlaveSelectionPolicy policy, final ZkConfiguration config) throws KattaException {
+  public Client(final INodeSelectionPolicy policy, final ZkConfiguration config) throws KattaException {
     _policy = policy;
     _client = new ZKClient(config);
     synchronized (_client.getSyncMutex()) {
@@ -101,51 +101,51 @@ public class Client implements IClient {
       loadShardsFromIndex(indexName);
     }
     // set datat for policy
-    if (_indexToShards.size() != 0 && _shardsToSlave.size() != 0) {
-      _policy.setShardsAndSlaves(_indexToShards, _shardsToSlave);
-      // create slave connections..
-      createSlaveConnections();
+    if (_indexToShards.size() != 0 && _shardsToNode.size() != 0) {
+      _policy.setShardsAndNodes(_indexToShards, _shardsToNode);
+      // create node connections..
+      createNodeConnections();
     }
   }
 
-  private void createSlaveConnections() {
-    final Collection<List<String>> values = _shardsToSlave.values();
-    for (final List<String> slaveList : values) {
-      for (final String slave : slaveList) {
-        if (!_slaves.containsKey(slave)) {
-          final ISearch slaveProxy = getSlaveProxy(slave);
-          _slaves.put(slave, slaveProxy);
+  private void createNodeConnections() {
+    final Collection<List<String>> values = _shardsToNode.values();
+    for (final List<String> nodeList : values) {
+      for (final String node : nodeList) {
+        if (!_nodes.containsKey(node)) {
+          final ISearch nodeProxy = getNodeProxy(node);
+          _nodes.put(node, nodeProxy);
         }
       }
     }
   }
 
-  private ISearch getSlaveProxy(final String slave) {
-    ISearch slaveProxy = null;
+  private ISearch getNodeProxy(final String node) {
+    ISearch nodeProxy = null;
     final Configuration configuration = new Configuration();
-    final int splitPoint = slave.indexOf(':');
+    final int splitPoint = node.indexOf(':');
     if (-1 != splitPoint) {
-      Logger.debug("connecting to slave: " + slave);
-      final String serverName = slave.substring(0, splitPoint);
-      final String port = slave.substring(splitPoint + 1, slave.length());
+      Logger.debug("connecting to node: " + node);
+      final String serverName = node.substring(0, splitPoint);
+      final String port = node.substring(splitPoint + 1, node.length());
       try {
         final InetSocketAddress inetSocketAddress = new InetSocketAddress(serverName, Integer.parseInt(port));
-        slaveProxy = (ISearch) RPC.getProxy(ISearch.class, 0L, inetSocketAddress, configuration);
+        nodeProxy = (ISearch) RPC.getProxy(ISearch.class, 0L, inetSocketAddress, configuration);
       } catch (final IOException e) {
-        Logger.warn("One of the slaves cannot be reached.", e);
+        Logger.warn("One of the nodes cannot be reached.", e);
       } catch (final NumberFormatException e) {
-        Logger.warn("The supplied slave port is wrong '" + port + "'");
+        Logger.warn("The supplied node port is wrong '" + port + "'");
       }
     } else {
-      Logger.warn("The format of the supplied slave address is wrong: '" + slave
+      Logger.warn("The format of the supplied node address is wrong: '" + node
           + "'. It should be a server name with a port number devided by a ':'.");
     }
 
-    if (slaveProxy == null) {
-      throw new RuntimeException("Unable to create slave proxy");
+    if (nodeProxy == null) {
+      throw new RuntimeException("Unable to create node proxy");
     }
 
-    return slaveProxy;
+    return nodeProxy;
   }
 
   private void loadShardsFromIndex(final String indexName) throws KattaException {
@@ -156,9 +156,9 @@ public class Client implements IClient {
       final List<String> indexShards = _client.getChildren(indexPath);
       _indexToShards.put(indexName, indexShards);
       for (final String shardName : indexShards) {
-        final ArrayList<String> slaves = _client.subscribeChildChanges(IPaths.SHARD_TO_SLAVE + "/" + shardName,
+        final ArrayList<String> nodes = _client.subscribeChildChanges(IPaths.SHARD_TO_NODE + "/" + shardName,
             _shardListener);
-        _shardsToSlave.put(shardName, slaves);
+        _shardsToNode.put(shardName, nodes);
       }
     } else {
       _client.subscribeDataChanges(indexPath, _indexDataChangeListener);
@@ -168,7 +168,7 @@ public class Client implements IClient {
   /*
    * (non-Javadoc)
    * 
-   * @see net.sf.katta.client.IClient#search(net.sf.katta.slave.IQuery,
+   * @see net.sf.katta.client.IClient#search(net.sf.katta.node.IQuery,
    *      java.lang.String[])
    */
   public Hits search(final IQuery query, final String[] indexNames) throws KattaException {
@@ -178,27 +178,27 @@ public class Client implements IClient {
   /*
    * (non-Javadoc)
    * 
-   * @see net.sf.katta.client.IClient#search(net.sf.katta.slave.IQuery,
+   * @see net.sf.katta.client.IClient#search(net.sf.katta.node.IQuery,
    *      java.lang.String[], int)
    */
   public Hits search(final IQuery query, final String[] indexNames, final int count) throws KattaException {
-    final Map<String, List<String>> slaveShardsMap = _policy.getSlaveShardsMap(query, indexNames);
-    Logger.info("Client.search()" + slaveShardsMap);
+    final Map<String, List<String>> nodeShardsMap = _policy.getNodeShardsMap(query, indexNames);
+    Logger.info("Client.search()" + nodeShardsMap);
     final Hits result = new Hits();
 
     final DocumentFrequenceWritable docFreqs = new DocumentFrequenceWritable();
     try {
-      getDocFrequencies(query, slaveShardsMap, docFreqs);
+      getDocFrequencies(query, nodeShardsMap, docFreqs);
     } catch (final IOException e) {
       throw new KattaException(e.getMessage(), e);
     }
 
-    final List<Thread> searchThreads = new ArrayList<Thread>(slaveShardsMap.size());
-    final Set<String> keySet = slaveShardsMap.keySet();
-    for (final String slave : keySet) {
-      final ISearch searchSlave = _slaves.get(slave);
-      final List<String> shards = slaveShardsMap.get(slave);
-      final Thread searchThread = new SearchThread(query, docFreqs, searchSlave, shards, result, slave, count);
+    final List<Thread> searchThreads = new ArrayList<Thread>(nodeShardsMap.size());
+    final Set<String> keySet = nodeShardsMap.keySet();
+    for (final String node : keySet) {
+      final ISearch searchNode = _nodes.get(node);
+      final List<String> shards = nodeShardsMap.get(node);
+      final Thread searchThread = new SearchThread(query, docFreqs, searchNode, shards, result, node, count);
       searchThread.start();
       searchThreads.add(searchThread);
     }
@@ -235,14 +235,14 @@ public class Client implements IClient {
     }
   }
 
-  private void getDocFrequencies(final IQuery query, final Map<String, List<String>> slaveShardsMap,
+  private void getDocFrequencies(final IQuery query, final Map<String, List<String>> nodeShardsMap,
       final DocumentFrequenceWritable docFreqs) throws IOException {
-    final List<Thread> searchThreads = new ArrayList<Thread>(slaveShardsMap.size());
-    final Set<String> keySet = slaveShardsMap.keySet();
-    for (final String slave : keySet) {
-      final ISearch searchSlave = _slaves.get(slave);
-      final List<String> shards = slaveShardsMap.get(slave);
-      final Thread documentFrequencyThread = new GetDocumentFrequencyThread(searchSlave, query, docFreqs, slave, shards);
+    final List<Thread> searchThreads = new ArrayList<Thread>(nodeShardsMap.size());
+    final Set<String> keySet = nodeShardsMap.keySet();
+    for (final String node : keySet) {
+      final ISearch searchNode = _nodes.get(node);
+      final List<String> shards = nodeShardsMap.get(node);
+      final Thread documentFrequencyThread = new GetDocumentFrequencyThread(searchNode, query, docFreqs, node, shards);
       documentFrequencyThread.start();
       searchThreads.add(documentFrequencyThread);
     }
@@ -266,9 +266,9 @@ public class Client implements IClient {
             final String indexName = _client.getNodeNameFromPath(path);
             loadShardsFromIndex(indexName);
             // set datat for policy
-            _policy.setShardsAndSlaves(_indexToShards, _shardsToSlave);
-            // create slave connections..
-            createSlaveConnections();
+            _policy.setShardsAndNodes(_indexToShards, _shardsToNode);
+            // create node connections..
+            createNodeConnections();
           }
         } catch (final KattaException e) {
           throw new RuntimeException("unable to read zookeeper data", e);
@@ -283,9 +283,9 @@ public class Client implements IClient {
       synchronized (_client.getSyncMutex()) {
         try {
           loadIndexAndShardsData();
-          _policy.setShardsAndSlaves(_indexToShards, _shardsToSlave);
-          // create slave connections..
-          createSlaveConnections();
+          _policy.setShardsAndNodes(_indexToShards, _shardsToNode);
+          // create node connections..
+          createNodeConnections();
         } catch (final KattaException e) {
           Logger.error("Failed to read zookeeper information", e);
         }
@@ -297,49 +297,49 @@ public class Client implements IClient {
   /*
    * (non-Javadoc)
    * 
-   * @see net.sf.katta.client.IClient#getDetails(net.sf.katta.slave.Hit)
+   * @see net.sf.katta.client.IClient#getDetails(net.sf.katta.node.Hit)
    */
   public MapWritable getDetails(final Hit hit) throws IOException {
-    final ISearch searchSlave = _slaves.get(hit.getSlave());
-    // TODO only risk would be that between search and get detail the slave
+    final ISearch searchNode = _nodes.get(hit.getNode());
+    // TODO only risk would be that between search and get detail the node
     // crashs.
-    return searchSlave.getDetails(hit.getShard(), hit.getDocId());
+    return searchNode.getDetails(hit.getShard(), hit.getDocId());
   }
 
   /*
    * (non-Javadoc)
    * 
-   * @see net.sf.katta.client.IClient#getDetails(net.sf.katta.slave.Hit,
+   * @see net.sf.katta.client.IClient#getDetails(net.sf.katta.node.Hit,
    *      java.lang.String)
    */
   public MapWritable getDetails(final Hit hit, final String[] fields) throws IOException {
-    final ISearch searchSlave = _slaves.get(hit.getSlave());
-    // TODO only risk would be that between search and get detail the slave
+    final ISearch searchNode = _nodes.get(hit.getNode());
+    // TODO only risk would be that between search and get detail the node
     // crashs.
-    return searchSlave.getDetails(hit.getShard(), hit.getDocId(), fields);
+    return searchNode.getDetails(hit.getShard(), hit.getDocId(), fields);
   }
 
   private class ShardListener implements IZKEventListener {
 
     public void process(final WatcherEvent event) {
-      // a shard got a new slave or one was removed...
+      // a shard got a new node or one was removed...
       synchronized (_client.getSyncMutex()) {
         final String shardPath = event.getPath();
-        List<String> newSlaves;
+        List<String> newNodes;
         try {
-          newSlaves = _client.getChildren(shardPath);
+          newNodes = _client.getChildren(shardPath);
           final String shardName = _client.getNodeNameFromPath(shardPath);
-          final List<String> oldSlaves = _shardsToSlave.get(shardName);
-          final List<String> toRemove = ComparisonUtil.getRemoved(oldSlaves, newSlaves);
-          for (final String slave : toRemove) {
-            oldSlaves.remove(slave);
+          final List<String> oldNodes = _shardsToNode.get(shardName);
+          final List<String> toRemove = ComparisonUtil.getRemoved(oldNodes, newNodes);
+          for (final String node : toRemove) {
+            oldNodes.remove(node);
             // TODO do we need to shut thoese down..?
-            _slaves.remove(slave);
+            _nodes.remove(node);
           }
-          final List<String> toAdd = ComparisonUtil.getNew(oldSlaves, newSlaves);
-          for (final String slave : toAdd) {
-            oldSlaves.add(slave);
-            _slaves.put(slave, getSlaveProxy(slave));
+          final List<String> toAdd = ComparisonUtil.getNew(oldNodes, newNodes);
+          for (final String node : toAdd) {
+            oldNodes.add(node);
+            _nodes.put(node, getNodeProxy(node));
           }
         } catch (final KattaException e) {
           throw new RuntimeException("Failed to read zookeeper data.", e);
@@ -363,22 +363,22 @@ public class Client implements IClient {
   /*
    * (non-Javadoc)
    * 
-   * @see net.sf.katta.client.IClient#count(net.sf.katta.slave.IQuery,
+   * @see net.sf.katta.client.IClient#count(net.sf.katta.node.IQuery,
    *      java.lang.String[])
    */
   public int count(final IQuery query, final String[] indexNames) {
-    final Map<String, List<String>> slaveShardsMap = _policy.getSlaveShardsMap(query, indexNames);
-    Logger.info("Client.count()" + slaveShardsMap);
+    final Map<String, List<String>> nodeShardsMap = _policy.getNodeShardsMap(query, indexNames);
+    Logger.info("Client.count()" + nodeShardsMap);
     final List<Integer> result = new ArrayList<Integer>();
 
     final long start = System.currentTimeMillis();
     final List<Thread> searchThreads = new ArrayList<Thread>();
-    final Set<String> keySet = slaveShardsMap.keySet();
-    for (final String slave : keySet) {
-      final ISearch searchSlave = _slaves.get(slave);
-      final List<String> shards = slaveShardsMap.get(slave);
-      final Runnable searchRunnable = new ResultCountThread(query, searchSlave, shards, result, slave);
-      final Thread searchThread = new Thread(searchRunnable, slave);
+    final Set<String> keySet = nodeShardsMap.keySet();
+    for (final String node : keySet) {
+      final ISearch searchNode = _nodes.get(node);
+      final List<String> shards = nodeShardsMap.get(node);
+      final Runnable searchRunnable = new ResultCountThread(query, searchNode, shards, result, node);
+      final Thread searchThread = new Thread(searchRunnable, node);
       searchThread.start();
       searchThreads.add(searchThread);
     }
@@ -405,22 +405,22 @@ public class Client implements IClient {
 
   private class GetDocumentFrequencyThread extends Thread {
 
-    private final ISearch _searchSlave;
+    private final ISearch _searchNode;
 
     private final DocumentFrequenceWritable _docFreqs;
 
-    private final String _slave;
+    private final String _node;
 
     private final IQuery _query;
 
     private final List<String> _shards;
 
-    public GetDocumentFrequencyThread(final ISearch searchSlave, final IQuery query,
-        final DocumentFrequenceWritable docFreqs, final String slave, final List<String> shards) {
-      _searchSlave = searchSlave;
+    public GetDocumentFrequencyThread(final ISearch searchNode, final IQuery query,
+        final DocumentFrequenceWritable docFreqs, final String node, final List<String> shards) {
+      _searchNode = searchNode;
       _query = query;
       _docFreqs = docFreqs;
-      _slave = slave;
+      _node = node;
       _shards = shards;
     }
 
@@ -431,13 +431,13 @@ public class Client implements IClient {
         if (Logger.isDebug()) {
           startThread = System.currentTimeMillis();
         }
-        final DocumentFrequenceWritable slaveDocFreqs = _searchSlave.getDocFreqs(_query, _shards
+        final DocumentFrequenceWritable nodeDocFreqs = _searchNode.getDocFreqs(_query, _shards
             .toArray(new String[_shards.size()]));
-        _docFreqs.addNumDocs(slaveDocFreqs.getNumDocs());
-        _docFreqs.putAll(slaveDocFreqs.getAll());
+        _docFreqs.addNumDocs(nodeDocFreqs.getNumDocs());
+        _docFreqs.putAll(nodeDocFreqs.getAll());
         if (Logger.isDebug()) {
           final long endThread = System.currentTimeMillis();
-          Logger.debug("Wait for thread " + _slave + " tooks " + (endThread - startThread) / 1000.0 + "sec.");
+          Logger.debug("Wait for thread " + _node + " tooks " + (endThread - startThread) / 1000.0 + "sec.");
         }
       } catch (final IOException e) {
         // TODO we should Throw an Exception here since the results are
@@ -451,27 +451,27 @@ public class Client implements IClient {
 
     private final IQuery _query;
 
-    private final ISearch _searchSlave;
+    private final ISearch _searchNode;
 
     private final List<String> _shards;
 
     private final Hits _result;
 
-    private final String _slave;
+    private final String _node;
 
     private final int _count;
 
     private final DocumentFrequenceWritable _docFreqs;
 
-    public SearchThread(final IQuery query, final DocumentFrequenceWritable docFreqs, final ISearch searchSlave,
-        final List<String> shards, final Hits result, final String slave, final int count) {
-      setName(slave);
+    public SearchThread(final IQuery query, final DocumentFrequenceWritable docFreqs, final ISearch searchNode,
+        final List<String> shards, final Hits result, final String node, final int count) {
+      setName(node);
       _query = query;
       _docFreqs = docFreqs;
-      _searchSlave = searchSlave;
+      _searchNode = searchNode;
       _shards = shards;
       _result = result;
-      _slave = slave;
+      _node = node;
       _count = count;
     }
 
@@ -484,11 +484,11 @@ public class Client implements IClient {
           startThread = System.currentTimeMillis();
         }
         final String[] shardsArray = _shards.toArray(new String[_shards.size()]);
-        final HitsMapWritable shardToHits = _searchSlave.search(_query, _docFreqs, shardsArray, _count);
+        final HitsMapWritable shardToHits = _searchNode.search(_query, _docFreqs, shardsArray, _count);
         hits = shardToHits.getHits();
         if (Logger.isDebug()) {
           final long endThread = System.currentTimeMillis();
-          Logger.debug("Wait for thread " + _slave + " tooks " + (endThread - startThread) / 1000.0
+          Logger.debug("Wait for thread " + _node + " tooks " + (endThread - startThread) / 1000.0
               + "sec. Result size was " + hits.getHits().size());
         }
       } catch (final IOException e) {
@@ -502,19 +502,19 @@ public class Client implements IClient {
 
   public class ResultCountThread extends Thread {
 
-    private final String _slave;
+    private final String _node;
     private final List<Integer> _result;
-    private final ISearch _searchSlave;
+    private final ISearch _searchNode;
     private final List<String> _shards;
     private final IQuery _query;
 
-    public ResultCountThread(final IQuery query, final ISearch searchSlave, final List<String> shards,
-        final List<Integer> result, final String slave) {
+    public ResultCountThread(final IQuery query, final ISearch searchNode, final List<String> shards,
+        final List<Integer> result, final String node) {
       _query = query;
-      _searchSlave = searchSlave;
+      _searchNode = searchNode;
       _shards = shards;
       _result = result;
-      _slave = slave;
+      _node = node;
     }
 
     @Override
@@ -524,15 +524,15 @@ public class Client implements IClient {
         if (Logger.isDebug()) {
           startThread = System.currentTimeMillis();
         }
-        final int count = _searchSlave.getResultCount(_query, _shards.toArray(new String[_shards.size()]));
+        final int count = _searchNode.getResultCount(_query, _shards.toArray(new String[_shards.size()]));
         _result.add(count);
         if (Logger.isDebug()) {
           final long endThread = System.currentTimeMillis();
-          Logger.debug("Wait for thread " + _slave + " tooks " + (endThread - startThread) / 1000.0 + "sec.");
+          Logger.debug("Wait for thread " + _node + " tooks " + (endThread - startThread) / 1000.0 + "sec.");
         }
       } catch (final IOException e) {
-        Logger.error("Cannot open searcher, remove " + _slave + " from connections.", e);
-        _slaves.remove(_slave);
+        Logger.error("Cannot open searcher, remove " + _node + " from connections.", e);
+        _nodes.remove(_node);
       }
     }
 

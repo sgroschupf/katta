@@ -46,7 +46,7 @@ import net.sf.katta.util.ComparisonUtil;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.Logger;
 import net.sf.katta.util.NetworkUtil;
-import net.sf.katta.util.SlaveConfiguration;
+import net.sf.katta.util.NodeConfiguration;
 import net.sf.katta.zk.IZKEventListener;
 import net.sf.katta.zk.ZKClient;
 
@@ -92,7 +92,7 @@ public class Node implements ISearch {
 
   private File _shardFolder;
 
-  private String _slave;
+  private String _node;
 
   private final long _startTime;
 
@@ -100,13 +100,13 @@ public class Node implements ISearch {
 
   private final Timer _timer;
 
-  private final SlaveConfiguration _configuration;
+  private final NodeConfiguration _configuration;
 
   public Node(final ZKClient client) {
-    this(client, new SlaveConfiguration());
+    this(client, new NodeConfiguration());
   }
 
-  public Node(final ZKClient client, final SlaveConfiguration configuration) {
+  public Node(final ZKClient client, final NodeConfiguration configuration) {
     _client = client;
     _configuration = configuration;
     _startTime = System.currentTimeMillis();
@@ -115,13 +115,13 @@ public class Node implements ISearch {
   }
 
   /**
-   * Boots the slave
+   * Boots the node
    * 
    * @throws KattaException
    */
 
   public void start() throws KattaException {
-    Logger.debug("Starting slave...");
+    Logger.debug("Starting node...");
     _client.waitForZooKeeper(30000);
     _client.createDefaultNameSpace();
 
@@ -130,19 +130,19 @@ public class Node implements ISearch {
     if (!_shardFolder.exists()) {
       _shardFolder.mkdirs();
     }
-    _slave = startRPCServer(_configuration);
-    final ArrayList<String> shardsToServe = announceSlave();
+    _node = startRPCServer(_configuration);
+    final ArrayList<String> shardsToServe = announceNode();
 
     updateStatus("STARTING");
-    _searcher = new KattaMultiSearcher(_slave);
+    _searcher = new KattaMultiSearcher(_node);
     checkAndDeployExistingShards(shardsToServe);
-    Logger.info("Started: " + _slave + "...");
+    Logger.info("Started: " + _node + "...");
 
     if (_server != null) {
       try {
         _server.start();
       } catch (final IOException e) {
-        throw new RuntimeException("Failed to start slave server.", e);
+        throw new RuntimeException("Failed to start node server.", e);
       }
     } else {
       throw new RuntimeException("tried 10000 ports and no one is free...");
@@ -154,7 +154,7 @@ public class Node implements ISearch {
     try {
       _server.join();
     } catch (final InterruptedException e) {
-      throw new RuntimeException("Failed to join slave", e);
+      throw new RuntimeException("Failed to join node", e);
     }
   }
 
@@ -172,29 +172,29 @@ public class Node implements ISearch {
   }
 
   /*
-   * Writes slave ephemeral data into zookeeper
+   * Writes node ephemeral data into zookeeper
    */
-  private ArrayList<String> announceSlave() throws KattaException {
-    Logger.debug("Announces slave " + _slave);
-    final SlaveMetaData metaData = new SlaveMetaData(_slave, "booting", true, _startTime);
-    final String slavePath = IPaths.SLAVES + "/" + _slave;
-    final String slaveToShardPath = IPaths.SLAVE_TO_SHARD + "/" + _slave;
-    if (_client.exists(slavePath)) {
-      Logger.debug("Old slave for this host detected, will be removed...");
-      _client.delete(slavePath);
+  private ArrayList<String> announceNode() throws KattaException {
+    Logger.debug("Announces node " + _node);
+    final NodeMetaData metaData = new NodeMetaData(_node, "booting", true, _startTime);
+    final String nodePath = IPaths.NODES + "/" + _node;
+    final String nodeToShardPath = IPaths.NODE_TO_SHARD + "/" + _node;
+    if (_client.exists(nodePath)) {
+      Logger.debug("Old node for this host detected, will be removed...");
+      _client.delete(nodePath);
     }
-    _client.createEphemeral(slavePath, metaData);
-    if (!_client.exists(slaveToShardPath)) {
-      _client.create(slaveToShardPath);
+    _client.createEphemeral(nodePath, metaData);
+    if (!_client.exists(nodeToShardPath)) {
+      _client.create(nodeToShardPath);
     }
-    return _client.subscribeChildChanges(slaveToShardPath, new ShardListener());
+    return _client.subscribeChildChanges(nodeToShardPath, new ShardListener());
   }
 
   /*
    * Starting the hadoop RPC server that response to query requests. We iterate
-   * over a port range of slave.server.port.start + 10000
+   * over a port range of node.server.port.start + 10000
    */
-  private String startRPCServer(final SlaveConfiguration configuration) {
+  private String startRPCServer(final NodeConfiguration configuration) {
     int serverPort = configuration.getStartPort();
     final String hostName = NetworkUtil.getLocalhostName();
     for (int i = serverPort; i < (serverPort + 10000); i++) {
@@ -206,14 +206,14 @@ public class Node implements ISearch {
       } catch (final BindException e) {
         // try again
       } catch (final IOException e) {
-        throw new RuntimeException("unable to start slave server", e);
+        throw new RuntimeException("unable to start node server", e);
       }
     }
     return hostName + ":" + serverPort;
   }
 
   /*
-   * When starting a slave there might be shards assigned that are still on
+   * When starting a node there might be shards assigned that are still on
    * local hhd. Therefore we compare what is assigned, what can be re-used and
    * which shards we need to load from the remote hdd.
    */
@@ -431,23 +431,23 @@ public class Node implements ISearch {
    */
   private AssignedShard getAssignedShard(final String shardName) throws KattaException {
     final AssignedShard assignedShard = new AssignedShard();
-    _client.readData(IPaths.SLAVE_TO_SHARD + "/" + _slave + "/" + shardName, assignedShard);
+    _client.readData(IPaths.NODE_TO_SHARD + "/" + _node + "/" + shardName, assignedShard);
     return assignedShard;
   }
 
   /*
-   * Announce in zookeeper slave is serving this shard,
+   * Announce in zookeeper node is serving this shard,
    */
 
   private void announceShard(final DeployedShard deployedShard) {
     try {
-      final String shardPath = IPaths.SHARD_TO_SLAVE + "/" + deployedShard.getShardName();
-      // announce that this slave serves this shard now...
-      final String slavePath = shardPath + "/" + _slave;
-      if (!_client.exists(slavePath)) {
-        _client.createEphemeral(slavePath, deployedShard);
+      final String shardPath = IPaths.SHARD_TO_NODE + "/" + deployedShard.getShardName();
+      // announce that this node serves this shard now...
+      final String nodePath = shardPath + "/" + _node;
+      if (!_client.exists(nodePath)) {
+        _client.createEphemeral(nodePath, deployedShard);
       } else {
-        _client.writeData(slavePath, deployedShard);
+        _client.writeData(nodePath, deployedShard);
       }
     } catch (final Exception e) {
       if (Logger.isError()) {
@@ -474,13 +474,13 @@ public class Node implements ISearch {
       }
       _searcher.removeShard(shardName);
       _deployedShards.remove(shardName);
-      final String shardPath = IPaths.SHARD_TO_SLAVE + "/" + shardName;
-      final String slavePath = shardPath + "/" + _slave;
-      if (_client.exists(slavePath)) {
-        _client.delete(slavePath);
-      } // remove slave serving it.
+      final String shardPath = IPaths.SHARD_TO_NODE + "/" + shardName;
+      final String nodePath = shardPath + "/" + _node;
+      if (_client.exists(nodePath)) {
+        _client.delete(nodePath);
+      } // remove node serving it.
       if (_client.getChildren(shardPath).size() == 0) {
-        // this was the last slave
+        // this was the last node
         _client.delete(shardPath);
       }
       synchronized (_shardFolder) {
@@ -511,8 +511,8 @@ public class Node implements ISearch {
   /*
    * (non-Javadoc)
    * 
-   * @see net.sf.katta.slave.ISearch#search(net.sf.katta.slave.IQuery,
-   *      net.sf.katta.slave.DocumentFrequenceWritable, java.lang.String[])
+   * @see net.sf.katta.node.ISearch#search(net.sf.katta.node.IQuery,
+   *      net.sf.katta.node.DocumentFrequenceWritable, java.lang.String[])
    */
   public HitsMapWritable search(final IQuery query, final DocumentFrequenceWritable freqs, final String[] shards)
   throws IOException {
@@ -522,8 +522,8 @@ public class Node implements ISearch {
   /*
    * (non-Javadoc)
    * 
-   * @see net.sf.katta.slave.ISearch#search(net.sf.katta.slave.IQuery,
-   *      net.sf.katta.slave.DocumentFrequenceWritable, java.lang.String[], int)
+   * @see net.sf.katta.node.ISearch#search(net.sf.katta.node.IQuery,
+   *      net.sf.katta.node.DocumentFrequenceWritable, java.lang.String[], int)
    */
   public HitsMapWritable search(final IQuery query, final DocumentFrequenceWritable freqs, final String[] shards,
       final int count) throws IOException {
@@ -549,7 +549,7 @@ public class Node implements ISearch {
     }
 
     long completeSearchTime = 0;
-    final HitsMapWritable result = new net.sf.katta.node.HitsMapWritable(_slave);
+    final HitsMapWritable result = new net.sf.katta.node.HitsMapWritable(_node);
     if (_searcher != null) {
       long start = 0;
       if (Logger.isDebug()) {
@@ -562,7 +562,7 @@ public class Node implements ISearch {
         completeSearchTime += (end - start);
       }
     } else {
-      Logger.error("No searcher for index found on '" + _slave + "'.");
+      Logger.error("No searcher for index found on '" + _node + "'.");
     }
     if (Logger.isDebug()) {
       Logger.debug("Complete search took " + completeSearchTime / 1000.0 + "sec.");
@@ -580,7 +580,7 @@ public class Node implements ISearch {
   /*
    * (non-Javadoc)
    * 
-   * @see net.sf.katta.slave.ISearch#getDocFreqs(net.sf.katta.slave.IQuery,
+   * @see net.sf.katta.node.ISearch#getDocFreqs(net.sf.katta.node.IQuery,
    *      java.lang.String[])
    */
   public DocumentFrequenceWritable getDocFreqs(final IQuery input, final String[] shards) throws IOException {
@@ -619,7 +619,7 @@ public class Node implements ISearch {
   /*
    * (non-Javadoc)
    * 
-   * @see net.sf.katta.slave.ISearch#getDetails(java.lang.String, int)
+   * @see net.sf.katta.node.ISearch#getDetails(java.lang.String, int)
    */
   @SuppressWarnings("unchecked")
   public MapWritable getDetails(final String shard, final int docId) throws IOException {
@@ -642,7 +642,7 @@ public class Node implements ISearch {
   /*
    * (non-Javadoc)
    * 
-   * @see net.sf.katta.slave.ISearch#getDetails(java.lang.String, int,
+   * @see net.sf.katta.node.ISearch#getDetails(java.lang.String, int,
    *      java.lang.String[])
    */
   public MapWritable getDetails(final String shard, final int docId, final String[] fieldNames) throws IOException {
@@ -664,7 +664,7 @@ public class Node implements ISearch {
   /*
    * (non-Javadoc)
    * 
-   * @see net.sf.katta.slave.ISearch#getResultCount(net.sf.katta.slave.IQuery,
+   * @see net.sf.katta.node.ISearch#getResultCount(net.sf.katta.node.IQuery,
    *      java.lang.String[])
    */
   public int getResultCount(final IQuery query, final String[] shards) throws IOException {
@@ -678,25 +678,25 @@ public class Node implements ISearch {
   }
 
   /*
-   * Updates the status of the slave in zookeeper.
+   * Updates the status of the node in zookeeper.
    */
   private void updateStatus(final String statusMsg) throws KattaException {
-    final String path = IPaths.SLAVES + "/" + _slave;
-    final SlaveMetaData metaData = new SlaveMetaData();
+    final String path = IPaths.NODES + "/" + _node;
+    final NodeMetaData metaData = new NodeMetaData();
     _client.readData(path, metaData);
     metaData.setStatus(statusMsg);
     _client.writeData(path, metaData);
   }
 
   /*
-   * Listens to events within the slaveToShard zookeeper folder. Those events
-   * are fired if a shard is assigned or removed for this slave.
+   * Listens to events within the nodeToShard zookeeper folder. Those events
+   * are fired if a shard is assigned or removed for this node.
    */
   private class ShardListener implements IZKEventListener {
     public void process(final WatcherEvent event) {
       synchronized (_client.getSyncMutex()) {
         if (Logger.isDebug()) {
-          Logger.debug("ShardListener.process()" + _slave);
+          Logger.debug("ShardListener.process()" + _node);
         }
         final String path = event.getPath();
         List<String> newList;
@@ -715,17 +715,17 @@ public class Node implements ISearch {
   }
 
   /*
-   * A Thread that updates the status of the slave within zookeeper.
+   * A Thread that updates the status of the node within zookeeper.
    */
   private class StatusUpdater extends TimerTask {
     @Override
     public void run() {
-      if (_slave != null) {
+      if (_node != null) {
         long time = (System.currentTimeMillis() - _startTime) / (60 * 1000);
         time = Math.max(time, 1);
         final float qpm = (float) _queryCounter / time;
-        final SlaveMetaData metaData = new SlaveMetaData();
-        final String path = IPaths.SLAVES + "/" + _slave;
+        final NodeMetaData metaData = new NodeMetaData();
+        final String path = IPaths.NODES + "/" + _node;
         try {
           if (_client.exists(path)) {
             _client.readData(path, metaData);

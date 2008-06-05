@@ -54,15 +54,15 @@ fi
 # Allow alternate conf dir location.
 KATTA_CONF_DIR="${KATTA_CONF_DIR:-$KATTA_HOME/conf}"
 
-#check to see it is specified whether to use the slaves or the
+#check to see it is specified whether to use the nodes or the
 # masters file
 if [ $# -gt 1 ]
 then
     if [ "--hosts" = "$1" ]
     then
         shift
-        slavesfile=$1
+        nodesfile=$1
         shift
-        export KATTA_SLAVES="${KATTA_CONF_DIR}/$slavesfile"
+        export KATTA_NODES="${KATTA_CONF_DIR}/$nodesfile"
     fi
 fi

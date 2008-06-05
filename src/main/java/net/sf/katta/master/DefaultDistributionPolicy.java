@@ -30,12 +30,12 @@ import net.sf.katta.zk.ZKClient;
 public class DefaultDistributionPolicy implements IDeployPolicy {
 
   /**
-   * simply iterate over all shards and assign them to the available slaves.
+   * simply iterate over all shards and assign them to the available nodes.
    */
-  public Map<String, List<AssignedShard>> ditribute(final ZKClient client, final List<String> slaves,
+  public Map<String, List<AssignedShard>> ditribute(final ZKClient client, final List<String> nodes,
       final List<AssignedShard> shards, final int replicationLevel) {
-    if (slaves.size() == 0) {
-      throw new IllegalArgumentException("no slaves");
+    if (nodes.size() == 0) {
+      throw new IllegalArgumentException("no nodes");
     }
     if (shards.size() == 0) {
       throw new IllegalArgumentException("no shards");
@@ -47,14 +47,14 @@ public class DefaultDistributionPolicy implements IDeployPolicy {
       final AssignedShard shard = shards.get(i);
       for (int j = 0; j < replicationLevel; j++) {
 
-        if (slaves.size() == count) {
+        if (nodes.size() == count) {
           count = 0;
         }
-        final String slave = slaves.get(count++);
-        List<AssignedShard> arrayList = map.get(slave);
+        final String node = nodes.get(count++);
+        List<AssignedShard> arrayList = map.get(node);
         if (arrayList == null) {
           arrayList = new ArrayList<AssignedShard>();
-          map.put(slave, arrayList);
+          map.put(node, arrayList);
         }
         arrayList.add(shard);
       }

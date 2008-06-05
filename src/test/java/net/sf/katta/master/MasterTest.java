@@ -35,11 +35,11 @@ import org.apache.lucene.analysis.standard.StandardAnalyzer;
 
 public class MasterTest extends TestCase {
   /*
-   * create /katta/slaves folder, subscribe notification handle addIndex by
-   * distibute shards to slaves handle slave failure
+   * create /katta/nodes folder, subscribe notification handle addIndex by
+   * distibute shards to nodes handle node failure
    */
 
-  public void testSlaves() throws Exception {
+  public void testNodes() throws Exception {
     final ZkConfiguration conf = new ZkConfiguration();
     final ZkServer zkServer = new ZkServer(conf);
     final ZKClient client = new ZKClient(conf);
@@ -50,18 +50,18 @@ public class MasterTest extends TestCase {
     final Master master = new Master(client);
     master.start();
     synchronized (master._client.getSyncMutex()) {
-      client.createEphemeral("/katta/slaves/slave1");
-      client.create(IPaths.SLAVE_TO_SHARD + "/slave1");
-      client.createEphemeral("/katta/slaves/slave2");
-      client.create(IPaths.SLAVE_TO_SHARD + "/slave2");
+      client.createEphemeral("/katta/nodes/node1");
+      client.create(IPaths.NODE_TO_SHARD + "/node1");
+      client.createEphemeral("/katta/nodes/node2");
+      client.create(IPaths.NODE_TO_SHARD + "/node2");
       client.getSyncMutex().wait();
     }
-    assertEquals(2, master.readSlaves().size());
+    assertEquals(2, master.readNodes().size());
     synchronized (master._client.getSyncMutex()) {
-      assertTrue(client.delete("/katta/slaves/slave1"));
+      assertTrue(client.delete("/katta/nodes/node1"));
       client.getSyncMutex().wait();
     }
-    assertEquals(1, master.readSlaves().size());
+    assertEquals(1, master.readNodes().size());
     client.close();
     zkServer.shutdown();
     Thread.sleep(2000);
@@ -81,10 +81,10 @@ public class MasterTest extends TestCase {
     final String path = "file://" + file.getAbsolutePath();
     final IndexMetaData indexMetaData = new IndexMetaData(path, StandardAnalyzer.class.getName(), 2,
         IndexMetaData.IndexState.ANNOUNCED);
-    client.createEphemeral("/katta/slaves/slave1");
-    client.create(IPaths.SLAVE_TO_SHARD + "/slave1");
-    client.createEphemeral("/katta/slaves/slave2");
-    client.create(IPaths.SLAVE_TO_SHARD + "/slave2");
+    client.createEphemeral("/katta/nodes/node1");
+    client.create(IPaths.NODE_TO_SHARD + "/node1");
+    client.createEphemeral("/katta/nodes/node2");
+    client.create(IPaths.NODE_TO_SHARD + "/node2");
 
     final String indexPath = "/katta/indexes/indexA";
     client.create(indexPath, indexMetaData);
@@ -94,30 +94,30 @@ public class MasterTest extends TestCase {
     Thread.sleep(3000);
 
     // there should be two servers here now.
-    assertEquals(2, client.getChildren(IPaths.SLAVE_TO_SHARD).size());
+    assertEquals(2, client.getChildren(IPaths.NODE_TO_SHARD).size());
 
     // there should be two shards here now
-    assertEquals(4, client.getChildren(IPaths.SLAVE_TO_SHARD + "/slave1").size());
+    assertEquals(4, client.getChildren(IPaths.NODE_TO_SHARD + "/node1").size());
 
     // there should be two shards here now
-    assertEquals(4, client.getChildren(IPaths.SLAVE_TO_SHARD + "/slave2").size());
+    assertEquals(4, client.getChildren(IPaths.NODE_TO_SHARD + "/node2").size());
     // there should be 4 shards indexes now..
-    assertEquals(4, client.getChildren(IPaths.SHARD_TO_SLAVE).size());
+    assertEquals(4, client.getChildren(IPaths.SHARD_TO_NODE).size());
 
-    // now we fake the slaves and add the slaves to the shards
+    // now we fake the nodes and add the nodes to the shards
 
-    assertEquals(4, client.getChildren(IPaths.SHARD_TO_SLAVE).size());
+    assertEquals(4, client.getChildren(IPaths.SHARD_TO_NODE).size());
 
     final List<AssignedShard> shards = master.getShardsForIndex("indexA", indexMetaData);
-    final List<String> readSlaves = master.readSlaves();
+    final List<String> readNodes = master.readNodes();
     final DefaultDistributionPolicy defaultDistributionPolicy = new DefaultDistributionPolicy();
-    final Map<String, List<AssignedShard>> ditribute = defaultDistributionPolicy.ditribute(client, readSlaves, shards,
+    final Map<String, List<AssignedShard>> ditribute = defaultDistributionPolicy.ditribute(client, readNodes, shards,
         2);
     final Set<String> keySet = ditribute.keySet();
-    for (final String slaveName : keySet) {
-      final List<AssignedShard> toDistribteShards = ditribute.get(slaveName);
+    for (final String nodeName : keySet) {
+      final List<AssignedShard> toDistribteShards = ditribute.get(nodeName);
       for (final AssignedShard assignedShard : toDistribteShards) {
-        client.create(IPaths.SHARD_TO_SLAVE + "/" + assignedShard.getShardName() + "/" + slaveName);
+        client.create(IPaths.SHARD_TO_NODE + "/" + assignedShard.getShardName() + "/" + nodeName);
       }
     }
     Thread.sleep(2000);
@@ -126,21 +126,21 @@ public class MasterTest extends TestCase {
     client.readData(indexPath, metaData);
     assertEquals(IndexMetaData.IndexState.DEPLOYED, metaData.getState());
 
-    // now remove one slave...
+    // now remove one node...
     synchronized (client.getSyncMutex()) {
-      assertTrue(client.delete("/katta/slaves/slave2"));
+      assertTrue(client.delete("/katta/nodes/node2"));
       client.getSyncMutex().wait(3000);
     }
-    assertEquals(4, client.getChildren(IPaths.SLAVE_TO_SHARD + "/slave1").size());
+    assertEquals(4, client.getChildren(IPaths.NODE_TO_SHARD + "/node1").size());
     client.deleteRecursiv(indexPath);
     int count = 0;
-    while (client.getChildren(IPaths.SLAVE_TO_SHARD + "/slave1").size() != 0) {
+    while (client.getChildren(IPaths.NODE_TO_SHARD + "/node1").size() != 0) {
       Thread.sleep(500);
       if (count++ > 20) {
-        fail("shards are still not removed from slave after 20 sec.");
+        fail("shards are still not removed from node after 20 sec.");
       }
     }
-    assertEquals(0, client.getChildren(IPaths.SLAVE_TO_SHARD + "/slave1").size());
+    assertEquals(0, client.getChildren(IPaths.NODE_TO_SHARD + "/node1").size());
 
     client.close();
     zkServer.shutdown();

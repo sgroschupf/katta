@@ -16,18 +16,18 @@
 # limitations under the License.
 
 
-# Run a shell command on all slave hosts.
+# Run a shell command on all node hosts.
 #
 # Environment Variables
 #
-#   KATTA_SLAVES    File naming remote hosts.
-#     Default is ${KATTA_CONF_DIR}/slaves.
+#   KATTA_NODES    File naming remote hosts.
+#     Default is ${KATTA_CONF_DIR}/nodes.
 #   KATTA_CONF_DIR  Alternate conf dir. Default is ${KATTA_HOME}/conf.
-#   KATTA_SLAVE_SLEEP Seconds to sleep between spawning remote commands.
+#   KATTA_NODE_SLEEP Seconds to sleep between spawning remote commands.
 #   KATTA_SSH_OPTS Options passed to ssh when running remote commands.
 ##
 
-usage="Usage: slaves.sh [--config confdir] command..."
+usage="Usage: nodes.sh [--config confdir] command..."
 
 # if no args specified, show usage
 if [ $# -le 0 ]; then
@@ -40,28 +40,28 @@ bin=`cd "$bin"; pwd`
 
 . "$bin"/katta-config.sh
 
-# If the slaves file is specified in the command line,
+# If the nodes file is specified in the command line,
 # then it takes precedence over the definition in 
 # katta-env.sh. Save it here.
-HOSTLIST=$KATTA_SLAVES
+HOSTLIST=$KATTA_NODES
 
 if [ -f "${KATTA_CONF_DIR}/katta-env.sh" ]; then
   . "${KATTA_CONF_DIR}/katta-env.sh"
 fi
 
 if [ "$HOSTLIST" = "" ]; then
-  if [ "$KATTA_SLAVES" = "" ]; then
-    export HOSTLIST="${KATTA_CONF_DIR}/slaves"
+  if [ "$KATTA_NODES" = "" ]; then
+    export HOSTLIST="${KATTA_CONF_DIR}/nodes"
   else
-    export HOSTLIST="${KATTA_SLAVES}"
+    export HOSTLIST="${KATTA_NODES}"
   fi
 fi
 
-for slave in `cat "$HOSTLIST"`; do
- ssh $KATTA_SSH_OPTS $slave $"${@// /\\ }" \
-   2>&1 | sed "s/^/$slave: /" &
- if [ "$KATTA_SLAVE_SLEEP" != "" ]; then
-   sleep $KATTA_SLAVE_SLEEP
+for node in `cat "$HOSTLIST"`; do
+ ssh $KATTA_SSH_OPTS $node $"${@// /\\ }" \
+   2>&1 | sed "s/^/$node: /" &
+ if [ "$KATTA_NODE_SLEEP" != "" ]; then
+   sleep $KATTA_NODE_SLEEP
  fi
 done
 

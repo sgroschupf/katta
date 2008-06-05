@@ -27,10 +27,10 @@ import java.util.Map;
 import junit.framework.TestCase;
 import net.sf.katta.node.Query;
 
-public class DefaultSlaveSelectionPolicyTest extends TestCase {
+public class DefaultNodeSelectionPolicyTest extends TestCase {
 
   public void testSelection() throws Exception {
-    final DefaultSlaveSelectionPolicy policy = new DefaultSlaveSelectionPolicy();
+    final DefaultNodeSelectionPolicy policy = new DefaultNodeSelectionPolicy();
     final Map<String, List<String>> indexToShards = new HashMap<String, List<String>>();
     final List<String> shards = new ArrayList<String>();
     shards.add("shardA");
@@ -38,40 +38,40 @@ public class DefaultSlaveSelectionPolicyTest extends TestCase {
     indexToShards.put("indexA", shards);
     indexToShards.put("indexA", shards);
 
-    final Map<String, List<String>> shardsToSlave = new HashMap<String, List<String>>();
-    final List<String> slaves = new ArrayList<String>();
-    slaves.add("slave1");
-    slaves.add("slave2");
-    shardsToSlave.put("shardA", slaves);
-    shardsToSlave.put("shardB", slaves);
+    final Map<String, List<String>> shardsToNode = new HashMap<String, List<String>>();
+    final List<String> nodes = new ArrayList<String>();
+    nodes.add("node1");
+    nodes.add("node2");
+    shardsToNode.put("shardA", nodes);
+    shardsToNode.put("shardB", nodes);
 
-    policy.setShardsAndSlaves(indexToShards, shardsToSlave);
-    Map<String, List<String>> slaveShardsMap = policy.getSlaveShardsMap(new Query(), new String[] { "indexA" });
-    System.out.println(slaveShardsMap);
-    slaveShardsMap = policy.getSlaveShardsMap(new Query(), new String[] { "indexA" });
-    System.out.println(slaveShardsMap);
+    policy.setShardsAndNodes(indexToShards, shardsToNode);
+    Map<String, List<String>> nodeShardsMap = policy.getNodeShardsMap(new Query(), new String[] { "indexA" });
+    System.out.println(nodeShardsMap);
+    nodeShardsMap = policy.getNodeShardsMap(new Query(), new String[] { "indexA" });
+    System.out.println(nodeShardsMap);
   }
 
-  public void testSetShardsAndSlaves() throws Exception {
-    final DefaultSlaveSelectionPolicy policy = new DefaultSlaveSelectionPolicy();
+  public void testSetShardsAndNodes() throws Exception {
+    final DefaultNodeSelectionPolicy policy = new DefaultNodeSelectionPolicy();
     final Map<String, List<String>> indexToShards = new HashMap<String, List<String>>();
     final List<String> shards = new ArrayList<String>();
     shards.add("shardA");
     shards.add("shardB");
     indexToShards.put("indexA", shards);
 
-    final Map<String, List<String>> shardsToSlave = new HashMap<String, List<String>>();
-    final List<String> slaves = new ArrayList<String>();
-    slaves.add("slave1");
-    slaves.add("slave2");
-    shardsToSlave.put("shardA", slaves);
-    shardsToSlave.put("shardB", slaves);
+    final Map<String, List<String>> shardsToNode = new HashMap<String, List<String>>();
+    final List<String> nodes = new ArrayList<String>();
+    nodes.add("node1");
+    nodes.add("node2");
+    shardsToNode.put("shardA", nodes);
+    shardsToNode.put("shardB", nodes);
 
-    policy.setShardsAndSlaves(indexToShards, shardsToSlave);
-    Map<String, List<String>> slaveShardsMap = policy.getSlaveShardsMap(new Query(), new String[] { "indexA" });
-    System.out.println(slaveShardsMap);
-    slaveShardsMap = policy.getSlaveShardsMap(new Query(), new String[] { "indexA" });
-    System.out.println(slaveShardsMap);
+    policy.setShardsAndNodes(indexToShards, shardsToNode);
+    Map<String, List<String>> nodeShardsMap = policy.getNodeShardsMap(new Query(), new String[] { "indexA" });
+    System.out.println(nodeShardsMap);
+    nodeShardsMap = policy.getNodeShardsMap(new Query(), new String[] { "indexA" });
+    System.out.println(nodeShardsMap);
   }
 
 }

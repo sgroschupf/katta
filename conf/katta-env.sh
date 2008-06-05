@@ -23,16 +23,16 @@
 # Where log files are stored.  $KATTA_HOME/logs by default.
 # export KATTA_LOG_DIR=${KATTA_HOME}/logs
 
-# File naming remote slave hosts.  $KATTA_HOME/conf/slaves by default.
-# export KATTA_SLAVES=${KATTA_HOME}/conf/slaves
+# File naming remote node hosts.  $KATTA_HOME/conf/nodes by default.
+# export KATTA_NODES=${KATTA_HOME}/conf/nodes
 
 # host:path where hadoop code should be rsync'd from.  Unset by default.
 # export KATTA_MASTER=master:/home/$USER/src/hadoop
 
-# Seconds to sleep between slave commands.  Unset by default.  This
-# can be useful in large clusters, where, e.g., slave rsyncs can
+# Seconds to sleep between node commands.  Unset by default.  This
+# can be useful in large clusters, where, e.g., node rsyncs can
 # otherwise arrive faster than the master can service them.
-# export KATTA_SLAVE_SLEEP=0.1
+# export KATTA_NODE_SLEEP=0.1
 
 # The directory where pid files are stored. /tmp by default.
 # export KATTA_PID_DIR=/var/hadoop/pids

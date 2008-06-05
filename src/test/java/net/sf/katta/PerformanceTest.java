@@ -33,7 +33,7 @@ import net.sf.katta.node.Hit;
 import net.sf.katta.node.Hits;
 import net.sf.katta.node.Node;
 import net.sf.katta.node.Query;
-import net.sf.katta.slave.SlaveServerTest;
+import net.sf.katta.node.NodeServerTest;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.ZkConfiguration;
 import net.sf.katta.zk.ZKClient;
@@ -61,9 +61,9 @@ public class PerformanceTest extends TestCase {
     }
     final Master master = new Master(zkclient);
 
-    final Node server1 = SlaveServerTest.startSlaveServer(zkclient);
-    final Node server2 = SlaveServerTest.startSlaveServer(zkclient);
-    TimingTestUtil.waitFor(zkclient, IPaths.SLAVES, 2);
+    final Node server1 = NodeServerTest.startNodeServer(zkclient);
+    final Node server2 = NodeServerTest.startNodeServer(zkclient);
+    TimingTestUtil.waitFor(zkclient, IPaths.NODES, 2);
 
     final Katta katta = new Katta();
     katta.addIndex("index1", "src/test/testIndexA", StandardAnalyzer.class.getName(), 1);
@@ -104,7 +104,7 @@ public class PerformanceTest extends TestCase {
     random.setSeed(64567547657L);
     final List<Hit> hitList = new ArrayList<Hit>();
     for (int i = 0; i < _hitCount; i++) {
-      hitList.add(new Hit("shard", "slave", random.nextFloat(), random.nextInt()));
+      hitList.add(new Hit("shard", "node", random.nextFloat(), random.nextInt()));
     }
 
     final Hits hits = new Hits();
@@ -121,7 +121,7 @@ public class PerformanceTest extends TestCase {
     random.setSeed(64567547657L);
     final List<Hit> hitList = new ArrayList<Hit>();
     for (int i = 0; i < _hitCount; i++) {
-      final Hit hit = new Hit("shard", "slave", random.nextFloat(), random.nextInt());
+      final Hit hit = new Hit("shard", "node", random.nextFloat(), random.nextInt());
       hitList.add(hit);
     }
 
@@ -139,7 +139,7 @@ public class PerformanceTest extends TestCase {
     random.setSeed(64567547657L);
     final List<Hit> hitList = new ArrayList<Hit>();
     for (int i = 0; i < _hitCount; i++) {
-      final Hit hit = new Hit("shard", "slave", random.nextFloat(), random.nextInt());
+      final Hit hit = new Hit("shard", "node", random.nextFloat(), random.nextInt());
       hitList.add(hit);
     }
 
@@ -157,7 +157,7 @@ public class PerformanceTest extends TestCase {
     random.setSeed(64567547657L);
     final List<Hit> hitList = new ArrayList<Hit>();
     for (int i = 0; i < _hitCount; i++) {
-      final Hit hit = new Hit("shard", "slave", random.nextFloat(), random.nextInt());
+      final Hit hit = new Hit("shard", "node", random.nextFloat(), random.nextInt());
       hitList.add(hit);
     }
 

@@ -32,7 +32,7 @@ import net.sf.katta.node.Hit;
 import net.sf.katta.node.Hits;
 import net.sf.katta.node.Node;
 import net.sf.katta.node.Query;
-import net.sf.katta.slave.SlaveServerTest;
+import net.sf.katta.node.NodeServerTest;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.Logger;
 import net.sf.katta.util.ZkConfiguration;
@@ -68,9 +68,9 @@ public class ClientTest extends TestCase {
     _master = new Master(_zkclient);
     _master.start();
 
-    _server1 = SlaveServerTest.startSlaveServer(_zkclient);
-    _server2 = SlaveServerTest.startSlaveServer(_zkclient);
-    TimingTestUtil.waitFor(_zkclient, IPaths.SLAVES, 2);
+    _server1 = NodeServerTest.startNodeServer(_zkclient);
+    _server2 = NodeServerTest.startNodeServer(_zkclient);
+    TimingTestUtil.waitFor(_zkclient, IPaths.NODES, 2);
 
     _katta = new Katta();
     _katta.addIndex("index", "src/test/testIndexA/", StandardAnalyzer.class.getName(), 1);
@@ -130,12 +130,12 @@ public class ClientTest extends TestCase {
     assertNotNull(hits);
     assertEquals(1f, client.getQueryPerMinute());
     for (final Hit hit : hits.getHits()) {
-      Logger.info(hit.getSlave() + " -- " + hit.getShard() + " -- " + hit.getScore() + " -- " + hit.getDocId());
+      Logger.info(hit.getNode() + " -- " + hit.getShard() + " -- " + hit.getScore() + " -- " + hit.getDocId());
     }
     assertEquals(8, hits.size());
     assertEquals(8, hits.getHits().size());
     for (final Hit hit : hits.getHits()) {
-      Logger.info(hit.getSlave() + " -- " + hit.getScore() + " -- " + hit.getDocId());
+      Logger.info(hit.getNode() + " -- " + hit.getScore() + " -- " + hit.getDocId());
     }
   }
 
@@ -146,12 +146,12 @@ public class ClientTest extends TestCase {
     final Hits hits = client.search(query, new String[] { "index2", "index1" }, 1);
     assertNotNull(hits);
     for (final Hit hit : hits.getHits()) {
-      Logger.info(hit.getSlave() + " -- " + hit.getShard() + " -- " + hit.getScore() + " -- " + hit.getDocId());
+      Logger.info(hit.getNode() + " -- " + hit.getShard() + " -- " + hit.getScore() + " -- " + hit.getDocId());
     }
     assertEquals(8, hits.size());
     assertEquals(1, hits.getHits().size());
     for (final Hit hit : hits.getHits()) {
-      Logger.info(hit.getSlave() + " -- " + hit.getScore() + " -- " + hit.getDocId());
+      Logger.info(hit.getNode() + " -- " + hit.getScore() + " -- " + hit.getDocId());
     }
   }
 
@@ -166,7 +166,7 @@ public class ClientTest extends TestCase {
     System.out.println(hits);
     assertEquals(4, hits.getHits().size());
     for (final Hit hit : hits.getHits()) {
-      Logger.info(hit.getSlave() + " -- " + hit.getScore() + " -- " + hit.getDocId());
+      Logger.info(hit.getNode() + " -- " + hit.getScore() + " -- " + hit.getDocId());
     }
 
   }

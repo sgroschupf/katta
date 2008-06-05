@@ -57,7 +57,7 @@ public interface ISearch extends VersionedProtocol {
 
   /**
    * Returns the number of documents a term occurs in. In a distributed search
-   * environment, we need to get this first and then query all slaves again with
+   * environment, we need to get this first and then query all nodes again with
    * this information to ensure we compute TF IDF correctly. See
    * {@link http://lucene.apache.org/java/2_3_0/api/org/apache/lucene/search/Similarity.html}
    * 

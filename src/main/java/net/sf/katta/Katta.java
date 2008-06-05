@@ -32,7 +32,7 @@ import net.sf.katta.node.Hits;
 import net.sf.katta.node.IQuery;
 import net.sf.katta.node.Node;
 import net.sf.katta.node.Query;
-import net.sf.katta.node.SlaveMetaData;
+import net.sf.katta.node.NodeMetaData;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.ZkConfiguration;
 import net.sf.katta.zk.ZKClient;
@@ -53,8 +53,8 @@ public class Katta {
     }
     final String command = args[0];
     // static methods first
-    if (command.endsWith("startSlave")) {
-      startSlave();
+    if (command.endsWith("startNode")) {
+      startNode();
     } else if (command.endsWith("startMaster")) {
       startMaster();
     } else {
@@ -79,8 +79,8 @@ public class Katta {
         katta.removeIndex(args[1]);
       } else if (command.endsWith("listIndexes")) {
         katta.listIndex();
-      } else if (command.endsWith("listSlaves")) {
-        katta.listSlaves();
+      } else if (command.endsWith("listNodes")) {
+        katta.listNodes();
       } else if (command.endsWith("showStructure")) {
         katta.showStructure();
       }
@@ -96,12 +96,12 @@ public class Katta {
     zkServer.join();
   }
 
-  public static void startSlave() throws KattaException {
+  public static void startNode() throws KattaException {
     final ZkConfiguration configuration = new ZkConfiguration();
     final ZKClient client = new ZKClient(configuration);
     client.waitForZooKeeper(30000);
-    final Node slave = new Node(client);
-    slave.join();
+    final Node node = new Node(client);
+    node.join();
   }
 
   public void removeIndex(final String indexName) throws KattaException {
@@ -118,18 +118,18 @@ public class Katta {
     _client.showFolders();
   }
 
-  public void listSlaves() throws KattaException {
-    final List<String> slaves = _client.getChildren(IPaths.SLAVES);
-    if (null != slaves) {
+  public void listNodes() throws KattaException {
+    final List<String> nodes = _client.getChildren(IPaths.NODES);
+    if (null != nodes) {
       // header
       final Table table = new Table(new String[] { "Name", "Start time", "Healthy", "Status" });
 
-      for (final String slave : slaves) {
-        final String path = IPaths.SLAVES + "/" + slave;
-        final SlaveMetaData slaveMetaData = new SlaveMetaData();
-        _client.readData(path, slaveMetaData);
-        table.addRow(new String[] { slaveMetaData.getName(), slaveMetaData.getStartTimeAsDate(),
-            "" + slaveMetaData.isHealth(), slaveMetaData.getStatus() });
+      for (final String node : nodes) {
+        final String path = IPaths.NODES + "/" + node;
+        final NodeMetaData nodeMetaData = new NodeMetaData();
+        _client.readData(path, nodeMetaData);
+        table.addRow(new String[] { nodeMetaData.getName(), nodeMetaData.getStartTimeAsDate(),
+            "" + nodeMetaData.isHealth(), nodeMetaData.getStatus() });
       }
       System.out.println(table.toString());
     }
@@ -145,7 +145,7 @@ public class Katta {
       t.addRow(new String[] { index, metaData.getState().toString(), metaData.getAnalyzerClassName(),
           metaData.getPath() });
       // maybe show shards
-      // maybe show serving slaves..
+      // maybe show serving nodes..
       // maybe show replication level...
     }
     System.out.println(t.toString());
@@ -184,10 +184,10 @@ public class Katta {
     final long end = System.currentTimeMillis();
     System.out.println(hits.size() + " hits found in " + ((end - start) / 1000.0) + "sec.");
     int index = 0;
-    final Table table = new Table(new String[] { "Hit", "Slave", "Shard", "DocId", "Score" });
+    final Table table = new Table(new String[] { "Hit", "Node", "Shard", "DocId", "Score" });
     for (final Hit hit : hits.getHits()) {
       table
-      .addRow(new String[] { "" + index, hit.getSlave(), hit.getShard(), "" + hit.getDocId(), "" + hit.getScore() });
+      .addRow(new String[] { "" + index, hit.getNode(), hit.getShard(), "" + hit.getDocId(), "" + hit.getScore() });
       index++;
     }
     System.out.println(table.toString());
@@ -207,9 +207,9 @@ public class Katta {
     System.err
     .println("\tsearch <index name>[,<index name>,...] \"<query>\" [count]\tSearch in supplied indexes. The query should be in \". If you supply a result count hit details will be printed.");
     System.err.println("\tlistIndexes\tLists all indexes.");
-    System.err.println("\tlistSlave\tLists all slave.");
+    System.err.println("\tlistNode\tLists all node.");
     System.err.println("\tstartMaster\tStarts a local master.");
-    System.err.println("\tstartSlave\tStarts a local slave.");
+    System.err.println("\tstartNode\tStarts a local node.");
     System.err.println("\tshowStructure\tShows the structure of a Katta installation.");
     System.exit(1);
   }

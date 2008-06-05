@@ -16,7 +16,7 @@
 # limitations under the License.
 
 
-# Run a Katta command on all slave hosts.
+# Run a Katta command on all node hosts.
 
 usage="Usage: katta-daemons.sh [--config confdir] [--hosts hostlistfile] [start|stop] command args..."
 
@@ -31,4 +31,4 @@ bin=`cd "$bin"; pwd`
 
 . $bin/katta-config.sh
 
-exec "$bin/slaves.sh" --config $KATTA_CONF_DIR cd "$KATTA_HOME" \; "$bin/katta-daemon.sh" --config $KATTA_CONF_DIR "$@"
+exec "$bin/nodes.sh" --config $KATTA_CONF_DIR cd "$KATTA_HOME" \; "$bin/katta-daemon.sh" --config $KATTA_CONF_DIR "$@"

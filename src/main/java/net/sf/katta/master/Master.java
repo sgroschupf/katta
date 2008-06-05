@@ -49,7 +49,7 @@ public class Master {
 
   ZKClient _client;
 
-  protected List<String> _slaves = new ArrayList<String>();
+  protected List<String> _nodes = new ArrayList<String>();
 
   protected List<String> _indexes = new ArrayList<String>();
 
@@ -76,8 +76,8 @@ public class Master {
     if (becomeMaster()) {
       // master
       // Announce me as master
-      // boot up loading slaves and indexes..
-      loadSlaves();
+      // boot up loading nodes and indexes..
+      loadNodes();
       loadIndexes();
       _isMaster = true;
     } else {
@@ -119,13 +119,13 @@ public class Master {
     }
   }
 
-  private void loadSlaves() throws KattaException {
-    Logger.debug("Loading slaves...");
+  private void loadNodes() throws KattaException {
+    Logger.debug("Loading nodes...");
     synchronized (_client.getSyncMutex()) {
-      final ArrayList<String> children = _client.subscribeChildChanges(IPaths.SLAVES, new SlaveListener());
-      Logger.debug("Found slaves: " + children);
+      final ArrayList<String> children = _client.subscribeChildChanges(IPaths.NODES, new NodeListener());
+      Logger.debug("Found nodes: " + children);
       assert children != null;
-      _slaves = children;
+      _nodes = children;
     }
   }
 
@@ -153,10 +153,10 @@ public class Master {
       }
     }
 
-    // compute how to distribute shards to slaves
-    final List<String> readSlaves = readSlaves();
-    if (readSlaves != null && readSlaves.size() > 0) {
-      final Map<String, List<AssignedShard>> distributionMap = _policy.ditribute(_client, readSlaves, shards, metaData
+    // compute how to distribute shards to nodes
+    final List<String> readNodes = readNodes();
+    if (readNodes != null && readNodes.size() > 0) {
+      final Map<String, List<AssignedShard>> distributionMap = _policy.ditribute(_client, readNodes, shards, metaData
           .getReplicationLevel());
       asignShards(distributionMap);
       // lets have a thread watching deployment is things are done we set the
@@ -231,27 +231,27 @@ public class Master {
     int all = 0;
     int deployed = 0;
     int notDeployed = 0;
-    final Set<String> slaves = distributionMap.keySet();
+    final Set<String> nodes = distributionMap.keySet();
     boolean allDeployed = true;
-    for (final String slave : slaves) {
-      // which shards this slave should serve..
-      final List<AssignedShard> shardsToServe = distributionMap.get(slave);
+    for (final String node : nodes) {
+      // which shards this node should serve..
+      final List<AssignedShard> shardsToServe = distributionMap.get(node);
       all += shardsToServe.size();
       for (final AssignedShard expectedShard : shardsToServe) {
         // lookup who is actually serving this shard.
-        final List<String> servingSlaves = _client.getChildren(IPaths.SHARD_TO_SLAVE + "/"
+        final List<String> servingNodes = _client.getChildren(IPaths.SHARD_TO_NODE + "/"
             + expectedShard.getShardName());
-        // is the slave we expect here already?
+        // is the node we expect here already?
         boolean asExpected = false;
-        for (final String servingSlave : servingSlaves) {
-          if (slave.equals(servingSlave)) {
+        for (final String servingNode : servingNodes) {
+          if (node.equals(servingNode)) {
             asExpected = true;
             deployed++;
             break;
           }
         }
         if (!asExpected) {
-          // slave is not yet serving shard
+          // node is not yet serving shard
           notDeployed++;
           allDeployed = false;
         }
@@ -264,23 +264,23 @@ public class Master {
   }
 
   private void asignShards(final Map<String, List<AssignedShard>> distributionMap) throws KattaException {
-    final Set<String> slaves = distributionMap.keySet();
-    for (final String slave : slaves) {
+    final Set<String> nodes = distributionMap.keySet();
+    for (final String node : nodes) {
 
-      final List<AssignedShard> shardsToServer = distributionMap.get(slave);
+      final List<AssignedShard> shardsToServer = distributionMap.get(node);
       for (final AssignedShard shard : shardsToServer) {
         // shard to server
         final String shardName = shard.getShardName();
-        final String shardServerPath = IPaths.SHARD_TO_SLAVE + "/" + shardName;
+        final String shardServerPath = IPaths.SHARD_TO_NODE + "/" + shardName;
         if (!_client.exists(shardServerPath)) {
           _client.create(shardServerPath);
         }
-        // slave to shard
-        Logger.info("Assigning:" + shardName + " to: " + slave);
-        final String slavePath = IPaths.SLAVE_TO_SHARD + "/" + slave;
-        final String slaveShardPath = slavePath + "/" + shardName;
-        if (!_client.exists(slaveShardPath)) {
-          _client.create(slaveShardPath, shard);
+        // node to shard
+        Logger.info("Assigning:" + shardName + " to: " + node);
+        final String nodePath = IPaths.NODE_TO_SHARD + "/" + node;
+        final String nodeShardPath = nodePath + "/" + shardName;
+        if (!_client.exists(nodeShardPath)) {
+          _client.create(nodeShardPath, shard);
         }
       }
     }
@@ -288,25 +288,25 @@ public class Master {
 
 
 
-  private void removeSlaves(final List<String> removedSlaves) throws KattaException {
-    for (final String slave : removedSlaves) {
-      // get the shards this slave served...
-      final String slaveToRemove = IPaths.SLAVE_TO_SHARD + "/" + slave;
-      final List<String> toAsignShards = _client.getChildren(slaveToRemove);
+  private void removeNodes(final List<String> removedNodes) throws KattaException {
+    for (final String node : removedNodes) {
+      // get the shards this node served...
+      final String nodeToRemove = IPaths.NODE_TO_SHARD + "/" + node;
+      final List<String> toAsignShards = _client.getChildren(nodeToRemove);
       final List<AssignedShard> shards = new ArrayList<AssignedShard>();
       for (final String shardName : toAsignShards) {
         final AssignedShard metaData = new AssignedShard();
-        _client.readData(slaveToRemove + "/" + shardName, metaData);
+        _client.readData(nodeToRemove + "/" + shardName, metaData);
         shards.add(metaData);
       }
-      _client.deleteRecursiv(slaveToRemove);
+      _client.deleteRecursiv(nodeToRemove);
       if (toAsignShards.size() != 0) {
         // since we lost one shard, we want to use replication level 1, since
         // all other replica still exists..
-        final Map<String, List<AssignedShard>> asignmentMap = _policy.ditribute(_client, readSlaves(), shards, 1);
+        final Map<String, List<AssignedShard>> asignmentMap = _policy.ditribute(_client, readNodes(), shards, 1);
         asignShards(asignmentMap);
       }
-      // assign this to new slaves
+      // assign this to new nodes
     }
   }
 
@@ -321,20 +321,20 @@ public class Master {
   }
 
   /*
-   * iterates through all slaves and removes the assigned shards for given
+   * iterates through all nodes and removes the assigned shards for given
    * indexName
    * 
    * @throws KattaException
    */
   private void removeIndex(final String indexName) throws KattaException {
     synchronized (_client.getSyncMutex()) {
-      final List<String> slaves = _client.getChildren(IPaths.SLAVE_TO_SHARD);
-      for (final String slave : slaves) {
-        final String slavePath = IPaths.SLAVE_TO_SHARD + "/" + slave;
-        final List<String> assignedShards = _client.getChildren(slavePath);
+      final List<String> nodes = _client.getChildren(IPaths.NODE_TO_SHARD);
+      for (final String node : nodes) {
+        final String nodePath = IPaths.NODE_TO_SHARD + "/" + node;
+        final List<String> assignedShards = _client.getChildren(nodePath);
         for (final String shard : assignedShards) {
           final AssignedShard shardWritable = new AssignedShard();
-          final String shardPath = slavePath + "/" + shard;
+          final String shardPath = nodePath + "/" + shard;
           _client.readData(shardPath, shardWritable);
           if (shardWritable.getIndexName().equalsIgnoreCase(indexName)) {
             _client.delete(shardPath);
@@ -344,17 +344,17 @@ public class Master {
     }
   }
 
-  private class SlaveListener implements IZKEventListener {
+  private class NodeListener implements IZKEventListener {
     public void process(final WatcherEvent event) {
       synchronized (_client.getSyncMutex()) {
-        List<String> currentSlaves;
+        List<String> currentNodes;
         try {
-          currentSlaves = _client.getChildren(event.getPath());
-          final List<String> removedSlaves = ComparisonUtil.getRemoved(_slaves, currentSlaves);
-          removeSlaves(removedSlaves);
-          final List<String> newSlaves = ComparisonUtil.getNew(_slaves, currentSlaves);
-          // addSlaves(newSlaves);
-          _slaves = currentSlaves;
+          currentNodes = _client.getChildren(event.getPath());
+          final List<String> removedNodes = ComparisonUtil.getRemoved(_nodes, currentNodes);
+          removeNodes(removedNodes);
+          final List<String> newNodes = ComparisonUtil.getNew(_nodes, currentNodes);
+          // addNodes(newNodes);
+          _nodes = currentNodes;
           _client.getSyncMutex().notifyAll();
         } catch (final KattaException e) {
           throw new RuntimeException("Faled to read zookeeper data.", e);
@@ -396,8 +396,8 @@ public class Master {
     }
   }
 
-  protected List<String> readSlaves() throws KattaException {
-    return _client.getChildren(IPaths.SLAVES);
+  protected List<String> readNodes() throws KattaException {
+    return _client.getChildren(IPaths.NODES);
   }
 
   protected List<String> readIndexes() throws KattaException {

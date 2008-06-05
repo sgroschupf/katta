@@ -24,12 +24,12 @@ public interface IPaths {
 
   public static final String MASTER = ROOT_PATH + "/master";
 
-  public static final String SLAVES = ROOT_PATH + "/slaves";
+  public static final String NODES = ROOT_PATH + "/nodes";
 
   public static final String INDEXES = ROOT_PATH + "/indexes";
 
-  public static final String SLAVE_TO_SHARD = ROOT_PATH + "/slave-to-shard";
+  public static final String NODE_TO_SHARD = ROOT_PATH + "/node-to-shard";
 
-  public static final String SHARD_TO_SLAVE = ROOT_PATH + "/shard-to-salve";
+  public static final String SHARD_TO_NODE = ROOT_PATH + "/shard-to-salve";
 
 }

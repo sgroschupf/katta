@@ -28,7 +28,7 @@ import net.sf.katta.util.DefaultDateFormat;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 
-public class SlaveMetaData implements Writable {
+public class NodeMetaData implements Writable {
 
   private Text _name = new Text();
 
@@ -42,11 +42,11 @@ public class SlaveMetaData implements Writable {
 
   private long _startTimeStamp;
 
-  public SlaveMetaData() {
+  public NodeMetaData() {
     ;
   }
 
-  public SlaveMetaData(final String name, final String status, final boolean isHealthy, final long startTime) {
+  public NodeMetaData(final String name, final String status, final boolean isHealthy, final long startTime) {
     _name = new Text(name);
     _status = new Text(status);
     _isHealthy = isHealthy;

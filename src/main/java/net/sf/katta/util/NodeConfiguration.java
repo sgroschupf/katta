@@ -19,17 +19,17 @@
  */
 package net.sf.katta.util;
 
-public class SlaveConfiguration extends KattaConfiguration {
+public class NodeConfiguration extends KattaConfiguration {
 
-  private final static String SLAVE_SERVER_PORT_START = "slave.server.port.start";
-  private static final String SHARD_FOLDER = "slave.shard.folder";
+  private final static String NODE_SERVER_PORT_START = "node.server.port.start";
+  private static final String SHARD_FOLDER = "node.shard.folder";
 
-  public SlaveConfiguration() {
-    super("/katta.slave.properties");
+  public NodeConfiguration() {
+    super("/katta.node.properties");
   }
 
   public int getStartPort() {
-    return getInt(SLAVE_SERVER_PORT_START);
+    return getInt(NODE_SERVER_PORT_START);
   }
 
   public String getShardFolder() {

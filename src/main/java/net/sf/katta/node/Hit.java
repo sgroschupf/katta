@@ -39,18 +39,18 @@ public class Hit implements Writable, Comparable<Hit> {
 
   private Text _shard;
 
-  private Text _slave;
+  private Text _node;
 
   private float _score;
 
   private int _docId;
 
-  public Hit(final String shard, final String slave, final float score, final int id) {
+  public Hit(final String shard, final String node, final float score, final int id) {
     _shard = new Text(shard);
-    if (slave != null) {
-      _slave = new Text(slave);
+    if (node != null) {
+      _node = new Text(node);
     } else {
-      _slave = null;
+      _node = null;
     }
     _score = score;
     _docId = id;
@@ -61,7 +61,7 @@ public class Hit implements Writable, Comparable<Hit> {
 
   // public Hit(Text shardName, Text serverName, float score, int docId) {
   // _shard = shardName;
-  // _slave = serverName;
+  // _node = serverName;
   // _score = score;
   // _docId = docId;
   // }
@@ -70,8 +70,8 @@ public class Hit implements Writable, Comparable<Hit> {
     return _shard.toString();
   }
 
-  public String getSlave() {
-    return _slave.toString();
+  public String getNode() {
+    return _node.toString();
   }
 
   public float getScore() {
@@ -80,12 +80,12 @@ public class Hit implements Writable, Comparable<Hit> {
 
   public void readFields(final DataInput in) throws IOException {
     _score = in.readFloat();
-    final boolean hasSlave = in.readBoolean();
-    if (hasSlave) {
-      _slave = new Text();
-      _slave.readFields(in);
+    final boolean hasNode = in.readBoolean();
+    if (hasNode) {
+      _node = new Text();
+      _node.readFields(in);
     } else {
-      _slave = null;
+      _node = null;
     }
     _shard = new Text();
     _shard.readFields(in);
@@ -94,9 +94,9 @@ public class Hit implements Writable, Comparable<Hit> {
 
   public void write(final DataOutput out) throws IOException {
     out.writeFloat(_score);
-    if (_slave != null) {
+    if (_node != null) {
       out.writeBoolean(true);
-      _slave.write(out);
+      _node.write(out);
     } else {
       out.writeBoolean(false);
     }
@@ -120,7 +120,7 @@ public class Hit implements Writable, Comparable<Hit> {
     int temp;
     temp = Float.floatToIntBits(_score);
     result = prime * result + (temp ^ (temp >>> 32));
-    result = prime * result + ((_slave == null) ? 0 : _slave.hashCode());
+    result = prime * result + ((_node == null) ? 0 : _node.hashCode());
     result = prime * result + ((_shard == null) ? 0 : _shard.hashCode());
     result = prime * result + _docId;
     return result;
@@ -137,10 +137,10 @@ public class Hit implements Writable, Comparable<Hit> {
     final Hit other = (Hit) obj;
     if (Float.floatToIntBits(_score) != Float.floatToIntBits(other._score))
       return false;
-    if (_slave == null) {
-      if (other._slave != null)
+    if (_node == null) {
+      if (other._node != null)
         return false;
-    } else if (!_slave.equals(other._slave))
+    } else if (!_node.equals(other._node))
       return false;
     if (_shard == null) {
       if (other._shard != null)
@@ -162,6 +162,6 @@ public class Hit implements Writable, Comparable<Hit> {
 
   @Override
   public String toString() {
-    return getSlave() + " " + getShard() + " " + getDocId();
+    return getNode() + " " + getShard() + " " + getDocId();
   }
 }

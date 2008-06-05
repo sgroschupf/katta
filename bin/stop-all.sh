@@ -26,5 +26,5 @@ bin=`cd "$bin"; pwd`
 # stop master daemons
 "$bin"/katta-daemon.sh stop katta\ startMaster --config $KATTA_CONF_DIR
 
-# stop slave daemons
-"$bin"/katta-daemons.sh stop katta\ startSlave --config $KATTA_CONF_DIR
+# stop node daemons
+"$bin"/katta-daemons.sh stop katta\ startNode --config $KATTA_CONF_DIR

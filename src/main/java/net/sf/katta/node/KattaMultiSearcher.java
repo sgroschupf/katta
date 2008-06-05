@@ -75,10 +75,10 @@ public class KattaMultiSearcher {
 
   private int _maxDoc = 0;
 
-  private final String _slave;
+  private final String _node;
 
-  public KattaMultiSearcher(final String slave) {
-    _slave = slave;
+  public KattaMultiSearcher(final String node) {
+    _node = node;
   }
 
   /**
@@ -154,7 +154,7 @@ public class KattaMultiSearcher {
         final ScoreDoc[] docs = scoreDocs[i];
         if (pos < docs.length) {
           scoreDoc = docs[pos];
-          final Hit hit = new Hit(shards[i], _slave, scoreDoc.score, scoreDoc.doc);
+          final Hit hit = new Hit(shards[i], _node, scoreDoc.score, scoreDoc.doc);
           if (!hq.insert(hit) || hq.size() == limit) {
             working = false;
             break;
