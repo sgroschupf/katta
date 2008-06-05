@@ -93,6 +93,7 @@ public class Katta {
     final ZKClient client = new ZKClient(conf);
     client.waitForZooKeeper(30000);
     final Master master = new Master(client);
+    master.start();
     zkServer.join();
   }
 
