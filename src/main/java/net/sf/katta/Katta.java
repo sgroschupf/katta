@@ -31,8 +31,8 @@ import net.sf.katta.node.Hit;
 import net.sf.katta.node.Hits;
 import net.sf.katta.node.IQuery;
 import net.sf.katta.node.Node;
-import net.sf.katta.node.Query;
 import net.sf.katta.node.NodeMetaData;
+import net.sf.katta.node.Query;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.ZkConfiguration;
 import net.sf.katta.zk.ZKClient;
@@ -101,6 +101,7 @@ public class Katta {
     final ZKClient client = new ZKClient(configuration);
     client.waitForZooKeeper(30000);
     final Node node = new Node(client);
+    node.start();
     node.join();
   }
 
