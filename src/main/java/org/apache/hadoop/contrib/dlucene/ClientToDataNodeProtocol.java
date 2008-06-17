@@ -19,6 +19,8 @@ package org.apache.hadoop.contrib.dlucene;
 
 import java.io.IOException;
 
+import net.sf.katta.util.KattaException;
+
 import org.apache.hadoop.contrib.dlucene.writable.SearchResults;
 import org.apache.hadoop.contrib.dlucene.writable.WDocument;
 import org.apache.hadoop.contrib.dlucene.writable.WQuery;
@@ -38,8 +40,9 @@ public interface ClientToDataNodeProtocol extends VersionedProtocol {
    * @param index The index.
    * @param doc The document.
    * @throws IOException
+   * @throws KattaException 
    */
-  void addDocument(String index, WDocument doc) throws IOException;
+  void addDocument(String index, WDocument doc) throws IOException, KattaException;
 
   /**
    * Remove documents that match a specific term from an index. 
@@ -49,7 +52,7 @@ public interface ClientToDataNodeProtocol extends VersionedProtocol {
    * @return The number of documents removed.
    * @throws IOException
    */
-  int removeDocuments(String index, WTerm term) throws IOException;
+  int removeDocuments(String index, WTerm term) throws IOException, KattaException;
 
   /**
    * Commit a specific index.
@@ -57,8 +60,9 @@ public interface ClientToDataNodeProtocol extends VersionedProtocol {
    * @param index The index.
    * @return The IndexVersion of the committed index.
    * @throws IOException
+   * @throws KattaException 
    */
-  IndexVersion commitVersion(String index) throws IOException;
+  IndexVersion commitVersion(String index) throws IOException, KattaException;
 
   /**
    * Create a new index.
@@ -75,9 +79,10 @@ public interface ClientToDataNodeProtocol extends VersionedProtocol {
    * @param index The index. 
    * @param indexToAdd The location of the index to add.
    * @throws IOException
+   * @throws KattaException 
    */
   void addIndex(String index, IndexLocation indexToAdd) 
-    throws IOException;
+    throws IOException, KattaException;
 
   /**
    * Search a specific index returning the top n hits ordered by

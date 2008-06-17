@@ -25,6 +25,8 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import net.sf.katta.util.KattaException;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
@@ -213,7 +215,7 @@ public class DataNodeIndexHandler {
    * @throws IOException
    */
   public void addDocument(String indexName, Document document)
-      throws IOException {
+      throws IOException, KattaException {
     if (indexes.hasIndex(indexName)) {
       IndexWriter writer = null;
       try {
@@ -277,7 +279,7 @@ public class DataNodeIndexHandler {
    * @throws IOException
    */
   public void addIndex(String indexName, IndexLocation source)
-      throws IOException {
+      throws IOException, KattaException {
     if (indexes.hasIndex(indexName)) {
       // first replicate the index locally
       copyRemoteIndex(source);
@@ -361,7 +363,7 @@ public class DataNodeIndexHandler {
    * @return the number of documents remove
    * @throws IOException
    */
-  public int removeDocuments(String indexName, Term term) throws IOException {
+  public int removeDocuments(String indexName, Term term) throws KattaException, IOException {
     //      FIXME - shouldn't this make a new version of an index?
     
     // not sure what the return value is, lucene returns int on a reader
@@ -406,7 +408,7 @@ public class DataNodeIndexHandler {
    * @return a Lucene IndexWriter
    * @throws IOException
    */
-  IndexWriter openNewIndexVersion(String indexName) throws IOException {
+  IndexWriter openNewIndexVersion(String indexName) throws KattaException, IOException {
     IndexWriter writer = null;
     IndexVersion iv = indexes.getPrimaryIndex(indexName).getIndexVersion();
     IndexLocation index = indexes.getPrimaryIndex(indexName);
@@ -616,7 +618,7 @@ public class DataNodeIndexHandler {
    * @return the committed index
    * @throws IOException
    */
-  public IndexVersion commitVersion(String index) throws IOException {
+  public IndexVersion commitVersion(String index) throws IOException, KattaException {
     IndexVersion iv = indexes.getPrimaryIndex(index).getIndexVersion();
     IndexLocation location = indexes.getPrimaryIndex(index);
     indexes.setIndexState(location, IndexState.UNCOMMITTED, IndexState.LIVE);

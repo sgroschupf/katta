@@ -25,6 +25,8 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.Vector;
 
+import net.sf.katta.util.KattaException;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
@@ -276,7 +278,7 @@ public class CachedClient extends SimpleClient implements ICachedClient {
     /* (non-Javadoc)
      * @see org.apache.hadoop.dlucene.IIndexUpdater#addDocument(org.apache.lucene.document.Document)
      */
-    public void addDocument(Document doc) throws IOException {
+    public void addDocument(Document doc) throws IOException, KattaException {
       Utils.checkArgs(doc);
       updateCache(false);
       WDocument wdoc = new WDocument(doc);
@@ -314,7 +316,7 @@ public class CachedClient extends SimpleClient implements ICachedClient {
     /* (non-Javadoc)
      * @see org.apache.hadoop.dlucene.IIndexUpdater#removeDocuments(org.apache.lucene.index.Term)
      */
-    public int removeDocuments(Term term) throws IOException {
+    public int removeDocuments(Term term) throws IOException, KattaException {
       Utils.checkArgs(index, term);
       updateCache(false);
       int result = 0;
@@ -367,7 +369,7 @@ public class CachedClient extends SimpleClient implements ICachedClient {
     /* (non-Javadoc)
      * @see org.apache.hadoop.dlucene.IIndexUpdater#commit()
      */
-    public void commit() throws IOException {
+    public void commit() throws IOException, KattaException {
       updateCache(false);
       for (String s : shardLocation.keySet()) {
         IndexLocation location = shardLocation.get(s);

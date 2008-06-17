@@ -22,6 +22,11 @@ import java.net.InetSocketAddress;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+import net.sf.katta.node.Node;
+import net.sf.katta.util.KattaException;
+import net.sf.katta.util.ZkConfiguration;
+import net.sf.katta.zk.ZKClient;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
@@ -39,10 +44,6 @@ import org.apache.hadoop.net.NetUtils;
 import org.apache.hadoop.net.NodeBase;
 import org.apache.hadoop.util.StringUtils;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
-
-import net.sf.katta.node.Node;
-import net.sf.katta.util.ZkConfiguration;
-import net.sf.katta.zk.ZKClient;
 
 /**
  * Implements a datanode that stores Lucene indexes.
@@ -342,7 +343,7 @@ public class DataNode extends Node implements
    * @see org.apache.hadoop.dlucene.ClientToDataNodeProtocol#addDocument(java.lang.String,
    *      org.apache.hadoop.dlucene.writable.WDocument)
    */
-  public void addDocument(String index, WDocument doc) throws IOException {
+  public void addDocument(String index, WDocument doc) throws IOException, KattaException {
     Utils.checkArgs(index, doc);
     LOG.debug("Adding document to index " + index);
     data.addDocument(index, doc.getDocument());
@@ -355,7 +356,7 @@ public class DataNode extends Node implements
    *      org.apache.hadoop.dlucene.IndexLocation)
    */
   public void addIndex(String index, IndexLocation indexToAdd)
-      throws IOException {
+      throws IOException, KattaException {
     Utils.checkArgs(index, indexToAdd);
     lock.lock();
     try {
@@ -370,7 +371,7 @@ public class DataNode extends Node implements
    * 
    * @see org.apache.hadoop.dlucene.protocols.ClientToDataNodeProtocol#commitVersion(java.lang.String)
    */
-  public IndexVersion commitVersion(String id) throws IOException {
+  public IndexVersion commitVersion(String id) throws IOException, KattaException {
     Utils.checkArgs(id);
     IndexVersion result = null;
     lock.lock();
@@ -395,7 +396,7 @@ public class DataNode extends Node implements
    * @see org.apache.hadoop.dlucene.protocols.ClientToDataNodeProtocol#removeDocuments(java.lang.String,
    *      org.apache.lucene.index.Term)
    */
-  public int removeDocuments(String index, WTerm term) throws IOException {
+  public int removeDocuments(String index, WTerm term) throws KattaException, IOException {
     Utils.checkArgs(index, term);
     return data.removeDocuments(index, term.getTerm());
   }

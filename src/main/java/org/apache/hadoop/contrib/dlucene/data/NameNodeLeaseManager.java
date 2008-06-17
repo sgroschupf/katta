@@ -30,7 +30,6 @@ import org.apache.hadoop.contrib.dlucene.IndexLocation;
 import org.apache.hadoop.contrib.dlucene.IndexState;
 import org.apache.hadoop.contrib.dlucene.IndexVersion;
 import org.apache.hadoop.contrib.dlucene.Lease;
-import org.apache.hadoop.contrib.dlucene.LeaseException;
 
 public class NameNodeLeaseManager {
   // FIXME - this breaks no non replicated data design, if name node fails then

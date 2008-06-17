@@ -19,6 +19,8 @@ package org.apache.hadoop.contrib.dlucene;
 
 import java.io.IOException;
 
+import net.sf.katta.util.KattaException;
+
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.Term;
 
@@ -30,8 +32,9 @@ public interface IIndexUpdater {
    * @param doc the document
    * @return the shard name
    * @throws IOException
+   * @throws KattaException 
    */
-  public void addDocument(Document doc) throws IOException;
+  public void addDocument(Document doc) throws IOException, KattaException;
 
   /**
    * Remove documents from an index.
@@ -39,14 +42,16 @@ public interface IIndexUpdater {
    * @param term the search term
    * @return the number of documents removed
    * @throws IOException
+   * @throws KattaException 
    */
-  public int removeDocuments(Term term) throws IOException;
+  public int removeDocuments(Term term) throws IOException, KattaException;
 
   /**
    * Commit changes to an index.
    * 
    * @throws IOException
+   * @throws KattaException 
    */
-  public void commit() throws IOException;
+  public void commit() throws IOException, KattaException;
 
 }

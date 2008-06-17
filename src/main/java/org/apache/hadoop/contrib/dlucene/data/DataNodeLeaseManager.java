@@ -21,6 +21,8 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.HashMap;
 
+import net.sf.katta.util.KattaException;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.contrib.dlucene.DataNodeToNameNodeProtocol;
@@ -28,7 +30,6 @@ import org.apache.hadoop.contrib.dlucene.IndexLocation;
 import org.apache.hadoop.contrib.dlucene.IndexState;
 import org.apache.hadoop.contrib.dlucene.IndexVersion;
 import org.apache.hadoop.contrib.dlucene.Lease;
-import org.apache.hadoop.contrib.dlucene.LeaseException;
 
 /**
  * A class for datanodes to manage leases.
@@ -68,7 +69,7 @@ public class DataNodeLeaseManager {
    * @return The lease.
    * @throws LeaseException thrown if the lease cannot be obtained.
    */
-  boolean getLease(IndexVersion iv) throws LeaseException {
+  boolean getLease(IndexVersion iv) throws KattaException {
     try {
       String name = iv.getName();
       if (theLeases.containsKey(name)) {
@@ -83,10 +84,10 @@ public class DataNodeLeaseManager {
         return lease.isValid();
       }
     } catch (IOException io) {
-      throw new LeaseException(io.getMessage());
+      throw new KattaException(io.getMessage(), io);
     }
     LOG.error("Could not get lease for " + iv + " from namenode");
-    throw new LeaseException("Could not get lease for " + iv);
+    throw new KattaException("Could not get lease for " + iv, new Exception());
   }
 
   /**
@@ -95,7 +96,7 @@ public class DataNodeLeaseManager {
    * @param iv the index version.
    * @throws LeaseException Thrown if there was a problem relinquishing the lease.
    */
-  void relinquishLease(IndexVersion iv) throws LeaseException {
+  void relinquishLease(IndexVersion iv) throws KattaException {
     String name = iv.getName();
     if (theLeases.containsKey(name)) {
       try {
@@ -103,11 +104,11 @@ public class DataNodeLeaseManager {
       theLeases.remove(name);
       } catch (IOException io) {
         io.printStackTrace();
-        throw new LeaseException(io.getMessage());
+        throw new KattaException(io.getMessage(), io);
       }
     } else {
-      throw new LeaseException("Datanode " + addr
-          + " could not relinquish lease for " + iv);
+      throw new KattaException("Datanode " + addr
+          + " could not relinquish lease for " + iv, new Exception());
     }
   }
 }
