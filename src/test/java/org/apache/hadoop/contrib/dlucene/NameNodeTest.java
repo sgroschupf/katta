@@ -22,6 +22,9 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Set;
 
+import net.sf.katta.util.ZkConfiguration;
+import net.sf.katta.zk.ZKClient;
+
 public class NameNodeTest extends AbstractIndexes {
 
   private static NameNode n = null;
@@ -31,7 +34,8 @@ public class NameNodeTest extends AbstractIndexes {
   protected void setUp() throws Exception {
     super.setUp();
     if (n == null) {
-      n = new NameNode(conf, new InetSocketAddress(Constants.HOST, TestUtils
+      final ZKClient zkclient = new ZKClient(new ZkConfiguration());
+      n = new NameNode(zkclient, conf, new InetSocketAddress(Constants.HOST, TestUtils
           .getNextPort()));
     }
     for (int i = 0; i <= 2; i++) {

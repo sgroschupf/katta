@@ -40,10 +40,14 @@ import org.apache.hadoop.net.NodeBase;
 import org.apache.hadoop.util.StringUtils;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 
+import net.sf.katta.node.Node;
+import net.sf.katta.util.ZkConfiguration;
+import net.sf.katta.zk.ZKClient;
+
 /**
  * Implements a datanode that stores Lucene indexes.
  */
-public class DataNode implements
+public class DataNode extends Node implements
     DataNodeToDataNodeProtocol, ClientToDataNodeProtocol {
 
   /** Interface to access namenode. */
@@ -92,7 +96,7 @@ public class DataNode implements
   /**
    * Join the heartbeat thread.
    */
-  protected void join() {
+  public void join() {
     if (heartBeatThread != null) {
       try {
         heartBeatThread.join();
@@ -254,9 +258,10 @@ public class DataNode implements
    * @param useRamIndex whether to use a RAM based index or not
    * @throws IOException
    */
-  protected DataNode(Configuration configuration,
+  protected DataNode(final ZKClient client, Configuration configuration,
       InetSocketAddress dataNodeAddress, InetSocketAddress nameNodeAddress,
       boolean useRamIndex) throws IOException {
+    super(client);
     this.heartBeatInterval = 1000L * configuration.getLong(
         Constants.HEARTBEAT_INTERVAL_NAME, Constants.HEARTBEAT_INTERVAL_VALUE);
     this.nodeAddr = dataNodeAddress;
@@ -451,7 +456,8 @@ public class DataNode implements
         InetSocketAddress nameNodeAddr = NetUtils.createSocketAddr(conf.get(
             Constants.NAMENODE_DEFAULT_NAME,
             Constants.NAMENODE_DEFAULT_NAME_VALUE));
-        datanode = createNode(conf, dataNodeAddr, nameNodeAddr, false);
+        final ZKClient zkclient = new ZKClient(new ZkConfiguration());
+        datanode = createNode(zkclient, conf, dataNodeAddr, nameNodeAddr, false);
         if (datanode != null)
           datanode.join();
       }
@@ -472,10 +478,10 @@ public class DataNode implements
    * @return a DataNode instance
    * @throws IOException
    */
-  protected static DataNode createNode(Configuration configuration,
+  protected static DataNode createNode(final ZKClient client, Configuration configuration,
       InetSocketAddress dataNodeAddress, InetSocketAddress nameNodeAddress,
       boolean useRamIndex) throws IOException {
-    DataNode dn = new DataNode(configuration, dataNodeAddress, nameNodeAddress,
+    DataNode dn = new DataNode(client, configuration, dataNodeAddress, nameNodeAddress,
         useRamIndex);
 
     // set up thread for sending heartbeats

@@ -20,6 +20,9 @@ package org.apache.hadoop.contrib.dlucene;
 
 import java.net.InetSocketAddress;
 
+import net.sf.katta.util.ZkConfiguration;
+import net.sf.katta.zk.ZKClient;
+
 import org.apache.hadoop.net.NetUtils;
 
 /**
@@ -35,9 +38,10 @@ public class StandaloneDataNodeTest extends TestUtils {
    * @throws Exception
    */
   public void testDataNodeTwo() throws Exception {
-    DataNode d1 = new DataNode(conf, new InetSocketAddress(Constants.HOST,
+    final ZKClient zkclient = new ZKClient(new ZkConfiguration());
+    DataNode d1 = new DataNode(zkclient, conf, new InetSocketAddress(Constants.HOST,
         getNextPort()), null, USE_RAM_INDEX_FOR_TESTS);
-    DataNode d2 = new DataNode(conf, new InetSocketAddress(Constants.HOST,
+    DataNode d2 = new DataNode(zkclient, conf, new InetSocketAddress(Constants.HOST,
         getNextPort()), null, USE_RAM_INDEX_FOR_TESTS);
     assertTrue(client.getDataNode(d1.nodeAddr) != null);
     assertTrue(client.getDataNode(d2.nodeAddr) != null);
@@ -49,13 +53,14 @@ public class StandaloneDataNodeTest extends TestUtils {
    * @throws Exception
    */
   public void testDataNodeThree() throws Exception {
-    NameNode n1 = NameNode.createNode(conf, new InetSocketAddress(
+    final ZKClient zkclient = new ZKClient(new ZkConfiguration());
+    NameNode n1 = NameNode.createNode(zkclient, conf, new InetSocketAddress(
         Constants.HOST, getNextPort()));
     assertTrue(client.getNameNode(n1.nodeAddr) != null);
     System.out.println(n1.nodeAddr);
-    DataNode d1 = DataNode.createNode(conf, new InetSocketAddress(
+    DataNode d1 = DataNode.createNode(zkclient, conf, new InetSocketAddress(
         Constants.HOST, getNextPort()), n1.nodeAddr, USE_RAM_INDEX_FOR_TESTS);
-    DataNode d2 = DataNode.createNode(conf, new InetSocketAddress(
+    DataNode d2 = DataNode.createNode(zkclient, conf, new InetSocketAddress(
         Constants.HOST, getNextPort()), n1.nodeAddr, USE_RAM_INDEX_FOR_TESTS);
     assertTrue(client.getDataNode(d1.nodeAddr) != null);
     assertTrue(client.getDataNode(d2.nodeAddr) != null);

@@ -22,6 +22,9 @@ import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
 
+import net.sf.katta.util.ZkConfiguration;
+import net.sf.katta.zk.ZKClient;
+
 import org.apache.hadoop.conf.Configuration;
 
 public class MiniDLuceneCluster {
@@ -36,11 +39,12 @@ public class MiniDLuceneCluster {
     dataNodePorts = new ArrayList<Integer>();
     nameNodePort = TestUtils.getNextPort();
     InetSocketAddress nameNodeAddr = new InetSocketAddress(Constants.HOST, nameNodePort);
-    nameNode = NameNode.createNode(conf, nameNodeAddr);
+    final ZKClient zkclient = new ZKClient(new ZkConfiguration());
+    nameNode = NameNode.createNode(zkclient, conf, nameNodeAddr);
     for (int i = 0; i < numberOfWorkers; i++) {
       int port = TestUtils.getNextPort();
       dataNodePorts.add(port);
-      DataNode dn = DataNode.createNode(conf,
+      DataNode dn = DataNode.createNode(zkclient, conf,
           new InetSocketAddress(Constants.HOST, port), nameNodeAddr,
           TestConstants.USE_RAM_INDEX_FOR_TESTS);
       dataNodes.add(dn);

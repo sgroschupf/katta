@@ -36,13 +36,17 @@ import org.apache.hadoop.net.NetUtils;
 import org.apache.hadoop.net.NodeBase;
 import org.apache.hadoop.util.StringUtils;
 
+import net.sf.katta.master.Master;
+import net.sf.katta.util.ZkConfiguration;
+import net.sf.katta.zk.ZKClient;
+
 /**
  * The namenode maintains the set of indexes that are available for search,
  * keeps track of which datanode should handle changes to an index and initiates
  * index synchronization between datanodes. The namenode can be configured to
  * replicate indexes a specified number of times.
  */
-public class NameNode implements ClientToNameNodeProtocol,
+public class NameNode extends Master implements ClientToNameNodeProtocol,
     DataNodeToNameNodeProtocol {
 
   private final Lock datanodeInfoLock = new ReentrantLock();
@@ -56,7 +60,6 @@ public class NameNode implements ClientToNameNodeProtocol,
   private final static boolean USE_REPLICATION = true;
 
   private NameNodeLeaseManager leaseManager = null;
-  
 
   /** Log file for this node. */
   protected static final Log LOG = LogFactory
@@ -223,8 +226,9 @@ public class NameNode implements ClientToNameNodeProtocol,
    * @param addr
    * @throws Exception
    */
-  NameNode(Configuration configuration, InetSocketAddress addr)
+  NameNode(final ZKClient client, Configuration configuration, InetSocketAddress addr)
       throws Exception {
+    super(client);
     this.heartBeatInterval = 1000L * configuration.getLong(
         Constants.HEARTBEAT_INTERVAL_NAME, Constants.HEARTBEAT_INTERVAL_VALUE);
     this.nodeAddr = addr;
@@ -269,7 +273,8 @@ public class NameNode implements ClientToNameNodeProtocol,
         InetSocketAddress addr = NetUtils.createSocketAddr(conf.get(
             Constants.NAMENODE_DEFAULT_NAME,
             Constants.NAMENODE_DEFAULT_NAME_VALUE));
-        namenode = createNode(conf, addr);
+        final ZKClient zkclient = new ZKClient(new ZkConfiguration());
+        namenode = createNode(zkclient, conf, addr);
         if (namenode != null) {
           namenode.join();
         }
@@ -289,9 +294,9 @@ public class NameNode implements ClientToNameNodeProtocol,
    * @return
    * @throws Exception
    */
-  protected static NameNode createNode(Configuration conf,
+  protected static NameNode createNode(final ZKClient client, Configuration conf,
       InetSocketAddress addr) throws Exception {
-    NameNode dn = new NameNode(conf, addr);
+    NameNode dn = new NameNode(client, conf, addr);
     dn.initThread();
     return dn;
   }

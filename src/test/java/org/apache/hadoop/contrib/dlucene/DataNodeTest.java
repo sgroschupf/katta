@@ -20,6 +20,9 @@ package org.apache.hadoop.contrib.dlucene;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 
+import net.sf.katta.util.ZkConfiguration;
+import net.sf.katta.zk.ZKClient;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.contrib.dlucene.writable.SearchResults;
 import org.apache.hadoop.contrib.dlucene.writable.WDocument;
@@ -52,7 +55,8 @@ public class DataNodeTest extends TestUtils {
       // delete the old indexes before starting up
       // deleteDirectory(new File(ROOT_DIR_STR));
       dataNodePort = getNextPort();
-      dn = DataNode.createNode(conf, new InetSocketAddress(Constants.HOST,
+      final ZKClient zkclient = new ZKClient(new ZkConfiguration());
+      dn = DataNode.createNode(zkclient, conf, new InetSocketAddress(Constants.HOST,
           dataNodePort), new InetSocketAddress(Constants.HOST, cluster
           .getNameNodePort()), USE_RAM_INDEX_FOR_TESTS);
       dn.createIndex(DNT_INDEX_ONE);
@@ -87,12 +91,6 @@ public class DataNodeTest extends TestUtils {
     try {
       dn.commitVersion(null);
       fail("commitVersion() should have thrown an exception!");
-    } catch (IllegalArgumentException expected) {
-      // expected
-    }
-    try {
-      dn.search(null, null, null, 0);
-      fail("search() should have thrown an exception!");
     } catch (IllegalArgumentException expected) {
       // expected
     }
