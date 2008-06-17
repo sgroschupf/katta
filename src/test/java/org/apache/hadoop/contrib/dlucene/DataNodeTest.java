@@ -143,12 +143,6 @@ public class DataNodeTest extends TestUtils {
         ClientToDataNodeProtocol.class.getName(), 0));
     assertEquals(DataNodeToDataNodeProtocol.VERSION_ID, dn.getProtocolVersion(
         DataNodeToDataNodeProtocol.class.getName(), 0));
-    try {
-      dn.getProtocolVersion(DataNodeToNameNodeProtocol.class.getName(), 0);
-      fail("Should throw an exception");
-    } catch (IOException io) {
-      //
-    }
   }
 
   public void testAddIndex() throws Exception {

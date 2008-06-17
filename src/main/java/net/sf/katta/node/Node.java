@@ -86,17 +86,17 @@ public class Node implements ISearch {
 
   private KattaMultiSearcher _searcher;
 
-  ZKClient _client;
+  protected ZKClient _client;
 
-  private final ArrayList<String> _deployedShards = new ArrayList<String>();
+  protected final ArrayList<String> _deployedShards = new ArrayList<String>();
 
   private File _shardFolder;
 
-  private String _node;
+  protected String _node;
 
-  private final long _startTime;
+  protected final long _startTime;
 
-  private long _queryCounter;
+  protected long _queryCounter;
 
   private final Timer _timer;
 
@@ -680,7 +680,7 @@ public class Node implements ISearch {
   /*
    * Updates the status of the node in zookeeper.
    */
-  private void updateStatus(final String statusMsg) throws KattaException {
+  protected void updateStatus(final String statusMsg) throws KattaException {
     final String path = IPaths.NODES + "/" + _node;
     final NodeMetaData metaData = new NodeMetaData();
     _client.readData(path, metaData);

@@ -19,12 +19,19 @@ package org.apache.hadoop.contrib.dlucene;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.List;
+import java.util.TimerTask;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+import net.sf.katta.master.IPaths;
 import net.sf.katta.node.Node;
+import net.sf.katta.node.NodeMetaData;
+import net.sf.katta.util.ComparisonUtil;
 import net.sf.katta.util.KattaException;
+import net.sf.katta.util.Logger;
 import net.sf.katta.util.ZkConfiguration;
+import net.sf.katta.zk.IZKEventListener;
 import net.sf.katta.zk.ZKClient;
 
 import org.apache.commons.logging.Log;
@@ -45,14 +52,13 @@ import org.apache.hadoop.net.NodeBase;
 import org.apache.hadoop.util.StringUtils;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 
+import com.yahoo.zookeeper.proto.WatcherEvent;
+
 /**
  * Implements a datanode that stores Lucene indexes.
  */
-public class DataNode extends Node implements
-    DataNodeToDataNodeProtocol, ClientToDataNodeProtocol {
-
-  /** Interface to access namenode. */
-  private DataNodeToNameNodeProtocol namenode = null;
+public class DataNode extends Node implements DataNodeToDataNodeProtocol,
+    ClientToDataNodeProtocol {
 
   /** Data structure storing index information. */
   private DataNodeIndexHandler data = null;
@@ -112,7 +118,7 @@ public class DataNode extends Node implements
    * 
    * @throws IOException
    */
-  public void offerService() throws IOException {
+  public void offerService() throws IOException, KattaException {
     while (shouldRun) {
       LOG.info("In DataNode.Heartbeater.offerService is running on "
           + nodeAddr.toString());
@@ -136,10 +142,14 @@ public class DataNode extends Node implements
   /**
    * Initialize the server.
    * 
-   * @param hostname the hostname
-   * @param port the port number
-   * @param configuration the Hadoop configuration
-   * @param nodeType is this a NameNode or a DataNode?
+   * @param hostname
+   *          the hostname
+   * @param port
+   *          the port number
+   * @param configuration
+   *          the Hadoop configuration
+   * @param nodeType
+   *          is this a NameNode or a DataNode?
    * @throws IOException
    */
   protected void init(String hostname, int port, Configuration configuration,
@@ -161,7 +171,8 @@ public class DataNode extends Node implements
   /**
    * Print the command line arguments.
    * 
-   * @param className the name of the class
+   * @param className
+   *          the name of the class
    */
   protected static void printUsage(String className) {
     System.err.println("Usage: java " + className);
@@ -171,8 +182,10 @@ public class DataNode extends Node implements
   /**
    * Parse command line arguments.
    * 
-   * @param args command line arguments
-   * @param conf the Hadoop Configuration
+   * @param args
+   *          command line arguments
+   * @param conf
+   *          the Hadoop Configuration
    * @return could the arguments be parsed?
    */
   protected static boolean parseArguments(String[] args, Configuration conf) {
@@ -200,20 +213,25 @@ public class DataNode extends Node implements
    * 
    * @see org.apache.hadoop.dlucene.AbstractNode#doHeartbeat()
    */
-  protected void doHeartbeat() throws IOException {
-    HeartbeatResponse hbr = null;
+  protected void doHeartbeat() throws IOException, KattaException {
     filesystemStatus.updateUsage();
     lock.lock();
     try {
-      hbr = namenode.heartbeat(filesystemStatus, data
-          .getIndexes(), data.getLeases());
+      updateStatus("OK");
+      final String path = IPaths.NODES + Constants.zkSeparator + _node;
+      _client.writeData(path + Constants.zkSeparator
+          + Constants.zkFilesystemStatus, filesystemStatus);
+      for (IndexLocation il : data.getIndexes()) {
+        _client.writeData(path + Constants.zkSeparator + Constants.zkIndexes
+            + Constants.zkSeparator + il.getIndexVersion().getName()
+            + Constants.zkSeparator + il.getIndexVersion().getVersion(), il);
+      }
+      IndexLocation toReplicate = new IndexLocation();
+      _client.readData(path + Constants.zkSeparator
+          + Constants.zkReplicationPlan, toReplicate);
+      filesystemStatus.addReplicationTask(toReplicate);
     } finally {
       lock.unlock();
-    }
-    if (hbr.getReplicationRequests() != null) {
-      for (IndexLocation indexToReplicate : hbr.getReplicationRequests()) {
-        filesystemStatus.addReplicationTask(indexToReplicate);
-      }
     }
   }
 
@@ -253,10 +271,14 @@ public class DataNode extends Node implements
   /**
    * Constructor.
    * 
-   * @param configuration the Hadoop configuration
-   * @param dataNodeAddress the address of this node
-   * @param nameNodeAddress the address of the NameNode
-   * @param useRamIndex whether to use a RAM based index or not
+   * @param configuration
+   *          the Hadoop configuration
+   * @param dataNodeAddress
+   *          the address of this node
+   * @param nameNodeAddress
+   *          the address of the NameNode
+   * @param useRamIndex
+   *          whether to use a RAM based index or not
    * @throws IOException
    */
   protected DataNode(final ZKClient client, Configuration configuration,
@@ -272,28 +294,21 @@ public class DataNode extends Node implements
     String rack = configuration.get(Constants.DATANODE_RACK_NAME);
     if (rack == null) // exec network script or set the default rack
       rack = Network.getNetworkLoc(configuration);
-    String root = null;  
-  if (System.getProperty(Constants.DEFAULT_ROOT_DIR) != null) {
-    root = System.getProperty(Constants.DEFAULT_ROOT_DIR);
-  } else {
-    root = configuration.get(Constants.DEFAULT_ROOT_DIR_NAME,
-        Constants.DEFAULT_ROOT_DIR);
-  }
-    DataNodeConfiguration dataconf = new DataNodeConfiguration(dataNodeAddress, rack, root);
+    String root = null;
+    if (System.getProperty(Constants.DEFAULT_ROOT_DIR) != null) {
+      root = System.getProperty(Constants.DEFAULT_ROOT_DIR);
+    } else {
+      root = configuration.get(Constants.DEFAULT_ROOT_DIR_NAME,
+          Constants.DEFAULT_ROOT_DIR);
+    }
+    DataNodeConfiguration dataconf = new DataNodeConfiguration(dataNodeAddress,
+        rack, root);
 
     // find the network location of this machine
     filesystemStatus = new DataNodeStatus(dataconf, configuration);
 
-    // get the interface for calling the namenode
-    if (nameNodeAddress != null) {
-      this.namenode = (DataNodeToNameNodeProtocol) RPC
-          .waitForProxy(DataNodeToNameNodeProtocol.class,
-              DataNodeToNameNodeProtocol.VERSION_ID, nameNodeAddress,
-              configuration);
-    }
-    
-    data = new DataNodeIndexHandler(dataconf, configuration,
-        new StandardAnalyzer(), useRamIndex, namenode);
+    data = new DataNodeIndexHandler(client, dataconf, configuration,
+        new StandardAnalyzer(), useRamIndex);
     init(dataNodeAddress.getHostName(), dataNodeAddress.getPort(),
         configuration, Constants.DATANODE_DEFAULT_NAME);
   }
@@ -343,7 +358,8 @@ public class DataNode extends Node implements
    * @see org.apache.hadoop.dlucene.ClientToDataNodeProtocol#addDocument(java.lang.String,
    *      org.apache.hadoop.dlucene.writable.WDocument)
    */
-  public void addDocument(String index, WDocument doc) throws IOException, KattaException {
+  public void addDocument(String index, WDocument doc) throws IOException,
+      KattaException {
     Utils.checkArgs(index, doc);
     LOG.debug("Adding document to index " + index);
     data.addDocument(index, doc.getDocument());
@@ -371,7 +387,8 @@ public class DataNode extends Node implements
    * 
    * @see org.apache.hadoop.dlucene.protocols.ClientToDataNodeProtocol#commitVersion(java.lang.String)
    */
-  public IndexVersion commitVersion(String id) throws IOException, KattaException {
+  public IndexVersion commitVersion(String id) throws IOException,
+      KattaException {
     Utils.checkArgs(id);
     IndexVersion result = null;
     lock.lock();
@@ -396,7 +413,8 @@ public class DataNode extends Node implements
    * @see org.apache.hadoop.dlucene.protocols.ClientToDataNodeProtocol#removeDocuments(java.lang.String,
    *      org.apache.lucene.index.Term)
    */
-  public int removeDocuments(String index, WTerm term) throws KattaException, IOException {
+  public int removeDocuments(String index, WTerm term) throws KattaException,
+      IOException {
     Utils.checkArgs(index, term);
     return data.removeDocuments(index, term.getTerm());
   }
@@ -418,7 +436,7 @@ public class DataNode extends Node implements
    * 
    * @see org.apache.hadoop.dlucene.protocols.ClientToDataNodeProtocol#addIndex(java.lang.String)
    */
-  public IndexVersion createIndex(String index) throws IOException {
+  public IndexVersion createIndex(String index) throws IOException, KattaException {
     Utils.checkArgs(index);
     IndexVersion result = null;
     LOG.debug("Datanode creating index " + index);
@@ -432,7 +450,7 @@ public class DataNode extends Node implements
     doHeartbeat();
     return result;
   }
-  
+
   public int size(String index) throws IOException {
     Utils.checkArgs(index);
     return data.size(index);
@@ -441,7 +459,8 @@ public class DataNode extends Node implements
   /**
    * Startup the node from the command line.
    * 
-   * @param args You can use -r to specify the rack that the node is on
+   * @param args
+   *          You can use -r to specify the rack that the node is on
    */
   public static void main(String[] args) {
     Configuration conf = new Configuration();
@@ -472,18 +491,23 @@ public class DataNode extends Node implements
   /**
    * Create a node.
    * 
-   * @param configuration the Hadoop configuration
-   * @param dataNodeAddress the address of this node
-   * @param nameNodeAddress the address of the NameNode
-   * @param useRamIndex whether to use a RAM based index or not
+   * @param configuration
+   *          the Hadoop configuration
+   * @param dataNodeAddress
+   *          the address of this node
+   * @param nameNodeAddress
+   *          the address of the NameNode
+   * @param useRamIndex
+   *          whether to use a RAM based index or not
    * @return a DataNode instance
    * @throws IOException
    */
-  protected static DataNode createNode(final ZKClient client, Configuration configuration,
-      InetSocketAddress dataNodeAddress, InetSocketAddress nameNodeAddress,
-      boolean useRamIndex) throws IOException {
-    DataNode dn = new DataNode(client, configuration, dataNodeAddress, nameNodeAddress,
-        useRamIndex);
+  protected static DataNode createNode(final ZKClient client,
+      Configuration configuration, InetSocketAddress dataNodeAddress,
+      InetSocketAddress nameNodeAddress, boolean useRamIndex)
+      throws IOException {
+    DataNode dn = new DataNode(client, configuration, dataNodeAddress,
+        nameNodeAddress, useRamIndex);
 
     // set up thread for sending heartbeats
     dn.initThreads();
@@ -566,6 +590,59 @@ public class DataNode extends Node implements
     if (replicationThread != null) {
       if (replicationThread.isAlive()) {
         replicationThread.interrupt();
+      }
+    }
+  }
+
+  /*
+   * Listens to events within the nodeToShard zookeeper folder. Those events are
+   * fired if a shard is assigned or removed for this node.
+   */
+  private class DLuceneShardListener implements IZKEventListener {
+    public void process(final WatcherEvent event) {
+      synchronized (_client.getSyncMutex()) {
+        if (Logger.isDebug()) {
+          Logger.debug("ShardListener.process()" + _node);
+        }
+        final String path = event.getPath();
+        List<String> newList;
+        try {
+          newList = _client.getChildren(path);
+          final List<String> shardsToRemove = ComparisonUtil.getRemoved(
+              _deployedShards, newList);
+          removeShards(shardsToRemove);
+          final List<String> shardsToServe = ComparisonUtil.getNew(
+              _deployedShards, newList);
+          deployAndAnnounceShards(shardsToServe);
+          _client.getSyncMutex().notifyAll();
+        } catch (final KattaException e) {
+          throw new RuntimeException("Failed to read zookeeper information");
+        }
+      }
+    }
+  }
+
+  /*
+   * A Thread that updates the status of the node within zookeeper.
+   */
+  private class DLuceneStatusUpdater extends TimerTask {
+    @Override
+    public void run() {
+      if (_node != null) {
+        long time = (System.currentTimeMillis() - _startTime) / (60 * 1000);
+        time = Math.max(time, 1);
+        final float qpm = (float) _queryCounter / time;
+        final NodeMetaData metaData = new NodeMetaData();
+        final String path = IPaths.NODES + "/" + _node;
+        try {
+          if (_client.exists(path)) {
+            _client.readData(path, metaData);
+            metaData.setQueriesPerMinute(qpm);
+            _client.writeData(path, metaData);
+          }
+        } catch (final KattaException e) {
+          Logger.error("Failed to update data in zookeeper", e);
+        }
       }
     }
   }

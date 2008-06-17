@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.Set;
 
 import net.sf.katta.util.KattaException;
+import net.sf.katta.zk.ZKClient;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -34,7 +35,6 @@ import org.apache.hadoop.contrib.dlucene.Constants;
 import org.apache.hadoop.contrib.dlucene.DataNode;
 import org.apache.hadoop.contrib.dlucene.DataNodeConfiguration;
 import org.apache.hadoop.contrib.dlucene.DataNodeToDataNodeProtocol;
-import org.apache.hadoop.contrib.dlucene.DataNodeToNameNodeProtocol;
 import org.apache.hadoop.contrib.dlucene.IndexLocation;
 import org.apache.hadoop.contrib.dlucene.IndexState;
 import org.apache.hadoop.contrib.dlucene.IndexVersion;
@@ -96,8 +96,8 @@ public class DataNodeIndexHandler {
    * @param useRamIndex use RAM based Lucene index?
    * @throws IOException
    */
-  public DataNodeIndexHandler(DataNodeConfiguration dataNodeConfiguration,
-      Configuration configuration, Analyzer analyzer, boolean useRamIndex, DataNodeToNameNodeProtocol namenode)
+  public DataNodeIndexHandler(ZKClient client, DataNodeConfiguration dataNodeConfiguration,
+      Configuration configuration, Analyzer analyzer, boolean useRamIndex)
       throws IOException {
     this.conf = configuration;
     this.analyzer = analyzer;
@@ -107,7 +107,8 @@ public class DataNodeIndexHandler {
     }
     this.useRamIndex = useRamIndex;
     indexes = new DataNodeIndexes(dataNodeConfiguration);
-    leases = new DataNodeLeaseManager(namenode, dataconf.getAddress());
+    long leaseLength = 1000L * configuration.getLong(Constants.LEASE_LENGTH_NAME, Constants.LEASE_LENGTH_VALUE);
+    leases = new DataNodeLeaseManager(client, dataconf.getAddress(), leaseLength);
 
     // the directory structure is we have root/id/version
     String[] files = dataNodeConfiguration.getRootDir().list(

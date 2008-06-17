@@ -23,6 +23,9 @@ import java.net.InetSocketAddress;
 import java.util.HashSet;
 import java.util.Set;
 
+import net.sf.katta.util.ZkConfiguration;
+import net.sf.katta.zk.ZKClient;
+
 import org.apache.hadoop.contrib.dlucene.Constants;
 import org.apache.hadoop.contrib.dlucene.DataNode;
 import org.apache.hadoop.contrib.dlucene.DataNodeConfiguration;
@@ -58,8 +61,9 @@ public class DataNodeIndexHandlerTests extends TestUtils {
     dnc = new DataNodeConfiguration(addr, NetworkTopology.DEFAULT_RACK,Constants.DEFAULT_ROOT_DIR);
     if (dnlh == null) {
       cluster = new MiniDLuceneCluster(conf, 2);
-      dnlh = new DataNodeIndexHandler(dnc, conf, new StandardAnalyzer(),
-          USE_RAM_INDEX_FOR_TESTS, cluster.getNameNode());
+      final ZKClient zkclient = new ZKClient(new ZkConfiguration());
+      dnlh = new DataNodeIndexHandler(zkclient, dnc, conf, new StandardAnalyzer(),
+          USE_RAM_INDEX_FOR_TESTS);
     }
   }
   
@@ -296,8 +300,9 @@ public class DataNodeIndexHandlerTests extends TestUtils {
   }
 
   public void testNewDataNode() throws Exception {
-    new DataNodeIndexHandler(dnc, conf, new StandardAnalyzer(),
-        USE_RAM_INDEX_FOR_TESTS, null);
+    final ZKClient zkclient = new ZKClient(new ZkConfiguration());
+    new DataNodeIndexHandler(zkclient, dnc, conf, new StandardAnalyzer(),
+        USE_RAM_INDEX_FOR_TESTS);
   }
   
 }

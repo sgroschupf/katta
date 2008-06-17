@@ -120,7 +120,7 @@ public class CachedClient extends SimpleClient implements ICachedClient {
   /* (non-Javadoc)
    * @see org.apache.hadoop.dlucene.ICachedClient#createIndex(java.lang.String, boolean)
    */
-  public void createIndex(String index, boolean sharded) throws IOException {
+  public void createIndex(String index, boolean sharded) throws IOException, KattaException {
     Utils.checkArgs(index);
     updateCache(false);
     if (!indexNames.contains(index) || sharded) {

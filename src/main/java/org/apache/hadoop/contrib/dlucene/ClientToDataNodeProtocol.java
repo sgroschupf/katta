@@ -70,8 +70,9 @@ public interface ClientToDataNodeProtocol extends VersionedProtocol {
    * @param index The index. 
    * @return the IndexVersion of the new index.
    * @throws IOException
+   * @throws KattaException 
    */
-  IndexVersion createIndex(String index) throws IOException;
+  IndexVersion createIndex(String index) throws IOException, KattaException;
 
   /**
    * Add the contents of an index to another index.

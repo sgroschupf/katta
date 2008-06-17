@@ -17,15 +17,15 @@
  */
 package org.apache.hadoop.contrib.dlucene.data;
 
-import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.HashMap;
 
 import net.sf.katta.util.KattaException;
+import net.sf.katta.zk.ZKClient;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.hadoop.contrib.dlucene.DataNodeToNameNodeProtocol;
+import org.apache.hadoop.contrib.dlucene.Constants;
 import org.apache.hadoop.contrib.dlucene.IndexLocation;
 import org.apache.hadoop.contrib.dlucene.IndexState;
 import org.apache.hadoop.contrib.dlucene.IndexVersion;
@@ -43,15 +43,18 @@ public class DataNodeLeaseManager {
   /** The leases owned by this datanode. */
   private HashMap<String, Lease> theLeases = new HashMap<String, Lease>();
 
-  /** Interface to access namenode. */
-  private DataNodeToNameNodeProtocol namenode = null;
-
   /** The address of this datanode. */
   private InetSocketAddress addr = null;
 
-  DataNodeLeaseManager(DataNodeToNameNodeProtocol namenode,
-      InetSocketAddress addr) {
-    this.namenode = namenode;
+  private ZKClient _client = null;
+
+  /** How long do leases last before timing out? */
+  private static long _leaseLength = 0;
+
+  DataNodeLeaseManager(final ZKClient client, InetSocketAddress addr,
+      long leaseLength) {
+    _leaseLength = leaseLength;
+    _client = client;
     this.addr = addr;
   }
 
@@ -59,6 +62,7 @@ public class DataNodeLeaseManager {
    * @return All the leases owned by this datanode.
    */
   public Lease[] getLeases() {
+    // FIXME - should do this in Zookeeper
     return theLeases.values().toArray(new Lease[theLeases.size()]);
   }
 
@@ -70,21 +74,24 @@ public class DataNodeLeaseManager {
    * @throws LeaseException thrown if the lease cannot be obtained.
    */
   boolean getLease(IndexVersion iv) throws KattaException {
+    String name = iv.getName();
+    if (theLeases.containsKey(name)) {
+      Lease lease = theLeases.get(name);
+      return lease.isValid();
+    }
+    LOG.debug("Requesting lease from zookeeper for " + iv + " with address "
+        + addr);
+    IndexLocation il = new IndexLocation(addr, iv, IndexState.UNKNOWN);
+    Lease lease = new Lease(il, _leaseLength);
+    final String path = getPath(iv);
     try {
-      String name = iv.getName();
-      if (theLeases.containsKey(name)) {
-        Lease lease = theLeases.get(name);
-        return lease.isValid();
-      }
-      LOG.debug("Requesting lease from namenode for " + iv + " with address " + addr);
-      IndexLocation il = new IndexLocation(addr, iv, IndexState.UNKNOWN);
-      Lease lease = namenode.getLease(il);
-      if (lease != null) {
-        theLeases.put(name, lease);
-        return lease.isValid();
-      }
-    } catch (IOException io) {
-      throw new KattaException(io.getMessage(), io);
+      _client.readData(path, lease);
+    } catch (KattaException ke) {
+      // exception should be thrown, otherwise lease is already in use
+      // FIXME should not use an exception with these semantics
+      _client.writeData(path, lease);
+      theLeases.put(name, lease);
+      return lease.isValid();
     }
     LOG.error("Could not get lease for " + iv + " from namenode");
     throw new KattaException("Could not get lease for " + iv, new Exception());
@@ -99,16 +106,19 @@ public class DataNodeLeaseManager {
   void relinquishLease(IndexVersion iv) throws KattaException {
     String name = iv.getName();
     if (theLeases.containsKey(name)) {
-      try {
-      namenode.relinquishLease(theLeases.get(name));
+      Lease lease = theLeases.get(name);
+      final String path = getPath(iv);
+      _client.readData(path, lease); // should throw an exception here if the lease does not exist
+      _client.delete(path);
       theLeases.remove(name);
-      } catch (IOException io) {
-        io.printStackTrace();
-        throw new KattaException(io.getMessage(), io);
-      }
     } else {
       throw new KattaException("Datanode " + addr
           + " could not relinquish lease for " + iv, new Exception());
     }
+  }
+
+  private String getPath(IndexVersion iv) {
+    return Constants.zkLeasePath + Constants.zkSeparator + iv.getName()
+        + Constants.zkSeparator + iv.getVersion();
   }
 }

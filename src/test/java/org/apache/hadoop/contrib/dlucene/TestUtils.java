@@ -58,14 +58,6 @@ public abstract class TestUtils extends TestConstants {
     }
     return nextPort++;
   }
-
-  public static Set<IndexLocation> toSet(HeartbeatResponse hbr) {
-    if (hbr == null) { 
-      return null;
-    }
-    IndexLocation[] il = hbr.getReplicationRequests();
-    return toSet(il);
-  }
   
   public static Set<IndexLocation> toSet(IndexLocation[] il) {
     if (il == null) {

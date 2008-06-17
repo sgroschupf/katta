@@ -38,16 +38,11 @@ public class NameNodeTest extends AbstractIndexes {
       n = new NameNode(zkclient, conf, new InetSocketAddress(Constants.HOST, TestUtils
           .getNextPort()));
     }
-    for (int i = 0; i <= 2; i++) {
-      toSet(n.heartbeat(getStatus()[i], getSetup()[i], leases));
-    }
   }
 
   public void testGetProtocolVersion() throws Exception {
     assertTrue(n
         .getProtocolVersion(ClientToNameNodeProtocol.class.getName(), 0) == ClientToNameNodeProtocol.VERSION_ID);
-    assertTrue(n.getProtocolVersion(DataNodeToNameNodeProtocol.class.getName(),
-        0) == DataNodeToNameNodeProtocol.VERSION_ID);
   }
 
   public void testGetProtocolVersionNull() {
@@ -69,46 +64,10 @@ public class NameNodeTest extends AbstractIndexes {
 
   public void testHeartbeat() throws Exception {
     for (int i = 0; i <= 2; i++) {
-      assert (toSet(n.heartbeat(getStatus()[i], getSetup()[i], leases)) == null);
     }
     n.doHeartbeat();
-    assertTrue(toSet(n.heartbeat(getStatus()[0], getSetup()[0], leases)) != null
-        || toSet(n.heartbeat(getStatus()[1], getSetup()[1], leases)) != null
-        || toSet(n.heartbeat(getStatus()[2], getSetup()[2], leases)) != null);
   }
-
-  public void testOne() throws Exception {
-
-    // add two indexes to the datanode
-    IndexVersion version = new IndexVersion(NN_INDEX_ONE);
-    IndexLocation ilA = new IndexLocation(getStatus()[0].getAddress(), version,
-        IndexState.LIVE);
-    IndexLocation ilB = new IndexLocation(getStatus()[0].getAddress(), version
-        .nextVersion(), IndexState.LIVE);
-    IndexLocation[] searchableIndexes = { ilA, ilB };
-
-    // send a heartbeat
-    HeartbeatResponse result = n
-        .heartbeat(getStatus()[0], searchableIndexes, leases);
-
-    // result should be null because we have not built a replication plan yet
-    assertNull(result.getReplicationRequests());
-
-    // build the replication plan
-    n.doHeartbeat();
-    result = n.heartbeat(getStatus()[0], searchableIndexes, leases);
-
-    // result should still be null because we only have a single datanode
-    assertNull(result.getReplicationRequests());
-
-    // send a heartbeat
-    result = n.heartbeat(getStatus()[1], empty, leases);
-    result = n.heartbeat(getStatus()[2], empty, leases);
-    n.doHeartbeat();
-    result = n.heartbeat(getStatus()[0], searchableIndexes, leases);
-    result = n.heartbeat(getStatus()[1], searchableIndexes, leases);
-  }
-
+  
   public void testToString() {
     assertNotNull(n.toString());
   }

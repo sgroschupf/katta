@@ -19,6 +19,8 @@ package org.apache.hadoop.contrib.dlucene;
 
 import java.io.IOException;
 
+import net.sf.katta.util.KattaException;
+
 import org.apache.hadoop.contrib.dlucene.writable.SearchResults;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.Sort;
@@ -31,9 +33,10 @@ public interface ICachedClient {
    * @param index The index name.
    * @param sharded Is the index sharded.
    * @throws IOException
+   * @throws KattaException 
    */
   public void createIndex(String index, boolean sharded)
-      throws IOException;
+      throws IOException, KattaException;
 
   /**
    * Get an IndexWriter to write to indexes.
