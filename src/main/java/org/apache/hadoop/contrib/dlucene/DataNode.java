@@ -22,6 +22,8 @@ import java.net.InetSocketAddress;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.contrib.dlucene.data.DataNodeIndexHandler;
 import org.apache.hadoop.contrib.dlucene.network.Network;
@@ -32,14 +34,16 @@ import org.apache.hadoop.contrib.dlucene.writable.WSort;
 import org.apache.hadoop.contrib.dlucene.writable.WTerm;
 import org.apache.hadoop.ipc.RPC;
 import org.apache.hadoop.ipc.RemoteException;
+import org.apache.hadoop.ipc.Server;
 import org.apache.hadoop.net.NetUtils;
+import org.apache.hadoop.net.NodeBase;
 import org.apache.hadoop.util.StringUtils;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 
 /**
  * Implements a datanode that stores Lucene indexes.
  */
-public class DataNode extends AbstractNode implements
+public class DataNode implements
     DataNodeToDataNodeProtocol, ClientToDataNodeProtocol {
 
   /** Interface to access namenode. */
@@ -59,6 +63,132 @@ public class DataNode extends AbstractNode implements
 
   /** The replication object. */
   private Runnable replicator = null;
+
+  /** Log file for this node. */
+  protected static final Log LOG = LogFactory
+      .getLog("org.apache.hadoop.dlucene.AbstractNode");
+
+  /** The thread for the heartbeat of this node. */
+  protected Thread heartBeatThread = null;
+
+  /** Should the threads keep running? */
+  protected volatile boolean shouldRun = true;
+
+  /** The heart beat interval, determined from the configuration file. */
+  protected long heartBeatInterval;
+
+  /** The RPC server used by the node. */
+  private Server server;
+
+  /** The number of RPC handlers used by this node. */
+  private int handlerCount = 2;
+
+  /** Responsible for heartbeat. */
+  protected Runnable heartBeatClass = null;
+
+  /** The address of the node. */
+  protected InetSocketAddress nodeAddr = null;
+
+  /**
+   * Join the heartbeat thread.
+   */
+  protected void join() {
+    if (heartBeatThread != null) {
+      try {
+        heartBeatThread.join();
+      } catch (InterruptedException e) {
+        LOG.error(StringUtils.stringifyException(e));
+      }
+    }
+  }
+
+  /**
+   * Main loop for the node. Runs until shutdown.
+   * 
+   * @throws IOException
+   */
+  public void offerService() throws IOException {
+    while (shouldRun) {
+      LOG.info("In DataNode.Heartbeater.offerService is running on "
+          + nodeAddr.toString());
+      try {
+        doHeartbeat();
+        try {
+          long sleep = heartBeatInterval;
+          LOG.info(nodeAddr.toString() + " is alive");
+          Thread.sleep(sleep);
+        } catch (InterruptedException ie) {
+          // don't worry if this is interrupted
+        }
+      } catch (RemoteException re) {
+        LOG.warn(StringUtils.stringifyException(re));
+        shutdown();
+        return;
+      }
+    }
+  }
+
+  /**
+   * Initialize the server.
+   * 
+   * @param hostname the hostname
+   * @param port the port number
+   * @param configuration the Hadoop configuration
+   * @param nodeType is this a NameNode or a DataNode?
+   * @throws IOException
+   */
+  protected void init(String hostname, int port, Configuration configuration,
+      String nodeType) throws IOException {
+    this.handlerCount = configuration.getInt(Constants.HANDLER_COUNT_NAME,
+        Constants.HANDLER_COUNT_VALUE);
+    this.server = RPC.getServer(this, hostname, port, handlerCount, false,
+        configuration);
+
+    try {
+      this.server.start(); // start RPC server
+    } catch (IOException e) {
+      this.server.stop();
+      throw e;
+    }
+
+  }
+
+  /**
+   * Print the command line arguments.
+   * 
+   * @param className the name of the class
+   */
+  protected static void printUsage(String className) {
+    System.err.println("Usage: java " + className);
+    System.err.println("           [-r, --rack <network location>] |");
+  }
+
+  /**
+   * Parse command line arguments.
+   * 
+   * @param args command line arguments
+   * @param conf the Hadoop Configuration
+   * @return could the arguments be parsed?
+   */
+  protected static boolean parseArguments(String[] args, Configuration conf) {
+    int argsLen = (args == null) ? 0 : args.length;
+    String networkLoc = null;
+    for (int i = 0; i < argsLen; i++) {
+      String cmd = args[i];
+      if ("-r".equalsIgnoreCase(cmd) || "--rack".equalsIgnoreCase(cmd)) {
+        if (i == args.length - 1)
+          return false;
+        networkLoc = args[++i];
+        if (networkLoc.startsWith("-"))
+          return false;
+      } else {
+        return false;
+      }
+    }
+    if (networkLoc != null)
+      conf.set("dlucene.datanode.rack", NodeBase.normalize(networkLoc));
+    return true;
+  }
 
   /*
    * (non-Javadoc)
@@ -127,7 +257,8 @@ public class DataNode extends AbstractNode implements
   protected DataNode(Configuration configuration,
       InetSocketAddress dataNodeAddress, InetSocketAddress nameNodeAddress,
       boolean useRamIndex) throws IOException {
-    super(configuration);
+    this.heartBeatInterval = 1000L * configuration.getLong(
+        Constants.HEARTBEAT_INTERVAL_NAME, Constants.HEARTBEAT_INTERVAL_VALUE);
     this.nodeAddr = dataNodeAddress;
     // find the name of this machine
 
@@ -412,7 +543,19 @@ public class DataNode extends AbstractNode implements
    */
   public void shutdown() {
     LOG.info("Shutting down DataNode");
-    super.shutdown();
+    this.shouldRun = false;
+
+    if (heartBeatThread != null) {
+      if (heartBeatThread.isAlive()) {
+        heartBeatThread.interrupt();
+        try {
+          heartBeatThread.join();
+        } catch (InterruptedException ie) {
+          LOG.error(StringUtils.stringifyException(ie));
+        }
+      }
+    }
+    this.server.stop();
     if (replicationThread != null) {
       if (replicationThread.isAlive()) {
         replicationThread.interrupt();
