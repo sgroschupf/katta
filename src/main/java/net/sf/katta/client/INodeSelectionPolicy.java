@@ -22,42 +22,42 @@ package net.sf.katta.client;
 import java.util.List;
 import java.util.Map;
 
-import net.sf.katta.slave.IQuery;
+import net.sf.katta.node.IQuery;
 
 /**
- * Returns a Map with Slaves and shards within those slaves that have to be
+ * Returns a Map with Nodes and shards within those nodes that have to be
  * searched by the client.
  * 
- * Since shards can be replicated over different slaves and slaves can be
+ * Since shards can be replicated over different nodes and nodes can be
  * distributed in different network sections (same switch or rack, same data
  * center etc.) we allow custom selection policies to implement the logic to
- * make the smartest possible choice of slaves the client has to query. The
- * slave selection policy is also the place where an load balancing schema need
+ * make the smartest possible choice of nodes the client has to query. The
+ * node selection policy is also the place where an load balancing schema need
  * to be implemented.
  */
-public interface ISlaveSelectionPolicy {
+public interface INodeSelectionPolicy {
 
   /**
    * During startup or as soon the client get a notification about any change in
-   * the gird the client sets the indexToShards and shcardsToSlave maps. An
-   * {@link ISlaveSelectionPolicy} should try to precompute as much as possible
+   * the gird the client sets the indexToShards and shcardsToNode maps. An
+   * {@link INodeSelectionPolicy} should try to precompute as much as possible
    * in this method.
    * 
    * @param indexToShards
-   * @param shardsToSlave
+   * @param shardsToNode
    */
-  public void setShardsAndSlaves(Map<String, List<String>> indexToShards, Map<String, List<String>> shardsToSlave);
+  public void setShardsAndNodes(Map<String, List<String>> indexToShards, Map<String, List<String>> shardsToNode);
 
   /**
-   * Returns a map where as key the slaveName is used and as value a list shards
-   * served by slave we need to query. Ideally this method returns slaves with
-   * low latency to the client and alternate between slaves to load balance high
+   * Returns a map where as key the nodeName is used and as value a list shards
+   * served by node we need to query. Ideally this method returns nodes with
+   * low latency to the client and alternate between nodes to load balance high
    * traffic.
    * 
    * @param queries
    * @param indexNames
    * @return
    */
-  public Map<String, List<String>> getSlaveShardsMap(IQuery queries, String[] indexNames);
+  public Map<String, List<String>> getNodeShardsMap(IQuery queries, String[] indexNames);
 
 }

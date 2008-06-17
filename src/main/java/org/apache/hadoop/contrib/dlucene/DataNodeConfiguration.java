@@ -23,9 +23,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.contrib.dlucene.network.Network;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.net.NetUtils;
@@ -48,24 +46,16 @@ public class DataNodeConfiguration implements Writable {
   /**
    * The constructor.
    * 
-   * @param configuration the Hadoop configuration
    * @param machineName the machine name
    * @param port the port
    * @param rack the rack
+   * @param shardFolder the folder containing shards
    * @throws IOException
    */
-  public DataNodeConfiguration(Configuration configuration,
-      InetSocketAddress addr, String rack) throws IOException {
+  public DataNodeConfiguration(InetSocketAddress addr, String rack, String shardFolder) throws IOException {
     this.addr = addr;
     this.rack = rack;
-    String root = null;  
-    if (System.getProperty(Constants.DEFAULT_ROOT_DIR) != null) {
-      root = System.getProperty(Constants.DEFAULT_ROOT_DIR);
-    } else {
-      root = configuration.get(Constants.DEFAULT_ROOT_DIR_NAME,
-          Constants.DEFAULT_ROOT_DIR);
-    }
-    File mainRoot = new File(root);
+    File mainRoot = new File(shardFolder);
     Utils.checkDirectoryIsReadableWritable(mainRoot);
     rootDir = new File(mainRoot, Network.convertInetSocketAddress(addr));
   }
@@ -80,8 +70,7 @@ public class DataNodeConfiguration implements Writable {
   public static DataNodeConfiguration read(DataInput in) throws IOException {
     InetSocketAddress addr = new InetSocketAddress(
         Constants.DATANODE_DEFAULT_NAME_VALUE, Constants.DLUCENE_DATANODE_PORT);
-    DataNodeConfiguration dnc = new DataNodeConfiguration(new Configuration(),
-        addr, Constants.DATANODE_RACK_NAME);
+    DataNodeConfiguration dnc = new DataNodeConfiguration(addr, Constants.DATANODE_RACK_NAME, Constants.DEFAULT_ROOT_DIR);
     dnc.readFields(in);
     return dnc;
   }

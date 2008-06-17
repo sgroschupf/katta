@@ -92,6 +92,29 @@ class DataNodeIndexes {
   IndexLocation[] getIndexes() {
     return indexLocations.values().toArray(new IndexLocation[indexDirectories.size()]);
   }
+  
+  /**
+   * Delete all the indexes associated with this index name.
+   * 
+   * @param indexName the name of the index.
+   * @return was the operation successful?
+   */
+  boolean deleteIndexes(String indexName) {
+    boolean result = true;
+    for (IndexLocation index : indexLocations.values()) {
+      if (index.getIndexVersion().getName().equals(indexName)) {
+        IndexVersion iv = index.getIndexVersion();
+        File directory = getIndexDirectory(iv);
+        if (!org.apache.hadoop.contrib.dlucene.Utils.deleteDir(directory)) {
+          result = false;
+        }
+        indexDirectories.remove(iv);
+        primaryIndexes.remove(iv);
+        indexLocations.remove(iv);
+      }
+    }
+    return result;
+  }
 
   /**
    * Get the location of an index on the Filesystem.

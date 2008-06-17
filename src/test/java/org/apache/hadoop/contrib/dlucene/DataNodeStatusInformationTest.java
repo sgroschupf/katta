@@ -33,8 +33,8 @@ public class DataNodeStatusInformationTest extends TestUtils {
     int port = conf.getInt("dlucene.datanode.port",
         Constants.DLUCENE_DATANODE_PORT);
     InetSocketAddress addr = new InetSocketAddress(MACHINES[0], port);
-    dnc = new DataNodeConfiguration(conf, addr,
-        NetworkTopology.DEFAULT_RACK);
+    dnc = new DataNodeConfiguration(addr,
+        NetworkTopology.DEFAULT_RACK, Constants.DEFAULT_ROOT_DIR);
     dnsi = new DataNodeStatus(dnc, conf);
   }
 

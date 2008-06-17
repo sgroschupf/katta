@@ -18,6 +18,7 @@
 package org.apache.hadoop.contrib.dlucene.data;
 
 import java.io.File;
+import java.io.FilenameFilter;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -107,7 +108,12 @@ public class DataNodeIndexHandler {
     leases = new DataNodeLeaseManager(namenode, dataconf.getAddress());
 
     // the directory structure is we have root/id/version
-    String[] files = dataNodeConfiguration.getRootDir().list();
+    String[] files = dataNodeConfiguration.getRootDir().list(
+        new FilenameFilter() {
+          public boolean accept(final File dir, final String name) {
+            return !name.startsWith(".");
+          }
+        });
     if (files != null && !useRamIndex) {
       for (String indexName : files) {
         File index = new File(dataNodeConfiguration.getRootDir(), indexName);
@@ -134,6 +140,9 @@ public class DataNodeIndexHandler {
     }
   }
   
+  /**
+   * @return get all the leases currently used by this datanode
+   */
   public Lease[] getLeases() {
     return leases.getLeases();
   }
@@ -247,6 +256,17 @@ public class DataNodeIndexHandler {
       close(null, null, targetWriter, null);
     }
     return sourceIndexVersion;
+  }
+  
+  /**
+   * Delete all the indexes associated with this name
+   * 
+   * @param indexName
+   * @return
+   * @throws IOException
+   */
+  public boolean deleteIndex(String indexName) throws IOException {
+    return indexes.deleteIndexes(indexName);
   }
 
   /**
@@ -442,7 +462,7 @@ public class DataNodeIndexHandler {
    * @param index the index.
    * @return the directory
    */
-  File getIndexDirectory(IndexVersion index) {
+  public File getIndexDirectory(IndexVersion index) {
     return indexes.getIndexDirectory(index);
   }
 

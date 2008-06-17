@@ -107,7 +107,7 @@ public abstract class TestUtils extends TestConstants {
     // create a single datanode
     InetSocketAddress addr = new InetSocketAddress(machine, TestUtils
         .getNextPort());
-    DataNodeConfiguration dnc = new DataNodeConfiguration(conf, addr, rack);
+    DataNodeConfiguration dnc = new DataNodeConfiguration(addr, rack, Constants.DEFAULT_ROOT_DIR);
     DataNodeStatus status = new DataNodeStatus(dnc, conf);
     status.updateUsage();
     return status;

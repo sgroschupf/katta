@@ -72,7 +72,7 @@ public class DataNodeStatus implements Writable {
    * 
    * @return the location of the next index to replicate
    */
-  IndexLocation getNextReplicationTask() {
+  public IndexLocation getNextReplicationTask() {
     IndexLocation location = null;
     try {
       lock.lock();
@@ -108,7 +108,7 @@ public class DataNodeStatus implements Writable {
    * @param configuration the Hadoop configuration
    * @throws IOException
    */
-  DataNodeStatus(DataNodeConfiguration dataNodeConfiguration,
+  public DataNodeStatus(DataNodeConfiguration dataNodeConfiguration,
       Configuration configuration) throws IOException {
     this();
     this.dataNodeConfiguration = dataNodeConfiguration;
@@ -198,7 +198,7 @@ public class DataNodeStatus implements Writable {
    * 
    * @param task the location of the index to replicate
    */
-  void removeReplicationTask(IndexLocation task) {
+  public void removeReplicationTask(IndexLocation task) {
     try {
       lock.lock();
       replicationTasks.remove(task);

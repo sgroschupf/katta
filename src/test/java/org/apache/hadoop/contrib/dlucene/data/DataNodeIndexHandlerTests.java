@@ -55,7 +55,7 @@ public class DataNodeIndexHandlerTests extends TestUtils {
     int port = conf.getInt(Constants.DATANODE_PORT_NAME,
         Constants.DLUCENE_DATANODE_PORT);
     InetSocketAddress addr = new InetSocketAddress(Constants.HOST, port);
-    dnc = new DataNodeConfiguration(conf, addr, NetworkTopology.DEFAULT_RACK);
+    dnc = new DataNodeConfiguration(addr, NetworkTopology.DEFAULT_RACK,Constants.DEFAULT_ROOT_DIR);
     if (dnlh == null) {
       cluster = new MiniDLuceneCluster(conf, 2);
       dnlh = new DataNodeIndexHandler(dnc, conf, new StandardAnalyzer(),

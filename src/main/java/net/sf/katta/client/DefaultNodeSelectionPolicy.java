@@ -25,21 +25,21 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import net.sf.katta.slave.IQuery;
+import net.sf.katta.node.IQuery;
 
-public class DefaultSlaveSelectionPolicy implements ISlaveSelectionPolicy {
+public class DefaultNodeSelectionPolicy implements INodeSelectionPolicy {
 
-  private Map<String, List<Map<String, List<String>>>> _slaveShardMap;
+  private Map<String, List<Map<String, List<String>>>> _nodeShardMap;
 
   private int _pos = 0;
 
-  public Map<String, List<String>> getSlaveShardsMap(final IQuery query, final String[] indexNames) {
-    if (_slaveShardMap == null) {
+  public Map<String, List<String>> getNodeShardsMap(final IQuery query, final String[] indexNames) {
+    if (_nodeShardMap == null) {
       throw new IllegalArgumentException("no index deployed yet, try later again...");
     }
     final HashMap<String, List<String>> map = new HashMap<String, List<String>>();
     for (final String indexName : indexNames) {
-      final List<Map<String, List<String>>> options = _slaveShardMap.get(indexName);
+      final List<Map<String, List<String>>> options = _nodeShardMap.get(indexName);
       if (options == null) {
         throw new IllegalArgumentException("no index deployed yet, try later again...");
       }
@@ -50,35 +50,35 @@ public class DefaultSlaveSelectionPolicy implements ISlaveSelectionPolicy {
       final Map<String, List<String>> oneOptionForIndex = options.get(_pos);
 
       final Set<String> salves = oneOptionForIndex.keySet();
-      for (final String slave : salves) {
-        List<String> arrayList = map.get(slave);
+      for (final String node : salves) {
+        List<String> arrayList = map.get(node);
         if (arrayList == null) {
           arrayList = new ArrayList<String>();
-          map.put(slave, arrayList);
+          map.put(node, arrayList);
         }
-        arrayList.addAll(oneOptionForIndex.get(slave));
+        arrayList.addAll(oneOptionForIndex.get(node));
       }
     }
     _pos++;
     return map;
   }
 
-  public void setShardsAndSlaves(final Map<String, List<String>> indexToShards,
-      final Map<String, List<String>> shardsToSlave) {
-    _slaveShardMap = computeMap(indexToShards, shardsToSlave);
+  public void setShardsAndNodes(final Map<String, List<String>> indexToShards,
+      final Map<String, List<String>> shardsToNode) {
+    _nodeShardMap = computeMap(indexToShards, shardsToNode);
   }
 
   private Map<String, List<Map<String, List<String>>>> computeMap(final Map<String, List<String>> indexToShards,
-      final Map<String, List<String>> shardsToSlave) {
-    if (indexToShards.size() == 0 || shardsToSlave.size() == 0) {
-      throw new IllegalArgumentException("IndexToShards or shardsToSlave can't be empty.");
+      final Map<String, List<String>> shardsToNode) {
+    if (indexToShards.size() == 0 || shardsToNode.size() == 0) {
+      throw new IllegalArgumentException("IndexToShards or shardsToNode can't be empty.");
     }
-    // a list of slave to shards for each index..
+    // a list of node to shards for each index..
     final Map<String, List<Map<String, List<String>>>> result = new HashMap<String, List<Map<String, List<String>>>>();
     // all indexes we known
     final Set<String> indexNames = indexToShards.keySet();
 
-    // we want to create as many slaveToShard lists as we have slaves
+    // we want to create as many nodeToShard lists as we have nodes
     // serving a given shard.
     for (final String indexName : indexNames) {
       int pos = 0;
@@ -91,30 +91,30 @@ public class DefaultSlaveSelectionPolicy implements ISlaveSelectionPolicy {
         if (requiredShards.size() == 0) {
           break;
         }
-        // the slaves to shard map, where we collect the different
-        // shards a slave has to search in..
-        final HashMap<String, List<String>> slaveToShardMap = new HashMap<String, List<String>>();
+        // the nodes to shard map, where we collect the different
+        // shards a node has to search in..
+        final HashMap<String, List<String>> nodeToShardMap = new HashMap<String, List<String>>();
         boolean newSet = true;
         for (final String shard : requiredShards) {
-          // now we pic one slave base on our position pos. Pos will
+          // now we pic one node base on our position pos. Pos will
           // be incremented with each while loop.
-          final List<String> slaves = shardsToSlave.get(shard);
-          if (pos == slaves.size()) {
+          final List<String> nodes = shardsToNode.get(shard);
+          if (pos == nodes.size()) {
             newSet = false;
             break;
           }
-          final String slave = slaves.get(pos);
-          // add the shard to the list of shards the slave have to
+          final String node = nodes.get(pos);
+          // add the shard to the list of shards the node have to
           // search in
-          List<String> slaveShards = slaveToShardMap.get(slave);
-          if (slaveShards == null) {
-            slaveShards = new ArrayList<String>();
-            slaveToShardMap.put(slave, slaveShards);
+          List<String> nodeShards = nodeToShardMap.get(node);
+          if (nodeShards == null) {
+            nodeShards = new ArrayList<String>();
+            nodeToShardMap.put(node, nodeShards);
           }
-          slaveShards.add(shard);
+          nodeShards.add(shard);
         }
         if (newSet) {
-          // add the new generated slaveToShard map to all our maps..
+          // add the new generated nodeToShard map to all our maps..
           List<Map<String, List<String>>> arrayList = result.get(indexName);
           if (arrayList == null) {
             arrayList = new ArrayList<Map<String, List<String>>>();
@@ -122,7 +122,7 @@ public class DefaultSlaveSelectionPolicy implements ISlaveSelectionPolicy {
           }
           // this should be repeated until we have as much as replica
           // we have..
-          arrayList.add(slaveToShardMap);
+          arrayList.add(nodeToShardMap);
           pos++;
         } else {
           break;

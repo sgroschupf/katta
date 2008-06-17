@@ -135,8 +135,14 @@ public class DataNode extends AbstractNode implements
     String rack = configuration.get(Constants.DATANODE_RACK_NAME);
     if (rack == null) // exec network script or set the default rack
       rack = Network.getNetworkLoc(configuration);
-    DataNodeConfiguration dataconf = new DataNodeConfiguration(configuration,
-        dataNodeAddress, rack);
+    String root = null;  
+  if (System.getProperty(Constants.DEFAULT_ROOT_DIR) != null) {
+    root = System.getProperty(Constants.DEFAULT_ROOT_DIR);
+  } else {
+    root = configuration.get(Constants.DEFAULT_ROOT_DIR_NAME,
+        Constants.DEFAULT_ROOT_DIR);
+  }
+    DataNodeConfiguration dataconf = new DataNodeConfiguration(dataNodeAddress, rack, root);
 
     // find the network location of this machine
     filesystemStatus = new DataNodeStatus(dataconf, configuration);

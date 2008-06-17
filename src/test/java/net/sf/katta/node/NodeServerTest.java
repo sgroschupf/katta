@@ -17,13 +17,15 @@ tor license agreements.  See the NOTICE file
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package net.sf.katta.slave;
+package net.sf.katta.node;
 
 import junit.framework.TestCase;
+import net.sf.katta.node.Node;
 import net.sf.katta.util.KattaException;
+import net.sf.katta.util.NodeConfiguration;
 import net.sf.katta.zk.ZKClient;
 
-public class SlaveServerTest extends TestCase {
+public class NodeServerTest extends TestCase {
 
   public void testPlaceHolder() throws Exception {
     assertTrue(true);
@@ -40,9 +42,9 @@ public class SlaveServerTest extends TestCase {
   // if (client.exists(IPaths.ROOT_PATH)) {
   // client.deleteRecursiv(IPaths.ROOT_PATH);
   // }
-  // server.startMasterOrSlave(client, true);
+  // server.startMasterOrNode(client, true);
   //
-  // final Slave slave = startSlaveServer();
+  // final Node node = startNodeServer();
   // final Query query = new Query("foo: bar");
   //
   // final ISearch searchServer = (ISearch) RPC.getProxy(ISearch.class, 0L, new
@@ -57,7 +59,7 @@ public class SlaveServerTest extends TestCase {
   // searchServer.search(query, new String[] { shard1.getName() });
   // RPC.stopClient();
   // client.showFolders(System.out);
-  // slave.shutdown();
+  // node.shutdown();
   // Thread.sleep(10000);
   // client.showFolders(System.out);
   // client.close();
@@ -74,11 +76,11 @@ public class SlaveServerTest extends TestCase {
   // if (client.exists(IPaths.ROOT_PATH)) {
   // client.deleteRecursiv(IPaths.ROOT_PATH);
   // }
-  // server.startMasterOrSlave(client, true);
+  // server.startMasterOrNode(client, true);
   //
   // final Query query = new Query("foo: bar");
   //
-  // final Slave slave = startSlaveServer();
+  // final Node node = startNodeServer();
   // final ISearch searchServer = (ISearch) RPC.getProxy(ISearch.class, 0L, new
   // InetSocketAddress(NetworkUtil
   // .getLocalhostName(), 20000), new Configuration());
@@ -115,7 +117,7 @@ public class SlaveServerTest extends TestCase {
   // assertEquals(2, hits.getHits().size());
   //
   // RPC.stopClient();
-  // slave.shutdown();
+  // node.shutdown();
   // Thread.sleep(3000);
   // client.close();
   // server.shutdown();
@@ -132,9 +134,9 @@ public class SlaveServerTest extends TestCase {
   // }
   // final Query query = new Query("foo: bar");
   //
-  // server.startMasterOrSlave(client, true);
+  // server.startMasterOrNode(client, true);
   //
-  // final Slave slave = startSlaveServer();
+  // final Node node = startNodeServer();
   // final ISearch searchServer = (ISearch) RPC.getProxy(ISearch.class, 0L, new
   // InetSocketAddress(NetworkUtil
   // .getLocalhostName(), 20000), new Configuration());
@@ -182,7 +184,7 @@ public class SlaveServerTest extends TestCase {
   // outputHits(hits);
   //
   // RPC.stopClient();
-  // slave.shutdown();
+  // node.shutdown();
   // Thread.sleep(3000);
   // client.close();
   // server.shutdown();
@@ -197,9 +199,9 @@ public class SlaveServerTest extends TestCase {
   // if (client.exists(IPaths.ROOT_PATH)) {
   // client.deleteRecursiv(IPaths.ROOT_PATH);
   // }
-  // server.startMasterOrSlave(client, true);
+  // server.startMasterOrNode(client, true);
   //
-  // final Slave slaveServer1 = startSlaveServer();
+  // final Node nodeServer1 = startNodeServer();
   // final ISearch searchServer1 = (ISearch) RPC.getProxy(ISearch.class, 0L, new
   // InetSocketAddress(NetworkUtil
   // .getLocalhostName(), 20000), new Configuration());
@@ -207,7 +209,7 @@ public class SlaveServerTest extends TestCase {
   // "src/test/testIndexA/bIndex");
   // searchServer1.addShard(shard);
   //
-  // final Slave slaveServer2 = startSlaveServer();
+  // final Node nodeServer2 = startNodeServer();
   // final ISearch searchServer2 = (ISearch) RPC.getProxy(ISearch.class, 0L, new
   // InetSocketAddress(NetworkUtil
   // .getLocalhostName(), 20001), new Configuration());
@@ -237,8 +239,8 @@ public class SlaveServerTest extends TestCase {
   // outputHits(hits2);
   //
   // RPC.stopClient();
-  // slaveServer1.shutdown();
-  // slaveServer2.shutdown();
+  // nodeServer1.shutdown();
+  // nodeServer2.shutdown();
   // Thread.sleep(3000);
   // client.close();
   // server.shutdown();
@@ -246,7 +248,7 @@ public class SlaveServerTest extends TestCase {
   //
   // private void outputHits(Hits hits) {
   // for (final Hit hit : hits.getHits()) {
-  // Logger.info(hit.getSlave() + " -- " + hit.getShard() + " -- " +
+  // Logger.info(hit.getNode() + " -- " + hit.getShard() + " -- " +
   // hit.getDocId() + " -- "
   // + hit.getScore());
   // }
@@ -261,9 +263,9 @@ public class SlaveServerTest extends TestCase {
   // if (client.exists(IPaths.ROOT_PATH)) {
   // client.deleteRecursiv(IPaths.ROOT_PATH);
   // }
-  // server.startMasterOrSlave(client, true);
+  // server.startMasterOrNode(client, true);
   //
-  // final Slave slave = startSlaveServer();
+  // final Node node = startNodeServer();
   // final ISearch searchServer = (ISearch) RPC.getProxy(ISearch.class, 0L, new
   // InetSocketAddress(NetworkUtil
   // .getLocalhostName(), 20000), new Configuration());
@@ -283,7 +285,7 @@ public class SlaveServerTest extends TestCase {
   // assertEquals(937, hits.getHits().size());
   //
   // RPC.stopClient();
-  // slave.shutdown();
+  // node.shutdown();
   // Thread.sleep(3000);
   // client.close();
   // server.shutdown();
@@ -298,9 +300,9 @@ public class SlaveServerTest extends TestCase {
   // if (client.exists(IPaths.ROOT_PATH)) {
   // client.deleteRecursiv(IPaths.ROOT_PATH);
   // }
-  // server.startMasterOrSlave(client, true);
+  // server.startMasterOrNode(client, true);
   //
-  // final Slave slave = startSlaveServer();
+  // final Node node = startNodeServer();
   // final ISearch searchServer = (ISearch) RPC.getProxy(ISearch.class, 0L, new
   // InetSocketAddress(NetworkUtil
   // .getLocalhostName(), 20000), new Configuration());
@@ -329,7 +331,7 @@ public class SlaveServerTest extends TestCase {
   // }
   //
   // RPC.stopClient();
-  // slave.shutdown();
+  // node.shutdown();
   // Thread.sleep(3000);
   // client.close();
   // server.shutdown();
@@ -344,9 +346,9 @@ public class SlaveServerTest extends TestCase {
   // if (client.exists(IPaths.ROOT_PATH)) {
   // client.deleteRecursiv(IPaths.ROOT_PATH);
   // }
-  // server.startMasterOrSlave(client, true);
+  // server.startMasterOrNode(client, true);
   //
-  // final Slave slave = startSlaveServer();
+  // final Node node = startNodeServer();
   // final ISearch searchServer = (ISearch) RPC.getProxy(ISearch.class, 0L, new
   // InetSocketAddress(NetworkUtil
   // .getLocalhostName(), 20000), new Configuration());
@@ -361,7 +363,7 @@ public class SlaveServerTest extends TestCase {
   // assertEquals(937, count.get());
   //
   // RPC.stopClient();
-  // slave.shutdown();
+  // node.shutdown();
   // Thread.sleep(3000);
   // client.close();
   // server.shutdown();
@@ -376,9 +378,9 @@ public class SlaveServerTest extends TestCase {
   // if (client.exists(IPaths.ROOT_PATH)) {
   // client.deleteRecursiv(IPaths.ROOT_PATH);
   // }
-  // server.startMasterOrSlave(client, true);
+  // server.startMasterOrNode(client, true);
   //
-  // final Slave slave = startSlaveServer();
+  // final Node node = startNodeServer();
   // final ISearch searchServer = (ISearch) RPC.getProxy(ISearch.class, 0L, new
   // InetSocketAddress(NetworkUtil
   // .getLocalhostName(), 20000), new Configuration());
@@ -398,20 +400,20 @@ public class SlaveServerTest extends TestCase {
   // assertEquals(37, hits.getHits().size());
   //
   // RPC.stopClient();
-  // slave.shutdown();
+  // node.shutdown();
   // Thread.sleep(3000);
   // client.close();
   // server.shutdown();
   // }
   //
-  public static Slave startSlaveServer(final ZKClient client) {
+  public static Node startNodeServer(final ZKClient client) {
 
-    final Slave slave = new Slave(client);
+    final Node node = new Node(client, new NodeConfiguration());
     try {
-      slave.start();
+      node.start();
     } catch (final KattaException e) {
       e.printStackTrace();
     }
-    return slave;
+    return node;
   }
 }
