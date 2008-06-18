@@ -142,14 +142,11 @@ public class DataNodeIndexHandler {
       }
     }
   }
-  
-  /**
-   * @return get all the leases currently used by this datanode
-   */
-  public Lease[] getLeases() {
-    return leases.getLeases();
+
+  public void updateLeases() {
+    leases.updateLeases();
   }
-  
+
   /**
    * Get all the files used in a specific index.
    * 

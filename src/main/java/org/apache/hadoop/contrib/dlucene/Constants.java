@@ -99,9 +99,7 @@ public class Constants {
   
   public static final String zkIndexes = "indexes"; 
   
-  public static final String zkLeases = "leases";
-  
   public static final String zkReplicationPlan = "replicationPlan";
   
-  public static final String zkLeasePath = IPaths.ROOT_PATH + "/leases";
+  public static final String zkLeasePath = IPaths.ROOT_PATH + zkSeparator + "leases";
 }

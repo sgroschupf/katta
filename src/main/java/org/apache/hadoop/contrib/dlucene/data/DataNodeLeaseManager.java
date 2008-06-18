@@ -62,8 +62,17 @@ public class DataNodeLeaseManager {
    * @return All the leases owned by this datanode.
    */
   public Lease[] getLeases() {
-    // FIXME - should do this in Zookeeper
     return theLeases.values().toArray(new Lease[theLeases.size()]);
+  }
+  
+  public void updateLeases() throws KattaException {
+    for (Lease l : getLeases()) {
+      l.renew();
+      final String path = getPath(l);
+      _client.writeData(Constants.zkLeasePath
+          + Constants.zkSeparator + l.getIndex().getName()
+          + Constants.zkSeparator + l.getIndex().getVersion(), l);
+    }
   }
 
   /**
@@ -117,7 +126,8 @@ public class DataNodeLeaseManager {
     }
   }
 
-  private String getPath(IndexVersion iv) {
+  private String getPath(Lease l) {
+    IndexVersion iv = l.getIndex();
     return Constants.zkLeasePath + Constants.zkSeparator + iv.getName()
         + Constants.zkSeparator + iv.getVersion();
   }

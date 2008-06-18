@@ -22,25 +22,14 @@ import java.io.DataOutput;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.contrib.dlucene.network.Network;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
-import org.apache.hadoop.net.NetUtils;
-;
 
 public class Lease implements Writable {
   
-  /** Log file. */
-  private static final Log LOG = LogFactory
-      .getLog("org.apache.hadoop.dlucene.Lease");
-  
   /** The index owning the lease. */
-  private IndexVersion index;
-  
-  /** The address of the machine owning the lease. */
-  private InetSocketAddress addr;
+  private IndexLocation index;
   
   /** The time the lease was last updated. */
   private long lastUpdated;
@@ -55,10 +44,8 @@ public class Lease implements Writable {
    * @param leaseLength the length of the lease.
    */
   public Lease(IndexLocation index, long _leaseLength) {
-    this.index = index.getIndexVersion();
+    this.index = index;
     this.lastUpdated = System.currentTimeMillis();
-    this.addr = index.getAddress();
-    LOG.info(addr.toString());
     leaseLength = _leaseLength;
   }
   
@@ -122,22 +109,21 @@ public class Lease implements Writable {
   public void readFields(DataInput in) throws IOException {
     Utils.checkArgs(in);
     lastUpdated = in.readLong();
-    index = IndexVersion.read(in);
-    this.addr = NetUtils.createSocketAddr(Text.readString(in));
+    index = IndexLocation.read(in);
   }
   
   /**
    * @return the index.
    */
   public IndexVersion getIndex() {
-    return index;
+    return index.getIndexVersion();
   }
 
   /**
    * @return the address.
    */
   public InetSocketAddress getAddress() {
-    return addr;
+    return index.getAddress();
   }
 
   /* (non-Javadoc)
@@ -147,7 +133,6 @@ public class Lease implements Writable {
   public int hashCode() {
     final int prime = 31;
     int result = 1;
-    result = prime * result + ((addr == null) ? 0 : addr.hashCode());
     result = prime * result + ((index == null) ? 0 : index.hashCode());
     return result;
   }
@@ -164,11 +149,6 @@ public class Lease implements Writable {
     if (getClass() != obj.getClass())
       return false;
     final Lease other = (Lease) obj;
-    if (addr == null) {
-      if (other.addr != null)
-        return false;
-    } else if (!addr.equals(other.addr))
-      return false;
     if (index == null) {
       if (other.index != null)
         return false;

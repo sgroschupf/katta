@@ -226,6 +226,7 @@ public class DataNode extends Node implements DataNodeToDataNodeProtocol,
             + Constants.zkSeparator + il.getIndexVersion().getName()
             + Constants.zkSeparator + il.getIndexVersion().getVersion(), il);
       }
+      data.updateLeases();
       IndexLocation toReplicate = new IndexLocation();
       _client.readData(path + Constants.zkSeparator
           + Constants.zkReplicationPlan, toReplicate);
