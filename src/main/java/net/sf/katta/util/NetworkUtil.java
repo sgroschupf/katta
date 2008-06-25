@@ -23,12 +23,15 @@ import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.net.UnknownHostException;
-import java.util.ArrayList;
 import java.util.Enumeration;
+import java.util.HashSet;
+import java.util.Set;
 
 public class NetworkUtil {
   public static String[] getLocalHostNames() {
-    final ArrayList<String> hostNames = new ArrayList<String>();
+    final Set<String> hostNames = new HashSet<String>();
+    //we add localhost to this set manually, because if the ip 127.0.0.1 is configured with more than one name in the /etc/hosts, only the first name is returned 
+    hostNames.add("localhost");
     try {
       final Enumeration<NetworkInterface> networkInterfaces = NetworkInterface.getNetworkInterfaces();
       for (final Enumeration ifaces = networkInterfaces; ifaces.hasMoreElements();) {
