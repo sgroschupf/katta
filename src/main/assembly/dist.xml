@@ -20,7 +20,7 @@
 	</fileSets>
 	<dependencySets>
 		<dependencySet>
-			<outputDirectory>katta-distribution/lib</outputDirectory>
+			<outputDirectory>katta-distribution/repository</outputDirectory>
 			<unpack>false</unpack>
 			<scope>runtime</scope>
 		</dependencySet>
