@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.util.ArrayList;
+import java.util.Arrays;
 
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.Logger;
@@ -71,6 +72,7 @@ public class ZkServer {
     final String servers = conf.getZKServers();
     // check if this server needs to start a _client server.
     int pos = -1;
+    Logger.debug("check if hostNames " + servers +" is in list: " +Arrays.asList(localhostHostNames));
     if ((pos = NetworkUtil.hostNamesInList(servers, localhostHostNames)) != -1) {
       // yes this server needs to start a zookeeper server
       final String[] hosts = servers.split(",");
