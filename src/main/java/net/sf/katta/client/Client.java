@@ -169,7 +169,7 @@ public class Client implements IClient {
    * (non-Javadoc)
    * 
    * @see net.sf.katta.client.IClient#search(net.sf.katta.node.IQuery,
-   *      java.lang.String[])
+   * java.lang.String[])
    */
   public Hits search(final IQuery query, final String[] indexNames) throws KattaException {
     return search(query, indexNames, Integer.MAX_VALUE);
@@ -179,10 +179,19 @@ public class Client implements IClient {
    * (non-Javadoc)
    * 
    * @see net.sf.katta.client.IClient#search(net.sf.katta.node.IQuery,
-   *      java.lang.String[], int)
+   * java.lang.String[], int)
    */
   public Hits search(final IQuery query, final String[] indexNames, final int count) throws KattaException {
-    final Map<String, List<String>> nodeShardsMap = _policy.getNodeShardsMap(query, indexNames);
+    String[] indexesToSearchIn = indexNames;
+    for (String indexName : indexNames) {
+      if ("*".equals(indexName)) {
+        Set<String> keySet = _indexToShards.keySet();
+        indexesToSearchIn = new String[keySet.size()];
+        indexesToSearchIn = keySet.toArray(indexesToSearchIn);
+        break;
+      }
+    }
+    final Map<String, List<String>> nodeShardsMap = _policy.getNodeShardsMap(query, indexesToSearchIn);
     Logger.info("Client.search()" + nodeShardsMap);
     final Hits result = new Hits();
 
@@ -310,7 +319,7 @@ public class Client implements IClient {
    * (non-Javadoc)
    * 
    * @see net.sf.katta.client.IClient#getDetails(net.sf.katta.node.Hit,
-   *      java.lang.String)
+   * java.lang.String)
    */
   public MapWritable getDetails(final Hit hit, final String[] fields) throws IOException {
     final ISearch searchNode = _nodes.get(hit.getNode());
@@ -364,10 +373,19 @@ public class Client implements IClient {
    * (non-Javadoc)
    * 
    * @see net.sf.katta.client.IClient#count(net.sf.katta.node.IQuery,
-   *      java.lang.String[])
+   * java.lang.String[])
    */
   public int count(final IQuery query, final String[] indexNames) {
-    final Map<String, List<String>> nodeShardsMap = _policy.getNodeShardsMap(query, indexNames);
+    String[] indexesToSearchIn = indexNames;
+    for (String indexName : indexNames) {
+      if ("*".equals(indexName)) {
+        Set<String> keySet = _indexToShards.keySet();
+        indexesToSearchIn = new String[keySet.size()];
+        indexesToSearchIn = keySet.toArray(indexesToSearchIn);
+        break;
+      }
+    }
+    final Map<String, List<String>> nodeShardsMap = _policy.getNodeShardsMap(query, indexesToSearchIn);
     Logger.info("Client.count()" + nodeShardsMap);
     final List<Integer> result = new ArrayList<Integer>();
 
