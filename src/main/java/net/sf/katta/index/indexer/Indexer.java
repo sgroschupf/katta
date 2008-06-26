@@ -29,6 +29,10 @@ import org.apache.hadoop.mapred.OutputCollector;
 import org.apache.hadoop.mapred.Reducer;
 import org.apache.hadoop.mapred.Reporter;
 import org.apache.lucene.document.Document;
+import org.apache.lucene.document.Field;
+import org.apache.lucene.document.Fieldable;
+import org.apache.lucene.document.Field.Index;
+import org.apache.lucene.document.Field.Store;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.store.FSDirectory;
 
@@ -118,6 +122,7 @@ public class Indexer implements Reducer<WritableComparable, Writable, WritableCo
       _inputValue.readFields(_inputBuffer);
 
       final Document document = _factory.convert(_inputKey, _inputValue);
+      document.add(new Field("timestamp", System.currentTimeMillis() + "", Store.NO, Index.NO));
       indexWriter.addDocument(document);
       reporter.incrCounter(DocumentCounter.DOCUMENT_COUNT, 1);
       if (counter % _indexFlushThreshold == 0) {
