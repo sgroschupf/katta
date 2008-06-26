@@ -122,7 +122,7 @@ public class Indexer implements Reducer<WritableComparable, Writable, WritableCo
       _inputValue.readFields(_inputBuffer);
 
       final Document document = _factory.convert(_inputKey, _inputValue);
-      document.add(new Field("timestamp", System.currentTimeMillis() + "", Store.NO, Index.NO));
+      document.add(new Field("timestamp", System.currentTimeMillis() + "", Store.YES, Index.NO));
       indexWriter.addDocument(document);
       reporter.incrCounter(DocumentCounter.DOCUMENT_COUNT, 1);
       if (counter % _indexFlushThreshold == 0) {
