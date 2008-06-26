@@ -156,7 +156,7 @@ public class Katta {
   public void addIndex(final String name, final String path, final String analyzerClass, final int replicationLevel)
       throws KattaException {
     final String indexPath = IPaths.INDEXES + "/" + name;
-    if (name.trim().equals("*")) {
+    if (!name.trim().equals("*")) {
       if (!_client.exists(indexPath)) {
         _client.create(indexPath, new IndexMetaData(path, analyzerClass, replicationLevel,
             IndexMetaData.IndexState.ANNOUNCED));
