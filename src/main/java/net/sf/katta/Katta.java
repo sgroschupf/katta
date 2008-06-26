@@ -154,27 +154,31 @@ public class Katta {
   }
 
   public void addIndex(final String name, final String path, final String analyzerClass, final int replicationLevel)
-  throws KattaException {
+      throws KattaException {
     final String indexPath = IPaths.INDEXES + "/" + name;
-    if (!_client.exists(indexPath)) {
-      _client.create(indexPath, new IndexMetaData(path, analyzerClass, replicationLevel,
-          IndexMetaData.IndexState.ANNOUNCED));
-      final IndexMetaData data = new IndexMetaData();
-      while (true) {
-        _client.readData(indexPath, data);
-        if (data.getState() == IndexMetaData.IndexState.DEPLOYED) {
-          break;
+    if (name.trim().equals("*")) {
+      if (!_client.exists(indexPath)) {
+        _client.create(indexPath, new IndexMetaData(path, analyzerClass, replicationLevel,
+            IndexMetaData.IndexState.ANNOUNCED));
+        final IndexMetaData data = new IndexMetaData();
+        while (true) {
+          _client.readData(indexPath, data);
+          if (data.getState() == IndexMetaData.IndexState.DEPLOYED) {
+            break;
+          }
+          System.out.print(".");
+          try {
+            Thread.sleep(1000);
+          } catch (final InterruptedException e) {
+            e.printStackTrace();
+          }
         }
-        System.out.print(".");
-        try {
-          Thread.sleep(1000);
-        } catch (final InterruptedException e) {
-          e.printStackTrace();
-        }
+        System.out.println("deployed.");
+      } else {
+        System.out.println("Index with name " + name + " already exists.");
       }
-      System.out.println("deployed.");
     } else {
-      System.out.println("Index with name " + name + " already exists.");
+      System.out.println("Index with name " + name + " isn't allowed.");
     }
   }
 
@@ -189,7 +193,7 @@ public class Katta {
     final Table table = new Table(new String[] { "Hit", "Node", "Shard", "DocId", "Score" });
     for (final Hit hit : hits.getHits()) {
       table
-      .addRow(new String[] { "" + index, hit.getNode(), hit.getShard(), "" + hit.getDocId(), "" + hit.getScore() });
+          .addRow(new String[] { "" + index, hit.getNode(), hit.getShard(), "" + hit.getDocId(), "" + hit.getScore() });
       index++;
     }
     System.out.println(table.toString());
@@ -207,7 +211,7 @@ public class Katta {
   private static void usage() {
     System.err.println("Usage: ");
     System.err
-    .println("\tsearch <index name>[,<index name>,...] \"<query>\" [count]\tSearch in supplied indexes. The query should be in \". If you supply a result count hit details will be printed.");
+        .println("\tsearch <index name>[,<index name>,...] \"<query>\" [count]\tSearch in supplied indexes. The query should be in \". If you supply a result count hit details will be printed.");
     System.err.println("\tlistIndexes\tLists all indexes.");
     System.err.println("\tlistNode\tLists all node.");
     System.err.println("\tstartMaster\tStarts a local master.");
