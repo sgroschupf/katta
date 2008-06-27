@@ -89,11 +89,11 @@ public class ZKClient implements Watcher {
    * @param listener
    * @return list of children nodes for given path.
    * @throws KattaException
-   *             Thrown in case we can't read the children nodes. Note that we
-   *             also remove the notification listener.
+   *           Thrown in case we can't read the children nodes. Note that we
+   *           also remove the notification listener.
    */
   public ArrayList<String> subscribeChildChanges(final String path, final IZKEventListener listener)
-  throws KattaException {
+      throws KattaException {
     addChildListener(path, listener);
     synchronized (_zk) {
       try {
@@ -231,8 +231,8 @@ public class ZKClient implements Watcher {
   }
 
   /**
-   * Deletes a given path. For recursive deletes use {@link
-   * #deleteRecursiv(String)}.
+   * Deletes a given path. For recursive deletes use
+   * {@link #deleteRecursiv(String)}.
    * 
    * @param path
    * @return
@@ -328,7 +328,8 @@ public class ZKClient implements Watcher {
   /*
    * (non-Javadoc)
    * 
-   * @see com.yahoo.zookeeper.Watcher#process(com.yahoo.zookeeper.proto.WatcherEvent)
+   * @see
+   * com.yahoo.zookeeper.Watcher#process(com.yahoo.zookeeper.proto.WatcherEvent)
    */
   public void process(final WatcherEvent event) {
     synchronized (_mutex) {
@@ -374,6 +375,9 @@ public class ZKClient implements Watcher {
             throw new RuntimeException("Unable to re subscribe to data change notification.", e);
           }
         }
+      } else if (event.getType() == Watcher.Event.KeeperStateExpired) {
+        Logger.debug("Zookeeper session expired.");
+        // renew session
       }
     }
   }
