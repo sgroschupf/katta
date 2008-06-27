@@ -43,7 +43,7 @@ public class DefaultNodeSelectionPolicy implements INodeSelectionPolicy {
       final List<Map<String, List<String>>> options = _nodeShardMap.get(indexName);
       if (options == null) {
         Logger.warn("no index with name '" + indexName + "' deployed yet, try later again...");
-        break;
+        continue;
       }
       if (_pos >= options.size()) {
         _pos = 0;
