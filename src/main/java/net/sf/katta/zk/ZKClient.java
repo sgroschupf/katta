@@ -245,6 +245,12 @@ public class ZKClient implements Watcher {
           _zk.delete(path, -1);
         }
         return true;
+      } catch (final KeeperException e) {
+        String message = "unable to delete path: " + path;
+        if (KeeperException.Code.NotEmpty == e.getCode()) {
+          message += " Path has sub nodes.";
+        }
+        throw new KattaException(message, e);
       } catch (final Exception e) {
         throw new KattaException("unable to delete path:" + path, e);
       }
