@@ -43,20 +43,6 @@ case "`uname`" in
 CYGWIN*) cygwin=true;;
 esac
 
-# if no args specified, show usage
-if [ $# = 0 ]; then
-  echo "Usage: katta [--config confdir] COMMAND [options]"
-  echo "where COMMAND is one of:"
-  echo "  startNode          run a Node" 
-  echo "  startMaster         run a Master"
-  echo "  addIndex            run a client command"
-  echo "  listIndexes         run a client command"
-  echo "  search              run a client command"
-  echo "  listNodes          run a client command"
-  echo "Most commands print help when invoked w/o parameters."
-  exit 1
-fi
-
 if [ -f "${KATTA_CONF_DIR}/hadoop-env.sh" ]; then
   . "${KATTA_CONF_DIR}/hadoop-env.sh"
 fi
