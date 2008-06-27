@@ -211,7 +211,7 @@ public class Katta {
   private static void usage() {
     System.err.println("Usage: ");
     System.err
-        .println("\tsearch <index name>[,<index name>,...] \"<query>\" [count]\tSearch in supplied indexes. The query should be in \". If you supply a result count hit details will be printed.");
+        .println("\tsearch <index name>[,<index name>,...] \"<query>\" [count]\tSearch in supplied indexes. The query should be in \". If you supply a result count hit details will be printed. To search in all indices write \"*\"");
     System.err.println("\tlistIndexes\tLists all indexes.");
     System.err.println("\tlistNodes\tLists all nodes.");
     System.err.println("\tstartMaster\tStarts a local master.");
