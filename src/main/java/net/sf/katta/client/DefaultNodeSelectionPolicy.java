@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.Set;
 
 import net.sf.katta.node.IQuery;
+import net.sf.katta.util.Logger;
 
 public class DefaultNodeSelectionPolicy implements INodeSelectionPolicy {
 
@@ -41,7 +42,8 @@ public class DefaultNodeSelectionPolicy implements INodeSelectionPolicy {
     for (final String indexName : indexNames) {
       final List<Map<String, List<String>>> options = _nodeShardMap.get(indexName);
       if (options == null) {
-        throw new IllegalArgumentException("no index deployed yet, try later again...");
+        Logger.warn("no index with name '" + indexName + "' deployed yet, try later again...");
+        break;
       }
       if (_pos >= options.size()) {
         _pos = 0;
