@@ -213,7 +213,7 @@ public class Katta {
     System.err
         .println("\tsearch <index name>[,<index name>,...] \"<query>\" [count]\tSearch in supplied indexes. The query should be in \". If you supply a result count hit details will be printed.");
     System.err.println("\tlistIndexes\tLists all indexes.");
-    System.err.println("\tlistNode\tLists all node.");
+    System.err.println("\tlistNodes\tLists all nodes.");
     System.err.println("\tstartMaster\tStarts a local master.");
     System.err.println("\tstartNode\tStarts a local node.");
     System.err.println("\tshowStructure\tShows the structure of a Katta installation.");
