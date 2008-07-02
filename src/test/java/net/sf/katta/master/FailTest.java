@@ -99,14 +99,20 @@ public class FailTest extends TestCase {
     waitFor(zkClient, IPaths.MASTER);
 
     // create 3 nodes
-    final NodeConfiguration sconf = new NodeConfiguration();
-    final String defaulFolder = sconf.getShardFolder();
-    sconf.setShardFolder(defaulFolder + "/" + 1);
-    final DummyNode s1 = new DummyNode(zkConf, sconf);
-    sconf.setShardFolder(defaulFolder + "/" + 2);
-    final DummyNode s2 = new DummyNode(zkConf, sconf);
-    sconf.setShardFolder(defaulFolder + "/" + 2);
-    final DummyNode s3 = new DummyNode(zkConf, sconf);
+    final NodeConfiguration sconf1 = new NodeConfiguration();
+    final String defaulFolder = sconf1.getShardFolder();
+    sconf1.setShardFolder(defaulFolder + "/" + 1);
+    final DummyNode s1 = new DummyNode(zkConf, sconf1);
+
+    final NodeConfiguration sconf2 = new NodeConfiguration();
+    final String defaulFolder2 = sconf2.getShardFolder();
+    sconf2.setShardFolder(defaulFolder2 + "/" + 2);
+    final DummyNode s2 = new DummyNode(zkConf, sconf2);
+
+    final NodeConfiguration sconf3 = new NodeConfiguration();
+    final String defaulFolder3 = sconf3.getShardFolder();
+    sconf3.setShardFolder(defaulFolder3 + "/" + 3);
+    final DummyNode s3 = new DummyNode(zkConf, sconf3);
     waitFor(zkClient, IPaths.NODES, 3);
     // deploy index
 
