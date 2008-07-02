@@ -23,6 +23,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Iterator;
 
+import net.sf.katta.util.Logger;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.DataInputBuffer;
@@ -156,16 +157,17 @@ public class Indexer implements Reducer<WritableComparable, Writable, WritableCo
     final Thread thread = new Thread() {
       @Override
       public void run() {
-        while (!isInterrupted()) {
-          reporter.setStatus(status);
-          try {
+        try {
+          while (true) {
+            reporter.setStatus(status);
             sleep(1000);
-          } catch (final InterruptedException e) {
-            // was interrupted...
           }
+        } catch (final InterruptedException e) {
+          Logger.info("status thread is stopped: " + status);
         }
       }
     };
+    thread.setDaemon(true);
     thread.start();
     return thread;
   }
