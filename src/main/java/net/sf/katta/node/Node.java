@@ -650,12 +650,14 @@ public class Node implements ISearch {
     final Document doc = _searcher.doc(shard, docId);
     for (final String fieldName : fieldNames) {
       final Field field = doc.getField(fieldName);
-      if (field.isBinary()) {
-        final byte[] binaryValue = field.binaryValue();
-        result.put(new Text(fieldName), new BytesWritable(binaryValue));
-      } else {
-        final String stringValue = field.stringValue();
-        result.put(new Text(fieldName), new Text(stringValue));
+      if (field != null) {
+        if (field.isBinary()) {
+          final byte[] binaryValue = field.binaryValue();
+          result.put(new Text(fieldName), new BytesWritable(binaryValue));
+        } else {
+          final String stringValue = field.stringValue();
+          result.put(new Text(fieldName), new Text(stringValue));
+        }
       }
     }
     return result;
