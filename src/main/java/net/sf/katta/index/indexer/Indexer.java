@@ -71,7 +71,7 @@ public class Indexer implements Reducer<WritableComparable, Writable, WritableCo
   final DataInputBuffer _inputBuffer = new DataInputBuffer();
 
   public void configure(final JobConf jobConf) {
-    _factory = getConverter(jobConf);
+    _factory = getDocumentFactory(jobConf);
     _indexPublisher = getPublisher(jobConf);
     _zipService = getZipper(jobConf);
     _tmpIndexDirectory = jobConf.get(IndexJobConf.INDEX_TMP_DIRECTORY, (System.getProperty("java.io.tmpdir")
@@ -119,7 +119,11 @@ public class Indexer implements Reducer<WritableComparable, Writable, WritableCo
       _inputValue.readFields(_inputBuffer);
 
       final Document document = _factory.convert(_inputKey, _inputValue);
-      indexWriter.addDocument(document);
+      if (document != null) {
+        indexWriter.addDocument(document);
+      } else {
+        Logger.warn(_factory.getClass().getName() + " can not create document");
+      }
       reporter.incrCounter(DocumentCounter.DOCUMENT_COUNT, 1);
       if (counter % _indexFlushThreshold == 0) {
         indexWriter.flush();
@@ -207,7 +211,7 @@ public class Indexer implements Reducer<WritableComparable, Writable, WritableCo
   }
 
   @SuppressWarnings("unchecked")
-  private IDocumentFactory<WritableComparable, Writable> getConverter(final JobConf configuration) {
+  private IDocumentFactory<WritableComparable, Writable> getDocumentFactory(final JobConf configuration) {
     IDocumentFactory<WritableComparable, Writable> factory;
     final String converterClass = configuration.get(IndexJobConf.DOCUMENT_FACTORY_CLASS);
     try {

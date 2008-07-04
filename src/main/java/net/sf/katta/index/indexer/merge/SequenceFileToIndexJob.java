@@ -1,0 +1,57 @@
+package net.sf.katta.index.indexer.merge;
+
+import java.io.InputStream;
+
+import net.sf.katta.index.indexer.IndexJobConf;
+import net.sf.katta.index.indexer.ShardSelectionMapper;
+import net.sf.katta.util.Logger;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.BytesWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapred.JobClient;
+import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapred.SequenceFileInputFormat;
+
+public class SequenceFileToIndexJob {
+
+  public void sequenceFileToIndex(Path sequenceFilePath) throws Exception {
+
+
+    InputStream resourceAsStream = SequenceFileToIndexJob.class.getResourceAsStream("/katta.index.properties");
+    JobConf jobConf = new IndexJobConf().create(resourceAsStream);
+
+    // input and output format
+    jobConf.setInputFormat(SequenceFileInputFormat.class);
+    // no output format will be reduced because the index will be  creat local and will be copied into the hds
+
+    // input and output path
+    //overwrite the settet input path which is set via IndexJobConf.create
+    jobConf.set("mapred.input.dir", "");
+    jobConf.addInputPath(sequenceFilePath);
+
+    //configure the mapper
+    jobConf.setMapOutputKeyClass(Text.class);
+    jobConf.setMapOutputValueClass(BytesWritable.class);
+    jobConf.setMapperClass(ShardSelectionMapper.class);
+    //the input key and input value class which is saved in the sequence file will be mapped out as value: BytesWritable
+    jobConf.set("index.input.key.class", Text.class.getName());
+    jobConf.set("index.input.value.class", DocumentInformation.class.getName());
+    String indexFolder = "" + System.currentTimeMillis() + "-merge";
+    String uploadPath = jobConf.get(IndexJobConf.INDEX_UPLOAD_PATH) + "/" + indexFolder;
+    Logger.info("set index upload folder: '" + uploadPath + "'");
+    jobConf.set(IndexJobConf.INDEX_UPLOAD_PATH, uploadPath);
+
+    jobConf.set("document.factory.class", DfsIndexDocumentFactory.class.getName());
+
+    // run the job
+    JobClient.runJob(jobConf);
+
+  }
+
+
+  public static void main(String[] args) throws Exception {
+    SequenceFileToIndexJob mergeJob = new SequenceFileToIndexJob();
+    mergeJob.sequenceFileToIndex(new Path(args[0]));
+
+  }
+}
