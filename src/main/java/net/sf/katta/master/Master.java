@@ -178,13 +178,13 @@ public class Master {
             metaData.setState(IndexMetaData.IndexState.DEPLOYED);
             _client.writeData(indexPath, metaData);
           } catch (final KattaException e) {
-            metaData.setState(IndexMetaData.IndexState.DEPLOYED);
+            Logger.error("deploy of index '"+index+"' failed.", e);
+            metaData.setState(IndexMetaData.IndexState.DEPLOY_ERROR);
             try {
               _client.writeData(indexPath, metaData);
             } catch (final KattaException ke) {
               throw new RuntimeException("Failed to write Index deployError", ke);
             }
-            throw new RuntimeException("Failed to write data into zookeeper", e);
           }
         }
       }.start();
