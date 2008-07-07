@@ -32,6 +32,7 @@ public class SequenceFileToIndexJob implements Configurable {
     // input and output path
     //overwrite the settet input path which is set via IndexJobConf.create
     jobConf.set("mapred.input.dir", "");
+    Logger.info("read document informations from sequence file: " + sequenceFilePath);
     jobConf.addInputPath(sequenceFilePath);
 
     //configure the mapper
@@ -43,7 +44,9 @@ public class SequenceFileToIndexJob implements Configurable {
     jobConf.set("index.input.value.class", DocumentInformation.class.getName());
     String indexFolder = "" + System.currentTimeMillis() + "-merge";
 
-    jobConf.setOutputPath(new Path(jobConf.getOutputPath(), indexFolder));
+    Path newOutputPath = new Path(jobConf.getOutputPath(), indexFolder);
+    Logger.info("set mapred folder to: " + newOutputPath);
+    jobConf.setOutputPath(newOutputPath);
 
     String uploadPath = jobConf.get(IndexJobConf.INDEX_UPLOAD_PATH) + "/" + indexFolder;
     Logger.info("set index upload folder: '" + uploadPath + "'");

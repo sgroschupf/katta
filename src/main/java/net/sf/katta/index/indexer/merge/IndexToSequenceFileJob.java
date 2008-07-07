@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
 
+import net.sf.katta.util.Logger;
 import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -28,7 +29,9 @@ public class IndexToSequenceFileJob implements Configurable {
     jobConf.setOutputFormat(SequenceFileOutputFormat.class);
 
     // input and output path
+    Logger.info("read all shards from folder: " + indexPath);
     jobConf.addInputPath(indexPath);
+    Logger.info("write sequence file to: " + outputPath);
     jobConf.setOutputPath(outputPath);
 
     //set input and output key/value class
