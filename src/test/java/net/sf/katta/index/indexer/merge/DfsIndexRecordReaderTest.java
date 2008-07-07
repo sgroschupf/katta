@@ -9,6 +9,7 @@ import junit.framework.TestCase;
 import net.sf.katta.util.TestUtil;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.MD5Hash;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.mapred.JobConf;
@@ -58,7 +59,7 @@ public class DfsIndexRecordReaderTest extends TestCase {
 
     assertEquals("foo", text.toString());
     assertEquals(0, information.getDocId().get());
-    assertEquals(new File(out.getParent().getParent().toString(), ".indexes/" + path.getName() + "-uncompress").getAbsolutePath(), new File(new URI(information.getIndexPath().toString())).getAbsolutePath());
+    assertEquals(new File(out.getParent().getParent().toString(), ".indexes/" + path.getName() + "-" + MD5Hash.digest(path.toString()) + "-uncompress").getAbsolutePath(), new File(new URI(information.getIndexPath().toString())).getAbsolutePath());
     assertEquals("1", information.getSortValue().toString());
 
     mockery.assertIsSatisfied();

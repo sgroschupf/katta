@@ -6,6 +6,7 @@ import java.io.IOException;
 import net.sf.katta.util.Logger;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.MD5Hash;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.mapred.InputSplit;
@@ -35,9 +36,11 @@ public class DfsIndexRecordReader implements RecordReader<Text, DocumentInformat
     FileSystem fileSystem = FileSystem.get(jobConf);
     FileSplit fileSplit = (FileSplit) inputSplit;
     Path indexPath = fileSplit.getPath();
-    Path workingFolder = new Path(jobConf.getOutputPath(), ".indexes/" + indexPath.getName() + "-uncompress");
+    //we use md5 for uncompressed folder, because some shards can have the same name
+    String md5 = MD5Hash.digest(indexPath.toString()).toString();
+    Path workingFolder = new Path(jobConf.getOutputPath(), ".indexes/" + indexPath.getName() + "-" + md5 + "-uncompress");
     //the outputpath is modified by hadoop and will be extend with "_temporary/jobId"
-    _indexPath = new Path(jobConf.getOutputPath().getParent().getParent(), ".indexes/" + indexPath.getName() + "-uncompress");
+    _indexPath = new Path(jobConf.getOutputPath().getParent().getParent(), ".indexes/" + indexPath.getName() + "-" + md5 + "-uncompress");
     try {
       _indexReader = IndexReader.open(new DfsIndexDirectory(fileSystem, indexPath, workingFolder));
       _maxDoc = _indexReader.maxDoc();

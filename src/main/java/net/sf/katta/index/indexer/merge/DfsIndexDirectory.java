@@ -88,7 +88,6 @@ public class DfsIndexDirectory extends Directory {
       ZipEntry entry;
 
       while ((entry = zipInputStream.getNextEntry()) != null) {
-        Logger.info("Extracting: " + entry);
         final String entryPath = entry.getName();
         final int indexOf = entryPath.indexOf("/");
         final String cleanUpPath = entryPath.substring(indexOf + 1, entryPath.length());
@@ -96,6 +95,7 @@ public class DfsIndexDirectory extends Directory {
         if (!cleanUpPath.equals("")) {
           path = new Path(target, cleanUpPath);
         }
+        Logger.info("Extracting: " + entry + " to " + path);
         if (entry.isDirectory()) {
           _fileSystem.mkdirs(path);
         } else {

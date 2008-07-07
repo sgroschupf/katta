@@ -10,7 +10,7 @@ public class IndexMergeJob implements Configurable {
   private Configuration _configuration;
 
   public void merge(Path kattaIndices) throws Exception {
-    Path dedupPath = new Path("/tmp/katta.index.dedup");
+    Path dedupPath = new Path("/tmp/katta.index.dedup", "" + System.currentTimeMillis());
 
     IndexToSequenceFileJob indexToSequenceFileJob = new IndexToSequenceFileJob();
     indexToSequenceFileJob.setConf(_configuration);

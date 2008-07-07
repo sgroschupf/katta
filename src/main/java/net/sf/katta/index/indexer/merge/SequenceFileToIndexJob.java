@@ -42,6 +42,9 @@ public class SequenceFileToIndexJob implements Configurable {
     jobConf.set("index.input.key.class", Text.class.getName());
     jobConf.set("index.input.value.class", DocumentInformation.class.getName());
     String indexFolder = "" + System.currentTimeMillis() + "-merge";
+
+    jobConf.setOutputPath(new Path(jobConf.getOutputPath(), indexFolder));
+
     String uploadPath = jobConf.get(IndexJobConf.INDEX_UPLOAD_PATH) + "/" + indexFolder;
     Logger.info("set index upload folder: '" + uploadPath + "'");
     jobConf.set(IndexJobConf.INDEX_UPLOAD_PATH, uploadPath);
