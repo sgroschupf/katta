@@ -3,6 +3,7 @@ package net.sf.katta.index.indexer.merge;
 import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.mapred.JobConf;
 
 public class IndexMergeJob implements Configurable {
 
@@ -20,18 +21,21 @@ public class IndexMergeJob implements Configurable {
     sequenceFileToIndexJob.sequenceFileToIndex(dedupPath);
   }
 
-  public static void main(String[] args) throws Exception {
-    //TODO delete all merged katta indices
-    Path kattaIndices = new Path(args[0]);
-    IndexMergeJob job = new IndexMergeJob();
-    job.merge(kattaIndices);
-  }
-
   public void setConf(Configuration configuration) {
     _configuration = configuration;
   }
 
   public Configuration getConf() {
     return _configuration;
+  }
+
+  public static void main(String[] args) throws Exception {
+    //TODO delete all merged katta indices
+    Path kattaIndices = new Path(args[0]);
+    IndexMergeJob job = new IndexMergeJob();
+    JobConf jobConf = new JobConf();
+    jobConf.setJarByClass(IndexMergeJob.class);
+    job.setConf(jobConf);
+    job.merge(kattaIndices);
   }
 }

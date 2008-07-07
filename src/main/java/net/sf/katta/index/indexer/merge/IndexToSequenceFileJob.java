@@ -4,16 +4,16 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
 
+import org.apache.hadoop.conf.Configurable;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.JobClient;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.SequenceFileOutputFormat;
 import org.apache.hadoop.mapred.lib.IdentityMapper;
-import org.apache.hadoop.conf.Configurable;
-import org.apache.hadoop.conf.Configuration;
 
-public class IndexToSequenceFileJob implements Configurable{
+public class IndexToSequenceFileJob implements Configurable {
 
   private Configuration _configuration;
 
@@ -21,7 +21,6 @@ public class IndexToSequenceFileJob implements Configurable{
 
     JobConf jobConf = new JobConf(_configuration);
 
-    jobConf.setJarByClass(IndexToSequenceFileJob.class);
     jobConf.setJobName("IndexToSequenceFile");
 
     // input and output format
@@ -52,11 +51,6 @@ public class IndexToSequenceFileJob implements Configurable{
 
   }
 
-  public static void main(String[] args) throws IOException {
-    IndexToSequenceFileJob index = new IndexToSequenceFileJob();
-    index.indexToSequenceFile(new Path(args[0]), new Path(args[1]));
-  }
-
   public void setConf(Configuration configuration) {
     _configuration = configuration;
   }
@@ -64,4 +58,13 @@ public class IndexToSequenceFileJob implements Configurable{
   public Configuration getConf() {
     return _configuration;
   }
+
+  public static void main(String[] args) throws IOException {
+    IndexToSequenceFileJob index = new IndexToSequenceFileJob();
+    JobConf jobConf = new JobConf();
+    jobConf.setJarByClass(IndexToSequenceFileJob.class);
+    index.setConf(jobConf);
+    index.indexToSequenceFile(new Path(args[0]), new Path(args[1]));
+  }
+
 }

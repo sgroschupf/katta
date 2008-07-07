@@ -19,10 +19,10 @@ public class SequenceFileToIndexJob implements Configurable {
   private Configuration _configuration;
 
   public void sequenceFileToIndex(Path sequenceFilePath) throws Exception {
+
     InputStream resourceAsStream = SequenceFileToIndexJob.class.getResourceAsStream("/katta.index.properties");
     JobConf jobConf = new IndexJobConf().create(_configuration, resourceAsStream);
 
-    jobConf.setJarByClass(SequenceFileToIndexJob.class);
     jobConf.setJobName("SequenceFileToIndex");
 
     // input and output format
@@ -53,18 +53,20 @@ public class SequenceFileToIndexJob implements Configurable {
 
   }
 
-
-  public static void main(String[] args) throws Exception {
-    SequenceFileToIndexJob mergeJob = new SequenceFileToIndexJob();
-    mergeJob.sequenceFileToIndex(new Path(args[0]));
-
-  }
-
   public void setConf(Configuration configuration) {
     _configuration = configuration;
   }
 
   public Configuration getConf() {
     return _configuration;
+  }
+
+  public static void main(String[] args) throws Exception {
+    SequenceFileToIndexJob mergeJob = new SequenceFileToIndexJob();
+    JobConf jobConf = new JobConf();
+    jobConf.setJarByClass(SequenceFileToIndexJob.class);
+    mergeJob.setConf(jobConf);
+    mergeJob.sequenceFileToIndex(new Path(args[0]));
+
   }
 }
