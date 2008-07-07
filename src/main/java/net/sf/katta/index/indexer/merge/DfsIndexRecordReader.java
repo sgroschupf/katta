@@ -27,6 +27,8 @@ public class DfsIndexRecordReader implements RecordReader<Text, DocumentInformat
 
   private Path _indexPath;
 
+  public static final String INVALID = "INVALID";
+
 
   public DfsIndexRecordReader(JobConf jobConf, InputSplit inputSplit, IDocumentDuplicateInformation duplicateInformation) throws IOException {
     _duplicateInformation = duplicateInformation;
@@ -51,6 +53,16 @@ public class DfsIndexRecordReader implements RecordReader<Text, DocumentInformat
       Document document = _indexReader.document(_doc);
       String keyInfo = _duplicateInformation.getKey(document);
       String sortValue = _duplicateInformation.getSortValue(document);
+
+      if ((keyInfo == null || keyInfo.trim().equals(""))) {
+        Logger.warn("key can not be extracted from the lucene document, this document will not be collected.");
+        keyInfo = INVALID;
+      }
+
+      if ((sortValue == null || sortValue.trim().equals(""))) {
+        Logger.warn("sortValue can not be extracted from the lucene document, this document will be collect with the lowest sort value.");
+        sortValue = "" + Integer.MIN_VALUE;
+      }
 
       key.set(keyInfo);
       value.setDocId(_doc);

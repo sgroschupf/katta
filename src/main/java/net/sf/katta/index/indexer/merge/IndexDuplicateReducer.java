@@ -13,6 +13,13 @@ public class IndexDuplicateReducer implements Reducer<Text, DocumentInformation,
 
   public void reduce(Text text, Iterator<DocumentInformation> iterator, OutputCollector<Text, DocumentInformation> outputCollector, Reporter reporter) throws IOException {
 
+    //we do not collect documents whith invalid document identifier
+    if (text.toString().equals(DfsIndexRecordReader.INVALID)) {
+      //if we skip a lot of documents, we have to call setStatus to avoid the aborting of this job 
+      reporter.setStatus("invalid document: " + text);
+      return;
+    }
+
     DocumentInformation newestInformation = null;
     Text sortValue = new Text("" + Integer.MIN_VALUE);
     while (iterator.hasNext()) {
