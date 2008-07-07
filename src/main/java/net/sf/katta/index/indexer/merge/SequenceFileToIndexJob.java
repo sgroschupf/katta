@@ -20,6 +20,9 @@ public class SequenceFileToIndexJob {
     InputStream resourceAsStream = SequenceFileToIndexJob.class.getResourceAsStream("/katta.index.properties");
     JobConf jobConf = new IndexJobConf().create(resourceAsStream);
 
+    jobConf.setJarByClass(SequenceFileToIndexJob.class);
+    jobConf.setJobName("SequenceFileToIndex");
+
     // input and output format
     jobConf.setInputFormat(SequenceFileInputFormat.class);
     // no output format will be reduced because the index will be  creat local and will be copied into the hds

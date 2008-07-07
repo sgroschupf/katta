@@ -18,6 +18,9 @@ public class IndexToSequenceFileJob {
 
     JobConf jobConf = new JobConf();
 
+    jobConf.setJarByClass(IndexToSequenceFileJob.class);
+    jobConf.setJobName("IndexToSequenceFile");
+
     // input and output format
     jobConf.setInputFormat(DfsIndexInputFormat.class);
     jobConf.setOutputFormat(SequenceFileOutputFormat.class);
