@@ -5,6 +5,8 @@ import java.io.InputStream;
 import net.sf.katta.index.indexer.IndexJobConf;
 import net.sf.katta.index.indexer.ShardSelectionMapper;
 import net.sf.katta.util.Logger;
+import org.apache.hadoop.conf.Configurable;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.Text;
@@ -12,13 +14,13 @@ import org.apache.hadoop.mapred.JobClient;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.SequenceFileInputFormat;
 
-public class SequenceFileToIndexJob {
+public class SequenceFileToIndexJob implements Configurable {
+
+  private Configuration _configuration;
 
   public void sequenceFileToIndex(Path sequenceFilePath) throws Exception {
-
-
     InputStream resourceAsStream = SequenceFileToIndexJob.class.getResourceAsStream("/katta.index.properties");
-    JobConf jobConf = new IndexJobConf().create(resourceAsStream);
+    JobConf jobConf = new IndexJobConf().create(_configuration, resourceAsStream);
 
     jobConf.setJarByClass(SequenceFileToIndexJob.class);
     jobConf.setJobName("SequenceFileToIndex");
@@ -56,5 +58,13 @@ public class SequenceFileToIndexJob {
     SequenceFileToIndexJob mergeJob = new SequenceFileToIndexJob();
     mergeJob.sequenceFileToIndex(new Path(args[0]));
 
+  }
+
+  public void setConf(Configuration configuration) {
+    _configuration = configuration;
+  }
+
+  public Configuration getConf() {
+    return _configuration;
   }
 }
