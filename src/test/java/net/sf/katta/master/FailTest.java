@@ -79,7 +79,7 @@ public class FailTest extends TestCase {
   private void cleanNameSpace(final ZKClient client) throws KattaException {
     final String kattaPath = "/katta";
     if (client.exists(kattaPath)) {
-      client.deleteRecursiv(kattaPath);
+      client.deleteRecursive(kattaPath);
     }
   }
 

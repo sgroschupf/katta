@@ -56,7 +56,7 @@ public class ZKClientTest extends TestCase {
     final String path = "/katta";
     client.waitForZooKeeper(10000);
     if (client.exists(path)) {
-      assertTrue(client.deleteRecursiv(path));
+      assertTrue(client.deleteRecursive(path));
     }
     assertFalse(client.exists(path));
     client.create(path);
@@ -78,7 +78,7 @@ public class ZKClientTest extends TestCase {
     client.create("/katta/child2");
     children = client.getChildren(path);
     assertEquals(2, children.size());
-    client.deleteRecursiv(path);
+    client.deleteRecursive(path);
     client.close();
     Thread.sleep(2000);
     zkServer.shutdown();
@@ -92,7 +92,7 @@ public class ZKClientTest extends TestCase {
     final MyListener listener = new MyListener();
     final String katta = "/katta";
     if (client.exists(katta)) {
-      client.deleteRecursiv(katta);
+      client.deleteRecursive(katta);
     }
     client.create(katta);
     client.subscribeChildChanges(katta, listener);
@@ -116,7 +116,7 @@ public class ZKClientTest extends TestCase {
     final MyListener listener = new MyListener();
     final String katta = "/katta";
     if (client.exists(katta)) {
-      client.deleteRecursiv(katta);
+      client.deleteRecursive(katta);
     }
     client.create(katta, new IndexMetaData("path", "someAnalyzr", 3, IndexMetaData.IndexState.ANNOUNCED));
     client.subscribeDataChanges(katta, listener);

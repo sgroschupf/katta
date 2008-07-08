@@ -57,7 +57,7 @@ public class PerformanceTest extends TestCase {
     final ZkServer server = new ZkServer(conf);
     zkclient.waitForZooKeeper(5000);
     if (zkclient.exists(IPaths.ROOT_PATH)) {
-      zkclient.deleteRecursiv(IPaths.ROOT_PATH);
+      zkclient.deleteRecursive(IPaths.ROOT_PATH);
     }
     final Master master = new Master(zkclient);
 

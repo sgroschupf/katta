@@ -236,7 +236,7 @@ public class ZKClient implements Watcher {
 
   /**
    * Deletes a given path. For recursive deletes use
-   * {@link #deleteRecursiv(String)}.
+   * {@link #deleteRecursive(String)}.
    * 
    * @param path
    * @return
@@ -268,12 +268,12 @@ public class ZKClient implements Watcher {
    * @return
    * @throws KattaException
    */
-  public boolean deleteRecursiv(final String path) throws KattaException {
+  public boolean deleteRecursive(final String path) throws KattaException {
     synchronized (_mutex) {
       try {
         final ArrayList<String> children = _zk.getChildren(path, false);
         for (final String subPath : children) {
-          if (!deleteRecursiv(path + "/" + subPath)) {
+          if (!deleteRecursive(path + "/" + subPath)) {
             return false;
           }
         }

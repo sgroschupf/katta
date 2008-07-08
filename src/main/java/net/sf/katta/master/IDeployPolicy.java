@@ -27,7 +27,7 @@ import net.sf.katta.zk.ZKClient;
 
 public interface IDeployPolicy {
 
-  Map<String, List<AssignedShard>> ditribute(ZKClient client, List<String> nodes, List<AssignedShard> shards,
+  Map<String, List<AssignedShard>> distribute(ZKClient client, List<String> nodes, List<AssignedShard> shards,
       int replicationLevel);
 
 }

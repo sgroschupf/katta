@@ -50,7 +50,7 @@ public class ServerTest extends TestCase implements Watcher {
     final ZKClient client = new ZKClient(conf);
     client.waitForZooKeeper(5000);
     if (client.exists(IPaths.ROOT_PATH)) {
-      client.deleteRecursiv(IPaths.ROOT_PATH);
+      client.deleteRecursive(IPaths.ROOT_PATH);
     }
     client.close();
     if (zk.exists(katta, false) != null) {

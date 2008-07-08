@@ -32,7 +32,7 @@ public class DefaultDistributionPolicy implements IDeployPolicy {
   /**
    * simply iterate over all shards and assign them to the available nodes.
    */
-  public Map<String, List<AssignedShard>> ditribute(final ZKClient client, final List<String> nodes,
+  public Map<String, List<AssignedShard>> distribute(final ZKClient client, final List<String> nodes,
       final List<AssignedShard> shards, final int replicationLevel) {
     if (nodes.size() == 0) {
       throw new IllegalArgumentException("no nodes");

@@ -156,7 +156,7 @@ public class Master {
     // compute how to distribute shards to nodes
     final List<String> readNodes = readNodes();
     if (readNodes != null && readNodes.size() > 0) {
-      final Map<String, List<AssignedShard>> distributionMap = _policy.ditribute(_client, readNodes, shards, metaData
+      final Map<String, List<AssignedShard>> distributionMap = _policy.distribute(_client, readNodes, shards, metaData
           .getReplicationLevel());
       asignShards(distributionMap);
       // lets have a thread watching deployment is things are done we set the
@@ -297,12 +297,17 @@ public class Master {
         _client.readData(nodeToRemove + "/" + shardName, metaData);
         shards.add(metaData);
       }
-      _client.deleteRecursiv(nodeToRemove);
+      _client.deleteRecursive(nodeToRemove);
       if (toAsignShards.size() != 0) {
         // since we lost one shard, we want to use replication level 1, since
         // all other replica still exists..
-        final Map<String, List<AssignedShard>> asignmentMap = _policy.ditribute(_client, readNodes(), shards, 1);
-        asignShards(asignmentMap);
+        List<String> nodes = readNodes();
+        if (nodes.size() > 0) {
+          final Map<String, List<AssignedShard>> asignmentMap = _policy.distribute(_client, nodes, shards, 1);
+          asignShards(asignmentMap);
+        } else {
+          Logger.warn("No nodes left for shard redistribution.");
+        }
       }
       // assign this to new nodes
     }

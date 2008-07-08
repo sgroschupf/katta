@@ -45,7 +45,7 @@ public class MasterTest extends TestCase {
     final ZKClient client = new ZKClient(conf);
     client.waitForZooKeeper(5000);
     if (client.exists(IPaths.ROOT_PATH)) {
-      client.deleteRecursiv(IPaths.ROOT_PATH);
+      client.deleteRecursive(IPaths.ROOT_PATH);
     }
     final Master master = new Master(client);
     master.start();
@@ -73,7 +73,7 @@ public class MasterTest extends TestCase {
     final ZKClient client = new ZKClient(conf);
     client.waitForZooKeeper(5000);
     if (client.exists(IPaths.ROOT_PATH)) {
-      client.deleteRecursiv(IPaths.ROOT_PATH);
+      client.deleteRecursive(IPaths.ROOT_PATH);
     }
     final Master master = new Master(client);
     master.start();
@@ -111,7 +111,7 @@ public class MasterTest extends TestCase {
     final List<AssignedShard> shards = master.getShardsForIndex("indexA", indexMetaData);
     final List<String> readNodes = master.readNodes();
     final DefaultDistributionPolicy defaultDistributionPolicy = new DefaultDistributionPolicy();
-    final Map<String, List<AssignedShard>> ditribute = defaultDistributionPolicy.ditribute(client, readNodes, shards,
+    final Map<String, List<AssignedShard>> ditribute = defaultDistributionPolicy.distribute(client, readNodes, shards,
         2);
     final Set<String> keySet = ditribute.keySet();
     for (final String nodeName : keySet) {
@@ -132,7 +132,7 @@ public class MasterTest extends TestCase {
       client.getSyncMutex().wait(3000);
     }
     assertEquals(4, client.getChildren(IPaths.NODE_TO_SHARD + "/node1").size());
-    client.deleteRecursiv(indexPath);
+    client.deleteRecursive(indexPath);
     int count = 0;
     while (client.getChildren(IPaths.NODE_TO_SHARD + "/node1").size() != 0) {
       Thread.sleep(500);

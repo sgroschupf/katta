@@ -63,7 +63,7 @@ public class ClientTest extends TestCase {
     _zkclient = new ZKClient(conf);
     _zkclient.waitForZooKeeper(600000);
     if (_zkclient.exists(IPaths.ROOT_PATH)) {
-      _zkclient.deleteRecursiv(IPaths.ROOT_PATH);
+      _zkclient.deleteRecursive(IPaths.ROOT_PATH);
     }
     _master = new Master(_zkclient);
     _master.start();

@@ -109,7 +109,7 @@ public class Katta {
   public void removeIndex(final String indexName) throws KattaException {
     final String indexPath = IPaths.INDEXES + "/" + indexName;
     if (_client.exists(indexPath)) {
-      _client.deleteRecursiv(indexPath);
+      _client.deleteRecursive(indexPath);
     } else {
       System.err.println("Unknown index:" + indexName);
     }
