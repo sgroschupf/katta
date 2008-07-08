@@ -5,6 +5,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import junit.framework.TestCase;
+
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.OutputCollector;
 import org.apache.hadoop.mapred.Reporter;
@@ -24,7 +25,6 @@ public class IndexDuplicateReducerTest extends TestCase {
     for (int i = 0; i < 10; i++) {
       DocumentInformation information = new DocumentInformation();
       information.setDocId(i);
-      int x = 1;
       if (i == 5) {
         information = collectedInformation;
       }
