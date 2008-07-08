@@ -167,18 +167,18 @@ public class Master {
           try {
             while (!isDeployedAsExpected(distributionMap)) {
               try {
-                Logger.info("Index not yet fully deployed, waiting");
+                Logger.info("Index '" + index + "' not yet fully deployed, waiting");
                 Thread.sleep(2000);
               } catch (final InterruptedException e) {
                 Logger.error("Deployment process was interrupted", e);
                 return;
               }
             }
-            Logger.info("Finnaly the index is deployed...");
+            Logger.info("Finnaly the index '" + index + "' is deployed...");
             metaData.setState(IndexMetaData.IndexState.DEPLOYED);
             _client.writeData(indexPath, metaData);
           } catch (final KattaException e) {
-            Logger.error("deploy of index '"+index+"' failed.", e);
+            Logger.error("deploy of index '" + index + "' failed.", e);
             metaData.setState(IndexMetaData.IndexState.DEPLOY_ERROR);
             try {
               _client.writeData(indexPath, metaData);
@@ -206,7 +206,7 @@ public class Master {
       fileSystem = FileSystem.get(uri, new Configuration());
     } catch (final IOException e) {
       throw new IllegalArgumentException(
-      "unable to retrive file system, make sure your path starts with hadoop support prefix like file:// or hdfs://");
+          "unable to retrive file system, make sure your path starts with hadoop support prefix like file:// or hdfs://");
     }
     final Path path = new Path(pathString);
     final ArrayList<AssignedShard> shards = new ArrayList<AssignedShard>();
@@ -239,8 +239,8 @@ public class Master {
       all += shardsToServe.size();
       for (final AssignedShard expectedShard : shardsToServe) {
         // lookup who is actually serving this shard.
-        final List<String> servingNodes = _client.getChildren(IPaths.SHARD_TO_NODE + "/"
-            + expectedShard.getShardName());
+        final List<String> servingNodes = _client
+            .getChildren(IPaths.SHARD_TO_NODE + "/" + expectedShard.getShardName());
         // is the node we expect here already?
         boolean asExpected = false;
         for (final String servingNode : servingNodes) {
@@ -285,8 +285,6 @@ public class Master {
       }
     }
   }
-
-
 
   private void removeNodes(final List<String> removedNodes) throws KattaException {
     for (final String node : removedNodes) {
@@ -352,7 +350,7 @@ public class Master {
           currentNodes = _client.getChildren(event.getPath());
           final List<String> removedNodes = ComparisonUtil.getRemoved(_nodes, currentNodes);
           removeNodes(removedNodes);
-          final List<String> newNodes = ComparisonUtil.getNew(_nodes, currentNodes);
+          ComparisonUtil.getNew(_nodes, currentNodes);
           // addNodes(newNodes);
           _nodes = currentNodes;
           _client.getSyncMutex().notifyAll();
