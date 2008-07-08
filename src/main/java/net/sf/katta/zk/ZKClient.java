@@ -58,13 +58,17 @@ public class ZKClient implements Watcher {
 
   private final int _port;
 
-  public ZKClient(final ZkConfiguration configuration) {
+  private final int _timeOut;
 
-    final String servers = configuration.getZKServers();
+  private final String _servers;
+
+  public ZKClient(final ZkConfiguration configuration) {
+    _servers = configuration.getZKServers();
     _port = configuration.getZKClientPort();
+    _timeOut = configuration.getZKTimeOut();
     if (_zk == null) {
       try {
-        _zk = new ZooKeeper(servers, configuration.getZKTimeOut(), this);
+        _zk = new ZooKeeper(_servers, _timeOut, this);
       } catch (final Exception e) {
         _zk = null;
         throw new RuntimeException("Keeper exception when starting new session: ", e);
@@ -381,9 +385,21 @@ public class ZKClient implements Watcher {
             throw new RuntimeException("Unable to re subscribe to data change notification.", e);
           }
         }
-      } else if (event.getType() == Watcher.Event.KeeperStateExpired) {
+      } else if (event.getState() == Watcher.Event.KeeperStateExpired) {
         Logger.debug("Zookeeper session expired.");
-        // renew session
+        try {
+          _zk = new ZooKeeper(_servers, _timeOut, this);
+        } catch (final Exception e) {
+          _zk = null;
+          throw new RuntimeException("Keeper exception when starting new session: ", e);
+        }
+        waitForZooKeeper(30000);
+        try {
+          createDefaultNameSpace();
+        } catch (KattaException e) {
+          Logger.error("Exception on on reconnecting after session expiration.");
+          throw new RuntimeException(e);
+        }
       }
     }
   }
