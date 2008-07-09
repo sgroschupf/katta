@@ -141,7 +141,7 @@ public class Master {
   private void deployIndex(final String index, final IndexMetaData metaData) throws KattaException {
     final ArrayList<AssignedShard> shards = getShardsForIndex(index, metaData);
     if (shards.size() == 0) {
-      throw new IllegalArgumentException("No shards in folder found, this is not a vailid katta virtual index.");
+      throw new IllegalArgumentException("No shards in folder found, this is not a valid katta virtual index.");
     }
     Logger.info("Deploying index: " + index + " [" + shards + "]");
     // add shards to index..
@@ -169,6 +169,10 @@ public class Master {
               try {
                 Logger.info("Index '" + index + "' not yet fully deployed, waiting");
                 Thread.sleep(2000);
+                if (!_client.exists(IPaths.INDEXES + "/" + index)) {
+                  Logger.warn("Index '" + index + "' removed before the deployment completed.");
+                  break;
+                }
               } catch (final InterruptedException e) {
                 Logger.error("Deployment process was interrupted", e);
                 return;
