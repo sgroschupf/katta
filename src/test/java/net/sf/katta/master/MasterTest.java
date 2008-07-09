@@ -102,11 +102,12 @@ public class MasterTest extends TestCase {
     // there should be two shards here now
     assertEquals(4, client.getChildren(IPaths.NODE_TO_SHARD + "/node2").size());
     // there should be 4 shards indexes now..
-    assertEquals(4, client.getChildren(IPaths.SHARD_TO_NODE).size());
+    List<String> shardsToNode = client.getChildren(IPaths.SHARD_TO_NODE);
+    assertEquals(4, shardsToNode.size());
 
     // now we fake the nodes and add the nodes to the shards
-
-    assertEquals(4, client.getChildren(IPaths.SHARD_TO_NODE).size());
+    shardsToNode = client.getChildren(IPaths.SHARD_TO_NODE);
+    assertEquals(4, shardsToNode.size());
 
     final List<AssignedShard> shards = master.getShardsForIndex("indexA", indexMetaData);
     final List<String> readNodes = master.readNodes();
@@ -132,7 +133,17 @@ public class MasterTest extends TestCase {
       client.getSyncMutex().wait(3000);
     }
     assertEquals(4, client.getChildren(IPaths.NODE_TO_SHARD + "/node1").size());
+
+    List<String> shardsToIndex = client.getChildren(indexPath);
+    assertEquals(4, shardsToIndex.size());
     client.deleteRecursive(indexPath);
+
+    for (String shard : shardsToIndex) {
+      client.deleteRecursive(IPaths.SHARD_TO_NODE + "/" + shard);
+    }
+    shardsToNode = client.getChildren(IPaths.SHARD_TO_NODE);
+    assertEquals(0, shardsToNode.size());
+
     int count = 0;
     while (client.getChildren(IPaths.NODE_TO_SHARD + "/node1").size() != 0) {
       Thread.sleep(500);
