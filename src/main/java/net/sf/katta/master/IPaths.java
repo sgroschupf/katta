@@ -30,6 +30,6 @@ public interface IPaths {
 
   public static final String NODE_TO_SHARD = ROOT_PATH + "/node-to-shard";
 
-  public static final String SHARD_TO_NODE = ROOT_PATH + "/shard-to-salve";
+  public static final String SHARD_TO_NODE = ROOT_PATH + "/shard-to-node";
 
 }
