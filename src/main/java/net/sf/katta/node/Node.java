@@ -213,9 +213,9 @@ public class Node implements ISearch {
   }
 
   /*
-   * When starting a node there might be shards assigned that are still on
-   * local hhd. Therefore we compare what is assigned, what can be re-used and
-   * which shards we need to load from the remote hdd.
+   * When starting a node there might be shards assigned that are still on local
+   * hhd. Therefore we compare what is assigned, what can be re-used and which
+   * shards we need to load from the remote hdd.
    */
   private void checkAndDeployExistingShards(final ArrayList<String> shardsToDeploy) throws KattaException {
     synchronized (_shardFolder) {
@@ -356,6 +356,7 @@ public class Node implements ISearch {
           fileSystem.copyToLocalFile(path, dest);
 
         }
+        updateStatus("Ok");
         return shardFolder;
       }
     } catch (final URISyntaxException e) {
@@ -512,10 +513,10 @@ public class Node implements ISearch {
    * (non-Javadoc)
    * 
    * @see net.sf.katta.node.ISearch#search(net.sf.katta.node.IQuery,
-   *      net.sf.katta.node.DocumentFrequenceWritable, java.lang.String[])
+   * net.sf.katta.node.DocumentFrequenceWritable, java.lang.String[])
    */
   public HitsMapWritable search(final IQuery query, final DocumentFrequenceWritable freqs, final String[] shards)
-  throws IOException {
+      throws IOException {
     return search(query, freqs, shards, Integer.MAX_VALUE - 1);
   }
 
@@ -523,7 +524,7 @@ public class Node implements ISearch {
    * (non-Javadoc)
    * 
    * @see net.sf.katta.node.ISearch#search(net.sf.katta.node.IQuery,
-   *      net.sf.katta.node.DocumentFrequenceWritable, java.lang.String[], int)
+   * net.sf.katta.node.DocumentFrequenceWritable, java.lang.String[], int)
    */
   public HitsMapWritable search(final IQuery query, final DocumentFrequenceWritable freqs, final String[] shards,
       final int count) throws IOException {
@@ -581,7 +582,7 @@ public class Node implements ISearch {
    * (non-Javadoc)
    * 
    * @see net.sf.katta.node.ISearch#getDocFreqs(net.sf.katta.node.IQuery,
-   *      java.lang.String[])
+   * java.lang.String[])
    */
   public DocumentFrequenceWritable getDocFreqs(final IQuery input, final String[] shards) throws IOException {
     Query luceneQuery;
@@ -643,7 +644,7 @@ public class Node implements ISearch {
    * (non-Javadoc)
    * 
    * @see net.sf.katta.node.ISearch#getDetails(java.lang.String, int,
-   *      java.lang.String[])
+   * java.lang.String[])
    */
   public MapWritable getDetails(final String shard, final int docId, final String[] fieldNames) throws IOException {
     final MapWritable result = new MapWritable();
@@ -667,7 +668,7 @@ public class Node implements ISearch {
    * (non-Javadoc)
    * 
    * @see net.sf.katta.node.ISearch#getResultCount(net.sf.katta.node.IQuery,
-   *      java.lang.String[])
+   * java.lang.String[])
    */
   public int getResultCount(final IQuery query, final String[] shards) throws IOException {
     final DocumentFrequenceWritable docFreqs = getDocFreqs(query, shards);
@@ -691,8 +692,8 @@ public class Node implements ISearch {
   }
 
   /*
-   * Listens to events within the nodeToShard zookeeper folder. Those events
-   * are fired if a shard is assigned or removed for this node.
+   * Listens to events within the nodeToShard zookeeper folder. Those events are
+   * fired if a shard is assigned or removed for this node.
    */
   private class ShardListener implements IZKEventListener {
     public void process(final WatcherEvent event) {
