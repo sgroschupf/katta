@@ -58,12 +58,10 @@ public class DfsIndexRecordReader implements RecordReader<Text, DocumentInformat
       String sortValue = _duplicateInformation.getSortValue(document);
 
       if ((keyInfo == null || keyInfo.trim().equals(""))) {
-        Logger.warn("key can not be extracted from the lucene document, this document will not be collected.");
         keyInfo = INVALID;
       }
 
       if ((sortValue == null || sortValue.trim().equals(""))) {
-        Logger.warn("sortValue can not be extracted from the lucene document, this document will be collect with the lowest sort value.");
         sortValue = "" + Integer.MIN_VALUE;
       }
 

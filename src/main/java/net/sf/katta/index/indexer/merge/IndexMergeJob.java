@@ -18,7 +18,7 @@ public class IndexMergeJob implements Configurable {
 
     SequenceFileToIndexJob sequenceFileToIndexJob = new SequenceFileToIndexJob();
     sequenceFileToIndexJob.setConf(_configuration);
-    sequenceFileToIndexJob.sequenceFileToIndex(dedupPath);
+    sequenceFileToIndexJob.sequenceFileToIndex(dedupPath, kattaIndices);
   }
 
   public void setConf(Configuration configuration) {

@@ -18,7 +18,7 @@ public class SequenceFileToIndexJob implements Configurable {
 
   private Configuration _configuration;
 
-  public void sequenceFileToIndex(Path sequenceFilePath) throws Exception {
+  public void sequenceFileToIndex(Path sequenceFilePath, Path outputFolder) throws Exception {
 
     InputStream resourceAsStream = SequenceFileToIndexJob.class.getResourceAsStream("/katta.index.properties");
     JobConf jobConf = new IndexJobConf().create(_configuration, resourceAsStream);
@@ -42,7 +42,7 @@ public class SequenceFileToIndexJob implements Configurable {
     //the input key and input value class which is saved in the sequence file will be mapped out as value: BytesWritable
     jobConf.set("index.input.key.class", Text.class.getName());
     jobConf.set("index.input.value.class", DocumentInformation.class.getName());
-    String indexFolder = "" + System.currentTimeMillis() + "-merge";
+    String indexFolder = outputFolder.toString() + "/" + System.currentTimeMillis() + "-merge";
 
     Path newOutputPath = new Path(jobConf.getOutputPath(), indexFolder);
     Logger.info("set mapred folder to: " + newOutputPath);
@@ -72,7 +72,7 @@ public class SequenceFileToIndexJob implements Configurable {
     JobConf jobConf = new JobConf();
     jobConf.setJarByClass(SequenceFileToIndexJob.class);
     mergeJob.setConf(jobConf);
-    mergeJob.sequenceFileToIndex(new Path(args[0]));
+    mergeJob.sequenceFileToIndex(new Path(args[0]), new Path("/tmp/" + System.currentTimeMillis()));
 
   }
 }
