@@ -103,6 +103,6 @@ public class DfsIndexRecordReader implements RecordReader<Text, DocumentInformat
   }
 
   public float getProgress() throws IOException {
-    return 0;
+    return _doc/_maxDoc;
   }
 }
