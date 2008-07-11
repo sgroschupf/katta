@@ -42,13 +42,13 @@ public class SequenceFileToIndexJob implements Configurable {
     //the input key and input value class which is saved in the sequence file will be mapped out as value: BytesWritable
     jobConf.set("index.input.key.class", Text.class.getName());
     jobConf.set("index.input.value.class", DocumentInformation.class.getName());
-    String indexFolder = outputFolder.toString() + "/" + System.currentTimeMillis() + "-merge";
+    String indexFolder = "" + System.currentTimeMillis() + "-merge";
 
     Path newOutputPath = new Path(jobConf.getOutputPath(), indexFolder);
     Logger.info("set mapred folder to: " + newOutputPath);
     jobConf.setOutputPath(newOutputPath);
 
-    String uploadPath = jobConf.get(IndexJobConf.INDEX_UPLOAD_PATH) + "/" + indexFolder;
+    String uploadPath = outputFolder.toString() +"/" + indexFolder;
     Logger.info("set index upload folder: '" + uploadPath + "'");
     jobConf.set(IndexJobConf.INDEX_UPLOAD_PATH, uploadPath);
 
