@@ -172,6 +172,9 @@ public class Katta {
           _client.readData(indexPath, data);
           if (data.getState() == IndexMetaData.IndexState.DEPLOYED) {
             break;
+          } else if (data.getState() == IndexMetaData.IndexState.DEPLOY_ERROR) {
+            System.err.println("not deployed.");
+            return;
           }
           System.out.print(".");
           try {

@@ -29,6 +29,7 @@ import java.util.Set;
 
 import net.sf.katta.index.AssignedShard;
 import net.sf.katta.index.IndexMetaData;
+import net.sf.katta.index.IndexMetaData.IndexState;
 import net.sf.katta.util.ComparisonUtil;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.Logger;
@@ -140,12 +141,18 @@ public class Master {
 
   private void deployIndex(final String index, final IndexMetaData metaData) throws KattaException {
     final ArrayList<AssignedShard> shards = getShardsForIndex(index, metaData);
+    final String indexPath = IPaths.INDEXES + "/" + index;
     if (shards.size() == 0) {
+      metaData.setState(IndexMetaData.IndexState.DEPLOY_ERROR);
+      try {
+        _client.writeData(indexPath, metaData);
+      } catch (final KattaException ke) {
+        throw new RuntimeException("Failed to write Index deployError", ke);
+      }
       throw new IllegalArgumentException("No shards in folder found, this is not a valid katta virtual index.");
     }
     Logger.info("Deploying index: " + index + " [" + shards + "]");
     // add shards to index..
-    final String indexPath = IPaths.INDEXES + "/" + index;
     for (final AssignedShard shard : shards) {
       final String path = indexPath + "/" + shard.getShardName();
       if (!_client.exists(path)) {
@@ -169,9 +176,15 @@ public class Master {
               try {
                 Logger.info("Index '" + index + "' not yet fully deployed, waiting");
                 Thread.sleep(2000);
-                if (!_client.exists(IPaths.INDEXES + "/" + index)) {
+                if (!_client.exists(indexPath)) {
                   Logger.warn("Index '" + index + "' removed before the deployment completed.");
                   break;
+                } else {
+                  _client.readData(indexPath, metaData);
+                  if (metaData.getState() == IndexState.DEPLOY_ERROR) {
+                    Logger.error("deploy of index '" + index + "' failed.");
+                    return;
+                  }
                 }
               } catch (final InterruptedException e) {
                 Logger.error("Deployment process was interrupted", e);
@@ -243,8 +256,8 @@ public class Master {
       all += shardsToServe.size();
       for (final AssignedShard expectedShard : shardsToServe) {
         // lookup who is actually serving this shard.
-        final List<String> servingNodes = _client
-            .getChildren(IPaths.SHARD_TO_NODE + "/" + expectedShard.getShardName());
+        String shardPath = IPaths.SHARD_TO_NODE + "/" + expectedShard.getShardName();
+        final List<String> servingNodes = _client.getChildren(shardPath);
         // is the node we expect here already?
         boolean asExpected = false;
         for (final String servingNode : servingNodes) {

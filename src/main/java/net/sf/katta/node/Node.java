@@ -41,6 +41,8 @@ import java.util.zip.ZipInputStream;
 
 import net.sf.katta.index.AssignedShard;
 import net.sf.katta.index.DeployedShard;
+import net.sf.katta.index.IndexMetaData;
+import net.sf.katta.index.IndexMetaData.IndexState;
 import net.sf.katta.master.IPaths;
 import net.sf.katta.util.ComparisonUtil;
 import net.sf.katta.util.KattaException;
@@ -93,6 +95,10 @@ public class Node implements ISearch {
   private File _shardFolder;
 
   private String _node;
+
+  public String getNode() {
+    return _node;
+  }
 
   private final long _startTime;
 
@@ -243,8 +249,7 @@ public class Node implements ISearch {
       }
       // remove those we do not need anymore
       final List<String> localShardList = Arrays.asList(localShards);
-      final List<String> toRemove = ComparisonUtil.getRemoved(localShardList, shardsToDeploy);
-      // removeShards(toRemove);
+      ComparisonUtil.getRemoved(localShardList, shardsToDeploy);
 
       // now only download those we do not yet have local or we can't deploy
       if (shardsToDeploy != null && shardsToDeploy.size() != 0) {
@@ -356,18 +361,30 @@ public class Node implements ISearch {
           fileSystem.copyToLocalFile(path, dest);
 
         }
-        updateStatus("Ok");
+        updateStatus("OK");
         return shardFolder;
       }
     } catch (final URISyntaxException e) {
       final String msg = "Can not parse uri for path: " + assignedShard.getShardPath();
       Logger.error(msg, e);
+      updateStatus("Error: " + msg);
+      updateIndexStatus(IndexMetaData.IndexState.DEPLOY_ERROR, assignedShard.getIndexName());
       throw new RuntimeException(msg, e);
     } catch (final IOException e) {
       final String msg = "Can not load shard: " + assignedShard.getShardPath();
       Logger.error(msg, e);
+      updateStatus("Error: " + msg);
+      updateIndexStatus(IndexMetaData.IndexState.DEPLOY_ERROR, assignedShard.getIndexName());
       throw new RuntimeException(msg, e);
     }
+  }
+
+  private void updateIndexStatus(final IndexState state, final String indexName) throws KattaException {
+    final IndexMetaData metaData = new IndexMetaData();
+    String indexPath = IPaths.INDEXES + "/" + indexName;
+    _client.readData(indexPath, metaData);
+    metaData.setState(state);
+    _client.writeData(indexPath, metaData);
   }
 
   /*
