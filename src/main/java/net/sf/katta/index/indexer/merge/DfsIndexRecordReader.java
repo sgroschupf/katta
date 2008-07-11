@@ -53,9 +53,16 @@ public class DfsIndexRecordReader implements RecordReader<Text, DocumentInformat
     boolean ret = false;
     if (_doc < _maxDoc) {
       ret = true;
-      Document document = _indexReader.document(_doc);
-      String keyInfo = _duplicateInformation.getKey(document);
-      String sortValue = _duplicateInformation.getSortValue(document);
+      String keyInfo = null;
+      String sortValue = null;
+
+      try {
+        Document document = _indexReader.document(_doc);
+        keyInfo = _duplicateInformation.getKey(document);
+        sortValue = _duplicateInformation.getSortValue(document);
+      } catch (Exception e) {
+        Logger.warn("can not read document", e);
+      }
 
       if ((keyInfo == null || keyInfo.trim().equals(""))) {
         keyInfo = INVALID;
