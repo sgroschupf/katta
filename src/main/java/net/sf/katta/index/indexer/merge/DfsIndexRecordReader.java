@@ -80,7 +80,7 @@ public class DfsIndexRecordReader implements RecordReader<Text, DocumentInformat
       value.setIndexPath(_indexPath.toString());
       _doc++;
     }
-    Logger.info(_doc+ "/"+_maxDoc);
+
     return ret;
   }
 
