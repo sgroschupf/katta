@@ -30,12 +30,14 @@ public class DfsIndexRecordReader implements RecordReader<Text, DocumentInformat
 
   public static final String INVALID = "INVALID";
 
+  private FileSplit _fileSplit;
+
 
   public DfsIndexRecordReader(JobConf jobConf, InputSplit inputSplit, IDocumentDuplicateInformation duplicateInformation) throws IOException {
     _duplicateInformation = duplicateInformation;
     FileSystem fileSystem = FileSystem.get(jobConf);
-    FileSplit fileSplit = (FileSplit) inputSplit;
-    Path indexPath = fileSplit.getPath();
+    _fileSplit = (FileSplit) inputSplit;
+    Path indexPath = _fileSplit.getPath();
     //we use md5 for uncompressed folder, because some shards can have the same name
     String md5 = MD5Hash.digest(indexPath.toString()).toString();
     Path workingFolder = new Path(jobConf.getOutputPath(), ".indexes/" + indexPath.getName() + "-" + md5 + "-uncompress");
@@ -61,7 +63,7 @@ public class DfsIndexRecordReader implements RecordReader<Text, DocumentInformat
         keyInfo = _duplicateInformation.getKey(document);
         sortValue = _duplicateInformation.getSortValue(document);
       } catch (Exception e) {
-        Logger.warn("can not read document", e);
+        Logger.warn("can not read document from split '" + _fileSplit.getPath() + "'", e);
       }
 
       if ((keyInfo == null || keyInfo.trim().equals(""))) {
