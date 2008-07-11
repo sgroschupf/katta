@@ -80,6 +80,7 @@ public class DfsIndexRecordReader implements RecordReader<Text, DocumentInformat
       value.setIndexPath(_indexPath.toString());
       _doc++;
     }
+    Logger.info(_doc+ "/"+_maxDoc);
     return ret;
   }
 
@@ -92,7 +93,7 @@ public class DfsIndexRecordReader implements RecordReader<Text, DocumentInformat
   }
 
   public long getPos() throws IOException {
-    return _maxDoc > 0 ? _doc / _maxDoc : 1;
+    return _doc;
   }
 
   public void close() throws IOException {
