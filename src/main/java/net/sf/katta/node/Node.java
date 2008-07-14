@@ -255,7 +255,7 @@ public class Node implements ISearch {
       List<String> removed = ComparisonUtil.getRemoved(localShardList, shardsToDeploy);
       removeShards(removed);
       if (Logger.isDebug()) {
-        Logger.debug("No longer needed shards removed");
+        Logger.debug("No longer needed shard removed: " + removed);
       }
 
       // now only download those we do not yet have local or we can't deploy
@@ -416,7 +416,7 @@ public class Node implements ISearch {
       ZipEntry entry;
       while ((entry = zis.getNextEntry()) != null) {
 
-        Logger.debug("Extracting: '" + source.getAbsolutePath() + "'" + entry);
+        Logger.debug("Extracting:   " + entry + " from '" + source.getAbsolutePath() + "'");
         // we need to remove the first element of the path since the
         // folder was compressed but we only want the folders content
         final String entryPath = entry.getName();
@@ -730,6 +730,7 @@ public class Node implements ISearch {
    */
   private class ShardListener implements IZKEventListener {
     public void process(final WatcherEvent event) {
+      Logger.debug("Add/Remove shard.");
       synchronized (_client.getSyncMutex()) {
         if (Logger.isDebug()) {
           Logger.debug("ShardListener.process()" + _node);
