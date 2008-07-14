@@ -150,6 +150,13 @@ public class Master {
         throw new RuntimeException("Failed to write Index deployError", ke);
       }
       throw new IllegalArgumentException("No shards in folder found, this is not a valid katta virtual index.");
+    } else {
+      try {
+        metaData.setState(IndexMetaData.IndexState.ANNOUNCED);
+        _client.writeData(indexPath, metaData);
+      } catch (final KattaException ke) {
+        throw new RuntimeException("Failed to write Index deployError", ke);
+      }
     }
     Logger.info("Deploying index: " + index + " [" + shards + "]");
     // add shards to index..
@@ -334,6 +341,7 @@ public class Master {
   }
 
   private void removeIndexes(final List<String> removedIndexes) {
+    Logger.debug("Remove indexes.");
     for (final String indexName : removedIndexes) {
       try {
         removeIndex(indexName);
@@ -351,6 +359,7 @@ public class Master {
    */
   private void removeIndex(final String indexName) throws KattaException {
     synchronized (_client.getSyncMutex()) {
+      Logger.debug("Remove index: '" + indexName + "'.");
       final List<String> nodes = _client.getChildren(IPaths.NODE_TO_SHARD);
       for (final String node : nodes) {
         final String nodePath = IPaths.NODE_TO_SHARD + "/" + node;
@@ -378,9 +387,10 @@ public class Master {
           ComparisonUtil.getNew(_nodes, currentNodes);
           // addNodes(newNodes);
           _nodes = currentNodes;
-          _client.getSyncMutex().notifyAll();
         } catch (final KattaException e) {
           throw new RuntimeException("Faled to read zookeeper data.", e);
+        } finally {
+          _client.getSyncMutex().notifyAll();
         }
       }
     }
@@ -388,6 +398,7 @@ public class Master {
 
   private class IndexListener implements IZKEventListener {
     public void process(final WatcherEvent event) {
+      Logger.info("Indexes event.");
       synchronized (_client.getSyncMutex()) {
         List<String> freshIndexes;
         try {
@@ -397,9 +408,10 @@ public class Master {
           final List<String> newIndexes = ComparisonUtil.getNew(_indexes, freshIndexes);
           addIndexes(newIndexes);
           _indexes = freshIndexes;
-          _client.getSyncMutex().notifyAll();
         } catch (final KattaException e) {
-          throw new RuntimeException("Faild to read zookeeper data", e);
+          throw new RuntimeException("Failed to read zookeeper data", e);
+        } finally {
+          _client.getSyncMutex().notifyAll();
         }
       }
     }
