@@ -44,4 +44,4 @@
 # export KATTA_NICENESS=10
 
 # The level of logging. Possible values are Debug, Info, Error, Warn and None.
-KATTA_LOG_LEVEL=Debug
+export KATTA_LOG_LEVEL=Debug
