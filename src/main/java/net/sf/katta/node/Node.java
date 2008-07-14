@@ -235,6 +235,7 @@ public class Node implements ISearch {
       }
       // in case not shards are assigned we want to remove local shards.
       if (shardsToDeploy == null || shardsToDeploy.size() == 0) {
+        Logger.debug("Remove all local shards, because no shard has to be deployed.");
         LocalFileSystem localFileSystem;
         try {
           localFileSystem = FileSystem.getLocal(new Configuration());
@@ -255,7 +256,7 @@ public class Node implements ISearch {
       List<String> removed = ComparisonUtil.getRemoved(localShardList, shardsToDeploy);
       removeShards(removed);
       if (Logger.isDebug()) {
-        Logger.debug("No longer needed shard removed: " + removed);
+        Logger.debug("No longer needed shards removed: " + removed);
       }
 
       // now only download those we do not yet have local or we can't deploy
@@ -271,8 +272,10 @@ public class Node implements ISearch {
 
             // load first or use local file
             if (!existingShards.contains(shardName)) {
+              Logger.debug("Shard '" + shardName + "' has to be deployed.");
               localShardFolder = loadAndUnzipShard(assignedShard);
             } else {
+              Logger.debug("Shard '" + shardName + "' already deployed.");
               localShardFolder = new File(_shardFolder, shardName);
             }
             // deploy and announce
@@ -319,8 +322,6 @@ public class Node implements ISearch {
       final DeployedShard deployedShard = new DeployedShard(shardName, System.currentTimeMillis(), numOfDocs);
       announceShard(deployedShard);
     } catch (final Exception e) {
-      updateStatus("Error: " + e.getMessage());
-      updateIndexStatus(IndexMetaData.IndexState.DEPLOY_ERROR, assignedShard.getIndexName());
       if (localShardFolder != null) {
         if (localShardFolder.exists()) {
           deleteFolder(localShardFolder);
@@ -329,6 +330,8 @@ public class Node implements ISearch {
       if (Logger.isError()) {
         Logger.error("Unable to load shard:", e);
       }
+      updateStatus("Error: " + e.getMessage());
+      updateIndexStatus(IndexMetaData.IndexState.DEPLOY_ERROR, assignedShard.getIndexName());
     }
   }
 
