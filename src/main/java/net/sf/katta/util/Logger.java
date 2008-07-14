@@ -30,7 +30,7 @@ public class Logger {
   private static boolean WARN = false;
 
   static {
-    String logLevel = System.getProperty("KATTA_LOG_LEVEL");
+    String logLevel = System.getenv("KATTA_LOG_LEVEL");
     if (logLevel == null) {
       logLevel = "INFO";
     }
