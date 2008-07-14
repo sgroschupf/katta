@@ -265,6 +265,10 @@ public class Master {
             asExpected = true;
             deployed++;
             break;
+          } else {
+            if (Logger.isDebug()) {
+              Logger.debug("Shard '" + expectedShard + "' not yet deployed on node '" + node + "'.");
+            }
           }
         }
         if (!asExpected) {
