@@ -230,6 +230,9 @@ public class Node implements ISearch {
           return !name.startsWith(".");
         }
       });
+      if (Logger.isDebug()) {
+        Logger.debug("Getted local shard folder list.");
+      }
       // in case not shards are assigned we want to remove local shards.
       if (shardsToDeploy == null || shardsToDeploy.size() == 0) {
         LocalFileSystem localFileSystem;
@@ -244,12 +247,16 @@ public class Node implements ISearch {
             }
           }
         } catch (final IOException e) {
-          throw new KattaException("Faild use local hadoop file system.", e);
+          throw new KattaException("Failed to use local hadoop file system.", e);
         }
       }
       // remove those we do not need anymore
       final List<String> localShardList = Arrays.asList(localShards);
-      ComparisonUtil.getRemoved(localShardList, shardsToDeploy);
+      List<String> removed = ComparisonUtil.getRemoved(localShardList, shardsToDeploy);
+      removeShards(removed);
+      if (Logger.isDebug()) {
+        Logger.debug("No longer needed shards removed");
+      }
 
       // now only download those we do not yet have local or we can't deploy
       if (shardsToDeploy != null && shardsToDeploy.size() != 0) {
@@ -272,8 +279,9 @@ public class Node implements ISearch {
             final int numOfDocs = deployShard(shardName, localShardFolder);
             final DeployedShard deployedShard = new DeployedShard(shardName, System.currentTimeMillis(), numOfDocs);
             announceShard(deployedShard);
-
           } catch (final Exception e) {
+            updateStatus("Error: " + e.getMessage());
+            updateIndexStatus(IndexMetaData.IndexState.DEPLOY_ERROR, assignedShard.getIndexName());
             if (localShardFolder != null) {
               if (localShardFolder.exists()) {
                 deleteFolder(localShardFolder);
@@ -290,22 +298,29 @@ public class Node implements ISearch {
 
   private void deployAndAnnounceShards(final List<String> shardsToServe) {
     for (final String shardName : shardsToServe) {
-      deployAndAnnoucneShard(shardName);
+      try {
+        deployAndAnnounceShard(shardName);
+      } catch (KattaException e) {
+        Logger.error("Cannot deploy shard '" + shardName + "'.", e);
+      }
     }
   }
 
   /*
    * Loads, deploys and announce a single fresh assigned shard.
    */
-  private void deployAndAnnoucneShard(final String shardName) {
+  private void deployAndAnnounceShard(final String shardName) throws KattaException {
     File localShardFolder = null;
+    AssignedShard assignedShard = null;
     try {
-      final AssignedShard assignedShard = getAssignedShard(shardName);
+      assignedShard = getAssignedShard(shardName);
       localShardFolder = loadAndUnzipShard(assignedShard);
       final int numOfDocs = deployShard(shardName, localShardFolder);
       final DeployedShard deployedShard = new DeployedShard(shardName, System.currentTimeMillis(), numOfDocs);
       announceShard(deployedShard);
     } catch (final Exception e) {
+      updateStatus("Error: " + e.getMessage());
+      updateIndexStatus(IndexMetaData.IndexState.DEPLOY_ERROR, assignedShard.getIndexName());
       if (localShardFolder != null) {
         if (localShardFolder.exists()) {
           deleteFolder(localShardFolder);
@@ -401,7 +416,7 @@ public class Node implements ISearch {
       ZipEntry entry;
       while ((entry = zis.getNextEntry()) != null) {
 
-        Logger.debug("Extracting: " + entry);
+        Logger.debug("Extracting: '" + source.getAbsolutePath() + "'" + entry);
         // we need to remove the first element of the path since the
         // folder was compressed but we only want the folders content
         final String entryPath = entry.getName();
@@ -440,7 +455,8 @@ public class Node implements ISearch {
       _deployedShards.add(shardName);
       return indexSearcher.maxDoc();
     } catch (final Exception e) {
-      throw new RuntimeException("Shard index " + shardName + " can't be started", e);
+      String msg = "Shard index " + shardName + " can't be started";
+      throw new RuntimeException(msg, e);
     }
   }
 
@@ -726,9 +742,10 @@ public class Node implements ISearch {
           removeShards(shardsToRemove);
           final List<String> shardsToServe = ComparisonUtil.getNew(_deployedShards, newList);
           deployAndAnnounceShards(shardsToServe);
-          _client.getSyncMutex().notifyAll();
         } catch (final KattaException e) {
           throw new RuntimeException("Failed to read zookeeper information");
+        } finally {
+          _client.getSyncMutex().notifyAll();
         }
       }
     }
