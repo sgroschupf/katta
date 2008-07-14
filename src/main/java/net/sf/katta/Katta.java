@@ -109,13 +109,6 @@ public class Katta {
   public void removeIndex(final String indexName) throws KattaException {
     final String indexPath = IPaths.INDEXES + "/" + indexName;
     if (_client.exists(indexPath)) {
-      List<String> shards = _client.getChildren(indexPath);
-      for (String shard : shards) {
-        String shardPath = IPaths.SHARD_TO_NODE + "/" + shard;
-        if (_client.exists(shardPath)) {
-          _client.deleteRecursive(shardPath);
-        }
-      }
       _client.deleteRecursive(indexPath);
     } else {
       System.err.println("Unknown index:" + indexName);
