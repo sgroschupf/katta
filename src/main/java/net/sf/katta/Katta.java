@@ -227,7 +227,7 @@ public class Katta {
     System.err.println("\tstartMaster\tStarts a local master.");
     System.err.println("\tstartNode\tStarts a local node.");
     System.err.println("\tshowStructure\tShows the structure of a Katta installation.");
-    System.err.println("\tremoveIndex\tRemove a index from a Katta installation.");
+    System.err.println("\tremoveIndex <index name>\tRemove a index from a Katta installation.");
     System.err
         .println("\taddIndex <index name> <path to index> <lucene analyzer class> [<replication level>]\tAdd a index to a Katta installation.");
     System.exit(1);
