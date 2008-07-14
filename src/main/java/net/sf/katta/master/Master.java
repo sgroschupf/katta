@@ -135,7 +135,11 @@ public class Master {
     for (final String index : indexes) {
       final IndexMetaData metaData = new IndexMetaData();
       _client.readData(IPaths.INDEXES + "/" + index, metaData);
-      deployIndex(index, metaData);
+      try {
+        deployIndex(index, metaData);
+      } catch (Exception e) {
+        Logger.error("Cannot deploy index '" + index + "'.", e);
+      }
     }
   }
 
@@ -150,13 +154,6 @@ public class Master {
         throw new RuntimeException("Failed to write Index deployError", ke);
       }
       throw new IllegalArgumentException("No shards in folder found, this is not a valid katta virtual index.");
-    } else {
-      try {
-        metaData.setState(IndexMetaData.IndexState.ANNOUNCED);
-        _client.writeData(indexPath, metaData);
-      } catch (final KattaException ke) {
-        throw new RuntimeException("Failed to write Index deployError", ke);
-      }
     }
     Logger.info("Deploying index: " + index + " [" + shards + "]");
     // add shards to index..
@@ -172,7 +169,13 @@ public class Master {
     if (readNodes != null && readNodes.size() > 0) {
       final Map<String, List<AssignedShard>> distributionMap = _policy.distribute(_client, readNodes, shards, metaData
           .getReplicationLevel());
-      asignShards(distributionMap);
+      assignShards(distributionMap);
+      try {
+        metaData.setState(IndexMetaData.IndexState.ANNOUNCED);
+        _client.writeData(indexPath, metaData);
+      } catch (final KattaException ke) {
+        throw new RuntimeException("Failed to write Index announced", ke);
+      }
       // lets have a thread watching deployment is things are done we set the
       // flag in the meta data...
       new Thread() {
@@ -290,7 +293,7 @@ public class Master {
     return allDeployed;
   }
 
-  private void asignShards(final Map<String, List<AssignedShard>> distributionMap) throws KattaException {
+  private void assignShards(final Map<String, List<AssignedShard>> distributionMap) throws KattaException {
     final Set<String> nodes = distributionMap.keySet();
     for (final String node : nodes) {
 
@@ -331,7 +334,7 @@ public class Master {
         List<String> nodes = readNodes();
         if (nodes.size() > 0) {
           final Map<String, List<AssignedShard>> asignmentMap = _policy.distribute(_client, nodes, shards, 1);
-          asignShards(asignmentMap);
+          assignShards(asignmentMap);
         } else {
           Logger.warn("No nodes left for shard redistribution.");
         }
