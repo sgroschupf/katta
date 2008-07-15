@@ -11,7 +11,7 @@ String timestamp = ''
 int buildNumber = 1;
 
 String maven2Group = group.toString().replaceAll('\\.', '/');
-File uploadFolder = new File(kattaDevelopRepositoryUri + "/$maven2Group/$archivesBaseName/$version");
+File uploadFolder = buildDir
 
 
 usePlugin('java')
@@ -70,7 +70,8 @@ dependencies {
 
 //configure snapShot version
 init {
-  if (uploadFolder.exists()) {
+  if (requiredProperties.kattaDevelopRepositoryUri && uploadFolder.exists()) {
+    uploadFolder = new File(kattaDevelopRepositoryUri + "/$maven2Group/$archivesBaseName/$version");
     File[] files = uploadFolder.listFiles(new JarFilter());
     buildNumber = files.length + 1;
   }
