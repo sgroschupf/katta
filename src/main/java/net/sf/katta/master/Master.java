@@ -181,6 +181,7 @@ public class Master {
       new Thread() {
         @Override
         public void run() {
+          Logger.info("Wait for index '" + index + "' to be deployed.");
           try {
             while (!isDeployedAsExpected(distributionMap)) {
               try {
@@ -215,6 +216,8 @@ public class Master {
           }
         }
       }.start();
+    } else {
+      Logger.warn("No nodes announced to deploy an index to.");
     }
   }
 
@@ -381,6 +384,7 @@ public class Master {
 
   private class NodeListener implements IZKEventListener {
     public void process(final WatcherEvent event) {
+      Logger.info("Node event.");
       synchronized (_client.getSyncMutex()) {
         List<String> currentNodes;
         try {
@@ -388,7 +392,6 @@ public class Master {
           final List<String> removedNodes = ComparisonUtil.getRemoved(_nodes, currentNodes);
           removeNodes(removedNodes);
           ComparisonUtil.getNew(_nodes, currentNodes);
-          // addNodes(newNodes);
           _nodes = currentNodes;
         } catch (final KattaException e) {
           throw new RuntimeException("Faled to read zookeeper data.", e);
