@@ -1,0 +1,187 @@
+import java.text.DateFormat
+import java.text.SimpleDateFormat
+import org.apache.ivy.plugins.resolver.FileSystemResolver
+import org.gradle.api.tasks.StopExecutionException
+
+archivesBaseName = 'katta'
+group = 'net.sf.katta'
+version = '1.0-SNAPSHOT'
+snapShotVersion = version
+String timestamp = ''
+int buildNumber = 1;
+
+String maven2Group = group.toString().replaceAll('\\.', '/');
+File uploadFolder = new File(kattaDevelopRepositoryUri + "/$maven2Group/$archivesBaseName/$version");
+
+
+usePlugin('java')
+
+sourceCompatibility = 1.5
+targetCompatibility = 1.5
+
+createTask('wrapper', type: Wrapper).configure {
+  urlRoot = 'http://snapshots.dist.codehaus.org/gradle/'
+  gradleVersion = '0.3-080710112522+0200'
+  jarPath = 'lib'
+}
+
+
+Map requiredProperties = [
+  kattaDevelopRepositoryUri: hasProperty('kattaDevelopRepositoryUri'),
+  kattaDistributionUri: hasProperty('kattaDistributionUri'),
+]
+
+public class JarFilter implements FileFilter {
+
+  public boolean accept(File file) {
+    return file.getName().endsWith(".jar");
+  }
+
+}
+
+test {
+  include '**/*Test.class'
+}
+
+
+dependencies {
+  addFlatDirResolver('lib', new File(rootDir, 'lib'))
+
+  // todo create clientModule for hadoop etc.
+  compile ":hadoop-core:0.16.3", ":lucene-core:2.3.2"
+  compile ":zookeeper:2.2.0"
+  compile ":commons-cli:2.0-SNAPSHOT"
+  compile ":commons-codec:1.3"
+  compile ":jets3t:0.5.0"
+  compile ":xmlenc:0.52"
+  compile ":commons-httpclient:3.0.1"
+  compile ":zookeeper:2.2.0"
+  compile ":commons-logging:1.0.4"
+  compile ":commons-logging-api:1.0.4"
+  compile ":log4j:1.2.13"
+
+  def HAMCREST = [":hamcrest-core:1.1", ":hamcrest-library:1.1"]
+
+  clientModule(['testCompile'], ":jmock:2.4.0") {
+    dependencies(HAMCREST as String[])
+  }
+  testCompile HAMCREST, ":junit:3.8.1"
+}
+
+//configure snapShot version
+init {
+  if (uploadFolder.exists()) {
+    File[] files = uploadFolder.listFiles(new JarFilter());
+    buildNumber = files.length + 1;
+  }
+  String pattern = "yyyyMMdd.hhmmss";
+  DateFormat dateFormat = new SimpleDateFormat(pattern);
+  timestamp = dateFormat.format(new Date());
+  snapShotVersion = version.replaceAll("SNAPSHOT", "") + timestamp + "-" + buildNumber;
+}
+
+//collect runtime libs for the distribution
+File runtimeLibsDir = new File(buildDir, 'runtimeLibs')
+createTask('collectRuntimeLibs') {
+  runtimeLibsDir.mkdirs()
+  dependencies.resolve('runtime').each {File file ->
+    ant.copy(file: file, todir: runtimeLibsDir)
+  }
+  ant.copy(file: katta_jar.archivePath, toDir: runtimeLibsDir)
+}
+
+//lib tasks
+libs() {
+  jar(baseName: "katta_job") {
+    extension = "job"
+    mergeGroup(runtimeLibsDir)
+    merge(katta_jar.archivePath)
+    publish = false
+  }
+  katta_job_jar.dependsOn('katta_jar', 'collectRuntimeLibs')
+}
+
+
+uploadLibs.doFirst {
+  if (!requiredProperties.kattaDevelopRepositoryUri) {
+    throw new StopExecutionException("Please define a 'kattaDevelopRepositoryUri' in $gradleUserHome/gradle.properties");
+  }
+}
+
+// we only support the upload to the filesystem
+uploadLibs {
+  if (requiredProperties.kattaDevelopRepositoryUri) {
+    uploadResolvers.add(new FileSystemResolver()) {
+      m2compatible = true
+      addArtifactPattern("$kattaDevelopRepositoryUri/[organization]/[artifact]/[revision]/[artifact]-" + snapShotVersion + ".[ext]")
+    }
+  }
+}
+
+uploadLibs.doLast {
+  if (!requiredProperties.kattaDevelopRepositoryUri) {
+    throw new StopExecutionException("Please define a 'kattaDevelopRepositoryUri' in $gradleUserHome/gradle.properties");
+  }
+
+  //upload maven pom.xml
+  File pom = new File(uploadFolder, "/$archivesBaseName-$snapShotVersion" + ".pom");
+  ant.copy(file: 'src/build/resources/pom.xml', toFile: pom);
+
+  //upload maven-metadata.xml
+  ant.copy(file: 'src/build/resources/maven-metadata.xml', toDir: uploadFolder);
+  BufferedReader reader = new BufferedReader(new FileReader("src/build/resources/maven-metadata.xml"))
+  BufferedWriter writer = new BufferedWriter(new FileWriter(new File(uploadFolder, "maven-metadata.xml")));
+  String line = null;
+  while ((line = reader.readLine()) != null) {
+    if (line.contains("timestamp")) {
+      line = "<timestamp>" + timestamp + "</timestamp>"
+    } else if (line.contains("buildNumber")) {
+      line = "<buildNumber>" + buildNumber + "</buildNumber>";
+    } else if (line.contains("lastUpdated")) {
+      line = "<lastUpdated>" + timestamp.replace('.', '') + "</lastUpdated>";
+    }
+    writer.writeLine(line);
+  }
+  reader.close();
+  writer.close();
+}
+
+//dists task
+dists {
+  String zipRoot = "$archivesBaseName-$snapShotVersion"
+  zip() {
+    zipFileSet(dir: file('bin'), prefix: "$zipRoot/bin", fileMode: '775')
+    zipFileSet(dir: file('conf'), prefix: "$zipRoot/conf")
+    zipFileSet(dir: runtimeLibsDir, prefix: "$zipRoot/lib")
+  }
+}
+
+katta_zip.doFirst {
+  distsDir.mkdirs()
+}
+
+katta_zip.doLast {
+  ant {
+    exec(executable: 'unzip') {
+      arg(value: '-q')
+      arg(value: '-d')
+      arg(value: distsDir)
+      arg(value: katta_zip.archivePath)
+    }
+  }
+}
+
+uploadDists.doFirst {
+  if (!requiredProperties.kattaDistributionUri) {
+    throw new StopExecutionException("Please define a 'kattaDistributionUri' in $gradleUserHome/gradle.properties");
+  }
+}
+
+// we only support the upload to the filesystem
+uploadDists {
+  if (requiredProperties.kattaDistributionUri) {
+    uploadResolvers.add(new FileSystemResolver()) {
+      addArtifactPattern("$kattaDistributionUri/[artifact]-" + snapShotVersion + ".[ext]")
+    }
+  }
+}

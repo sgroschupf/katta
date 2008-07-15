@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata>
+  <groupId>net.sf.katta</groupId>
+  <artifactId>katta</artifactId>
+  <version>1.0-SNAPSHOT</version>
+  <versioning>
+    <snapshot>
+      <timestamp/>
+      <buildNumber/>
+    </snapshot>
+    <lastUpdated/>
+  </versioning>
+</metadata>

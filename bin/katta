@@ -92,7 +92,7 @@ done
 echo "get jars..."
 
 
-for file in `find ./repository -name "*.jar"`
+for file in `find ./lib -name "*.jar"`
 do
   CLASSPATH=${CLASSPATH}:$file
 done
