@@ -1,13 +1,12 @@
 import java.text.DateFormat
 import java.text.SimpleDateFormat
-import org.apache.ivy.plugins.resolver.FileSystemResolver
 import org.gradle.api.tasks.StopExecutionException
 
 archivesBaseName = 'katta'
 group = 'net.sf.katta'
 version = '1.0-SNAPSHOT'
 snapShotVersion = version
-String timestamp = ''
+String timestamp = ""
 int buildNumber = 1;
 
 String maven2Group = group.toString().replaceAll('\\.', '/');
@@ -28,7 +27,10 @@ createTask('wrapper', type: Wrapper).configure {
 
 Map requiredProperties = [
   kattaDevelopRepositoryUri: hasProperty('kattaDevelopRepositoryUri'),
-  kattaDistributionUri: hasProperty('kattaDistributionUri'),
+  kattaDistributionRepositoryUri: hasProperty('kattaDistributionRepositoryUri'),
+  kattaSshUser: hasProperty('kattaSshUser'),
+  kattaSshPassword: hasProperty('kattaSshPassword'),
+  kattaSshHost: hasProperty('kattaSshHost'),
 ]
 
 public class JarFilter implements FileFilter {
@@ -70,10 +72,20 @@ dependencies {
 
 //configure snapShot version
 init {
-  if (requiredProperties.kattaDevelopRepositoryUri && uploadFolder.exists()) {
+  if (requiredProperties.kattaDevelopRepositoryUri && requiredProperties.kattaSshUser && requiredProperties.kattaSshPassword && requiredProperties.kattaSshHost) {
+    buildDir.mkdir();
+    ant.sshexec(host: "127.0.0.1", username: "mb", password: "mb23", command: "ls $kattaDevelopRepositoryUri/$maven2Group/$archivesBaseName/$version/*.jar | wc -l", output: "$buildDir/version.txt");
+
+    BufferedReader reader = new BufferedReader(new FileReader(new File(buildDir, "version.txt")))
+    String line = reader.readLine();
+    reader.close();
+    line = line.trim();
     uploadFolder = new File(kattaDevelopRepositoryUri + "/$maven2Group/$archivesBaseName/$version");
-    File[] files = uploadFolder.listFiles(new JarFilter());
-    buildNumber = files.length + 1;
+    try {
+      buildNumber = Integer.parseInt(line) + 1;
+    } catch (NumberFormatException e) {
+      //nothing todo
+    }
   }
   String pattern = "yyyyMMdd.hhmmss";
   DateFormat dateFormat = new SimpleDateFormat(pattern);
@@ -104,18 +116,20 @@ libs() {
 
 
 uploadLibs.doFirst {
-  if (!requiredProperties.kattaDevelopRepositoryUri) {
+  if (!requiredProperties.kattaDevelopRepositoryUri || !requiredProperties.kattaSshUser || !requiredProperties.kattaSshPassword || !requiredProperties.kattaSshHost) {
     throw new StopExecutionException("Please define a 'kattaDevelopRepositoryUri' in $gradleUserHome/gradle.properties");
   }
 }
 
-// we only support the upload to the filesystem
+// we only support the upload via scp
 uploadLibs {
-  if (requiredProperties.kattaDevelopRepositoryUri) {
-    uploadResolvers.add(new FileSystemResolver()) {
-      m2compatible = true
-      addArtifactPattern("$kattaDevelopRepositoryUri/[organization]/[artifact]/[revision]/[artifact]-" + snapShotVersion + ".[ext]")
-    }
+  if (requiredProperties.kattaDevelopRepositoryUri && requiredProperties.kattaSshUser && requiredProperties.kattaSshPassword && requiredProperties.kattaSshHost) {
+    org.apache.ivy.plugins.resolver.SshResolver resolver = new org.apache.ivy.plugins.resolver.SshResolver()
+    resolver.name = 'Katta Develop Repository'
+    resolver.userPassword = kattaSshPassword
+    resolver.setArtifactPatterns(['ssh://' + kattaSshUser + '@' + kattaSshHost + ':' + kattaDevelopRepositoryUri + '/[organisation]/[artifact]/[revision]/[artifact]-' + snapShotVersion + '.[ext]'])
+    resolver.m2compatible = true
+    uploadResolvers.add(resolver)
   }
 }
 
@@ -125,13 +139,14 @@ uploadLibs.doLast {
   }
 
   //upload maven pom.xml
-  File pom = new File(uploadFolder, "/$archivesBaseName-$snapShotVersion" + ".pom");
+  File pom = new File(buildDir, "/$archivesBaseName-$snapShotVersion" + ".pom");
   ant.copy(file: 'src/build/resources/pom.xml', toFile: pom);
+  ant.scp(file: pom, toDir: "$kattaSshUser@$kattaSshHost:$uploadFolder", password: "$kattaSshPassword");
 
-  //upload maven-metadata.xml
-  ant.copy(file: 'src/build/resources/maven-metadata.xml', toDir: uploadFolder);
+  //upload maven - metadata.xml
+  File metadataFile = new File(buildDir, "maven-metadata.xml")
   BufferedReader reader = new BufferedReader(new FileReader("src/build/resources/maven-metadata.xml"))
-  BufferedWriter writer = new BufferedWriter(new FileWriter(new File(uploadFolder, "maven-metadata.xml")));
+  BufferedWriter writer = new BufferedWriter(new FileWriter(metadataFile));
   String line = null;
   while ((line = reader.readLine()) != null) {
     if (line.contains("timestamp")) {
@@ -145,6 +160,7 @@ uploadLibs.doLast {
   }
   reader.close();
   writer.close();
+  ant.scp(file: metadataFile, toDir: "$kattaSshUser@$kattaSshHost:$uploadFolder", password: "$kattaSshPassword");
 }
 
 //dists task
@@ -173,16 +189,20 @@ katta_zip.doLast {
 }
 
 uploadDists.doFirst {
-  if (!requiredProperties.kattaDistributionUri) {
-    throw new StopExecutionException("Please define a 'kattaDistributionUri' in $gradleUserHome/gradle.properties");
+  if (!requiredProperties.kattaDistributionRepositoryUri || !requiredProperties.kattaSshUser || !requiredProperties.kattaSshPassword || !requiredProperties.kattaSshHost) {
+    throw new StopExecutionException("Please define a 'kattaDistributionRepositoryUri' in $gradleUserHome/gradle.properties");
   }
 }
 
-// we only support the upload to the filesystem
+// we only support the upload via scp
 uploadDists {
-  if (requiredProperties.kattaDistributionUri) {
-    uploadResolvers.add(new FileSystemResolver()) {
-      addArtifactPattern("$kattaDistributionUri/[artifact]-" + snapShotVersion + ".[ext]")
-    }
+  if (requiredProperties.kattaDistributionRepositoryUri && requiredProperties.kattaSshUser && requiredProperties.kattaSshPassword && requiredProperties.kattaSshHost) {
+    org.apache.ivy.plugins.resolver.SshResolver resolver = new org.apache.ivy.plugins.resolver.SshResolver()
+    resolver.name = 'Katta Distribution Repository'
+    resolver.userPassword = kattaSshPassword
+    resolver.setArtifactPatterns(['ssh://' + kattaSshUser + '@' + kattaSshHost + ':' + kattaDistributionRepositoryUri + '/[artifact]-' + snapShotVersion + '.[ext]'])
+    uploadResolvers.add(resolver);
   }
 }
+
+
