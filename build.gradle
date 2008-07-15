@@ -74,7 +74,7 @@ dependencies {
 init {
   if (requiredProperties.kattaDevelopRepositoryUri && requiredProperties.kattaSshUser && requiredProperties.kattaSshPassword && requiredProperties.kattaSshHost) {
     buildDir.mkdir();
-    ant.sshexec(host: "127.0.0.1", username: "mb", password: "mb23", command: "ls $kattaDevelopRepositoryUri/$maven2Group/$archivesBaseName/$version/*.jar | wc -l", output: "$buildDir/version.txt");
+    ant.sshexec(host: "$kattaSshHost", username: "$kattaSshUser", password: "$kattaSshPassword", command: "ls $kattaDevelopRepositoryUri/$maven2Group/$archivesBaseName/$version/*.jar | wc -l", output: "$buildDir/version.txt");
 
     BufferedReader reader = new BufferedReader(new FileReader(new File(buildDir, "version.txt")))
     String line = reader.readLine();
