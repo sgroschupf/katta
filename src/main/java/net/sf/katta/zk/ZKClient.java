@@ -400,6 +400,8 @@ public class ZKClient implements Watcher {
           Logger.error("Exception on on reconnecting after session expiration.");
           throw new RuntimeException(e);
         }
+      } else {
+        Logger.error("Received an unkown event: " + event.toString());
       }
     }
   }
