@@ -20,8 +20,8 @@ targetCompatibility = 1.5
 
 createTask('wrapper', type: Wrapper).configure {
   urlRoot = 'http://snapshots.dist.codehaus.org/gradle/'
-  gradleVersion = '0.3-080710112522+0200'
-  jarPath = 'lib'
+  gradleVersion = '0.3-080716153750+0200'
+  jarPath = 'src/build/resources/lib'
 }
 
 
@@ -100,18 +100,18 @@ createTask('collectRuntimeLibs') {
   dependencies.resolve('runtime').each {File file ->
     ant.copy(file: file, todir: runtimeLibsDir)
   }
-  ant.copy(file: katta_jar.archivePath, toDir: runtimeLibsDir)
+  ant.copy(file: archive_jar.archivePath, toDir: runtimeLibsDir)
 }
 
 //lib tasks
 libs() {
-  jar(baseName: "katta_job") {
+  jar(baseName: "archive_job") {
     extension = "job"
     mergeGroup(runtimeLibsDir)
-    merge(katta_jar.archivePath)
+    merge(archive_jar.archivePath)
     publish = false
   }
-  katta_job_jar.dependsOn('katta_jar', 'collectRuntimeLibs')
+  archive_job_jar.dependsOn('archive_jar', 'collectRuntimeLibs')
 }
 
 
@@ -129,6 +129,7 @@ uploadLibs {
     resolver.userPassword = kattaSshPassword
     resolver.setArtifactPatterns(['ssh://' + kattaSshUser + '@' + kattaSshHost + ':' + kattaDevelopRepositoryUri + '/[organisation]/[artifact]/[revision]/[artifact]-' + snapShotVersion + '.[ext]'])
     resolver.m2compatible = true
+    resolver.setPublishPermissions("0644");
     uploadResolvers.add(resolver)
   }
 }
@@ -173,17 +174,17 @@ dists {
   }
 }
 
-katta_zip.doFirst {
+archive_zip.doFirst {
   distsDir.mkdirs()
 }
 
-katta_zip.doLast {
+archive_zip.doLast {
   ant {
     exec(executable: 'unzip') {
       arg(value: '-q')
       arg(value: '-d')
       arg(value: distsDir)
-      arg(value: katta_zip.archivePath)
+      arg(value: archive_zip.archivePath)
     }
   }
 }
@@ -201,6 +202,7 @@ uploadDists {
     resolver.name = 'Katta Distribution Repository'
     resolver.userPassword = kattaSshPassword
     resolver.setArtifactPatterns(['ssh://' + kattaSshUser + '@' + kattaSshHost + ':' + kattaDistributionRepositoryUri + '/[artifact]-' + snapShotVersion + '.[ext]'])
+    resolver.setPublishPermissions("0644");
     uploadResolvers.add(resolver);
   }
 }
