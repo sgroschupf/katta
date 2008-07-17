@@ -16,7 +16,7 @@ D    at net.sf.katta.ZKClient.getChildren(ZKClient.java:168)
 D    at net.sf.katta.Master$IndexListener.process(Master.java:201)
 D    at net.sf.katta.ZKClient.process(ZKClient.java:188)
 D    at com.yahoo.zookeeper.ClientCnxn$EventThread.run(ClientCnxn.java:253)
-D    
+
 + would be cool to have query logs...
 + make query logs configurable.
 + check syncronisation in node...
