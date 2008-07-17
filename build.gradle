@@ -206,5 +206,3 @@ uploadDists {
     uploadResolvers.add(resolver);
   }
 }
-
-
