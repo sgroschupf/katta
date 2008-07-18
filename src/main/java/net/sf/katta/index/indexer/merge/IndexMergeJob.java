@@ -36,6 +36,7 @@ public class IndexMergeJob implements Configurable {
 
     Path dedupPath = new Path("/tmp/katta.index.dedup", "" + System.currentTimeMillis());
 
+    _configuration.setBoolean("mapred.map.tasks.speculative.execution", false);
     IndexToSequenceFileJob indexToSequenceFileJob = new IndexToSequenceFileJob();
     indexToSequenceFileJob.setConf(_configuration);
     indexToSequenceFileJob.indexToSequenceFile(kattaIndices, dedupPath);

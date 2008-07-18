@@ -19,7 +19,6 @@
  */
 package net.sf.katta.index.indexer.merge;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 
 import net.sf.katta.util.Logger;
@@ -32,6 +31,7 @@ import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.RecordReader;
 import org.apache.lucene.document.Document;
+import org.apache.lucene.document.MapFieldSelector;
 import org.apache.lucene.index.IndexReader;
 
 
@@ -65,7 +65,7 @@ public class DfsIndexRecordReader implements RecordReader<Text, DocumentInformat
     try {
       _indexReader = IndexReader.open(new DfsIndexDirectory(fileSystem, indexPath, workingFolder));
       _maxDoc = _indexReader.maxDoc();
-    } catch (FileNotFoundException e) {
+    } catch (Exception e) {
       Logger.warn("can not open index '" + indexPath + "', ignore this index.", e);
     }
   }
@@ -78,11 +78,12 @@ public class DfsIndexRecordReader implements RecordReader<Text, DocumentInformat
       String sortValue = null;
 
       try {
-        Document document = _indexReader.document(_doc);
+        MapFieldSelector selector = new MapFieldSelector(_duplicateInformation.getSupportedFieldNames());
+        Document document = _indexReader.document(_doc, selector);
         keyInfo = _duplicateInformation.getKey(document);
         sortValue = _duplicateInformation.getSortValue(document);
       } catch (Exception e) {
-        Logger.warn("can not read document from split '" + _fileSplit.getPath() + "'", e);
+        Logger.warn("can not read document '" + _doc + "' from split '" + _fileSplit.getPath() + "'", e);
       }
 
       if ((keyInfo == null || keyInfo.trim().equals(""))) {
@@ -122,6 +123,7 @@ public class DfsIndexRecordReader implements RecordReader<Text, DocumentInformat
   }
 
   public float getProgress() throws IOException {
-    return _doc/_maxDoc;
+    return (float)_doc / _maxDoc;
   }
+
 }

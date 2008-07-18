@@ -55,7 +55,7 @@ public class DfsIndexDocumentFactory implements IDocumentFactory<Text, DocumentI
       }
       IndexReader reader = _readerMap.get(text);
       document = reader.document(docId.get());
-    } catch (IOException e) {
+    } catch (Exception e) {
       Logger.warn("can not read document '" + docId + "'from index '" + text + "'", e);
     }
     return document;

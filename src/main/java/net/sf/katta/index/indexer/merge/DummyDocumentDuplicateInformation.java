@@ -25,6 +25,10 @@ import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 
 class DummyDocumentDuplicateInformation implements IDocumentDuplicateInformation {
+  public String[] getSupportedFieldNames() {
+    return new String[]{"foo"};
+  }
+
   public String getKey(Document document) {
     List list = document.getFields();
     return list.isEmpty() ? "foo" : ((Field) list.get(0)).stringValue();

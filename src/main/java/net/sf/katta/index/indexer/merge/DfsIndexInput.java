@@ -25,6 +25,7 @@ import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.lucene.store.BufferedIndexInput;
+import net.sf.katta.util.Logger;
 
 public class DfsIndexInput extends BufferedIndexInput {
 
@@ -43,7 +44,7 @@ public class DfsIndexInput extends BufferedIndexInput {
     try {
       _fsDataInputStream.read(b, offset, len);
     } catch (IOException e) {
-      e.printStackTrace();
+      Logger.warn("can not read datas from inputstream", e);
     }
   }
 

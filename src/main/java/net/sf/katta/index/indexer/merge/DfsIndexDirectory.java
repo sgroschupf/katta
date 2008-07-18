@@ -96,10 +96,10 @@ public class DfsIndexDirectory extends Directory {
   }
 
   public void close() throws IOException {
-    _fileSystem.close();
+    //_fileSystem.close();
   }
 
-  private void decompress(final Path source, final Path target) {
+  private void decompress(final Path source, final Path target) throws IOException {
     try {
       FSDataInputStream dfsInputStream = _fileSystem.open(source);
       _fileSystem.mkdirs(target);
@@ -131,7 +131,8 @@ public class DfsIndexDirectory extends Directory {
       zipInputStream.close();
 
     } catch (final Exception e) {
-      throw new RuntimeException("unable to expand upgrade files", e);
+      Logger.error("can not open zip file", e);
+      throw new IOException("unable to expand upgrade files " + e.getMessage());
     }
   }
 

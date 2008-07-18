@@ -50,6 +50,7 @@ public class DfsIndexInputFormat extends FileInputFormat<Text, DocumentInformati
       Logger.error("can not load class: " + className, e);
       throw new IOException(e.getMessage());
     }
+    reporter.setStatus(((FileSplit)inputSplit).getPath().toString());
     return new DfsIndexRecordReader(jobConf, inputSplit, duplicateInformation);
   }
 
@@ -58,8 +59,7 @@ public class DfsIndexInputFormat extends FileInputFormat<Text, DocumentInformati
     Path[] indices = getZipIndices(jobConf, fileSystem);
     InputSplit[] splits = new InputSplit[indices.length];
     for (int i = 0; i < splits.length; i++) {
-      FileStatus fileStatus = fileSystem.getFileStatus(indices[i]);
-      splits[i] = new FileSplit(indices[i], 0, fileStatus.getLen(), jobConf);
+      splits[i] = new FileSplit(indices[i], 0, Integer.MAX_VALUE, jobConf);
     }
     return splits;
   }
@@ -83,7 +83,7 @@ public class DfsIndexInputFormat extends FileInputFormat<Text, DocumentInformati
           boolean isZip = path.getName().endsWith(".zip");
           ret = !isFile || isZip;
         } catch (IOException e) {
-          e.printStackTrace();
+          Logger.warn("can not get child directory", e);
         }
         return ret;
       }
