@@ -1,6 +1,28 @@
+/**
+ * Copyright 2008 The Apache Software Foundation
+ *
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package net.sf.katta.index.indexer.merge;
 
 import java.io.InputStream;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 import net.sf.katta.index.indexer.IndexJobConf;
 import net.sf.katta.index.indexer.ShardSelectionMapper;
@@ -17,6 +39,8 @@ import org.apache.hadoop.mapred.SequenceFileInputFormat;
 public class SequenceFileToIndexJob implements Configurable {
 
   private Configuration _configuration;
+
+  private static final DateFormat DATE_FORMAT = new SimpleDateFormat("yyyyMMdd.hhmmss");
 
   public void sequenceFileToIndex(Path sequenceFilePath, Path outputFolder) throws Exception {
 
@@ -42,13 +66,13 @@ public class SequenceFileToIndexJob implements Configurable {
     //the input key and input value class which is saved in the sequence file will be mapped out as value: BytesWritable
     jobConf.set("index.input.key.class", Text.class.getName());
     jobConf.set("index.input.value.class", DocumentInformation.class.getName());
-    String indexFolder = "" + System.currentTimeMillis() + "-merge";
+    String indexFolder = "mergedIndex-" + DATE_FORMAT.format(new Date());
 
     Path newOutputPath = new Path(jobConf.getOutputPath(), indexFolder);
     Logger.info("set mapred folder to: " + newOutputPath);
     jobConf.setOutputPath(newOutputPath);
 
-    String uploadPath = outputFolder.toString() +"/" + indexFolder;
+    String uploadPath = outputFolder.toString() + "/" + indexFolder;
     Logger.info("set index upload folder: '" + uploadPath + "'");
     jobConf.set(IndexJobConf.INDEX_UPLOAD_PATH, uploadPath);
 
