@@ -31,6 +31,7 @@ import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.RecordReader;
 import org.apache.hadoop.mapred.Reporter;
+import org.jmock.Expectations;
 import org.jmock.Mockery;
 
 public class DfsIndexInputFormatTest extends TestCase {
@@ -72,7 +73,14 @@ public class DfsIndexInputFormatTest extends TestCase {
 
     InputSplit[] splits = indexInputFormat.getSplits(jobConf, 0);
     Mockery mockery = new Mockery();
-    Reporter reporter = mockery.mock(Reporter.class);
+    final Reporter reporter = mockery.mock(Reporter.class);
+
+    mockery.checking(new Expectations() {
+      {
+        one(reporter).setStatus(with(any(String.class)));
+      }
+    });
+
     RecordReader reader = indexInputFormat.getRecordReader(splits[0], jobConf, reporter);
     assertNotNull(reader);
     assertTrue(DfsIndexRecordReader.class.isAssignableFrom(reader.getClass()));

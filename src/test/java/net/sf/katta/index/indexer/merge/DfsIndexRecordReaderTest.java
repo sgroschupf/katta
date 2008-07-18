@@ -65,6 +65,7 @@ public class DfsIndexRecordReaderTest extends TestCase {
 
     mockery.checking(new Expectations() {
       {
+        one(duplicateInformation).getSupportedFieldNames();
         one(duplicateInformation).getKey(with(any(Document.class)));
         will(returnValue("foo"));
         one(duplicateInformation).getSortValue(with(any(Document.class)));
