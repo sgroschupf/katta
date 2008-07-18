@@ -401,6 +401,10 @@ public class ZKClient implements Watcher {
           throw new RuntimeException(e);
         }
       } else {
+        // See ZOOKEEPER-77
+        if (null == event.getPath()) {
+          event.setPath("null");
+        }
         Logger.error("Received an unkown event: " + event.toString());
       }
     }
