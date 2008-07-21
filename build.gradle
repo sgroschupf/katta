@@ -201,7 +201,8 @@ uploadDists {
     org.apache.ivy.plugins.resolver.SshResolver resolver = new org.apache.ivy.plugins.resolver.SshResolver()
     resolver.name = 'Katta Distribution Repository'
     resolver.userPassword = kattaSshPassword
-    resolver.setArtifactPatterns(['ssh://' + kattaSshUser + '@' + kattaSshHost + ':' + kattaDistributionRepositoryUri + '/[artifact]-' + snapShotVersion + '.[ext]'])
+    String distributionNumber = version.replaceAll("SNAPSHOT", "") + "." + buildNumber;
+    resolver.setArtifactPatterns(['ssh://' + kattaSshUser + '@' + kattaSshHost + ':' + kattaDistributionRepositoryUri + '/[artifact]-' + distributionNumber + '.[ext]'])
     resolver.setPublishPermissions("0644");
     uploadResolvers.add(resolver);
   }
