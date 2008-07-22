@@ -187,15 +187,20 @@ public class Master {
               try {
                 Logger.info("Index '" + index + "' not yet fully deployed, waiting");
                 Thread.sleep(2000);
-                if (!_client.exists(indexPath)) {
-                  Logger.warn("Index '" + index + "' removed before the deployment completed.");
-                  break;
-                } else {
-                  _client.readData(indexPath, metaData);
-                  if (metaData.getState() == IndexState.DEPLOY_ERROR) {
-                    Logger.error("deploy of index '" + index + "' failed.");
-                    return;
+                try {
+                  if (!_client.exists(indexPath)) {
+                    Logger.warn("Index '" + index + "' removed before the deployment completed.");
+                    break;
+                  } else {
+                    _client.readData(indexPath, metaData);
+                    if (metaData.getState() == IndexState.DEPLOY_ERROR) {
+                      Logger.error("deploy of index '" + index + "' failed.");
+                      return;
+                    }
                   }
+                } catch (KattaException e) {
+                  Logger
+                      .warn("Error on getting katta state from zookeeper. A possbile temporary connection so ignoring.");
                 }
               } catch (final InterruptedException e) {
                 Logger.error("Deployment process was interrupted", e);
