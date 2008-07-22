@@ -83,11 +83,12 @@ if [ "$KATTA_IDENT_STRING" = "" ]; then
 fi
 
 # some variables
-commandForLogFile=`echo "$command" | sed -e 'y/ /_/'`
-export KATTA_LOGFILE=katta-"$KATTA_IDENT_STRING"-"$commandForLogFile"-"$HOSTNAME".log
+commandForFileName=`echo "$command" | sed -e 'y/ /_/'`
+commandForLogFileName=`echo "$commandForFileName" | sed -e 's/katta_start//'`
+export KATTA_LOGFILE=katta-"$commandForLogFileName"-"$HOSTNAME".log
 export KATTA_ROOT_LOGGER="INFO,DRFA"
-log=$KATTA_LOG_DIR/katta-$KATTA_IDENT_STRING-$commandForLogFile-$HOSTNAME.out
-pid=$KATTA_PID_DIR/katta-$KATTA_IDENT_STRING-$commandForLogFile.pid
+log=$KATTA_LOG_DIR/katta-$commandForLogFileName-$HOSTNAME.out
+pid=$KATTA_PID_DIR/katta-$KATTA_IDENT_STRING-$commandForFileName.pid
 
 # Set default scheduling priority
 if [ "$KATTA_NICENESS" = "" ]; then
@@ -121,15 +122,16 @@ case $startStop in
           
   (stop)
 
+    stopCommandDisplayName=`echo "$command" | sed -e 's/start//'`
     if [ -f "$pid" ]; then
       if kill -0 `cat "$pid"` > /dev/null 2>&1; then
-        echo stopping $command
+        echo stopping $stopCommandDisplayName
         kill `cat "$pid"`
       else
-        echo no $command to stop
+        echo no $stopCommandDisplayName to stop
       fi
     else
-      echo no $command to stop
+      echo no $stopCommandDisplayName to stop
     fi
     ;;
 
