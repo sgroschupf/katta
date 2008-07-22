@@ -83,10 +83,11 @@ if [ "$KATTA_IDENT_STRING" = "" ]; then
 fi
 
 # some variables
-export KATTA_LOGFILE=katta-"$KATTA_IDENT_STRING"-"$command"-"$HOSTNAME".log
+commandForLogFile=`echo "$command" | sed -e 'y/ /_/'`
+export KATTA_LOGFILE=katta-"$KATTA_IDENT_STRING"-"$commandForLogFile"-"$HOSTNAME".log
 export KATTA_ROOT_LOGGER="INFO,DRFA"
-log=$KATTA_LOG_DIR/katta-$KATTA_IDENT_STRING-$command-$HOSTNAME.out
-pid=$KATTA_PID_DIR/katta-$KATTA_IDENT_STRING-$command.pid
+log=$KATTA_LOG_DIR/katta-$KATTA_IDENT_STRING-$commandForLogFile-$HOSTNAME.out
+pid=$KATTA_PID_DIR/katta-$KATTA_IDENT_STRING-$commandForLogFile.pid
 
 # Set default scheduling priority
 if [ "$KATTA_NICENESS" = "" ]; then
