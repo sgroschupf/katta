@@ -8,6 +8,7 @@ version = '1.0-SNAPSHOT'
 snapShotVersion = version
 String timestamp = ""
 int buildNumber = 1;
+String distributionNumber = version;
 
 String maven2Group = group.toString().replaceAll('\\.', '/');
 File uploadFolder = buildDir
@@ -91,6 +92,7 @@ init {
   DateFormat dateFormat = new SimpleDateFormat(pattern);
   timestamp = dateFormat.format(new Date());
   snapShotVersion = version.replaceAll("SNAPSHOT", "") + timestamp + "-" + buildNumber;
+  distributionNumber = version.replaceAll("-SNAPSHOT", "") + "." + buildNumber;
 }
 
 //collect runtime libs for the distribution
@@ -166,7 +168,7 @@ uploadLibs.doLast {
 
 //dists task
 dists {
-  String zipRoot = "$archivesBaseName-$snapShotVersion"
+  String zipRoot = "$archivesBaseName-$distributionNumber"
   zip() {
     zipFileSet(dir: file('bin'), prefix: "$zipRoot/bin", fileMode: '775')
     zipFileSet(dir: file('conf'), prefix: "$zipRoot/conf")
@@ -201,7 +203,7 @@ uploadDists {
     org.apache.ivy.plugins.resolver.SshResolver resolver = new org.apache.ivy.plugins.resolver.SshResolver()
     resolver.name = 'Katta Distribution Repository'
     resolver.userPassword = kattaSshPassword
-    String distributionNumber = version.replaceAll("-SNAPSHOT", "") + "." + buildNumber;
+
     resolver.setArtifactPatterns(['ssh://' + kattaSshUser + '@' + kattaSshHost + ':' + kattaDistributionRepositoryUri + '/[artifact]-' + distributionNumber + '.[ext]'])
     resolver.setPublishPermissions("0644");
     uploadResolvers.add(resolver);
