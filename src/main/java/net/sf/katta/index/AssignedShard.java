@@ -68,7 +68,7 @@ public class AssignedShard implements Writable {
   }
 
   public String getShardPath() {
-    return _shardPath.toString();
+    return _shardPath;
   }
 
   public String getIndexName() {
