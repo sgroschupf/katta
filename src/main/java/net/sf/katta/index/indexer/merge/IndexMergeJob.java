@@ -19,18 +19,18 @@
  */
 package net.sf.katta.index.indexer.merge;
 
+import net.sf.katta.util.Logger;
 import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapred.JobConf;
-import net.sf.katta.util.Logger;
 
 public class IndexMergeJob implements Configurable {
 
   private Configuration _configuration;
 
-  public void merge(Path kattaIndices) throws Exception {
+  public void merge(Path kattaIndices, Path ouputPath, Path archivePath) throws Exception {
 
     Logger.info("collect all shards in this folder: " + kattaIndices);
 
@@ -43,14 +43,17 @@ public class IndexMergeJob implements Configurable {
 
     SequenceFileToIndexJob sequenceFileToIndexJob = new SequenceFileToIndexJob();
     sequenceFileToIndexJob.setConf(_configuration);
-    sequenceFileToIndexJob.sequenceFileToIndex(dedupPath, kattaIndices);
+    sequenceFileToIndexJob.sequenceFileToIndex(dedupPath, ouputPath);
 
     Logger.info("delete sequence file and extracted indices: " + dedupPath);
     FileSystem fileSystem = FileSystem.get(_configuration);
     fileSystem.delete(dedupPath);
 
-    Logger.info("all shards in this folder are merged: " + kattaIndices);
-    Logger.info("move these shards into a archive folder");
+    Logger.info("move katta index '" + kattaIndices + "' into a archive folder '" + archivePath + "'");
+    fileSystem.rename(kattaIndices, new Path(archivePath, kattaIndices.getName()));
+
+    Logger.info("merging done.");
+
   }
 
   public void setConf(Configuration configuration) {
@@ -62,12 +65,13 @@ public class IndexMergeJob implements Configurable {
   }
 
   public static void main(String[] args) throws Exception {
-    //TODO delete all merged katta indices
     Path kattaIndices = new Path(args[0]);
+    Path out = new Path(args[1]);
+    Path archive = new Path(args[2]);
     IndexMergeJob job = new IndexMergeJob();
     JobConf jobConf = new JobConf();
     jobConf.setJarByClass(IndexMergeJob.class);
     job.setConf(jobConf);
-    job.merge(kattaIndices);
+    job.merge(kattaIndices, out, archive);
   }
 }
