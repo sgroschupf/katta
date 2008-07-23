@@ -24,6 +24,7 @@ import java.util.List;
 
 import net.sf.katta.client.Client;
 import net.sf.katta.client.IClient;
+import net.sf.katta.index.DeployedShard;
 import net.sf.katta.index.IndexMetaData;
 import net.sf.katta.master.IPaths;
 import net.sf.katta.master.Master;
@@ -83,6 +84,39 @@ public class Katta {
         katta.listNodes();
       } else if (command.endsWith("showStructure")) {
         katta.showStructure();
+      } else if (command.endsWith("listErrors")) {
+        if (args.length > 1) {
+          katta.showErrors(args[1]);
+        } else {
+          System.err.println("Missing parameter index name.");
+          usage();
+        }
+      }
+    }
+  }
+
+  private void showErrors(final String indexName) throws KattaException {
+    System.out.println("List of errors:");
+    String indexPath = IPaths.INDEXES + "/" + indexName;
+    if (_client.exists(indexPath)) {
+      List<String> shards = _client.getChildren(indexPath);
+      for (String shardName : shards) {
+        System.out.println("Shard: " + shardName);
+        String shardPath = IPaths.SHARD_TO_NODE + "/" + shardName;
+        if (_client.exists(shardPath)) {
+          List<String> nodes = _client.getChildren(shardPath);
+          for (String node : nodes) {
+            System.out.print("\tNode: " + node);
+            String shardToNodePath = shardPath + "/" + node;
+            DeployedShard deployedShard = new DeployedShard();
+            _client.readData(shardToNodePath, deployedShard);
+            if (deployedShard.hasError()) {
+              System.out.println("\tError: " + deployedShard.getErrorMsg());
+            } else {
+              System.out.println("\tNo Error");
+            }
+          }
+        }
       }
     }
   }
@@ -223,6 +257,7 @@ public class Katta {
     System.err.println("\tremoveIndex <index name>\tRemove a index from a Katta installation.");
     System.err
         .println("\taddIndex <index name> <path to index> <lucene analyzer class> [<replication level>]\tAdd a index to a Katta installation.");
+    System.err.println("\tlistErrors <index name>\tLists all deploy errors for a specified index.");
     System.exit(1);
   }
 

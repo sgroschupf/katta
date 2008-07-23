@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.Set;
 
 import net.sf.katta.index.AssignedShard;
+import net.sf.katta.index.DeployedShard;
 import net.sf.katta.index.IndexMetaData;
 import net.sf.katta.index.IndexMetaData.IndexState;
 import net.sf.katta.util.ComparisonUtil;
@@ -190,26 +191,25 @@ public class Master {
                 try {
                   if (!_client.exists(indexPath)) {
                     Logger.warn("Index '" + index + "' removed before the deployment completed.");
-                    break;
-                  } else {
-                    _client.readData(indexPath, metaData);
-                    if (metaData.getState() == IndexState.DEPLOY_ERROR) {
-                      Logger.error("deploy of index '" + index + "' failed.");
-                      return;
-                    }
+                    return;
                   }
                 } catch (KattaException e) {
                   Logger
-                      .warn("Error on getting katta state from zookeeper. A possbile temporary connection so ignoring.");
+                      .warn("Error on getting katta state from zookeeper. A possbile temporary connection loss so ignoring.");
                 }
               } catch (final InterruptedException e) {
                 Logger.error("Deployment process was interrupted", e);
                 return;
               }
             }
-            Logger.info("Finnaly the index '" + index + "' is deployed...");
-            metaData.setState(IndexMetaData.IndexState.DEPLOYED);
-            _client.writeData(indexPath, metaData);
+            _client.readData(indexPath, metaData);
+            if (metaData.getState() == IndexState.DEPLOY_ERROR) {
+              Logger.error("deploy of index '" + index + "' failed.");
+            } else {
+              Logger.info("Finnaly the index '" + index + "' is deployed...");
+              metaData.setState(IndexMetaData.IndexState.DEPLOYED);
+              _client.writeData(indexPath, metaData);
+            }
           } catch (final KattaException e) {
             Logger.error("deploy of index '" + index + "' failed.", e);
             metaData.setState(IndexMetaData.IndexState.DEPLOY_ERROR);
@@ -266,6 +266,7 @@ public class Master {
     int all = 0;
     int deployed = 0;
     int notDeployed = 0;
+    int error = 0;
     final Set<String> nodes = distributionMap.keySet();
     boolean allDeployed = true;
     for (final String node : nodes) {
@@ -281,7 +282,13 @@ public class Master {
         for (final String servingNode : servingNodes) {
           if (node.equals(servingNode)) {
             asExpected = true;
-            deployed++;
+            DeployedShard deployedShard = new DeployedShard();
+            _client.readData(shardPath + "/" + servingNode, deployedShard);
+            if (deployedShard.hasError()) {
+              error++;
+            } else {
+              deployed++;
+            }
             break;
           }
         }
@@ -296,7 +303,8 @@ public class Master {
       }
 
     }
-    Logger.info("deploying: " + deployed + " of " + all + " deployed, pending: " + notDeployed);
+    Logger.info("deploying: " + (deployed + error) + " of " + all + " deployed, pending: " + notDeployed + ", error: "
+        + error);
     // all as expected..
     return allDeployed;
   }

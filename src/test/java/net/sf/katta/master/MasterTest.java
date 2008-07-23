@@ -27,7 +27,9 @@ import java.util.Set;
 import junit.framework.TestCase;
 import net.sf.katta.ZkServer;
 import net.sf.katta.index.AssignedShard;
+import net.sf.katta.index.DeployedShard;
 import net.sf.katta.index.IndexMetaData;
+import net.sf.katta.index.IndexMetaData.IndexState;
 import net.sf.katta.util.ZkConfiguration;
 import net.sf.katta.zk.ZKClient;
 
@@ -118,7 +120,8 @@ public class MasterTest extends TestCase {
     for (final String nodeName : keySet) {
       final List<AssignedShard> toDistribteShards = ditribute.get(nodeName);
       for (final AssignedShard assignedShard : toDistribteShards) {
-        client.create(IPaths.SHARD_TO_NODE + "/" + assignedShard.getShardName() + "/" + nodeName);
+        client.create(IPaths.SHARD_TO_NODE + "/" + assignedShard.getShardName() + "/" + nodeName, new DeployedShard(
+            assignedShard.getShardName(), System.currentTimeMillis(), 10));
       }
     }
     Thread.sleep(2000);
@@ -126,6 +129,100 @@ public class MasterTest extends TestCase {
     final IndexMetaData metaData = new IndexMetaData();
     client.readData(indexPath, metaData);
     assertEquals(IndexMetaData.IndexState.DEPLOYED, metaData.getState());
+
+    // now remove one node...
+    synchronized (client.getSyncMutex()) {
+      assertTrue(client.delete("/katta/nodes/node2"));
+      client.getSyncMutex().wait(3000);
+    }
+    assertEquals(4, client.getChildren(IPaths.NODE_TO_SHARD + "/node1").size());
+
+    List<String> shardsToIndex = client.getChildren(indexPath);
+    assertEquals(4, shardsToIndex.size());
+    client.deleteRecursive(indexPath);
+
+    for (String shard : shardsToIndex) {
+      client.deleteRecursive(IPaths.SHARD_TO_NODE + "/" + shard);
+    }
+    shardsToNode = client.getChildren(IPaths.SHARD_TO_NODE);
+    assertEquals(0, shardsToNode.size());
+
+    int count = 0;
+    while (client.getChildren(IPaths.NODE_TO_SHARD + "/node1").size() != 0) {
+      Thread.sleep(500);
+      if (count++ > 20) {
+        fail("shards are still not removed from node after 20 sec.");
+      }
+    }
+    assertEquals(0, client.getChildren(IPaths.NODE_TO_SHARD + "/node1").size());
+
+    client.close();
+    zkServer.shutdown();
+  }
+
+  public void testDeployErrorAndRemoveIndex() throws Exception {
+    final ZkConfiguration conf = new ZkConfiguration();
+    final ZkServer zkServer = new ZkServer(conf);
+    final ZKClient client = new ZKClient(conf);
+    client.waitForZooKeeper(5000);
+    if (client.exists(IPaths.ROOT_PATH)) {
+      client.deleteRecursive(IPaths.ROOT_PATH);
+    }
+    final Master master = new Master(client);
+    master.start();
+    final File file = new File("./src/test/testIndexA");
+    final String path = "file://" + file.getAbsolutePath();
+    final IndexMetaData indexMetaData = new IndexMetaData(path, StandardAnalyzer.class.getName(), 2,
+        IndexMetaData.IndexState.ANNOUNCED);
+    client.createEphemeral("/katta/nodes/node1");
+    client.create(IPaths.NODE_TO_SHARD + "/node1");
+    client.createEphemeral("/katta/nodes/node2");
+    client.create(IPaths.NODE_TO_SHARD + "/node2");
+
+    final String indexPath = "/katta/indexes/indexA";
+    client.create(indexPath, indexMetaData);
+
+    // Do not use a wait here. If there is an exception in the event handler a
+    // wait gets notified and breaks suddenly.
+    Thread.sleep(3000);
+
+    // there should be two servers here now.
+    assertEquals(2, client.getChildren(IPaths.NODE_TO_SHARD).size());
+
+    // there should be two shards here now
+    assertEquals(4, client.getChildren(IPaths.NODE_TO_SHARD + "/node1").size());
+
+    // there should be two shards here now
+    assertEquals(4, client.getChildren(IPaths.NODE_TO_SHARD + "/node2").size());
+    // there should be 4 shards indexes now..
+    List<String> shardsToNode = client.getChildren(IPaths.SHARD_TO_NODE);
+    assertEquals(4, shardsToNode.size());
+
+    // now we fake the nodes and add the nodes to the shards
+    shardsToNode = client.getChildren(IPaths.SHARD_TO_NODE);
+    assertEquals(4, shardsToNode.size());
+
+    final List<AssignedShard> shards = master.getShardsForIndex("indexA", indexMetaData);
+    final List<String> readNodes = master.readNodes();
+    final DefaultDistributionPolicy defaultDistributionPolicy = new DefaultDistributionPolicy();
+    final Map<String, List<AssignedShard>> ditribute = defaultDistributionPolicy.distribute(client, readNodes, shards,
+        2);
+    final Set<String> keySet = ditribute.keySet();
+    for (final String nodeName : keySet) {
+      final List<AssignedShard> toDistribteShards = ditribute.get(nodeName);
+      for (final AssignedShard assignedShard : toDistribteShards) {
+        DeployedShard deployedShard = new DeployedShard(assignedShard.getShardName(), System.currentTimeMillis(), 10);
+        deployedShard.setErrorMsg("luft raus");
+        client.create(IPaths.SHARD_TO_NODE + "/" + assignedShard.getShardName() + "/" + nodeName, deployedShard);
+      }
+    }
+    final IndexMetaData metaData = new IndexMetaData("path", "analyzer", 3, IndexState.DEPLOY_ERROR);
+    client.writeData(indexPath, metaData);
+    Thread.sleep(2000);
+    client.showFolders();
+    metaData.setState(IndexState.DEPLOYED);
+    client.readData(indexPath, metaData);
+    assertEquals(IndexMetaData.IndexState.DEPLOY_ERROR, metaData.getState());
 
     // now remove one node...
     synchronized (client.getSyncMutex()) {

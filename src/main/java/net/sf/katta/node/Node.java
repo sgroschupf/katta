@@ -265,6 +265,7 @@ public class Node implements ISearch {
         existingShards.addAll(localShardList);
 
         for (final String shardName : shardsToDeploy) {
+          DeployedShard deployedShard = null;
           final AssignedShard assignedShard = getAssignedShard(shardName);
 
           File localShardFolder = null;
@@ -280,8 +281,7 @@ public class Node implements ISearch {
             }
             // deploy and announce
             final int numOfDocs = deployShard(shardName, localShardFolder);
-            final DeployedShard deployedShard = new DeployedShard(shardName, System.currentTimeMillis(), numOfDocs);
-            announceShard(deployedShard);
+            deployedShard = new DeployedShard(shardName, System.currentTimeMillis(), numOfDocs);
           } catch (final Exception e) {
             updateStatus("Error: " + e.getMessage());
             updateIndexStatus(IndexMetaData.IndexState.DEPLOY_ERROR, assignedShard.getIndexName());
@@ -293,6 +293,10 @@ public class Node implements ISearch {
             if (Logger.isError()) {
               Logger.error("Unable to load shard:", e);
             }
+            deployedShard = new DeployedShard(shardName, System.currentTimeMillis(), 0);
+            deployedShard.setErrorMsg(e.getMessage());
+          } finally {
+            announceShard(deployedShard);
           }
         }
       }
@@ -313,14 +317,14 @@ public class Node implements ISearch {
    * Loads, deploys and announce a single fresh assigned shard.
    */
   private void deployAndAnnounceShard(final String shardName) throws KattaException {
+    DeployedShard deployedShard = null;
     File localShardFolder = null;
     AssignedShard assignedShard = null;
     try {
       assignedShard = getAssignedShard(shardName);
       localShardFolder = loadAndUnzipShard(assignedShard);
       final int numOfDocs = deployShard(shardName, localShardFolder);
-      final DeployedShard deployedShard = new DeployedShard(shardName, System.currentTimeMillis(), numOfDocs);
-      announceShard(deployedShard);
+      deployedShard = new DeployedShard(shardName, System.currentTimeMillis(), numOfDocs);
     } catch (final Exception e) {
       if (localShardFolder != null) {
         if (localShardFolder.exists()) {
@@ -332,6 +336,10 @@ public class Node implements ISearch {
       }
       updateStatus("Error: " + e.getMessage());
       updateIndexStatus(IndexMetaData.IndexState.DEPLOY_ERROR, assignedShard.getIndexName());
+      deployedShard = new DeployedShard(shardName, System.currentTimeMillis(), 0);
+      deployedShard.setErrorMsg(e.getMessage());
+    } finally {
+      announceShard(deployedShard);
     }
   }
 
@@ -488,7 +496,7 @@ public class Node implements ISearch {
       }
     } catch (final Exception e) {
       if (Logger.isError()) {
-        Logger.error("Unable to server Shard: " + deployedShard, e);
+        Logger.error("Unable to serve Shard: " + deployedShard, e);
       }
     }
   }
