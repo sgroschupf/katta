@@ -109,7 +109,6 @@ public class Indexer implements Reducer<WritableComparable, Writable, WritableCo
 
     int counter = 0;
     while (values.hasNext()) {
-      counter++;
       final Writable value = values.next();
       final BytesWritable bytesWritable = (BytesWritable) value;
 
@@ -121,6 +120,7 @@ public class Indexer implements Reducer<WritableComparable, Writable, WritableCo
       final Document document = _factory.convert(_inputKey, _inputValue);
       if (document != null) {
         indexWriter.addDocument(document);
+        counter++;
       } else {
         Logger.warn(_factory.getClass().getName() + " can not create document");
       }
@@ -129,6 +129,7 @@ public class Indexer implements Reducer<WritableComparable, Writable, WritableCo
         indexWriter.flush();
       }
     }
+    Logger.info(counter + " documents are added to index.");
 
     // optimize
     Thread thread = createStatusThread(reporter, "Optimize Index...");
@@ -150,7 +151,7 @@ public class Indexer implements Reducer<WritableComparable, Writable, WritableCo
     }
 
     // done
-    reporter.setStatus("Indexing done...");
+    reporter.setStatus("Indexing done. " + counter + " Documents added to index.");
   }
 
   public void close() throws IOException {
