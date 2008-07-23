@@ -19,6 +19,12 @@
  */
 package net.sf.katta.index.indexer;
 
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.File;
+import java.io.IOException;
+import java.util.Iterator;
+
 import junit.framework.TestCase;
 import net.sf.katta.index.indexer.Indexer.DocumentCounter;
 import org.apache.hadoop.fs.FileUtil;
@@ -39,12 +45,6 @@ import org.apache.lucene.document.Field.Store;
 import org.apache.lucene.index.IndexReader;
 import org.jmock.Expectations;
 import org.jmock.Mockery;
-
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.File;
-import java.io.IOException;
-import java.util.Iterator;
 
 public class IndexerTest extends TestCase {
 
@@ -97,7 +97,7 @@ public class IndexerTest extends TestCase {
       try {
         assertTrue(new File(_jobConf.get(IndexJobConf.INDEX_TMP_DIRECTORY)).exists());
         final File file = new File(_jobConf.get(IndexJobConf.INDEX_TMP_DIRECTORY));
-        final IndexReader indexReader = IndexReader.open(file.listFiles()[0]);
+        final IndexReader indexReader = IndexReader.open(file.listFiles()[0].listFiles()[0]);
         assertEquals(1, indexReader.maxDoc());
         final Document document = indexReader.document(0);
         assertEquals("bar", document.get("foo"));
@@ -185,6 +185,7 @@ public class IndexerTest extends TestCase {
         will(returnValue(false));
 
         atLeast(1).of(reporter).setStatus(with(any(String.class)));
+        one(reporter).incrCounter(DocumentCounter.INDEXED_DOCUMENT_COUNT, 1);
         one(reporter).incrCounter(DocumentCounter.DOCUMENT_COUNT, 1);
 
       }
@@ -235,6 +236,7 @@ public class IndexerTest extends TestCase {
         will(returnValue(false));
 
         atLeast(1).of(reporter).setStatus(with(any(String.class)));
+        one(reporter).incrCounter(DocumentCounter.INDEXED_DOCUMENT_COUNT, 1);
         one(reporter).incrCounter(DocumentCounter.DOCUMENT_COUNT, 1);
       }
     });

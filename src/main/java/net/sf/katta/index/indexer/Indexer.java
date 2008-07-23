@@ -150,7 +150,7 @@ public class Indexer implements Reducer<WritableComparable, Writable, WritableCo
       FileUtil.fullyDelete(new File(indexDirectory + ".zip"));
       thread.interrupt();
     }
-    FileUtil.fullyDelete(indexDirectory);
+    FileUtil.fullyDelete(indexDirectory.getParentFile());
 
     // done
     reporter.setStatus("Indexing done. " + counter + " Documents added to index.");
