@@ -40,7 +40,7 @@ import org.apache.lucene.store.FSDirectory;
 public class Indexer implements Reducer<WritableComparable, Writable, WritableComparable, Writable> {
 
   public static enum DocumentCounter {
-    DOCUMENT_COUNT
+    DOCUMENT_COUNT, INDEXED_DOCUMENT_COUNT
   }
 
 
@@ -74,8 +74,8 @@ public class Indexer implements Reducer<WritableComparable, Writable, WritableCo
     _factory = getDocumentFactory(jobConf);
     _indexPublisher = getPublisher(jobConf);
     _zipService = getZipper(jobConf);
-    _tmpIndexDirectory = jobConf.get(IndexJobConf.INDEX_TMP_DIRECTORY, (System.getProperty("java.io.tmpdir")
-      + File.separator + System.currentTimeMillis()));
+    _tmpIndexDirectory = jobConf.get(IndexJobConf.INDEX_TMP_DIRECTORY, (System.getProperty("java.io.tmpdir"))) +
+      File.separator + System.currentTimeMillis();
     _indexFlushThreshold = jobConf.getInt(IndexJobConf.FLUSH_THRESHOLD, 10);
     _indexerMaxMerge = jobConf.getInt(IndexJobConf.INDEXER_MAX_MERGE, 10);
     _indexerMergeFactor = jobConf.getInt(IndexJobConf.INDEXER_MERGE_FACTOR, 10);
@@ -121,6 +121,7 @@ public class Indexer implements Reducer<WritableComparable, Writable, WritableCo
       if (document != null) {
         indexWriter.addDocument(document);
         counter++;
+        reporter.incrCounter(DocumentCounter.INDEXED_DOCUMENT_COUNT, 1);
       } else {
         Logger.warn(_factory.getClass().getName() + " can not create document");
       }
@@ -146,9 +147,10 @@ public class Indexer implements Reducer<WritableComparable, Writable, WritableCo
       // upload
       thread = createStatusThread(reporter, "Publish Index...");
       _indexPublisher.publish(indexDirectory.getAbsolutePath() + ".zip");
-      FileUtil.fullyDelete(indexDirectory);
+      FileUtil.fullyDelete(new File(indexDirectory + ".zip"));
       thread.interrupt();
     }
+    FileUtil.fullyDelete(indexDirectory);
 
     // done
     reporter.setStatus("Indexing done. " + counter + " Documents added to index.");

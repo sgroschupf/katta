@@ -19,9 +19,14 @@
  */
 package net.sf.katta.index.indexer.merge;
 
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+
 import net.sf.katta.util.Logger;
 import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapred.JobConf;
@@ -29,6 +34,8 @@ import org.apache.hadoop.mapred.JobConf;
 public class IndexMergeJob implements Configurable {
 
   private Configuration _configuration;
+
+  private static final DateFormat DATE_FORMAT = new SimpleDateFormat("yyyyMMdd.hhmmss");
 
   public void merge(Path kattaIndices, Path ouputPath, Path archivePath) throws Exception {
 
@@ -49,8 +56,18 @@ public class IndexMergeJob implements Configurable {
     FileSystem fileSystem = FileSystem.get(_configuration);
     fileSystem.delete(dedupPath);
 
-    Logger.info("move katta index '" + kattaIndices + "' into a archive folder '" + archivePath + "'");
-    fileSystem.rename(kattaIndices, new Path(archivePath, kattaIndices.getName()));
+    Logger.info("move katta content of folder'" + kattaIndices + "' into a archive folder '" + archivePath + "'");
+    FileStatus[] fileStatuses = fileSystem.listStatus(kattaIndices);
+
+    Path currentArchivePath = new Path(archivePath, kattaIndices.getName() + "-" + DATE_FORMAT.format(new Date()));
+    fileSystem.mkdirs(currentArchivePath);
+    for (FileStatus fileStatus : fileStatuses) {
+      Path path = fileStatus.getPath();
+      Path renamedPath = new Path(currentArchivePath, path.getName());
+      Logger.info("rename '" + path + "' to'" + renamedPath + "'");
+      fileSystem.rename(path, renamedPath);
+    }
+
 
     Logger.info("merging done.");
 
