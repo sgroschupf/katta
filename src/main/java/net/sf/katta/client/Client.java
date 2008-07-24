@@ -158,6 +158,7 @@ public class Client implements IClient {
       for (final String shardName : indexShards) {
         final ArrayList<String> nodes = _client.subscribeChildChanges(IPaths.SHARD_TO_NODE + "/" + shardName,
             _shardListener);
+        Logger.debug("Add shard listener in client.");
         _shardsToNode.put(shardName, nodes);
       }
     } else {
@@ -331,6 +332,7 @@ public class Client implements IClient {
   private class ShardListener implements IZKEventListener {
 
     public void process(final WatcherEvent event) {
+      Logger.debug("Shard event in client.");
       // a shard got a new node or one was removed...
       synchronized (_client.getSyncMutex()) {
         final String shardPath = event.getPath();
