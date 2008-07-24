@@ -158,14 +158,14 @@ public class Katta {
     final List<String> nodes = _client.getChildren(IPaths.NODES);
     if (null != nodes) {
       // header
-      final Table table = new Table(new String[] { "Name", "Start time", "Healthy", "Status" });
+      final Table table = new Table(new String[] { "Name", "Start time", "Healthy", "Status", "Starting" });
 
       for (final String node : nodes) {
         final String path = IPaths.NODES + "/" + node;
         final NodeMetaData nodeMetaData = new NodeMetaData();
         _client.readData(path, nodeMetaData);
         table.addRow(new String[] { nodeMetaData.getName(), nodeMetaData.getStartTimeAsDate(),
-            "" + nodeMetaData.isHealth(), nodeMetaData.getStatus() });
+            "" + nodeMetaData.isHealth(), nodeMetaData.getStatus(), nodeMetaData.isStarting() + "" });
       }
       System.out.println(table.toString());
     }
