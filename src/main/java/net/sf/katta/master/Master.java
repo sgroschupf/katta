@@ -31,6 +31,7 @@ import net.sf.katta.index.AssignedShard;
 import net.sf.katta.index.DeployedShard;
 import net.sf.katta.index.IndexMetaData;
 import net.sf.katta.index.IndexMetaData.IndexState;
+import net.sf.katta.node.NodeMetaData;
 import net.sf.katta.util.ComparisonUtil;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.Logger;
@@ -118,16 +119,40 @@ public class Master {
       if (indexes.size() > 0) {
         addIndexes(indexes);
       }
+      _indexes = indexes;
     }
   }
 
   private void loadNodes() throws KattaException {
     Logger.debug("Loading nodes...");
+    waitForNodeStartup();
     synchronized (_client.getSyncMutex()) {
       final ArrayList<String> children = _client.subscribeChildChanges(IPaths.NODES, new NodeListener());
       Logger.debug("Found nodes: " + children);
       assert children != null;
       _nodes = children;
+    }
+  }
+
+  private void waitForNodeStartup() throws KattaException {
+    List<String> nodes = new ArrayList<String>();
+    while (nodes.size() == 0) {
+      nodes = _client.getChildren(IPaths.NODES);
+      try {
+        Thread.sleep(5000);
+      } catch (InterruptedException e) {
+        Logger.error("Wait for nodes was interrupted.", e);
+      }
+      boolean nodesStarted = false;
+      while (!nodesStarted) {
+        nodesStarted = true;
+        for (String node : nodes) {
+          String nodePath = IPaths.NODES + "/" + node;
+          NodeMetaData nodeMetaData = new NodeMetaData();
+          _client.readData(nodePath, nodeMetaData);
+          nodesStarted = nodesStarted && !nodeMetaData.isStarting();
+        }
+      }
     }
   }
 
@@ -148,11 +173,11 @@ public class Master {
     final ArrayList<AssignedShard> shards = getShardsForIndex(index, metaData);
     final String indexPath = IPaths.INDEXES + "/" + index;
     if (shards.size() == 0) {
-      metaData.setState(IndexMetaData.IndexState.DEPLOY_ERROR);
+      metaData.setState(IndexMetaData.IndexState.NO_VALID_KATTA_INDEX);
       try {
         _client.writeData(indexPath, metaData);
       } catch (final KattaException ke) {
-        throw new RuntimeException("Failed to write Index deployError", ke);
+        throw new RuntimeException("Failed to write Index no valid katta index", ke);
       }
       throw new IllegalArgumentException("No shards in folder found, this is not a valid katta virtual index.");
     }
@@ -303,8 +328,7 @@ public class Master {
       }
 
     }
-    Logger.info("deploying: " + (deployed + error) + " of " + all + " deployed, pending: " + notDeployed + ", error: "
-        + error);
+    Logger.info("deploying: " + deployed + " of " + all + " deployed, pending: " + notDeployed + ", error: " + error);
     // all as expected..
     return allDeployed;
   }

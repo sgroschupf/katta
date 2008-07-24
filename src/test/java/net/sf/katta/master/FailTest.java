@@ -21,6 +21,7 @@ package net.sf.katta.master;
 
 import junit.framework.TestCase;
 import net.sf.katta.Katta;
+import net.sf.katta.TimingTestUtil;
 import net.sf.katta.ZkServer;
 import net.sf.katta.client.Client;
 import net.sf.katta.node.Node;
@@ -49,16 +50,36 @@ public class FailTest extends TestCase {
     cleanNameSpace(client);
 
     final Master master = new Master(masterClient);
-    master.start();
-    waitFor(client, IPaths.MASTER);
+    new Thread(new Runnable() {
+
+      public void run() {
+        try {
+          master.start();
+        } catch (KattaException e) {
+          // TODO Auto-generated catch block
+          e.printStackTrace();
+        }
+      }
+    }).start();
+    TimingTestUtil.waitFor(client, IPaths.MASTER);
 
     final Node node = new Node(nodeClient);
     node.start();
-    waitFor(client, IPaths.NODES, 1);
+    TimingTestUtil.waitFor(client, IPaths.NODES, 1);
 
     // start secondary master..
     final Master secMaster = new Master(secMasterClient);
-    secMaster.start();
+    new Thread(new Runnable() {
+
+      public void run() {
+        try {
+          secMaster.start();
+        } catch (KattaException e) {
+          // TODO Auto-generated catch block
+          e.printStackTrace();
+        }
+      }
+    }).start();
     // kill master
     masterClient.close();
     int count = 0;
@@ -67,7 +88,7 @@ public class FailTest extends TestCase {
     }
 
     // just make sure we can read the file
-    waitFor(client, IPaths.MASTER);
+    TimingTestUtil.waitFor(client, IPaths.MASTER);
 
     assertTrue(secMaster.isMaster());
     zkServer.shutdown();
@@ -76,7 +97,7 @@ public class FailTest extends TestCase {
     secMasterClient.close();
   }
 
-  private void cleanNameSpace(final ZKClient client) throws KattaException {
+  public static void cleanNameSpace(final ZKClient client) throws KattaException {
     final String kattaPath = "/katta";
     if (client.exists(kattaPath)) {
       client.deleteRecursive(kattaPath);
@@ -95,8 +116,17 @@ public class FailTest extends TestCase {
     final ZKClient masterClient = new ZKClient(zkConf);
 
     final Master master = new Master(masterClient);
-    master.start();
-    waitFor(zkClient, IPaths.MASTER);
+    new Thread(new Runnable() {
+
+      public void run() {
+        try {
+          master.start();
+        } catch (KattaException e) {
+          e.printStackTrace();
+        }
+      }
+    }).start();
+    TimingTestUtil.waitFor(zkClient, IPaths.MASTER);
 
     // create 3 nodes
     final NodeConfiguration sconf1 = new NodeConfiguration();
@@ -113,7 +143,7 @@ public class FailTest extends TestCase {
     final String defaulFolder3 = sconf3.getShardFolder();
     sconf3.setShardFolder(defaulFolder3 + "/" + 3);
     final DummyNode s3 = new DummyNode(zkConf, sconf3);
-    waitFor(zkClient, IPaths.NODES, 3);
+    TimingTestUtil.waitFor(zkClient, IPaths.NODES, 3);
     // deploy index
 
     final Katta katta = new Katta();
@@ -150,22 +180,6 @@ public class FailTest extends TestCase {
     s2.close();
     s3.close();
 
-  }
-
-  private void waitFor(final ZKClient client, final String path, final int size) throws InterruptedException,
-  KattaException {
-    int count = 0;
-    while (client.getChildren(path).size() != size && count++ < 100) {
-      Thread.sleep(1000);
-    }
-
-  }
-
-  private void waitFor(final ZKClient client, final String path) throws KattaException, InterruptedException {
-    int count = 0;
-    while (!client.exists(path) && count++ < 100) {
-      Thread.sleep(1000);
-    }
   }
 
   private class DummyNode {

@@ -44,8 +44,17 @@ public class NodeServerTest extends TestCase {
     if (zkClient.exists(IPaths.ROOT_PATH)) {
       zkClient.deleteRecursive(IPaths.ROOT_PATH);
     }
-    Master master = new Master(zkClient);
-    master.start();
+    final Master master = new Master(zkClient);
+    new Thread(new Runnable() {
+
+      public void run() {
+        try {
+          master.start();
+        } catch (KattaException e) {
+          e.printStackTrace();
+        }
+      }
+    }).start();
 
     Node node = NodeServerTest.startNodeServer(zkClient);
     TimingTestUtil.waitFor(zkClient, IPaths.NODES, 1);
@@ -77,8 +86,17 @@ public class NodeServerTest extends TestCase {
     if (zkClient.exists(IPaths.ROOT_PATH)) {
       zkClient.deleteRecursive(IPaths.ROOT_PATH);
     }
-    Master master = new Master(zkClient);
-    master.start();
+    final Master master = new Master(zkClient);
+    new Thread(new Runnable() {
+
+      public void run() {
+        try {
+          master.start();
+        } catch (KattaException e) {
+          e.printStackTrace();
+        }
+      }
+    }).start();
 
     Node node = NodeServerTest.startNodeServer(zkClient);
     TimingTestUtil.waitFor(zkClient, IPaths.NODES, 1);
@@ -475,14 +493,22 @@ public class NodeServerTest extends TestCase {
   // server.shutdown();
   // }
   //
-  public static Node startNodeServer(final ZKClient client) {
+  public static Node startNodeServer(final ZKClient client, final String shardFolder) {
 
-    final Node node = new Node(client, new NodeConfiguration());
+    NodeConfiguration configuration = new NodeConfiguration();
+    if (null != shardFolder) {
+      configuration.setShardFolder(shardFolder);
+    }
+    final Node node = new Node(client, configuration);
     try {
       node.start();
     } catch (final KattaException e) {
       e.printStackTrace();
     }
     return node;
+  }
+
+  public static Node startNodeServer(final ZKClient client) {
+    return startNodeServer(client, null);
   }
 }

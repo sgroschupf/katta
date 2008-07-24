@@ -37,7 +37,7 @@ public class IndexMetaData implements Writable {
   private IndexState _state;
 
   public enum IndexState {
-    ANNOUNCED(0), DEPLOYED(1), DEPLOY_ERROR(2), UNDEPLOYED(3);
+    ANNOUNCED(0), DEPLOYED(1), DEPLOY_ERROR(2), UNDEPLOYED(3), NO_VALID_KATTA_INDEX(4);
     private int _value;
 
     IndexState(final int value) {

@@ -42,8 +42,13 @@ public class NodeMetaData implements Writable {
 
   private long _startTimeStamp;
 
+  private boolean _starting;
+
+  public boolean isStarting() {
+    return _starting;
+  }
+
   public NodeMetaData() {
-    ;
   }
 
   public NodeMetaData(final String name, final String status, final boolean isHealthy, final long startTime) {
@@ -72,6 +77,7 @@ public class NodeMetaData implements Writable {
     _isHealthy = in.readBoolean();
     _exception.readFields(in);
     _startTimeStamp = in.readLong();
+    _starting = in.readBoolean();
 
   }
 
@@ -82,6 +88,7 @@ public class NodeMetaData implements Writable {
     out.writeBoolean(_isHealthy);
     _exception.write(out);
     out.writeLong(_startTimeStamp);
+    out.writeBoolean(_starting);
   }
 
   @Override
@@ -111,6 +118,10 @@ public class NodeMetaData implements Writable {
 
   public String getName() {
     return _name.toString();
+  }
+
+  public void setStarting(final boolean starting) {
+    _starting = starting;
   }
 
 }

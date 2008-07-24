@@ -31,8 +31,8 @@ import net.sf.katta.master.Master;
 import net.sf.katta.node.Hit;
 import net.sf.katta.node.Hits;
 import net.sf.katta.node.Node;
-import net.sf.katta.node.Query;
 import net.sf.katta.node.NodeServerTest;
+import net.sf.katta.node.Query;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.Logger;
 import net.sf.katta.util.ZkConfiguration;
@@ -66,7 +66,16 @@ public class ClientTest extends TestCase {
       _zkclient.deleteRecursive(IPaths.ROOT_PATH);
     }
     _master = new Master(_zkclient);
-    _master.start();
+    new Thread(new Runnable() {
+
+      public void run() {
+        try {
+          _master.start();
+        } catch (KattaException e) {
+          e.printStackTrace();
+        }
+      }
+    }).start();
 
     _server1 = NodeServerTest.startNodeServer(_zkclient);
     _server2 = NodeServerTest.startNodeServer(_zkclient);

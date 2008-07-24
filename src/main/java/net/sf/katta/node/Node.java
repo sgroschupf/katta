@@ -139,7 +139,7 @@ public class Node implements ISearch {
     _node = startRPCServer(_configuration);
     final ArrayList<String> shardsToServe = announceNode();
 
-    updateStatus("STARTING");
+    updateStatus("STARTING", true);
     _searcher = new KattaMultiSearcher(_node);
     checkAndDeployExistingShards(shardsToServe);
     Logger.info("Started: " + _node + "...");
@@ -153,7 +153,7 @@ public class Node implements ISearch {
     } else {
       throw new RuntimeException("tried 10000 ports and no one is free...");
     }
-    updateStatus("OK");
+    updateStatus("OK", false);
   }
 
   public void join() {
@@ -193,6 +193,7 @@ public class Node implements ISearch {
     if (!_client.exists(nodeToShardPath)) {
       _client.create(nodeToShardPath);
     }
+    Logger.debug("Add shard listener in node.");
     return _client.subscribeChildChanges(nodeToShardPath, new ShardListener());
   }
 
@@ -387,7 +388,7 @@ public class Node implements ISearch {
           fileSystem.copyToLocalFile(path, dest);
 
         }
-        updateStatus("OK");
+        updateStatus("Load and Unzip Shard ready.");
         return shardFolder;
       }
     } catch (final URISyntaxException e) {
@@ -524,7 +525,7 @@ public class Node implements ISearch {
       if (_client.exists(nodePath)) {
         _client.delete(nodePath);
       } // remove node serving it.
-      if (_client.getChildren(shardPath).size() == 0) {
+      if (_client.exists(shardPath) && _client.getChildren(shardPath).size() == 0) {
         // this was the last node
         _client.delete(shardPath);
       }
@@ -732,6 +733,18 @@ public class Node implements ISearch {
     final NodeMetaData metaData = new NodeMetaData();
     _client.readData(path, metaData);
     metaData.setStatus(statusMsg);
+    _client.writeData(path, metaData);
+  }
+
+  /*
+   * Updates the status of the node in zookeeper.
+   */
+  private void updateStatus(final String statusMsg, final boolean starting) throws KattaException {
+    final String path = IPaths.NODES + "/" + _node;
+    final NodeMetaData metaData = new NodeMetaData();
+    _client.readData(path, metaData);
+    metaData.setStatus(statusMsg);
+    metaData.setStarting(starting);
     _client.writeData(path, metaData);
   }
 

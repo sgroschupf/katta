@@ -400,6 +400,9 @@ public class ZKClient implements Watcher {
           Logger.error("Exception on on reconnecting after session expiration.");
           throw new RuntimeException(e);
         }
+      } else if ((event.getType() == Watcher.Event.EventNone)
+          && (event.getState() == Watcher.Event.KeeperStateDisconnected)) {
+        // TODO: What to do?
       } else {
         // See ZOOKEEPER-77
         if (null == event.getPath()) {
