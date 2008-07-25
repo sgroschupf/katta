@@ -403,6 +403,11 @@ public class ZKClient implements Watcher {
       } else if ((event.getType() == Watcher.Event.EventNone)
           && (event.getState() == Watcher.Event.KeeperStateDisconnected)) {
         // TODO: What to do?
+        // See ZOOKEEPER-77
+        if (null == event.getPath()) {
+          event.setPath("null");
+        }
+        Logger.error("Received an unkown event: " + event.toString());
       } else {
         // See ZOOKEEPER-77
         if (null == event.getPath()) {
