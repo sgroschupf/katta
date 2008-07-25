@@ -138,6 +138,7 @@ public class Node implements ISearch {
     }
     _node = startRPCServer(_configuration);
     final ArrayList<String> shardsToServe = announceNode();
+    Logger.info("My old shards to serve: " + shardsToServe);
 
     updateStatus("STARTING", true);
     _searcher = new KattaMultiSearcher(_node);
@@ -409,9 +410,13 @@ public class Node implements ISearch {
   private void updateIndexStatus(final IndexState state, final String indexName) throws KattaException {
     final IndexMetaData metaData = new IndexMetaData();
     String indexPath = IPaths.INDEXES + "/" + indexName;
-    _client.readData(indexPath, metaData);
-    metaData.setState(state);
-    _client.writeData(indexPath, metaData);
+    try {
+      _client.readData(indexPath, metaData);
+      metaData.setState(state);
+      _client.writeData(indexPath, metaData);
+    } catch (Exception e) {
+      Logger.error("Failed to update index status.", e);
+    }
   }
 
   /*
@@ -728,12 +733,16 @@ public class Node implements ISearch {
   /*
    * Updates the status of the node in zookeeper.
    */
-  private void updateStatus(final String statusMsg) throws KattaException {
+  private void updateStatus(final String statusMsg) {
     final String path = IPaths.NODES + "/" + _node;
     final NodeMetaData metaData = new NodeMetaData();
-    _client.readData(path, metaData);
-    metaData.setStatus(statusMsg);
-    _client.writeData(path, metaData);
+    try {
+      _client.readData(path, metaData);
+      metaData.setStatus(statusMsg);
+      _client.writeData(path, metaData);
+    } catch (KattaException e) {
+      Logger.error("Cannot update node status.", e);
+    }
   }
 
   /*
@@ -742,10 +751,14 @@ public class Node implements ISearch {
   private void updateStatus(final String statusMsg, final boolean starting) throws KattaException {
     final String path = IPaths.NODES + "/" + _node;
     final NodeMetaData metaData = new NodeMetaData();
-    _client.readData(path, metaData);
-    metaData.setStatus(statusMsg);
-    metaData.setStarting(starting);
-    _client.writeData(path, metaData);
+    try {
+      _client.readData(path, metaData);
+      metaData.setStatus(statusMsg);
+      metaData.setStarting(starting);
+      _client.writeData(path, metaData);
+    } catch (KattaException e) {
+      Logger.error("Cannot update node status.", e);
+    }
   }
 
   /*
@@ -795,7 +808,7 @@ public class Node implements ISearch {
             _client.writeData(path, metaData);
           }
         } catch (final KattaException e) {
-          Logger.error("Failed to update data in zookeeper", e);
+          Logger.error("Failed to update node status (StatusUpdater).", e);
         }
       }
     }
