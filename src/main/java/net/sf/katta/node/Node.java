@@ -41,8 +41,6 @@ import java.util.zip.ZipInputStream;
 
 import net.sf.katta.index.AssignedShard;
 import net.sf.katta.index.DeployedShard;
-import net.sf.katta.index.IndexMetaData;
-import net.sf.katta.index.IndexMetaData.IndexState;
 import net.sf.katta.master.IPaths;
 import net.sf.katta.util.ComparisonUtil;
 import net.sf.katta.util.KattaException;
@@ -78,6 +76,7 @@ public class Node implements ISearch {
 
   public static final long _protocolVersion = 0;
 
+  @SuppressWarnings("unused")
   private static final long versionID = 0;
 
   private static final int BUFFER = 4096;
@@ -286,7 +285,6 @@ public class Node implements ISearch {
             deployedShard = new DeployedShard(shardName, System.currentTimeMillis(), numOfDocs);
           } catch (final Exception e) {
             updateStatus("Error: " + e.getMessage());
-            updateIndexStatus(IndexMetaData.IndexState.DEPLOY_ERROR, assignedShard.getIndexName());
             if (localShardFolder != null) {
               if (localShardFolder.exists()) {
                 deleteFolder(localShardFolder);
@@ -337,7 +335,6 @@ public class Node implements ISearch {
         Logger.error("Unable to load shard:", e);
       }
       updateStatus("Error: " + e.getMessage());
-      updateIndexStatus(IndexMetaData.IndexState.DEPLOY_ERROR, assignedShard.getIndexName());
       deployedShard = new DeployedShard(shardName, System.currentTimeMillis(), 0);
       deployedShard.setErrorMsg(e.getMessage());
     } finally {
@@ -396,26 +393,15 @@ public class Node implements ISearch {
       final String msg = "Can not parse uri for path: " + assignedShard.getShardPath();
       Logger.error(msg, e);
       updateStatus("Error: " + msg);
-      updateIndexStatus(IndexMetaData.IndexState.DEPLOY_ERROR, assignedShard.getIndexName());
+      updateShardStatusInNode(assignedShard.getIndexName(), msg);
+
       throw new RuntimeException(msg, e);
     } catch (final IOException e) {
       final String msg = "Can not load shard: " + assignedShard.getShardPath();
       Logger.error(msg, e);
       updateStatus("Error: " + msg);
-      updateIndexStatus(IndexMetaData.IndexState.DEPLOY_ERROR, assignedShard.getIndexName());
+      updateShardStatusInNode(assignedShard.getIndexName(), msg);
       throw new RuntimeException(msg, e);
-    }
-  }
-
-  private void updateIndexStatus(final IndexState state, final String indexName) throws KattaException {
-    final IndexMetaData metaData = new IndexMetaData();
-    String indexPath = IPaths.INDEXES + "/" + indexName;
-    try {
-      _client.readData(indexPath, metaData);
-      metaData.setState(state);
-      _client.writeData(indexPath, metaData);
-    } catch (Exception e) {
-      Logger.error("Failed to update index status.", e);
     }
   }
 
@@ -758,6 +744,26 @@ public class Node implements ISearch {
       _client.writeData(path, metaData);
     } catch (KattaException e) {
       Logger.error("Cannot update node status.", e);
+    }
+  }
+
+  private void updateShardStatusInNode(final String shardName, final String errorMsg) {
+    final String nodePath = IPaths.SHARD_TO_NODE + "/" + shardName + "/" + _node;
+    DeployedShard deployedShard = new DeployedShard();
+    try {
+      if (_client.exists(nodePath)) {
+        _client.readData(nodePath, deployedShard);
+        if (null == errorMsg) {
+          deployedShard.cleanError();
+        } else {
+          deployedShard.setErrorMsg(errorMsg);
+        }
+        _client.writeData(nodePath, deployedShard);
+      }
+    } catch (final Exception e) {
+      if (Logger.isError()) {
+        Logger.error("Failed to write shard status." + deployedShard, e);
+      }
     }
   }
 

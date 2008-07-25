@@ -30,7 +30,6 @@ import java.util.Set;
 import net.sf.katta.index.AssignedShard;
 import net.sf.katta.index.DeployedShard;
 import net.sf.katta.index.IndexMetaData;
-import net.sf.katta.index.IndexMetaData.IndexState;
 import net.sf.katta.node.NodeMetaData;
 import net.sf.katta.util.ComparisonUtil;
 import net.sf.katta.util.KattaException;
@@ -49,6 +48,12 @@ import org.apache.hadoop.fs.PathFilter;
 import com.yahoo.zookeeper.proto.WatcherEvent;
 
 public class Master {
+
+  private static final byte NOT_DEPLOYED = 0;
+
+  private static final byte DEPLOYED = 1;
+
+  private static final byte DEPLOYED_WITH_ERRORS = 2;
 
   ZKClient _client;
 
@@ -209,7 +214,8 @@ public class Master {
         public void run() {
           Logger.info("Wait for index '" + index + "' to be deployed.");
           try {
-            while (!isDeployedAsExpected(distributionMap)) {
+            byte deployResult = NOT_DEPLOYED;
+            while ((deployResult = isDeployedAsExpected(distributionMap)) == NOT_DEPLOYED) {
               try {
                 Logger.info("Index '" + index + "' not yet fully deployed, waiting");
                 Thread.sleep(2000);
@@ -228,13 +234,14 @@ public class Master {
               }
             }
             _client.readData(indexPath, metaData);
-            if (metaData.getState() == IndexState.DEPLOY_ERROR) {
+            if (deployResult == DEPLOYED_WITH_ERRORS) {
               Logger.error("deploy of index '" + index + "' failed.");
+              metaData.setState(IndexMetaData.IndexState.DEPLOY_ERROR);
             } else {
               Logger.info("Finnaly the index '" + index + "' is deployed...");
               metaData.setState(IndexMetaData.IndexState.DEPLOYED);
-              _client.writeData(indexPath, metaData);
             }
+            _client.writeData(indexPath, metaData);
           } catch (final KattaException e) {
             Logger.error("deploy of index '" + index + "' failed.", e);
             metaData.setState(IndexMetaData.IndexState.DEPLOY_ERROR);
@@ -287,13 +294,13 @@ public class Master {
     return shards;
   }
 
-  private boolean isDeployedAsExpected(final Map<String, List<AssignedShard>> distributionMap) throws KattaException {
+  private byte isDeployedAsExpected(final Map<String, List<AssignedShard>> distributionMap) throws KattaException {
+    byte result = NOT_DEPLOYED;
     int all = 0;
     int deployed = 0;
     int notDeployed = 0;
     int error = 0;
     final Set<String> nodes = distributionMap.keySet();
-    boolean allDeployed = true;
     for (final String node : nodes) {
       // which shards this node should serve..
       final List<AssignedShard> shardsToServe = distributionMap.get(node);
@@ -320,7 +327,6 @@ public class Master {
         if (!asExpected) {
           // node is not yet serving shard
           notDeployed++;
-          allDeployed = false;
           if (Logger.isDebug()) {
             Logger.debug("Shard '" + expectedShard + "' not yet deployed on node '" + node + "'.");
           }
@@ -330,7 +336,15 @@ public class Master {
     }
     Logger.info("deploying: " + deployed + " of " + all + " deployed, pending: " + notDeployed + ", error: " + error);
     // all as expected..
-    return allDeployed;
+
+    if ((deployed + error) == all) {
+      if (error > 0) {
+        result = DEPLOYED_WITH_ERRORS;
+      } else {
+        result = DEPLOYED;
+      }
+    }
+    return result;
   }
 
   private void assignShards(final Map<String, List<AssignedShard>> distributionMap) throws KattaException {
