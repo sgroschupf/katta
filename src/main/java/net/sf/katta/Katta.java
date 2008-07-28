@@ -35,6 +35,7 @@ import net.sf.katta.node.Node;
 import net.sf.katta.node.NodeMetaData;
 import net.sf.katta.node.Query;
 import net.sf.katta.util.KattaException;
+import net.sf.katta.util.Logger;
 import net.sf.katta.util.ZkConfiguration;
 import net.sf.katta.zk.ZKClient;
 
@@ -91,8 +92,34 @@ public class Katta {
           System.err.println("Missing parameter index name.");
           usage();
         }
+      } else if (command.endsWith("redeployIndex")) {
+        if (args.length > 1) {
+          katta.redeployIndex(args[1]);
+        } else {
+          System.err.println("Missing parameter index name.");
+          usage();
+        }
       }
     }
+  }
+
+  private void redeployIndex(final String indexName) throws KattaException {
+    String indexPath = IPaths.INDEXES + "/" + indexName;
+    IndexMetaData indexMetaData = new IndexMetaData();
+    if (_client.exists(indexPath)) {
+      _client.readData(indexPath, indexMetaData);
+      try {
+        removeIndex(indexName);
+        Thread.sleep(5000);
+        addIndex(indexName, indexMetaData.getPath(), indexMetaData.getAnalyzerClassName(), indexMetaData
+            .getReplicationLevel());
+      } catch (InterruptedException e) {
+        Logger.error("Redeployment of index '" + indexName + "' interrupted.");
+      }
+    } else {
+      System.err.println("Index '" + indexName + "' not found.");
+    }
+
   }
 
   private void showErrors(final String indexName) throws KattaException {
@@ -258,6 +285,7 @@ public class Katta {
     System.err
         .println("\taddIndex <index name> <path to index> <lucene analyzer class> [<replication level>]\tAdd a index to a Katta installation.");
     System.err.println("\tlistErrors <index name>\tLists all deploy errors for a specified index.");
+    System.err.println("\tredeployIndex <index name>\tTries to deploy an index.");
     System.exit(1);
   }
 
