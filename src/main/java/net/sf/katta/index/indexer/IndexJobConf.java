@@ -75,6 +75,8 @@ public class IndexJobConf extends JobConf {
 
   public static final String INDEX_UPLOAD_PATH = "index.upload.path";
 
+  public static final String INDEX_ARCHIVE_PATH = "index.archive.path";
+
   /**
    * Mapred IO *
    */
