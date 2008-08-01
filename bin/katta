@@ -81,7 +81,7 @@ if [ -d "$KATTA_HOME/target/test-classes" ]; then
 fi
 
 # so that filenames w/ spaces are handled correctly in loops below
-IFS= \n
+IFS=
 
 # for releases, add core katta jar to CLASSPATH
 for f in $KATTA_HOME/katta-*.jar; do
