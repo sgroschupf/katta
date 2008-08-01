@@ -29,6 +29,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.mapred.JobConf;
 
 public class IndexMergeJob implements Configurable {
@@ -50,14 +51,19 @@ public class IndexMergeJob implements Configurable {
 
     SequenceFileToIndexJob sequenceFileToIndexJob = new SequenceFileToIndexJob();
     sequenceFileToIndexJob.setConf(_configuration);
-    sequenceFileToIndexJob.sequenceFileToIndex(dedupPath, ouputPath);
+    final String mergedIndex = sequenceFileToIndexJob.sequenceFileToIndex(dedupPath, ouputPath);
 
     Logger.info("delete sequence file and extracted indices: " + dedupPath);
     FileSystem fileSystem = FileSystem.get(_configuration);
     fileSystem.delete(dedupPath);
 
     Logger.info("move katta content of folder'" + kattaIndices + "' into a archive folder '" + archivePath + "'");
-    FileStatus[] fileStatuses = fileSystem.listStatus(kattaIndices);
+    PathFilter filter = new PathFilter() {
+      public boolean accept(Path path) {
+        return (!path.getName().equals(mergedIndex)); 
+      }
+    };
+    FileStatus[] fileStatuses = fileSystem.listStatus(kattaIndices, filter);
 
     Path currentArchivePath = new Path(archivePath, kattaIndices.getName() + "-" + DATE_FORMAT.format(new Date()));
     fileSystem.mkdirs(currentArchivePath);

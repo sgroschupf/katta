@@ -42,7 +42,9 @@ public class SequenceFileToIndexJob implements Configurable {
 
   private static final DateFormat DATE_FORMAT = new SimpleDateFormat("yyyyMMdd.hhmmss");
 
-  public void sequenceFileToIndex(Path sequenceFilePath, Path outputFolder) throws Exception {
+  public static final String MERGED_INDEX_PREFIX = "mergedIndex-";
+
+  public String sequenceFileToIndex(Path sequenceFilePath, Path outputFolder) throws Exception {
 
     InputStream resourceAsStream = SequenceFileToIndexJob.class.getResourceAsStream("/katta.index.properties");
     JobConf jobConf = new IndexJobConf().create(_configuration, resourceAsStream);
@@ -66,7 +68,7 @@ public class SequenceFileToIndexJob implements Configurable {
     //the input key and input value class which is saved in the sequence file will be mapped out as value: BytesWritable
     jobConf.set("index.input.key.class", Text.class.getName());
     jobConf.set("index.input.value.class", DocumentInformation.class.getName());
-    String indexFolder = "mergedIndex-" + DATE_FORMAT.format(new Date());
+    String indexFolder = MERGED_INDEX_PREFIX + DATE_FORMAT.format(new Date());
 
     Path newOutputPath = new Path(jobConf.getOutputPath(), indexFolder);
     Logger.info("set mapred folder to: " + newOutputPath);
@@ -81,6 +83,7 @@ public class SequenceFileToIndexJob implements Configurable {
     // run the job
     JobClient.runJob(jobConf);
 
+    return indexFolder;
   }
 
   public void setConf(Configuration configuration) {
