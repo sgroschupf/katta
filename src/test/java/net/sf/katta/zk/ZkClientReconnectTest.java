@@ -19,8 +19,11 @@ import com.yahoo.zookeeper.ZooKeeper;
 
 public abstract class ZkClientReconnectTest extends TestCase {
 
-  // TODO jz: enable tests
   int GATEWAY_PORT = 2190;
+
+  public void testDisabled() throws Exception {
+    // TODO jz: enable tests
+  }
 
   class Gateway implements Runnable {
 
