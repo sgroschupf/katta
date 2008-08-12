@@ -35,22 +35,26 @@ public class ZKClientTest extends AbstractKattaTest {
 
   static Integer _mutex = new Integer(-1);
 
+  @Override
+  protected void onSetUp() throws Exception {
+    System.out.println("_____________" + getName());
+  }
+
   public void testWait() throws Exception {
     final ZKClient client = new ZKClient(conf);
     try {
       client.start(500);
-      fail("this should fail, since no server is yet started.");
+      fail("this should fail, since no zk server is yet started.");
     } catch (final Exception e) {
       // expected
     }
-    final ZkServer zkServer = new ZkServer(conf);
+    createZkServer();
     client.start(3000);// now should work
     client.close();
-    zkServer.shutdown();
   }
 
   public void testCreateFolder() throws KattaException, InterruptedException {
-    final ZkServer zkServer = new ZkServer(conf);
+    createZkServer();
     final ZKClient client = new ZKClient(conf);
     final String path = "/katta";
     client.start(10000);
@@ -79,8 +83,6 @@ public class ZKClientTest extends AbstractKattaTest {
     assertEquals(2, children.size());
     client.deleteRecursive(path);
     client.close();
-    Thread.sleep(2000);
-    zkServer.shutdown();
   }
 
   public void testChildNotifications() throws Exception {
@@ -88,15 +90,15 @@ public class ZKClientTest extends AbstractKattaTest {
     final ZKClient client = new ZKClient(conf);
     client.start(10000);
     final MyListener listener = new MyListener();
-    final String katta = "/katta";
-    if (client.exists(katta)) {
-      client.deleteRecursive(katta);
+    final String file = "/childFile";
+    if (client.exists(file)) {
+      client.deleteRecursive(file);
     }
-    client.create(katta);
-    client.subscribeChildChanges(katta, listener);
+    client.create(file);
+    client.subscribeChildChanges(file, listener);
     for (int i = 0; i < 10; i++) {
       synchronized (_mutex) {
-        client.create(katta + "/" + i);
+        client.create(file + "/" + i);
         _mutex.wait();
       }
     }
@@ -111,7 +113,7 @@ public class ZKClientTest extends AbstractKattaTest {
     final ZKClient client = new ZKClient(conf);
     client.start(10000);
     final MyListener listener = new MyListener();
-    final String katta = "/katta";
+    final String katta = "/dataFile";
     if (client.exists(katta)) {
       client.deleteRecursive(katta);
     }
