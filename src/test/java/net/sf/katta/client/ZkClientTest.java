@@ -11,12 +11,11 @@ import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 
+import com.yahoo.zookeeper.ZooKeeper;
 import junit.framework.TestCase;
 import net.sf.katta.ZkServer;
 import net.sf.katta.util.ZkConfiguration;
 import net.sf.katta.zk.ZKClient;
-
-import com.yahoo.zookeeper.ZooKeeper;
 
 public class ZkClientTest extends TestCase {
 
@@ -26,6 +25,7 @@ public class ZkClientTest extends TestCase {
 
     private Socket _socket;
     private ServerSocket _serverSocket;
+    private Socket _outgoingSocket;
 
     public void run() {
       try {
@@ -35,9 +35,9 @@ public class ZkClientTest extends TestCase {
         final InputStream incomingInputStream = _socket.getInputStream();
         final OutputStream incomingOutputStream = _socket.getOutputStream();
 
-        Socket outgoingSocket = new Socket("localhost", 2181);
-        final InputStream outgoingInputStream = outgoingSocket.getInputStream();
-        final OutputStream outgoingOutputStream = outgoingSocket.getOutputStream();
+        _outgoingSocket = new Socket("localhost", 2181);
+        final InputStream outgoingInputStream = _outgoingSocket.getInputStream();
+        final OutputStream outgoingOutputStream = _outgoingSocket.getOutputStream();
 
         Runnable runnable1 = new Runnable() {
           public void run() {
@@ -61,7 +61,7 @@ public class ZkClientTest extends TestCase {
                 incomingOutputStream.write(read);
               }
             } catch (IOException e) {
-              e.printStackTrace();
+              //
             }
           }
         };
@@ -83,6 +83,7 @@ public class ZkClientTest extends TestCase {
       try {
         System.out.println("stop the gateway");
         _socket.close();
+        _outgoingSocket.close();
         _serverSocket.close();
       } catch (Exception e) {
         e.printStackTrace();
@@ -117,7 +118,7 @@ public class ZkClientTest extends TestCase {
 
   }
 
-  public void disabled_testNetworkDown() throws Exception {
+  public void testNetworkDown() throws Exception {
 
     // write client property file
     File folder = new File(System.getProperty("java.io.tmpdir"), ZkClientTest.class.getName());
@@ -125,7 +126,7 @@ public class ZkClientTest extends TestCase {
     File file = new File(folder, "zk.properties");
     BufferedWriter bufferedWriter = new BufferedWriter(new FileWriter(file));
     InputStreamReader streamReader = new InputStreamReader(ZkClientTest.class
-        .getResourceAsStream("/katta.zk.properties"));
+      .getResourceAsStream("/katta.zk.properties"));
     BufferedReader bufferedReader = new BufferedReader(streamReader);
     String line = null;
     while ((line = bufferedReader.readLine()) != null) {
@@ -138,29 +139,44 @@ public class ZkClientTest extends TestCase {
     bufferedWriter.close();
     bufferedReader.close();
 
+
+    Gateway gateway = new Gateway();
+    Thread thread = new Thread(gateway);
+    thread.setDaemon(true);
+    thread.start();
+
     ZkConfiguration serverConfiguration = new ZkConfiguration();
     ZkConfiguration clientConfiguration = new ZkConfiguration(file);
     ZkServer server = new ZkServer(serverConfiguration);
     ZKClient client = new ZKClient(clientConfiguration);
-    // client.start(30000);
+    client.start(2000);
 
     waitForStatus(client, ZooKeeper.States.CONNECTING, clientConfiguration.getZKTimeOut());
     waitForStatus(client, ZooKeeper.States.CONNECTING, clientConfiguration.getZKTimeOut());
 
     for (int i = 0; i < 3; i++) {
       System.out.println("test reconnect " + i);
-      startAndStopGateway(clientConfiguration, client);
-      waitForStatus(client, ZooKeeper.States.CONNECTING, clientConfiguration.getZKTimeOut());
-      assertEquals(ZooKeeper.States.CONNECTING, client.getZookeeperStates());
+      gateway = stopAndStartGateway(gateway, clientConfiguration, client);
     }
 
+    gateway.stop();
     server.shutdown();
     client.close();
 
   }
 
-  private void startAndStopGateway(ZkConfiguration clientConfiguration, ZKClient client) throws Exception {
-    Gateway gateway = new Gateway();
+  private Gateway stopAndStartGateway(Gateway gateway, ZkConfiguration clientConfiguration, ZKClient client) throws Exception {
+
+    waitForStatus(client, ZooKeeper.States.CONNECTED, clientConfiguration.getZKTimeOut());
+    assertEquals(ZooKeeper.States.CONNECTED, client.getZookeeperStates());
+
+    gateway.stop();
+
+    waitForStatus(client, ZooKeeper.States.CONNECTING, clientConfiguration.getZKTimeOut());
+    assertEquals(ZooKeeper.States.CONNECTING, client.getZookeeperStates());
+
+
+    gateway = new Gateway();
     Thread thread = new Thread(gateway);
     thread.setDaemon(true);
     thread.start();
@@ -168,14 +184,13 @@ public class ZkClientTest extends TestCase {
     waitForStatus(client, ZooKeeper.States.CONNECTED, clientConfiguration.getZKTimeOut());
     assertEquals(ZooKeeper.States.CONNECTED, client.getZookeeperStates());
 
-    gateway.stop();
-
+    return gateway;
   }
 
   private void waitForStatus(ZKClient client, ZooKeeper.States states, long timeOut) throws Exception {
     long endTime = System.currentTimeMillis() + timeOut;
 
-    while ((endTime > System.currentTimeMillis()) && !(client.getZookeeperStates().name().equals(states.name()))) {
+    while ((endTime > System.currentTimeMillis()) && client.getZookeeperStates() != null && !(client.getZookeeperStates().name().equals(states.name()))) {
       Thread.sleep(500);
     }
   }

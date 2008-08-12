@@ -72,7 +72,7 @@ import org.apache.lucene.search.Query;
 
 import com.yahoo.zookeeper.proto.WatcherEvent;
 
-public class Node implements ISearch {
+public class Node implements ISearch, IAnnouncer {
 
   public static final long _protocolVersion = 0;
 
@@ -125,23 +125,29 @@ public class Node implements ISearch {
    */
 
   public void start() throws KattaException {
-    Logger.debug("Starting node...");
-    if (!_client.isStarted()) {
-      _client.start(30000);
-    }
 
     final String shardFolder = _configuration.getShardFolder();
     _shardFolder = new File(shardFolder);
     if (!_shardFolder.exists()) {
       _shardFolder.mkdirs();
     }
+
+
+    Logger.debug("Starting node...");
+    Logger.debug("Starting rpc server...");
     _node = startRPCServer(_configuration);
-    final ArrayList<String> shardsToServe = announceNode();
-    Logger.info("My old shards to serve: " + shardsToServe);
+
+    Logger.debug("Starting client...");
+    if (!_client.isStarted()) {
+      _client.start(30000);
+    }
+    announceNode(_client);
 
     updateStatus("STARTING", true);
+
+
     _searcher = new KattaMultiSearcher(_node);
-    checkAndDeployExistingShards(shardsToServe);
+
     Logger.info("Started: " + _node + "...");
 
     if (_server != null) {
@@ -181,21 +187,21 @@ public class Node implements ISearch {
   /*
    * Writes node ephemeral data into zookeeper
    */
-  private ArrayList<String> announceNode() throws KattaException {
+  private ArrayList<String> announceNode(ZKClient client) throws KattaException {
     Logger.debug("Announces node " + _node);
     final NodeMetaData metaData = new NodeMetaData(_node, "booting", true, _startTime);
     final String nodePath = IPaths.NODES + "/" + _node;
     final String nodeToShardPath = IPaths.NODE_TO_SHARD + "/" + _node;
-    if (_client.exists(nodePath)) {
+    if (client.exists(nodePath)) {
       Logger.debug("Old node for this host detected, will be removed...");
-      _client.delete(nodePath);
+      client.delete(nodePath);
     }
-    _client.createEphemeral(nodePath, metaData);
-    if (!_client.exists(nodeToShardPath)) {
-      _client.create(nodeToShardPath);
+    client.createEphemeral(nodePath, metaData);
+    if (!client.exists(nodeToShardPath)) {
+      client.create(nodeToShardPath);
     }
     Logger.debug("Add shard listener in node.");
-    return _client.subscribeChildChanges(nodeToShardPath, new ShardListener());
+    return client.subscribeChildChanges(nodeToShardPath, new ShardListener());
   }
 
   /*
@@ -766,6 +772,13 @@ public class Node implements ISearch {
         Logger.error("Failed to write shard status." + deployedShard, e);
       }
     }
+  }
+
+  public void announce(ZKClient client) throws KattaException {
+    ArrayList<String> shardsToServe = announceNode(client);
+    Logger.info("My old shards to serve: " + shardsToServe);
+    checkAndDeployExistingShards(shardsToServe);
+    updateStatus("OK", false);
   }
 
   /*

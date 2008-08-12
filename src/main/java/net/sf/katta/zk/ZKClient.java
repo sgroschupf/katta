@@ -25,27 +25,25 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 
+import com.yahoo.zookeeper.KeeperException;
+import com.yahoo.zookeeper.Watcher;
+import com.yahoo.zookeeper.ZooDefs.CreateFlags;
+import com.yahoo.zookeeper.ZooDefs.Ids;
+import com.yahoo.zookeeper.ZooKeeper;
+import com.yahoo.zookeeper.proto.WatcherEvent;
 import net.sf.katta.master.IPaths;
+import net.sf.katta.node.IAnnouncer;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.Logger;
 import net.sf.katta.util.ZkConfiguration;
-
 import org.apache.hadoop.io.DataInputBuffer;
 import org.apache.hadoop.io.DataOutputBuffer;
 import org.apache.hadoop.io.Writable;
 
-import com.yahoo.zookeeper.KeeperException;
-import com.yahoo.zookeeper.Watcher;
-import com.yahoo.zookeeper.ZooKeeper;
-import com.yahoo.zookeeper.ZooDefs.CreateFlags;
-import com.yahoo.zookeeper.ZooDefs.Ids;
-import com.yahoo.zookeeper.ZooKeeper.States;
-import com.yahoo.zookeeper.proto.WatcherEvent;
-
 /**
  * Abstracts the interation with zookeeper and allows permanent (not just one
  * time) watches on nodes in ZooKeeper
- * 
+ *
  */
 public class ZKClient implements Watcher {
 
@@ -59,6 +57,7 @@ public class ZKClient implements Watcher {
   private final String _servers;
   private final int _port;
   private final int _timeOut;
+  private List<IAnnouncer> _announcers = new ArrayList<IAnnouncer>();
 
   public ZKClient(final ZkConfiguration configuration) {
     _servers = configuration.getZKServers();
@@ -73,7 +72,7 @@ public class ZKClient implements Watcher {
   /**
    * Starts a zookeeper client and waits until connected with one of the
    * zookeeper servers.
-   * 
+   *
    * @param maxMsToWaitUntilConnected
    *          the milliseconds a method call will wait until the zookeeper
    *          client is connected with the server
@@ -95,7 +94,7 @@ public class ZKClient implements Watcher {
     // wait until connected
     try {
       while (_zk.getState() != ZooKeeper.States.CONNECTED) {
-        States state = _zk.getState();
+        ZooKeeper.States state = _zk.getState();
         if (System.currentTimeMillis() - startTime > maxMsToWaitUntilConnected) {
           _zk = null;
           throw new KattaException("No connected with zookeeper server yet. Current state is " + state);
@@ -105,6 +104,9 @@ public class ZKClient implements Watcher {
       }
 
       createDefaultNameSpace();
+      for (IAnnouncer announcer : _announcers) {
+        announcer.announce(this);
+      }
     } catch (final InterruptedException e) {
       Logger.warn("waiting for the zookeeper server was interrupted", e);
     }
@@ -128,7 +130,7 @@ public class ZKClient implements Watcher {
   /**
    * Subscribes an {@link IZKEventListener} for permanent notifications for
    * children changes (adds and removes) of given path.
-   * 
+   *
    * @param path
    * @param listener
    * @return list of children nodes for given path.
@@ -153,7 +155,7 @@ public class ZKClient implements Watcher {
   /**
    * Subscribes notifications for permanent notifications for data changes on
    * the given node path.
-   * 
+   *
    * @param path
    * @param listener
    * @throws KattaException
@@ -213,7 +215,7 @@ public class ZKClient implements Watcher {
 
   /**
    * Creates an node for given path without any data.
-   * 
+   *
    * @param path
    * @throws KattaException
    */
@@ -223,7 +225,7 @@ public class ZKClient implements Watcher {
 
   /**
    * Creates an node for given path with given {@link Writable} data.
-   * 
+   *
    * @param path
    * @param writable
    * @throws KattaException
@@ -262,7 +264,7 @@ public class ZKClient implements Watcher {
   /**
    * Creates an ephemeral node for give path. In case the client that created
    * that node disconnects the node is removed.
-   * 
+   *
    * @param path
    * @throws KattaException
    */
@@ -272,7 +274,7 @@ public class ZKClient implements Watcher {
 
   /**
    * Creates and ephemeral node with given data of the writable.
-   * 
+   *
    * @param path
    * @param writable
    * @throws KattaException
@@ -284,7 +286,7 @@ public class ZKClient implements Watcher {
   /**
    * Deletes a given path. For recursive deletes use
    * {@link #deleteRecursive(String)}.
-   * 
+   *
    * @param path
    * @return
    * @throws KattaException
@@ -311,7 +313,7 @@ public class ZKClient implements Watcher {
 
   /**
    * Deletes a path and all children recursivly.
-   * 
+   *
    * @param path
    * @return
    * @throws KattaException
@@ -347,7 +349,7 @@ public class ZKClient implements Watcher {
 
   /**
    * Checks if a node with given path exists.
-   * 
+   *
    * @param path
    * @return
    * @throws KattaException
@@ -365,7 +367,7 @@ public class ZKClient implements Watcher {
 
   /**
    * Returns an List of all Children names of given path.
-   * 
+   *
    * @param path
    * @return
    * @throws KattaException
@@ -460,7 +462,7 @@ public class ZKClient implements Watcher {
   /**
    * Reads that data of given path into a writeable instance. Make sure you use
    * the same writable implementation as you used to write the data.
-   * 
+   *
    * @param path
    * @param writable
    * @return
@@ -515,8 +517,7 @@ public class ZKClient implements Watcher {
   /**
    * Shows the full node structure of the Zookeeper server. Useful for
    * debugging.
-   * 
-   * @param out
+   *
    * @throws KattaException
    */
   public void showFolders() throws KattaException {
@@ -551,7 +552,7 @@ public class ZKClient implements Watcher {
 
   /**
    * Creates a node and writes data of writable into the given path.
-   * 
+   *
    * @param path
    * @param writable
    * @throws KattaException
@@ -571,7 +572,7 @@ public class ZKClient implements Watcher {
   /**
    * StringUtil that returns the last token of an unix style path with "/" as
    * seperator.
-   * 
+   *
    * @param path
    * @return
    */
@@ -589,7 +590,7 @@ public class ZKClient implements Watcher {
 
   /**
    * Creates a set of default folder structure for katta within a zookeeper .
-   * 
+   *
    * @throws KattaException
    */
   private void createDefaultNameSpace() throws KattaException {
@@ -625,6 +626,15 @@ public class ZKClient implements Watcher {
   }
 
   public ZooKeeper.States getZookeeperStates() {
-    return _zk.getState();
+    return _zk != null ? _zk.getState() : null;
   }
+
+  public void addAnnouncer(IAnnouncer announcer) throws KattaException {
+    _announcers.add(announcer);
+  }
+
+  public List<IAnnouncer> getAnnouncers() {
+    return _announcers;
+  }
+
 }
