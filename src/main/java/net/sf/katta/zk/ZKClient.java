@@ -39,6 +39,7 @@ import com.yahoo.zookeeper.Watcher;
 import com.yahoo.zookeeper.ZooKeeper;
 import com.yahoo.zookeeper.ZooDefs.CreateFlags;
 import com.yahoo.zookeeper.ZooDefs.Ids;
+import com.yahoo.zookeeper.ZooKeeper.States;
 import com.yahoo.zookeeper.proto.WatcherEvent;
 
 /**
@@ -94,9 +95,10 @@ public class ZKClient implements Watcher {
     // wait until connected
     try {
       while (_zk.getState() != ZooKeeper.States.CONNECTED) {
+        States state = _zk.getState();
         if (System.currentTimeMillis() - startTime > maxMsToWaitUntilConnected) {
           _zk = null;
-          throw new KattaException("No connected with zookeeper server yet. Current state is " + _zk.getState());
+          throw new KattaException("No connected with zookeeper server yet. Current state is " + state);
         }
         Logger.debug("Zookeeper ZkServer not yet available, sleeping...");
         Thread.sleep(1000);
