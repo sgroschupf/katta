@@ -439,7 +439,7 @@ public class ZKClient implements Watcher {
         Logger.debug("Zookeeper session expired.");
         try {
           close();
-          start(30000);
+          start(1000 * 60 * 10);
         } catch (final Exception e) {
           throw new RuntimeException("Exception while restarting zk client", e);
         }
