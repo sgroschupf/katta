@@ -89,14 +89,12 @@ public class Client implements IClient {
     _policy = policy;
     _client = new ZKClient(config);
     synchronized (_client.getSyncMutex()) {
-      _client.waitForZooKeeper(30000);
+      _client.start(30000);
       // first get all changes on index..
-      _client.createDefaultNameSpace();
       _client.subscribeChildChanges(IPaths.INDEXES, _indexPathChangeListener);
       loadIndexAndShardsData();
     }
     _start = System.currentTimeMillis();
-
   }
 
   private void loadIndexAndShardsData() throws KattaException {

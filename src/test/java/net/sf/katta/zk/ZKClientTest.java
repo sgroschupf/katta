@@ -21,7 +21,7 @@ package net.sf.katta.zk;
 
 import java.util.List;
 
-import junit.framework.TestCase;
+import net.sf.katta.AbstractKattaTest;
 import net.sf.katta.ZkServer;
 import net.sf.katta.index.IndexMetaData;
 import net.sf.katta.util.KattaException;
@@ -31,30 +31,29 @@ import org.apache.hadoop.io.Text;
 
 import com.yahoo.zookeeper.proto.WatcherEvent;
 
-public class ZKClientTest extends TestCase {
+public class ZKClientTest extends AbstractKattaTest {
+
   static Integer _mutex = new Integer(-1);
 
   public void testWait() throws Exception {
-    final ZkConfiguration conf = new ZkConfiguration();
     final ZKClient client = new ZKClient(conf);
     try {
-      client.waitForZooKeeper(500);
+      client.start(500);
       fail("this should fail, since no server is yet started.");
     } catch (final Exception e) {
-      ;
+      // expected
     }
     final ZkServer zkServer = new ZkServer(conf);
-    client.waitForZooKeeper(3000);// now should work
+    client.start(3000);// now should work
     client.close();
     zkServer.shutdown();
   }
 
   public void testCreateFolder() throws KattaException, InterruptedException {
-    final ZkConfiguration conf = new ZkConfiguration();
     final ZkServer zkServer = new ZkServer(conf);
     final ZKClient client = new ZKClient(conf);
     final String path = "/katta";
-    client.waitForZooKeeper(10000);
+    client.start(10000);
     if (client.exists(path)) {
       assertTrue(client.deleteRecursive(path));
     }
@@ -85,10 +84,9 @@ public class ZKClientTest extends TestCase {
   }
 
   public void testChildNotifications() throws Exception {
-    final ZkConfiguration conf = new ZkConfiguration();
     final ZkServer zkServer = new ZkServer(conf);
     final ZKClient client = new ZKClient(conf);
-    client.waitForZooKeeper(10000);
+    client.start(10000);
     final MyListener listener = new MyListener();
     final String katta = "/katta";
     if (client.exists(katta)) {
@@ -109,10 +107,9 @@ public class ZKClientTest extends TestCase {
   }
 
   public void testDataNotifications() throws Exception {
-    final ZkConfiguration conf = new ZkConfiguration();
     final ZkServer zkServer = new ZkServer(conf);
     final ZKClient client = new ZKClient(conf);
-    client.waitForZooKeeper(10000);
+    client.start(10000);
     final MyListener listener = new MyListener();
     final String katta = "/katta";
     if (client.exists(katta)) {

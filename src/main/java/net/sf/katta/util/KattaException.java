@@ -21,7 +21,14 @@ package net.sf.katta.util;
 
 public class KattaException extends Exception {
 
+  private static final long serialVersionUID = 1L;
+
+  public KattaException(String message) {
+    super(message);
+  }
+
   public KattaException(final String msg, final Throwable t) {
     super(msg, t);
   }
+
 }

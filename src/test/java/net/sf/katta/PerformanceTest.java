@@ -19,12 +19,10 @@
  */
 package net.sf.katta;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-import junit.framework.TestCase;
 import net.sf.katta.client.Client;
 import net.sf.katta.client.IClient;
 import net.sf.katta.master.IPaths;
@@ -32,37 +30,37 @@ import net.sf.katta.master.Master;
 import net.sf.katta.node.Hit;
 import net.sf.katta.node.Hits;
 import net.sf.katta.node.Node;
+import net.sf.katta.node.NodeTest;
 import net.sf.katta.node.Query;
-import net.sf.katta.node.NodeServerTest;
 import net.sf.katta.util.KattaException;
-import net.sf.katta.util.ZkConfiguration;
 import net.sf.katta.zk.ZKClient;
 
 import org.apache.hadoop.ipc.RPC;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
-import org.apache.lucene.queryParser.ParseException;
 
-public class PerformanceTest extends TestCase {
+public class PerformanceTest extends AbstractKattaTest {
 
   final int _hitCount = 200000;
 
-  public static void main(final String[] args) throws InterruptedException, IOException, ParseException, KattaException {
+  public static void main(final String[] args) throws InterruptedException, KattaException {
     final PerformanceTest p = new PerformanceTest();
     p.start();
   }
 
-  private void start() throws InterruptedException, IOException, ParseException, KattaException {
-    final ZkConfiguration conf = new ZkConfiguration();
+  private void start() throws InterruptedException, KattaException {
     final ZKClient zkclient = new ZKClient(conf);
     final ZkServer server = new ZkServer(conf);
-    zkclient.waitForZooKeeper(5000);
+    zkclient.start(5000);
     if (zkclient.exists(IPaths.ROOT_PATH)) {
       zkclient.deleteRecursive(IPaths.ROOT_PATH);
     }
     final Master master = new Master(zkclient);
+    Thread masterThread = createStartMasterThread(master);
+    masterThread.start();
 
-    final Node server1 = NodeServerTest.startNodeServer(zkclient);
-    final Node server2 = NodeServerTest.startNodeServer(zkclient);
+    final Node server1 = NodeTest.startNodeServer(zkclient);
+    final Node server2 = NodeTest.startNodeServer(zkclient);
+    masterThread.join();
     TimingTestUtil.waitFor(zkclient, IPaths.NODES, 2);
 
     final Katta katta = new Katta();

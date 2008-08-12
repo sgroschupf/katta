@@ -32,8 +32,8 @@ import net.sf.katta.util.NetworkUtil;
 import net.sf.katta.util.ZkConfiguration;
 import net.sf.katta.zk.ZKClient;
 
-import com.yahoo.zookeeper.server.NIOServerCnxn;
 import com.yahoo.zookeeper.server.ServerStats;
+import com.yahoo.zookeeper.server.ZkNioFactory;
 import com.yahoo.zookeeper.server.ZooKeeperServer;
 import com.yahoo.zookeeper.server.NIOServerCnxn.Factory;
 import com.yahoo.zookeeper.server.quorum.QuorumPeer;
@@ -47,10 +47,7 @@ public class ZkServer {
 
   private Factory _nioFactory;
 
-  private final ZkConfiguration _conf;
-
   public ZkServer(final ZkConfiguration conf) throws KattaException {
-    _conf = conf;
     if (Logger.isInfo()) {
       final String[] localHostNames = NetworkUtil.getLocalHostNames();
       String names = "";
@@ -72,7 +69,7 @@ public class ZkServer {
     final String servers = conf.getZKServers();
     // check if this server needs to start a _client server.
     int pos = -1;
-    Logger.debug("check if hostNames " + servers +" is in list: " +Arrays.asList(localhostHostNames));
+    Logger.debug("check if hostNames " + servers + " is in list: " + Arrays.asList(localhostHostNames));
     if ((pos = NetworkUtil.hostNamesInList(servers, localhostHostNames)) != -1) {
       // yes this server needs to start a zookeeper server
       final String[] hosts = servers.split(",");
@@ -95,13 +92,14 @@ public class ZkServer {
           Logger.info("Distributed zookeeper server started...");
         } else {
           // single zk server
-          startSingleZkServer(conf, tickTime, dataDir, dataLogDir, port);
+          startSingleZkServer(tickTime, dataDir, dataLogDir, port);
           Logger.info("Single zookeeper server started...");
         }
         // now if required we initialize our namespace
         final ZKClient client = new ZKClient(conf);
-        client.waitForZooKeeper(30000);
-        client.createDefaultNameSpace();
+        client.start(300000);
+        // TODO jz: do we initialize the client only for creating the namespaces
+        // ?? We should at least then close the client, huh ?
       } else {
         Logger.error("Zookeeper port was already in use. Running in single machine mode?");
       }
@@ -118,13 +116,13 @@ public class ZkServer {
     }
   }
 
-  private void startSingleZkServer(final ZkConfiguration conf, final int tickTime, final File dataDir,
-      final File dataLogDir, final int port) {
+  private void startSingleZkServer(final int tickTime, final File dataDir, final File dataLogDir, final int port) {
     try {
       ServerStats.registerAsConcrete();
       _zk = new ZooKeeperServer(dataDir, dataLogDir, tickTime);
       _zk.startup();
-      _nioFactory = new NIOServerCnxn.Factory(port);
+      // _nioFactory = new NIOServerCnxn.Factory(port);
+      _nioFactory = new ZkNioFactory(port);
       _nioFactory.setZooKeeperServer(_zk);
     } catch (final IOException e) {
       throw new RuntimeException("Unable to start single ZooKeeper server.", e);
@@ -187,7 +185,7 @@ public class ZkServer {
     }
   }
 
-  public static void main(final String[] args) throws InterruptedException, KattaException {
+  public static void main(final String[] args) throws KattaException {
     if (args.length != 1) {
       usage();
       System.exit(1);
@@ -213,19 +211,5 @@ public class ZkServer {
     }
 
     ServerStats.unregister();
-    try {
-      Thread.sleep(1000);
-    } catch (final InterruptedException e) {
-      throw new RuntimeException("Waiting to shutodown the server was interrupted.", e);
-    }
-    final int port = _conf.getZKClientPort();
-    // check if this machine is already something running..
-    while (!isPortFree(port)) {
-      try {
-        Thread.sleep(2000);
-      } catch (final InterruptedException e) {
-        Logger.error("Failed to wait for zookeeper server release port", e);
-      }
-    }
   }
 }

@@ -19,7 +19,7 @@ tor license agreements.  See the NOTICE file
  */
 package net.sf.katta.node;
 
-import junit.framework.TestCase;
+import net.sf.katta.AbstractKattaTest;
 import net.sf.katta.Katta;
 import net.sf.katta.TimingTestUtil;
 import net.sf.katta.ZkServer;
@@ -28,35 +28,24 @@ import net.sf.katta.master.IPaths;
 import net.sf.katta.master.Master;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.NodeConfiguration;
-import net.sf.katta.util.ZkConfiguration;
 import net.sf.katta.zk.ZKClient;
 
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 
-public class NodeServerTest extends TestCase {
+public class NodeTest extends AbstractKattaTest {
 
   public void testShardStatusSuccess() throws KattaException, InterruptedException {
     // start master
-    final ZkConfiguration conf = new ZkConfiguration();
-    ZkServer zkServer = new ZkServer(conf);
+    ZkServer zkServer = createZkServer();
     ZKClient zkClient = new ZKClient(conf);
-    zkClient.waitForZooKeeper(600000);
-    if (zkClient.exists(IPaths.ROOT_PATH)) {
-      zkClient.deleteRecursive(IPaths.ROOT_PATH);
-    }
+    zkClient.start(600000);
+
     final Master master = new Master(zkClient);
-    new Thread(new Runnable() {
+    Thread masterThread = createStartMasterThread(master);
+    masterThread.start();
 
-      public void run() {
-        try {
-          master.start();
-        } catch (KattaException e) {
-          e.printStackTrace();
-        }
-      }
-    }).start();
-
-    Node node = NodeServerTest.startNodeServer(zkClient);
+    Node node = NodeTest.startNodeServer(zkClient);
+    masterThread.join();
     TimingTestUtil.waitFor(zkClient, IPaths.NODES, 1);
 
     // deploy index
@@ -73,32 +62,21 @@ public class NodeServerTest extends TestCase {
     katta.close();
     zkClient.close();
     node.shutdown();
-    zkServer.shutdown();
     Thread.sleep(2000);
   }
 
   public void testShardStatusNoSuccessNoIndexGiven() throws KattaException, InterruptedException {
     // start master
-    final ZkConfiguration conf = new ZkConfiguration();
-    ZkServer zkServer = new ZkServer(conf);
+    ZkServer zkServer = createZkServer();
     ZKClient zkClient = new ZKClient(conf);
-    zkClient.waitForZooKeeper(600000);
-    if (zkClient.exists(IPaths.ROOT_PATH)) {
-      zkClient.deleteRecursive(IPaths.ROOT_PATH);
-    }
+    zkClient.start(600000);
+
     final Master master = new Master(zkClient);
-    new Thread(new Runnable() {
+    Thread masterThread = createStartMasterThread(master);
+    masterThread.start();
 
-      public void run() {
-        try {
-          master.start();
-        } catch (KattaException e) {
-          e.printStackTrace();
-        }
-      }
-    }).start();
-
-    Node node = NodeServerTest.startNodeServer(zkClient);
+    Node node = NodeTest.startNodeServer(zkClient);
+    masterThread.join();
     TimingTestUtil.waitFor(zkClient, IPaths.NODES, 1);
 
     // deploy index

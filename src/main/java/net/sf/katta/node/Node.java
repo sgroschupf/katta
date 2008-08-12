@@ -116,7 +116,6 @@ public class Node implements ISearch {
     _configuration = configuration;
     _startTime = System.currentTimeMillis();
     _timer = new Timer("QueryCounter", true);
-    _timer.schedule(new StatusUpdater(), new Date(), 60 * 1000);
   }
 
   /**
@@ -127,8 +126,9 @@ public class Node implements ISearch {
 
   public void start() throws KattaException {
     Logger.debug("Starting node...");
-    _client.waitForZooKeeper(30000);
-    _client.createDefaultNameSpace();
+    if (!_client.isStarted()) {
+      _client.start(30000);
+    }
 
     final String shardFolder = _configuration.getShardFolder();
     _shardFolder = new File(shardFolder);
@@ -154,6 +154,7 @@ public class Node implements ISearch {
       throw new RuntimeException("tried 10000 ports and no one is free...");
     }
     updateStatus("OK", false);
+    _timer.schedule(new StatusUpdater(), new Date(), 60 * 1000);
   }
 
   public void join() {

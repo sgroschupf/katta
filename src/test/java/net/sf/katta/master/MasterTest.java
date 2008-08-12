@@ -22,53 +22,39 @@ package net.sf.katta.master;
 import java.io.File;
 import java.util.List;
 
-import junit.framework.TestCase;
+import net.sf.katta.AbstractKattaTest;
 import net.sf.katta.Katta;
 import net.sf.katta.TimingTestUtil;
 import net.sf.katta.ZkServer;
 import net.sf.katta.index.IndexMetaData;
 import net.sf.katta.node.Node;
 import net.sf.katta.node.NodeMetaData;
-import net.sf.katta.node.NodeServerTest;
-import net.sf.katta.util.KattaException;
-import net.sf.katta.util.ZkConfiguration;
+import net.sf.katta.node.NodeTest;
 import net.sf.katta.zk.ZKClient;
 
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 
-public class MasterTest extends TestCase {
+public class MasterTest extends AbstractKattaTest {
+
   /*
    * create /katta/nodes folder, subscribe notification handle addIndex by
    * distibute shards to nodes handle node failure
    */
-
   public void testNodes() throws Exception {
-    final ZkConfiguration conf = new ZkConfiguration();
     final ZkServer zkServer = new ZkServer(conf);
     final ZKClient client = new ZKClient(conf);
-    client.waitForZooKeeper(5000);
+    client.start(5000);
 
-    FailTest.cleanNameSpace(client);
-
-    if (client.exists(IPaths.ROOT_PATH)) {
-      client.deleteRecursive(IPaths.ROOT_PATH);
-    }
     final Master master = new Master(client);
-    new Thread(new Runnable() {
+    Thread masterThread = createStartMasterThread(master);
+    masterThread.start();
 
-      public void run() {
-        try {
-          master.start();
-        } catch (KattaException e) {
-          e.printStackTrace();
-        }
-      }
-    }).start();
     client.createEphemeral(IPaths.NODES + "/node1", new NodeMetaData("node1", "OK", true, 1));
     client.create(IPaths.NODE_TO_SHARD + "/node1");
     client.createEphemeral(IPaths.NODES + "/node2", new NodeMetaData("node2", "OK", true, 2));
     client.create(IPaths.NODE_TO_SHARD + "/node2");
 
+    masterThread.join();
     assertEquals(2, master.readNodes().size());
     assertTrue(client.delete("/katta/nodes/node1"));
 
@@ -79,30 +65,19 @@ public class MasterTest extends TestCase {
   }
 
   public void testDeployAndRemoveIndex() throws Exception {
-    final ZkConfiguration conf = new ZkConfiguration();
     final ZkServer zkServer = new ZkServer(conf);
     final ZKClient client = new ZKClient(conf);
     final ZKClient client2 = new ZKClient(conf);
-    client.waitForZooKeeper(5000);
+    client.start(5000);
 
-    if (client.exists(IPaths.ROOT_PATH)) {
-      client.deleteRecursive(IPaths.ROOT_PATH);
-    }
     final Master master = new Master(client);
-    new Thread(new Runnable() {
-
-      public void run() {
-        try {
-          master.start();
-        } catch (KattaException e) {
-          e.printStackTrace();
-        }
-      }
-    }).start();
+    Thread masterThread = createStartMasterThread(master);
+    masterThread.start();
     TimingTestUtil.waitFor(client, IPaths.MASTER);
 
-    Node node1 = NodeServerTest.startNodeServer(client);
-    Node node2 = NodeServerTest.startNodeServer(client2, "/tmp/katta-shards2");
+    Node node1 = NodeTest.startNodeServer(client);
+    Node node2 = NodeTest.startNodeServer(client2, "/tmp/katta-shards2");
+    masterThread.join();
     TimingTestUtil.waitFor(client, IPaths.NODES, 2);
 
     final File file = new File("./src/test/testIndexA");
@@ -156,30 +131,19 @@ public class MasterTest extends TestCase {
   }
 
   public void testDeployError() throws Exception {
-    final ZkConfiguration conf = new ZkConfiguration();
     final ZkServer zkServer = new ZkServer(conf);
     final ZKClient client = new ZKClient(conf);
     final ZKClient client2 = new ZKClient(conf);
-    client.waitForZooKeeper(5000);
+    client.start(5000);
 
-    if (client.exists(IPaths.ROOT_PATH)) {
-      client.deleteRecursive(IPaths.ROOT_PATH);
-    }
     final Master master = new Master(client);
-    new Thread(new Runnable() {
-
-      public void run() {
-        try {
-          master.start();
-        } catch (KattaException e) {
-          e.printStackTrace();
-        }
-      }
-    }).start();
+    Thread masterThread = createStartMasterThread(master);
+    masterThread.start();
     TimingTestUtil.waitFor(client, IPaths.MASTER);
 
-    NodeServerTest.startNodeServer(client);
-    NodeServerTest.startNodeServer(client2);
+    NodeTest.startNodeServer(client);
+    NodeTest.startNodeServer(client2);
+    masterThread.join();
     TimingTestUtil.waitFor(client, IPaths.NODES, 2);
 
     final File file = new File("./src/test/testIndexInvalid");

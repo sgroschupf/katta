@@ -19,9 +19,7 @@
  */
 package net.sf.katta;
 
-import junit.framework.TestCase;
 import net.sf.katta.master.IPaths;
-import net.sf.katta.util.ZkConfiguration;
 import net.sf.katta.zk.ZKClient;
 
 import com.yahoo.zookeeper.Watcher;
@@ -29,10 +27,9 @@ import com.yahoo.zookeeper.ZooKeeper;
 import com.yahoo.zookeeper.ZooDefs.Ids;
 import com.yahoo.zookeeper.proto.WatcherEvent;
 
-public class ServerTest extends TestCase implements Watcher {
+public class ServerTest extends AbstractKattaTest implements Watcher {
 
   public void testServer() throws Exception {
-    final ZkConfiguration conf = new ZkConfiguration();
     final String path = "/";
     ZooKeeper zk = null;
     try {
@@ -48,7 +45,7 @@ public class ServerTest extends TestCase implements Watcher {
 
     final String katta = IPaths.ROOT_PATH;
     final ZKClient client = new ZKClient(conf);
-    client.waitForZooKeeper(5000);
+    client.start(5000);
     if (client.exists(IPaths.ROOT_PATH)) {
       client.deleteRecursive(IPaths.ROOT_PATH);
     }

@@ -44,6 +44,7 @@ public class JarFilter implements FileFilter {
 
 test {
   include '**/*Test.class'
+  exclude '**/Abstract*Test.class'
 }
 
 

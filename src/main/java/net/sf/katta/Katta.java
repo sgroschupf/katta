@@ -43,10 +43,10 @@ public class Katta {
 
   private final ZKClient _client;
 
-  public Katta() {
+  public Katta() throws KattaException {
     final ZkConfiguration configuration = new ZkConfiguration();
     _client = new ZKClient(configuration);
-    _client.waitForZooKeeper(5000);
+    _client.start(5000);
   }
 
   public static void main(final String[] args) throws KattaException {
@@ -152,7 +152,6 @@ public class Katta {
     final ZkConfiguration conf = new ZkConfiguration();
     final ZkServer zkServer = new ZkServer(conf);
     final ZKClient client = new ZKClient(conf);
-    client.waitForZooKeeper(30000);
     final Master master = new Master(client);
     master.start();
     zkServer.join();
@@ -161,7 +160,6 @@ public class Katta {
   public static void startNode() throws KattaException {
     final ZkConfiguration configuration = new ZkConfiguration();
     final ZKClient client = new ZKClient(configuration);
-    client.waitForZooKeeper(30000);
     final Node node = new Node(client);
     node.start();
     node.join();

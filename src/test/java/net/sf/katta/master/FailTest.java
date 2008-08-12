@@ -19,10 +19,9 @@
  */
 package net.sf.katta.master;
 
-import junit.framework.TestCase;
+import net.sf.katta.AbstractKattaTest;
 import net.sf.katta.Katta;
 import net.sf.katta.TimingTestUtil;
-import net.sf.katta.ZkServer;
 import net.sf.katta.client.Client;
 import net.sf.katta.node.Node;
 import net.sf.katta.node.Query;
@@ -33,53 +32,41 @@ import net.sf.katta.zk.ZKClient;
 
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 
-public class FailTest extends TestCase {
+public class FailTest extends AbstractKattaTest {
 
   public void testMasterFail() throws Exception {
-    final ZkConfiguration zkConf = new ZkConfiguration();
-    final ZkServer zkServer = new ZkServer(zkConf);
-    final ZKClient client = new ZKClient(zkConf);
-    client.waitForZooKeeper(100000);
-    final ZKClient nodeClient = new ZKClient(zkConf);
-    nodeClient.waitForZooKeeper(100000);
-    final ZKClient masterClient = new ZKClient(zkConf);
-    masterClient.waitForZooKeeper(100000);
-    final ZKClient secMasterClient = new ZKClient(zkConf);
-    secMasterClient.waitForZooKeeper(100000);
+    createZkServer();
+    final ZKClient client = new ZKClient(conf);
+    client.start(100000);
+    final ZKClient nodeClient = new ZKClient(conf);
+    final ZKClient masterClient = new ZKClient(conf);
+    final ZKClient secMasterClient = new ZKClient(conf);
 
-    cleanNameSpace(client);
-
-    final Master master = new Master(masterClient);
-    new Thread(new Runnable() {
-
+    final Node node = new Node(nodeClient);
+    Thread clientThread = new Thread(new Runnable() {
+      // the masters start() methods are blocking unitl at least one node is
+      // connected, so we start the node in a seperate thread
       public void run() {
         try {
-          master.start();
+          node.start();
         } catch (KattaException e) {
-          // TODO Auto-generated catch block
           e.printStackTrace();
         }
       }
-    }).start();
-    TimingTestUtil.waitFor(client, IPaths.MASTER);
+    });
+    clientThread.start();
 
-    final Node node = new Node(nodeClient);
-    node.start();
-    TimingTestUtil.waitFor(client, IPaths.NODES, 1);
+    final Master master = new Master(masterClient);
+    master.start();
 
     // start secondary master..
     final Master secMaster = new Master(secMasterClient);
-    new Thread(new Runnable() {
+    secMaster.start();
 
-      public void run() {
-        try {
-          secMaster.start();
-        } catch (KattaException e) {
-          // TODO Auto-generated catch block
-          e.printStackTrace();
-        }
-      }
-    }).start();
+    clientThread.join();
+    TimingTestUtil.waitFor(client, IPaths.MASTER);
+    TimingTestUtil.waitFor(client, IPaths.NODES, 1);
+
     // kill master
     masterClient.close();
     int count = 0;
@@ -91,59 +78,41 @@ public class FailTest extends TestCase {
     TimingTestUtil.waitFor(client, IPaths.MASTER);
 
     assertTrue(secMaster.isMaster());
-    zkServer.shutdown();
     client.close();
     nodeClient.close();
     secMasterClient.close();
   }
 
-  public static void cleanNameSpace(final ZKClient client) throws KattaException {
-    final String kattaPath = "/katta";
-    if (client.exists(kattaPath)) {
-      client.deleteRecursive(kattaPath);
-    }
-  }
-
   public void testNodeFailure() throws Exception {
-
-    final ZkConfiguration zkConf = new ZkConfiguration();
-    final ZkServer zkServer = new ZkServer(zkConf);
-    final ZKClient zkClient = new ZKClient(zkConf);
-    zkClient.waitForZooKeeper(100000);
+    createZkServer();
+    final ZKClient zkClient = new ZKClient(conf);
+    zkClient.start(100000);
     // TODO we did run in issues in case the index is already deployed,so we
     // should check this..
-    cleanNameSpace(zkClient);
-    final ZKClient masterClient = new ZKClient(zkConf);
+    final ZKClient masterClient = new ZKClient(conf);
 
     final Master master = new Master(masterClient);
-    new Thread(new Runnable() {
-
-      public void run() {
-        try {
-          master.start();
-        } catch (KattaException e) {
-          e.printStackTrace();
-        }
-      }
-    }).start();
+    Thread masterThread = createStartMasterThread(master);
+    masterThread.start();
     TimingTestUtil.waitFor(zkClient, IPaths.MASTER);
 
     // create 3 nodes
     final NodeConfiguration sconf1 = new NodeConfiguration();
     final String defaulFolder = sconf1.getShardFolder();
     sconf1.setShardFolder(defaulFolder + "/" + 1);
-    final DummyNode s1 = new DummyNode(zkConf, sconf1);
+    final DummyNode s1 = new DummyNode(conf, sconf1);
 
     final NodeConfiguration sconf2 = new NodeConfiguration();
     final String defaulFolder2 = sconf2.getShardFolder();
     sconf2.setShardFolder(defaulFolder2 + "/" + 2);
-    final DummyNode s2 = new DummyNode(zkConf, sconf2);
+    final DummyNode s2 = new DummyNode(conf, sconf2);
 
     final NodeConfiguration sconf3 = new NodeConfiguration();
     final String defaulFolder3 = sconf3.getShardFolder();
     sconf3.setShardFolder(defaulFolder3 + "/" + 3);
-    final DummyNode s3 = new DummyNode(zkConf, sconf3);
+    final DummyNode s3 = new DummyNode(conf, sconf3);
     TimingTestUtil.waitFor(zkClient, IPaths.NODES, 3);
+    masterThread.join();
     // deploy index
 
     final Katta katta = new Katta();
@@ -174,7 +143,6 @@ public class FailTest extends TestCase {
     // things should be good distributed again.
     katta.close();
     masterClient.close();
-    zkServer.shutdown();
     client.close();
     s1.close();
     s2.close();

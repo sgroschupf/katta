@@ -67,8 +67,6 @@ public class Master {
 
   public Master(final ZKClient client) throws KattaException {
     _client = client;
-    _client.waitForZooKeeper(300000);
-    _client.createDefaultNameSpace();
     final MasterConfiguration masterConfiguration = new MasterConfiguration();
     final String deployPolicy = masterConfiguration.getDeployPolicy();
     try {
@@ -80,7 +78,9 @@ public class Master {
   }
 
   public void start() throws KattaException {
-
+    if (!_client.isStarted()) {
+      _client.start(300000);
+    }
     if (becomeMaster()) {
       // master
       // Announce me as master
@@ -140,6 +140,7 @@ public class Master {
   }
 
   private void waitForNodeStartup() throws KattaException {
+    Logger.info("waiting for nodes...");
     List<String> nodes = new ArrayList<String>();
     while (nodes.size() == 0) {
       nodes = _client.getChildren(IPaths.NODES);
