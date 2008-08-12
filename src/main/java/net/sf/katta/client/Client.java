@@ -49,6 +49,10 @@ import org.apache.hadoop.ipc.RPC;
 
 import com.yahoo.zookeeper.proto.WatcherEvent;
 
+/**
+ * Default implementation of {@link IClient}.
+ * 
+ */
 public class Client implements IClient {
   // TODO i see much space for improvement here, for example we do not need to
   // reload all index shards ...
@@ -196,13 +200,7 @@ public class Client implements IClient {
     Logger.info("Client.search()" + nodeShardsMap);
     final Hits result = new Hits();
 
-    final DocumentFrequenceWritable docFreqs = new DocumentFrequenceWritable();
-    try {
-      getDocFrequencies(query, nodeShardsMap, docFreqs);
-    } catch (final IOException e) {
-      throw new KattaException(e.getMessage(), e);
-    }
-
+    final DocumentFrequenceWritable docFreqs = getDocFrequencies(query, nodeShardsMap);
     final List<Thread> searchThreads = new ArrayList<Thread>(nodeShardsMap.size());
     final Set<String> keySet = nodeShardsMap.keySet();
     for (final String node : keySet) {
@@ -217,7 +215,7 @@ public class Client implements IClient {
     if (Logger.isDebug()) {
       start = System.currentTimeMillis();
     }
-    threadJoin(searchThreads);
+    joinThreads(searchThreads);
     if (Logger.isDebug()) {
       final long end = System.currentTimeMillis();
       Logger.debug("Time for searching: " + (end - start) / 1000.0);
@@ -235,18 +233,18 @@ public class Client implements IClient {
     return result;
   }
 
-  private void threadJoin(final List<Thread> searchThreads) {
-    for (final Thread thread : searchThreads) {
-      try {
+  private void joinThreads(final List<Thread> searchThreads) {
+    try {
+      for (final Thread thread : searchThreads) {
         thread.join();
-      } catch (final InterruptedException e) {
-        Logger.warn("Join for search thread interrupted.", e);
       }
+    } catch (final InterruptedException e) {
+      Logger.warn("Join for search threads interrupted.", e);
     }
   }
 
-  private void getDocFrequencies(final IQuery query, final Map<String, List<String>> nodeShardsMap,
-      final DocumentFrequenceWritable docFreqs) throws IOException {
+  private DocumentFrequenceWritable getDocFrequencies(final IQuery query, final Map<String, List<String>> nodeShardsMap) {
+    DocumentFrequenceWritable docFreqs = new DocumentFrequenceWritable();
     final List<Thread> searchThreads = new ArrayList<Thread>(nodeShardsMap.size());
     final Set<String> keySet = nodeShardsMap.keySet();
     for (final String node : keySet) {
@@ -258,10 +256,11 @@ public class Client implements IClient {
     }
 
     // final long start = System.currentTimeMillis();
-    threadJoin(searchThreads);
+    joinThreads(searchThreads);
     // final long end = System.currentTimeMillis();
     // Logger.info("Time for getting document frequencies: " + (end - start)
     // / 1000.0);
+    return docFreqs;
   }
 
   private class IndexDataListener implements IZKEventListener {
@@ -310,10 +309,7 @@ public class Client implements IClient {
    * @see net.sf.katta.client.IClient#getDetails(net.sf.katta.node.Hit)
    */
   public MapWritable getDetails(final Hit hit) throws IOException {
-    final ISearch searchNode = _nodes.get(hit.getNode());
-    // TODO only risk would be that between search and get detail the node
-    // crashs.
-    return searchNode.getDetails(hit.getShard(), hit.getDocId());
+    return getDetails(hit, null);
   }
 
   /*
@@ -326,7 +322,14 @@ public class Client implements IClient {
     final ISearch searchNode = _nodes.get(hit.getNode());
     // TODO only risk would be that between search and get detail the node
     // crashs.
-    return searchNode.getDetails(hit.getShard(), hit.getDocId(), fields);
+    MapWritable details;
+    if (fields == null) {
+      details = searchNode.getDetails(hit.getShard(), hit.getDocId());
+    } else {
+      details = searchNode.getDetails(hit.getShard(), hit.getDocId(), fields);
+    }
+
+    return details;
   }
 
   private class ShardListener implements IZKEventListener {
@@ -403,7 +406,7 @@ public class Client implements IClient {
       searchThreads.add(searchThread);
     }
 
-    threadJoin(searchThreads);
+    joinThreads(searchThreads);
     final long end = System.currentTimeMillis();
     Logger.info("Time for counting: " + (end - start) / 1000.0);
 
