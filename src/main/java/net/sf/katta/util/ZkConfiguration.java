@@ -22,21 +22,21 @@ package net.sf.katta.util;
 import java.io.File;
 
 public class ZkConfiguration extends KattaConfiguration {
-  private static final String ZOOKEEPER_SERVERS = "zookepper.servers";
+  public static final String ZOOKEEPER_SERVERS = "zookeeper.servers";
 
-  private static final String ZOOKEEPER_TIMEOUT = "zookeeper.timeout";
+  public static final String ZOOKEEPER_TIMEOUT = "zookeeper.timeout";
 
-  private static final String ZOOKEEPER_TICK_TIME = "zookeeper.tick-time";
+  public static final String ZOOKEEPER_TICK_TIME = "zookeeper.tick-time";
 
-  private static final String ZOOKEEPER_INIT_LIMIT = "zookeeper.init-limit";
+  public static final String ZOOKEEPER_INIT_LIMIT = "zookeeper.init-limit";
 
-  private static final String ZOOKEEPER_SYNC_LIMIT = "zookepper.sync-limit";
+  public static final String ZOOKEEPER_SYNC_LIMIT = "zookeeper.sync-limit";
 
-  private static final String ZOOKEEPER_DATA_DIR = "zookepper.data-dir";
+  public static final String ZOOKEEPER_DATA_DIR = "zookeeper.data-dir";
 
-  private static final String ZOOKEEPER_LOG_DATA_DIR = "zookeeper.log-data-dir";
+  public static final String ZOOKEEPER_LOG_DATA_DIR = "zookeeper.log-data-dir";
 
-  private static final String ZOOKEEPER_CLIENT_PORT = "zookeeper.clientPort";
+  public static final String ZOOKEEPER_CLIENT_PORT = "zookeeper.clientPort";
 
   public ZkConfiguration() {
     super("/katta.zk.properties");
@@ -44,6 +44,10 @@ public class ZkConfiguration extends KattaConfiguration {
 
   public ZkConfiguration(final String path) {
     super(path);
+  }
+
+  public ZkConfiguration(final File file) {
+    super(file);
   }
 
   public String getZKServers() {

@@ -25,21 +25,19 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 
+import com.yahoo.zookeeper.KeeperException;
+import com.yahoo.zookeeper.Watcher;
+import com.yahoo.zookeeper.ZooDefs.CreateFlags;
+import com.yahoo.zookeeper.ZooDefs.Ids;
+import com.yahoo.zookeeper.ZooKeeper;
+import com.yahoo.zookeeper.proto.WatcherEvent;
 import net.sf.katta.master.IPaths;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.Logger;
 import net.sf.katta.util.ZkConfiguration;
-
 import org.apache.hadoop.io.DataInputBuffer;
 import org.apache.hadoop.io.DataOutputBuffer;
 import org.apache.hadoop.io.Writable;
-
-import com.yahoo.zookeeper.KeeperException;
-import com.yahoo.zookeeper.Watcher;
-import com.yahoo.zookeeper.ZooKeeper;
-import com.yahoo.zookeeper.ZooDefs.CreateFlags;
-import com.yahoo.zookeeper.ZooDefs.Ids;
-import com.yahoo.zookeeper.proto.WatcherEvent;
 
 /**
  * Abstracts the interation with zookeeper and allows permanent (not just one
@@ -593,6 +591,10 @@ public class ZKClient implements Watcher {
 
   public int getPort() {
     return _port;
+  }
+
+  public ZooKeeper.States getZookeeperStates() {
+    return _zk.getState();
   }
 
 }

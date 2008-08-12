@@ -20,6 +20,7 @@
 package net.sf.katta.util;
 
 import java.util.Properties;
+import java.io.File;
 
 public class KattaConfiguration {
 
@@ -27,6 +28,10 @@ public class KattaConfiguration {
 
   public KattaConfiguration(final String path) {
     _properties = PropertyUtil.loadProperties(path);
+  }
+
+  public KattaConfiguration(File file) {
+    _properties = PropertyUtil.loadProperties(file);
   }
 
   protected int getInt(final String key) {

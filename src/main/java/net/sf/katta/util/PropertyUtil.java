@@ -19,6 +19,8 @@
  */
 package net.sf.katta.util;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
@@ -33,6 +35,17 @@ public class PropertyUtil {
     final Properties properties = new Properties();
     try {
       properties.load(in);
+      return properties;
+    } catch (final IOException e) {
+      throw new RuntimeException("unable to load kata.properties", e);
+    }
+  }
+
+
+  public static Properties loadProperties(final File file) {
+    final Properties properties = new Properties();
+    try {
+      properties.load(new FileInputStream(file));
       return properties;
     } catch (final IOException e) {
       throw new RuntimeException("unable to load kata.properties", e);
