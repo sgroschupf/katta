@@ -17,7 +17,7 @@ import net.sf.katta.util.ZkConfiguration;
 
 import com.yahoo.zookeeper.ZooKeeper;
 
-public abstract class ZkClientReconnectTest extends TestCase {
+public class ZkClientReconnectTest extends TestCase {
 
   int GATEWAY_PORT = 2190;
 
