@@ -22,7 +22,7 @@ package net.sf.katta.client;
 import java.io.IOException;
 import java.util.Set;
 
-import junit.framework.TestCase;
+import net.sf.katta.AbstractKattaTest;
 import net.sf.katta.Katta;
 import net.sf.katta.TimingTestUtil;
 import net.sf.katta.ZkServer;
@@ -31,11 +31,10 @@ import net.sf.katta.master.Master;
 import net.sf.katta.node.Hit;
 import net.sf.katta.node.Hits;
 import net.sf.katta.node.Node;
-import net.sf.katta.node.NodeServerTest;
+import net.sf.katta.node.NodeTest;
 import net.sf.katta.node.Query;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.Logger;
-import net.sf.katta.util.ZkConfiguration;
 import net.sf.katta.zk.ZKClient;
 
 import org.apache.hadoop.io.MapWritable;
@@ -47,71 +46,59 @@ import org.apache.lucene.analysis.standard.StandardAnalyzer;
 /**
  * Test for {@link Client}.
  */
-public class ClientTest extends TestCase {
+public class ClientTest extends AbstractKattaTest {
 
-  private ZkServer _server;
+  private ZkServer _zkServer;
   private ZKClient _zkclient;
-  private Node _server1;
-  private Node _server2;
+  private Node _node1;
+  private Node _node2;
   private Master _master;
   private Katta _katta;
+  private IClient client;
 
   @Override
-  protected void setUp() throws Exception {
-    final ZkConfiguration conf = new ZkConfiguration();
-    _server = new ZkServer(conf);
+  protected void onSetUp() throws Exception {
+    _zkServer = new ZkServer(conf);
     _zkclient = new ZKClient(conf);
-    _zkclient.waitForZooKeeper(600000);
-    if (_zkclient.exists(IPaths.ROOT_PATH)) {
-      _zkclient.deleteRecursive(IPaths.ROOT_PATH);
-    }
+    _zkclient.start(600000);
+
     _master = new Master(_zkclient);
-    new Thread(new Runnable() {
+    Thread masterThread = createStartMasterThread(_master);
+    masterThread.start();
 
-      public void run() {
-        try {
-          _master.start();
-        } catch (KattaException e) {
-          e.printStackTrace();
-        }
-      }
-    }).start();
-
-    _server1 = NodeServerTest.startNodeServer(_zkclient);
-    _server2 = NodeServerTest.startNodeServer(_zkclient);
+    _node1 = NodeTest.startNodeServer(_zkclient);
+    _node2 = NodeTest.startNodeServer(_zkclient);
     TimingTestUtil.waitFor(_zkclient, IPaths.NODES, 2);
+    masterThread.join();
 
     _katta = new Katta();
     _katta.addIndex("index", "src/test/testIndexA/", StandardAnalyzer.class.getName(), 1);
 
     _katta.addIndex("index1", "src/test/testIndexA/", StandardAnalyzer.class.getName(), 1);
     _katta.addIndex("index2", "src/test/testIndexA/", StandardAnalyzer.class.getName(), 1);
-
+    client = new Client();
   }
 
-  //
-  // @Override
   @Override
-  protected void tearDown() throws Exception {
+  protected void onTearDown() throws Exception {
     _katta.close();
-    _server1.shutdown();
-    _server2.shutdown();
-    _server.shutdown();
+    _node1.shutdown();
+    _node2.shutdown();
+    _zkServer.shutdown();
     _zkclient.close();
+    client.close();
     RPC.stopClient();
   }
 
   //
-  public void testCount() throws KattaException {
-    final IClient client = new Client();
+  public void testCount() {
     final Query query = new Query("content: the");
     final int count = client.count(query, new String[] { "index" });
     assertEquals(937, count);
-    client.close();
+
   }
 
   public void testGetDetails() throws IOException, KattaException {
-    final IClient client = new Client();
     final Query query = new Query("content:the");
     final Hits hits = client.search(query, new String[] { "index" }, 10);
     assertNotNull(hits);
@@ -126,8 +113,6 @@ public class ClientTest extends TestCase {
   }
 
   public void testSearch() throws KattaException {
-    final IClient client = new Client();
-
     final Query query = new Query("foo: bar");
     final Hits hits = client.search(query, new String[] { "index2", "index1" });
     assertNotNull(hits);
@@ -143,7 +128,6 @@ public class ClientTest extends TestCase {
   }
 
   public void testSearchLimit() throws KattaException {
-    final IClient client = new Client();
     final Query query = new Query("foo: bar");
     final Hits hits = client.search(query, new String[] { "index2", "index1" }, 1);
     assertNotNull(hits);
@@ -158,7 +142,6 @@ public class ClientTest extends TestCase {
   }
 
   public void testSearchSimiliarity() throws KattaException {
-    final IClient client = new Client();
     final Query query = new Query("foo: bar");
     final Hits hits = client.search(query, new String[] { "index1" });
     assertNotNull(hits);
@@ -166,6 +149,5 @@ public class ClientTest extends TestCase {
     for (final Hit hit : hits.getHits()) {
       Logger.info(hit.getNode() + " -- " + hit.getScore() + " -- " + hit.getDocId());
     }
-
   }
 }

@@ -25,19 +25,21 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 
-import com.yahoo.zookeeper.KeeperException;
-import com.yahoo.zookeeper.Watcher;
-import com.yahoo.zookeeper.ZooDefs.CreateFlags;
-import com.yahoo.zookeeper.ZooDefs.Ids;
-import com.yahoo.zookeeper.ZooKeeper;
-import com.yahoo.zookeeper.proto.WatcherEvent;
 import net.sf.katta.master.IPaths;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.Logger;
 import net.sf.katta.util.ZkConfiguration;
+
 import org.apache.hadoop.io.DataInputBuffer;
 import org.apache.hadoop.io.DataOutputBuffer;
 import org.apache.hadoop.io.Writable;
+
+import com.yahoo.zookeeper.KeeperException;
+import com.yahoo.zookeeper.Watcher;
+import com.yahoo.zookeeper.ZooKeeper;
+import com.yahoo.zookeeper.ZooDefs.CreateFlags;
+import com.yahoo.zookeeper.ZooDefs.Ids;
+import com.yahoo.zookeeper.proto.WatcherEvent;
 
 /**
  * Abstracts the interation with zookeeper and allows permanent (not just one
@@ -51,33 +53,71 @@ public class ZKClient implements Watcher {
   private final Object _mutex = new Object();
 
   private final HashMap<String, HashSet<IZKEventListener>> _childListener = new HashMap<String, HashSet<IZKEventListener>>();
-
   private final HashMap<String, HashSet<IZKEventListener>> _dataListener = new HashMap<String, HashSet<IZKEventListener>>();
 
-  private final int _port;
-
-  private final int _timeOut;
-
   private final String _servers;
+  private final int _port;
+  private final int _timeOut;
 
   public ZKClient(final ZkConfiguration configuration) {
     _servers = configuration.getZKServers();
     _port = configuration.getZKClientPort();
     _timeOut = configuration.getZKTimeOut();
-    if (_zk == null) {
-      try {
-        _zk = new ZooKeeper(_servers, _timeOut, this);
-      } catch (final Exception e) {
-        _zk = null;
-        throw new RuntimeException("Keeper exception when starting new session: ", e);
+  }
+
+  public boolean isStarted() {
+    return _zk != null;
+  }
+
+  /**
+   * Starts a zookeeper client and waits until connected with one of the
+   * zookeeper servers.
+   * 
+   * @param maxMsToWaitUntilConnected
+   *          the milliseconds a method call will wait until the zookeeper
+   *          client is connected with the server
+   * @throws KattaException
+   *           if connection fails or default namespaces could not be created
+   */
+  public void start(final long maxMsToWaitUntilConnected) throws KattaException {
+    if (_zk != null) {
+      throw new IllegalStateException("zk client has already been started");
+    }
+    final long startTime = System.currentTimeMillis();
+    try {
+      _zk = new ZooKeeper(_servers, _timeOut, this);
+    } catch (final Exception e) {
+      _zk = null;
+      throw new KattaException("Could not start zookeeper service", e);
+    }
+
+    // wait until connected
+    try {
+      while (_zk.getState() != ZooKeeper.States.CONNECTED) {
+        if (System.currentTimeMillis() - startTime > maxMsToWaitUntilConnected) {
+          _zk = null;
+          throw new KattaException("No connected with zookeeper server yet. Current state is " + _zk.getState());
+        }
+        Logger.debug("Zookeeper ZkServer not yet available, sleeping...");
+        Thread.sleep(1000);
       }
+
+      createDefaultNameSpace();
+    } catch (final InterruptedException e) {
+      Logger.warn("waiting for the zookeeper server was interrupted", e);
+    }
+  }
+
+  private void ensureZkStarted() {
+    if (_zk == null) {
+      throw new IllegalStateException("zk client has not been started yet");
     }
   }
 
   /**
    * Returns a mutex all zookeeper events are syncronized aginst. So in case you
-   * need to do something without getting any zookeeper even interruption
-   * syncronize against this mutex.
+   * need to do something without getting any zookeeper event interruption
+   * synchronize against this mutex.
    */
   public Object getSyncMutex() {
     return _mutex;
@@ -96,6 +136,7 @@ public class ZKClient implements Watcher {
    */
   public ArrayList<String> subscribeChildChanges(final String path, final IZKEventListener listener)
       throws KattaException {
+    ensureZkStarted();
     addChildListener(path, listener);
     synchronized (_zk) {
       try {
@@ -116,8 +157,9 @@ public class ZKClient implements Watcher {
    * @throws KattaException
    */
   public void subscribeDataChanges(final String path, final IZKEventListener listener) throws KattaException {
+    ensureZkStarted();
     synchronized (_mutex) {
-      _addDataListener(path, listener);
+      addDataListener(path, listener);
       try {
         _zk.getData(path, true, null);
       } catch (final Exception e) {
@@ -128,6 +170,7 @@ public class ZKClient implements Watcher {
   }
 
   private void removeDataListener(final String path, final IZKEventListener listener) {
+    ensureZkStarted();
     final HashSet<IZKEventListener> hashSet = _dataListener.get(path);
     if (hashSet != null) {
       hashSet.remove(listener);
@@ -135,6 +178,7 @@ public class ZKClient implements Watcher {
   }
 
   private void removeChildListener(final String path, final IZKEventListener listener) {
+    ensureZkStarted();
     final HashSet<IZKEventListener> hashSet = _childListener.get(path);
     if (hashSet != null) {
       hashSet.remove(listener);
@@ -142,6 +186,7 @@ public class ZKClient implements Watcher {
   }
 
   private void addChildListener(final String path, final IZKEventListener listener) {
+    ensureZkStarted();
     if (listener != null) {
       HashSet<IZKEventListener> set = _childListener.get(path);
       if (set == null) {
@@ -152,7 +197,8 @@ public class ZKClient implements Watcher {
     }
   }
 
-  private void _addDataListener(final String path, final IZKEventListener listener) {
+  private void addDataListener(final String path, final IZKEventListener listener) {
+    ensureZkStarted();
     if (listener != null) {
       HashSet<IZKEventListener> set = _dataListener.get(path);
       if (set == null) {
@@ -185,6 +231,7 @@ public class ZKClient implements Watcher {
   }
 
   private void create(final String path, final Writable writable, final int flags) throws KattaException {
+    ensureZkStarted();
     assert path != null;
     final byte[] data = writableToByteArray(writable);
     synchronized (_mutex) {
@@ -241,6 +288,7 @@ public class ZKClient implements Watcher {
    * @throws KattaException
    */
   public boolean delete(final String path) throws KattaException {
+    ensureZkStarted();
     synchronized (_mutex) {
       try {
         if (_zk != null) {
@@ -267,6 +315,7 @@ public class ZKClient implements Watcher {
    * @throws KattaException
    */
   public boolean deleteRecursive(final String path) throws KattaException {
+    ensureZkStarted();
     synchronized (_mutex) {
       try {
         final ArrayList<String> children = _zk.getChildren(path, false);
@@ -302,6 +351,7 @@ public class ZKClient implements Watcher {
    * @throws KattaException
    */
   public boolean exists(final String path) throws KattaException {
+    ensureZkStarted();
     synchronized (_mutex) {
       try {
         return _zk.exists(path, false) != null;
@@ -319,6 +369,7 @@ public class ZKClient implements Watcher {
    * @throws KattaException
    */
   public List<String> getChildren(final String path) throws KattaException {
+    ensureZkStarted();
     synchronized (_mutex) {
       boolean watch = false;
       final HashSet<IZKEventListener> set = _childListener.get(path);
@@ -333,12 +384,6 @@ public class ZKClient implements Watcher {
     }
   }
 
-  /*
-   * (non-Javadoc)
-   * 
-   * @see
-   * com.yahoo.zookeeper.Watcher#process(com.yahoo.zookeeper.proto.WatcherEvent)
-   */
   public void process(final WatcherEvent event) {
     synchronized (_mutex) {
       final String path = event.getPath();
@@ -384,19 +429,13 @@ public class ZKClient implements Watcher {
           }
         }
       } else if (event.getState() == Watcher.Event.KeeperStateExpired) {
+        // we do a reconnect
         Logger.debug("Zookeeper session expired.");
         try {
-          _zk = new ZooKeeper(_servers, _timeOut, this);
+          close();
+          start(30000);
         } catch (final Exception e) {
-          _zk = null;
-          throw new RuntimeException("Keeper exception when starting new session: ", e);
-        }
-        waitForZooKeeper(30000);
-        try {
-          createDefaultNameSpace();
-        } catch (KattaException e) {
-          Logger.error("Exception on on reconnecting after session expiration.");
-          throw new RuntimeException(e);
+          throw new RuntimeException("Exception while restarting zk client because state expired", e);
         }
       } else if ((event.getType() == Watcher.Event.EventNone)
           && (event.getState() == Watcher.Event.KeeperStateDisconnected)) {
@@ -405,13 +444,13 @@ public class ZKClient implements Watcher {
         if (null == event.getPath()) {
           event.setPath("null");
         }
-        Logger.error("Received an unkown event: " + event.toString());
+        Logger.debug("Received an unkown event: " + event.toString());
       } else {
         // See ZOOKEEPER-77
         if (null == event.getPath()) {
           event.setPath("null");
         }
-        Logger.error("Received an unkown event: " + event.toString());
+        Logger.debug("Received an unkown event: " + event.toString());
       }
     }
   }
@@ -426,6 +465,7 @@ public class ZKClient implements Watcher {
    * @throws KattaException
    */
   public void readData(final String path, final Writable writable) throws KattaException {
+    ensureZkStarted();
     byte[] data;
     synchronized (_mutex) {
       boolean watch = false;
@@ -515,6 +555,7 @@ public class ZKClient implements Watcher {
    * @throws KattaException
    */
   public void writeData(final String path, final Writable writable) throws KattaException {
+    ensureZkStarted();
     synchronized (_mutex) {
       final byte[] data = writableToByteArray(writable);
       try {
@@ -545,47 +586,35 @@ public class ZKClient implements Watcher {
   }
 
   /**
-   * Tries for given milliseconds to connect to the zookeeper server and throws
-   * an {@link RuntimeException} in case that did not succeed.
-   * 
-   * @param ms
-   */
-  public void waitForZooKeeper(final long ms) {
-    final long end = System.currentTimeMillis() + ms;
-    try {
-      while (_zk.getState() != ZooKeeper.States.CONNECTED) {
-        if (end < System.currentTimeMillis()) {
-          throw new RuntimeException("No connection with zookeeper server could be established.");
-        }
-        Logger.debug("Zookeeper ZkServer not yet available, sleeping...");
-        Thread.sleep(1000);
-      }
-    } catch (final InterruptedException e) {
-      Logger.warn("waiting for the zookeeper server was interrupted", e);
-    }
-  }
-
-  /**
    * Creates a set of default folder structure for katta within a zookeeper .
    * 
    * @throws KattaException
    */
-  public void createDefaultNameSpace() throws KattaException {
+  private void createDefaultNameSpace() throws KattaException {
     Logger.debug("Creating default File structure if required....");
-    if (!exists(IPaths.ROOT_PATH)) {
-      create(IPaths.ROOT_PATH);
-    }
-    if (!exists(IPaths.INDEXES)) {
-      create(IPaths.INDEXES);
-    }
-    if (!exists(IPaths.NODES)) {
-      create(IPaths.NODES);
-    }
-    if (!exists(IPaths.NODE_TO_SHARD)) {
-      create(IPaths.NODE_TO_SHARD);
-    }
-    if (!exists(IPaths.SHARD_TO_NODE)) {
-      create(IPaths.SHARD_TO_NODE);
+    try {
+      if (!exists(IPaths.ROOT_PATH)) {
+        create(IPaths.ROOT_PATH);
+      }
+      if (!exists(IPaths.INDEXES)) {
+        create(IPaths.INDEXES);
+      }
+      if (!exists(IPaths.NODES)) {
+        create(IPaths.NODES);
+      }
+      if (!exists(IPaths.NODE_TO_SHARD)) {
+        create(IPaths.NODE_TO_SHARD);
+      }
+      if (!exists(IPaths.SHARD_TO_NODE)) {
+        create(IPaths.SHARD_TO_NODE);
+      }
+    } catch (KattaException e) {
+      if (e.getCause() instanceof KeeperException && e.getCause().getMessage().contains("KeeperErrorCode = NodeExists")) {
+        // if components starting concurrently the exists is not safe
+        Logger.debug("could not create default namespace " + e.getCause().getMessage());
+      } else {
+        throw e;
+      }
     }
   }
 
@@ -596,5 +625,4 @@ public class ZKClient implements Watcher {
   public ZooKeeper.States getZookeeperStates() {
     return _zk.getState();
   }
-
 }
