@@ -49,11 +49,9 @@ public class PerformanceTest extends AbstractKattaTest {
 
   private void start() throws InterruptedException, KattaException {
     final ZKClient zkclient = new ZKClient(conf);
-    final ZkServer server = new ZkServer(conf);
+    final ZkServer server = createZkServer();
     zkclient.start(5000);
-    if (zkclient.exists(IPaths.ROOT_PATH)) {
-      zkclient.deleteRecursive(IPaths.ROOT_PATH);
-    }
+
     final Master master = new Master(zkclient);
     Thread masterThread = createStartMasterThread(master);
     masterThread.start();

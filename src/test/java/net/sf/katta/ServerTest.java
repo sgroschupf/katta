@@ -19,50 +19,39 @@
  */
 package net.sf.katta;
 
-import net.sf.katta.master.IPaths;
-import net.sf.katta.zk.ZKClient;
-
 import com.yahoo.zookeeper.Watcher;
 import com.yahoo.zookeeper.ZooKeeper;
 import com.yahoo.zookeeper.ZooDefs.Ids;
+import com.yahoo.zookeeper.ZooKeeper.States;
 import com.yahoo.zookeeper.proto.WatcherEvent;
 
 public class ServerTest extends AbstractKattaTest implements Watcher {
 
   public void testServer() throws Exception {
-    final String path = "/";
+    final String path = "/testPath";
     ZooKeeper zk = null;
     try {
       zk = new ZooKeeper(conf.getZKServers(), conf.getZKClientPort(), this);
-      final String create = zk.create(path, null, Ids.OPEN_ACL_UNSAFE, 0);
+      zk.create(path, null, Ids.OPEN_ACL_UNSAFE, 0);
       fail("no server yet started");
     } catch (final Exception e) {
       zk.close();
     }
 
-    final ZkServer zkServer = new ZkServer(conf);
+    createZkServer();
     zk = new ZooKeeper(conf.getZKServers(), conf.getZKClientPort(), this);
-
-    final String katta = IPaths.ROOT_PATH;
-    final ZKClient client = new ZKClient(conf);
-    client.start(5000);
-    if (client.exists(IPaths.ROOT_PATH)) {
-      client.deleteRecursive(IPaths.ROOT_PATH);
+    while (zk.getState() == States.CONNECTING) {
+      Thread.sleep(500);
     }
-    client.close();
-    if (zk.exists(katta, false) != null) {
-      zk.delete(katta, -1);
-    }
-    zk.exists(katta, true);
-    zk.create(katta, new byte[0], Ids.OPEN_ACL_UNSAFE, 0);
 
-    zk.getChildren(katta, true);
-    zk.create("/katta/2", new byte[0], Ids.OPEN_ACL_UNSAFE, 0);
-    zk.getChildren(katta, true);
-    zk.create("/katta/3", new byte[0], Ids.OPEN_ACL_UNSAFE, 0);
+    zk.create(path, new byte[0], Ids.OPEN_ACL_UNSAFE, 0);
+
+    zk.getChildren(path, true);
+    zk.create(path + "/2", new byte[0], Ids.OPEN_ACL_UNSAFE, 0);
+    zk.getChildren(path, true);
+    zk.create(path + "/3", new byte[0], Ids.OPEN_ACL_UNSAFE, 0);
     zk.close();
 
-    zkServer.shutdown();
   }
 
   public void process(final WatcherEvent event) {
