@@ -63,7 +63,7 @@ public class ZkServer {
     startZooKeeperServer(conf);
   }
 
-  // check if this server has to start a zookepper server
+  // check if this server has to start a zookeeper server
   private void startZooKeeperServer(final ZkConfiguration conf) throws KattaException {
     final String[] localhostHostNames = NetworkUtil.getLocalHostNames();
     final String servers = conf.getZKServers();

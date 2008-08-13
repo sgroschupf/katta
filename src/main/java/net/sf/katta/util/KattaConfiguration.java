@@ -19,12 +19,12 @@
  */
 package net.sf.katta.util;
 
-import java.util.Properties;
 import java.io.File;
+import java.util.Properties;
 
 public class KattaConfiguration {
 
-  protected Properties _properties;
+  private Properties _properties;
 
   public KattaConfiguration(final String path) {
     _properties = PropertyUtil.loadProperties(path);
@@ -35,9 +35,33 @@ public class KattaConfiguration {
   }
 
   protected int getInt(final String key) {
-    final String timeout = _properties.getProperty(key);
-    assert timeout != null;
-    return Integer.parseInt(timeout);
+    final String value = getProperty(key);
+    return Integer.parseInt(value);
+  }
+
+  protected File getFile(final String key) {
+    final String value = getProperty(key);
+    return new File(value);
+  }
+
+  protected String getProperty(final String key) {
+    final String value = _properties.getProperty(key);
+    if (value == null) {
+      throw new IllegalStateException("no property with key '" + key + "' found");
+    }
+    return value;
+  }
+
+  protected String getProperty(final String key, final String defaultValue) {
+    String value = _properties.getProperty(key);
+    if (value == null) {
+      value = defaultValue;
+    }
+    return value;
+  }
+
+  protected void setProperty(String key, String value) {
+    _properties.setProperty(key, value);
   }
 
 }

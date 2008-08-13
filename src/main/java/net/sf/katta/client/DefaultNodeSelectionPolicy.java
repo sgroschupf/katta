@@ -36,7 +36,7 @@ public class DefaultNodeSelectionPolicy implements INodeSelectionPolicy {
 
   public Map<String, List<String>> getNodeShardsMap(final IQuery query, final String[] indexNames) {
     if (_nodeShardMap == null) {
-      throw new IllegalArgumentException("no index deployed yet, try later again...");
+      throw new IllegalStateException("no index deployed yet, try later again...");
     }
     final HashMap<String, List<String>> map = new HashMap<String, List<String>>();
     for (final String indexName : indexNames) {

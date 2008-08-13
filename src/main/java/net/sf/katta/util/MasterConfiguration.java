@@ -28,7 +28,7 @@ public class MasterConfiguration extends KattaConfiguration {
   }
 
   public String getDeployPolicy() {
-    return _properties.getProperty(DEPLOY_POLICY, "net.sf.katta.master.DefaultDistributionPolicy");
+    return getProperty(DEPLOY_POLICY, "net.sf.katta.master.DefaultDistributionPolicy");
   }
 
 }

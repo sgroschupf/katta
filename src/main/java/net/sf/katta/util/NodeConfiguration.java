@@ -33,10 +33,11 @@ public class NodeConfiguration extends KattaConfiguration {
   }
 
   public String getShardFolder() {
-    return _properties.getProperty(SHARD_FOLDER);
+    return getProperty(SHARD_FOLDER);
   }
 
   public void setShardFolder(final String value) {
-    _properties.setProperty(SHARD_FOLDER, value);
+    setProperty(SHARD_FOLDER, value);
   }
+
 }

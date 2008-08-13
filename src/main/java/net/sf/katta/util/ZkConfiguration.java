@@ -22,6 +22,7 @@ package net.sf.katta.util;
 import java.io.File;
 
 public class ZkConfiguration extends KattaConfiguration {
+
   public static final String ZOOKEEPER_SERVERS = "zookeeper.servers";
 
   public static final String ZOOKEEPER_TIMEOUT = "zookeeper.timeout";
@@ -51,9 +52,7 @@ public class ZkConfiguration extends KattaConfiguration {
   }
 
   public String getZKServers() {
-    final String property = _properties.getProperty(ZOOKEEPER_SERVERS);
-    assert property != null;
-    return property;
+    return getProperty(ZOOKEEPER_SERVERS);
   }
 
   public int getZKTimeOut() {
@@ -73,11 +72,11 @@ public class ZkConfiguration extends KattaConfiguration {
   }
 
   public File getZKDataDir() {
-    return new File(_properties.getProperty(ZOOKEEPER_DATA_DIR));
+    return getFile(ZOOKEEPER_DATA_DIR);
   }
 
   public File getZKDataLogDir() {
-    return new File(_properties.getProperty(ZOOKEEPER_LOG_DATA_DIR));
+    return getFile(ZOOKEEPER_LOG_DATA_DIR);
   }
 
   public int getZKClientPort() {
