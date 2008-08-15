@@ -43,8 +43,8 @@ case "`uname`" in
 CYGWIN*) cygwin=true;;
 esac
 
-if [ -f "${KATTA_CONF_DIR}/hadoop-env.sh" ]; then
-  . "${KATTA_CONF_DIR}/hadoop-env.sh"
+if [ -f "${KATTA_CONF_DIR}/katta-env.sh" ]; then
+  . "${KATTA_CONF_DIR}/katta-env.sh"
 fi
 
 # some Java parameters
