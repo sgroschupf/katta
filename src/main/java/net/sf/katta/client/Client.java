@@ -40,14 +40,13 @@ import net.sf.katta.util.ComparisonUtil;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.Logger;
 import net.sf.katta.util.ZkConfiguration;
-import net.sf.katta.zk.IZKEventListener;
+import net.sf.katta.zk.IZkChildListener;
+import net.sf.katta.zk.IZkDataListener;
 import net.sf.katta.zk.ZKClient;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.MapWritable;
 import org.apache.hadoop.ipc.RPC;
-
-import com.yahoo.zookeeper.proto.WatcherEvent;
 
 /**
  * Default implementation of {@link IClient}.
@@ -57,24 +56,18 @@ public class Client implements IClient {
   // TODO i see much space for improvement here, for example we do not need to
   // reload all index shards ...
 
-  private final ZKClient _client;
+  protected final ZKClient _zkClient;
 
   private final IndexDataListener _indexDataChangeListener = new IndexDataListener();
-
   private final IndexPathListener _indexPathChangeListener = new IndexPathListener();
-
   private final ShardListener _shardListener = new ShardListener();
 
-  private final Map<String, List<String>> _indexToShards = new HashMap<String, List<String>>();
+  protected final Map<String, List<String>> _indexToShards = new HashMap<String, List<String>>();
+  protected final Map<String, List<String>> _shardsToNode = new HashMap<String, List<String>>();
+  protected final Map<String, ISearch> _nodes = new HashMap<String, ISearch>();
 
-  private final Map<String, List<String>> _shardsToNode = new HashMap<String, List<String>>();
-
-  private final Map<String, ISearch> _nodes = new HashMap<String, ISearch>();
-
-  private final INodeSelectionPolicy _policy;
-
+  protected final INodeSelectionPolicy _policy;
   private long _queryCount = 0;
-
   private final long _start;
 
   public Client(final INodeSelectionPolicy nodeSelectionPolicy) throws KattaException {
@@ -87,18 +80,18 @@ public class Client implements IClient {
 
   public Client(final INodeSelectionPolicy policy, final ZkConfiguration config) throws KattaException {
     _policy = policy;
-    _client = new ZKClient(config);
-    synchronized (_client.getSyncMutex()) {
-      _client.start(30000);
+    _zkClient = new ZKClient(config);
+    synchronized (_zkClient.getSyncMutex()) {
+      _zkClient.start(30000);
       // first get all changes on index..
-      _client.subscribeChildChanges(IPaths.INDEXES, _indexPathChangeListener);
+      _zkClient.subscribeChildChanges(IPaths.INDEXES, _indexPathChangeListener);
       loadIndexAndShardsData();
     }
     _start = System.currentTimeMillis();
   }
 
-  private void loadIndexAndShardsData() throws KattaException {
-    final List<String> knownIndexes = _client.getChildren(IPaths.INDEXES);
+  protected void loadIndexAndShardsData() throws KattaException {
+    final List<String> knownIndexes = _zkClient.getChildren(IPaths.INDEXES);
     for (final String indexName : knownIndexes) {
       loadShardsFromIndex(indexName);
     }
@@ -110,7 +103,7 @@ public class Client implements IClient {
     }
   }
 
-  private void createNodeConnections() {
+  protected void createNodeConnections() {
     final Collection<List<String>> values = _shardsToNode.values();
     for (final List<String> nodeList : values) {
       for (final String node : nodeList) {
@@ -122,7 +115,7 @@ public class Client implements IClient {
     }
   }
 
-  private ISearch getNodeProxy(final String node) {
+  protected ISearch getNodeProxy(final String node) {
     ISearch nodeProxy = null;
     final Configuration configuration = new Configuration();
     final int splitPoint = node.indexOf(':');
@@ -150,21 +143,21 @@ public class Client implements IClient {
     return nodeProxy;
   }
 
-  private void loadShardsFromIndex(final String indexName) throws KattaException {
+  protected void loadShardsFromIndex(final String indexName) throws KattaException {
     final String indexPath = IPaths.INDEXES + "/" + indexName;
     final IndexMetaData indexMetaData = new IndexMetaData();
-    _client.readData(indexPath, indexMetaData);
+    _zkClient.readData(indexPath, indexMetaData);
     if (indexMetaData.getState() == IndexMetaData.IndexState.DEPLOYED) {
-      final List<String> indexShards = _client.getChildren(indexPath);
+      final List<String> indexShards = _zkClient.getChildren(indexPath);
       _indexToShards.put(indexName, indexShards);
       for (final String shardName : indexShards) {
-        final ArrayList<String> nodes = _client.subscribeChildChanges(IPaths.SHARD_TO_NODE + "/" + shardName,
+        final ArrayList<String> nodes = _zkClient.subscribeChildChanges(IPaths.SHARD_TO_NODE + "/" + shardName,
             _shardListener);
         Logger.debug("Add shard listener in client.");
         _shardsToNode.put(shardName, nodes);
       }
     } else {
-      _client.subscribeDataChanges(indexPath, _indexDataChangeListener);
+      _zkClient.subscribeDataChanges(indexPath, _indexDataChangeListener);
     }
   }
 
@@ -261,16 +254,16 @@ public class Client implements IClient {
     return docFreqs;
   }
 
-  private class IndexDataListener implements IZKEventListener {
-    public void process(final WatcherEvent event) {
+  protected class IndexDataListener implements IZkDataListener {
+
+    public void handleDataChange(String parentPath) throws KattaException {
       // a existing index is now deployed..
-      synchronized (_client.getSyncMutex()) {
-        final String path = event.getPath();
+      synchronized (_zkClient.getSyncMutex()) {
         final IndexMetaData indexMetaData = new IndexMetaData();
         try {
-          _client.readData(path, indexMetaData);
+          _zkClient.readData(parentPath, indexMetaData);
           if (indexMetaData.getState() == IndexMetaData.IndexState.DEPLOYED) {
-            final String indexName = _client.getNodeNameFromPath(path);
+            final String indexName = _zkClient.getNodeNameFromPath(parentPath);
             loadShardsFromIndex(indexName);
             // set datat for policy
             _policy.setShardsAndNodes(_indexToShards, _shardsToNode);
@@ -281,13 +274,15 @@ public class Client implements IClient {
           throw new RuntimeException("unable to read zookeeper data", e);
         }
       }
+
     }
   }
 
-  private class IndexPathListener implements IZKEventListener {
-    public void process(final WatcherEvent event) {
+  protected class IndexPathListener implements IZkChildListener {
+
+    public void handleChildChange(String parentPath) throws KattaException {
       // new index added...
-      synchronized (_client.getSyncMutex()) {
+      synchronized (_zkClient.getSyncMutex()) {
         try {
           loadIndexAndShardsData();
           _policy.setShardsAndNodes(_indexToShards, _shardsToNode);
@@ -330,17 +325,16 @@ public class Client implements IClient {
     return details;
   }
 
-  private class ShardListener implements IZKEventListener {
+  protected class ShardListener implements IZkChildListener {
 
-    public void process(final WatcherEvent event) {
+    public void handleChildChange(String shardPath) throws KattaException {
       Logger.debug("Shard event in client.");
       // a shard got a new node or one was removed...
-      synchronized (_client.getSyncMutex()) {
-        final String shardPath = event.getPath();
+      synchronized (_zkClient.getSyncMutex()) {
         List<String> newNodes;
         try {
-          newNodes = _client.getChildren(shardPath);
-          final String shardName = _client.getNodeNameFromPath(shardPath);
+          newNodes = _zkClient.getChildren(shardPath);
+          final String shardName = _zkClient.getNodeNameFromPath(shardPath);
           final List<String> oldNodes = _shardsToNode.get(shardName);
           final List<String> toRemove = ComparisonUtil.getRemoved(oldNodes, newNodes);
           for (final String node : toRemove) {
@@ -417,8 +411,8 @@ public class Client implements IClient {
   }
 
   public void close() {
-    if (_client != null) {
-      _client.close();
+    if (_zkClient != null) {
+      _zkClient.close();
     }
   }
 

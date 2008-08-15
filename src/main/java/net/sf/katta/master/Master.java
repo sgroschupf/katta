@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -36,7 +37,8 @@ import net.sf.katta.util.KattaException;
 import net.sf.katta.util.Logger;
 import net.sf.katta.util.MasterConfiguration;
 import net.sf.katta.util.NetworkUtil;
-import net.sf.katta.zk.IZKEventListener;
+import net.sf.katta.zk.IZkChildListener;
+import net.sf.katta.zk.IZkDataListener;
 import net.sf.katta.zk.ZKClient;
 
 import org.apache.hadoop.conf.Configuration;
@@ -45,28 +47,22 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
 
-import com.yahoo.zookeeper.proto.WatcherEvent;
-
 public class Master {
 
   private static final byte NOT_DEPLOYED = 0;
-
   private static final byte DEPLOYED = 1;
-
   private static final byte DEPLOYED_WITH_ERRORS = 2;
 
-  ZKClient _client;
+  protected ZKClient _zkClient;
 
   protected List<String> _nodes = new ArrayList<String>();
-
   protected List<String> _indexes = new ArrayList<String>();
 
   private IDeployPolicy _policy;
-
   private boolean _isMaster;
 
   public Master(final ZKClient client) throws KattaException {
-    _client = client;
+    _zkClient = client;
     final MasterConfiguration masterConfiguration = new MasterConfiguration();
     final String deployPolicy = masterConfiguration.getDeployPolicy();
     try {
@@ -78,8 +74,8 @@ public class Master {
   }
 
   public void start() throws KattaException {
-    if (!_client.isStarted()) {
-      _client.start(300000);
+    if (!_zkClient.isStarted()) {
+      _zkClient.start(300000);
     }
     if (becomeMaster()) {
       // master
@@ -91,25 +87,24 @@ public class Master {
     } else {
       _isMaster = false;
       // secondary master
-      _client.subscribeDataChanges(IPaths.MASTER, new MasterListener());
+      _zkClient.subscribeDataChanges(IPaths.MASTER, new MasterListener());
       Logger.info("Secondary Master started...");
 
     }
   }
 
   private boolean becomeMaster() {
-    synchronized (_client.getSyncMutex()) {
+    synchronized (_zkClient.getSyncMutex()) {
       try {
         final String hostName = NetworkUtil.getLocalhostName();
         final MasterMetaData freshMaster = new MasterMetaData(hostName, System.currentTimeMillis());
         // no master so this one will be master
-        if (!_client.exists(IPaths.MASTER)) {
-          _client.createEphemeral(IPaths.MASTER, freshMaster);
+        if (!_zkClient.exists(IPaths.MASTER)) {
+          _zkClient.createEphemeral(IPaths.MASTER, freshMaster);
           Logger.info("Master " + hostName + " started....");
           return true;
-        } else {
-          return false;
         }
+        return false;
       } catch (final KattaException e) {
         throw new RuntimeException("Failed to communicate with ZooKeeper", e);
       }
@@ -118,8 +113,8 @@ public class Master {
 
   private void loadIndexes() throws KattaException {
     Logger.debug("Loading indexes...");
-    synchronized (_client.getSyncMutex()) {
-      final ArrayList<String> indexes = _client.subscribeChildChanges(IPaths.INDEXES, new IndexListener());
+    synchronized (_zkClient.getSyncMutex()) {
+      final ArrayList<String> indexes = _zkClient.subscribeChildChanges(IPaths.INDEXES, new IndexListener());
       assert indexes != null;
       if (indexes.size() > 0) {
         addIndexes(indexes);
@@ -129,11 +124,11 @@ public class Master {
   }
 
   private void loadNodes() throws KattaException {
-    Logger.debug("Loading nodes...");
+    Logger.info("Loading nodes...");
     waitForNodeStartup();
-    synchronized (_client.getSyncMutex()) {
-      final ArrayList<String> children = _client.subscribeChildChanges(IPaths.NODES, new NodeListener());
-      Logger.debug("Found nodes: " + children);
+    synchronized (_zkClient.getSyncMutex()) {
+      final ArrayList<String> children = _zkClient.subscribeChildChanges(IPaths.NODES, new NodeListener());
+      Logger.info("Found nodes: " + children);
       assert children != null;
       _nodes = children;
     }
@@ -143,7 +138,7 @@ public class Master {
     Logger.info("waiting for nodes...");
     List<String> nodes = new ArrayList<String>();
     while (nodes.size() == 0) {
-      nodes = _client.getChildren(IPaths.NODES);
+      nodes = _zkClient.getChildren(IPaths.NODES);
       try {
         Thread.sleep(5000);
       } catch (InterruptedException e) {
@@ -155,18 +150,18 @@ public class Master {
         for (String node : nodes) {
           String nodePath = IPaths.NODES + "/" + node;
           NodeMetaData nodeMetaData = new NodeMetaData();
-          _client.readData(nodePath, nodeMetaData);
+          _zkClient.readData(nodePath, nodeMetaData);
           nodesStarted = nodesStarted && !nodeMetaData.isStarting();
         }
       }
     }
   }
 
-  private void addIndexes(final List<String> indexes) throws KattaException {
+  protected void addIndexes(final List<String> indexes) throws KattaException {
     Logger.info("Adding indexes: " + indexes);
     for (final String index : indexes) {
       final IndexMetaData metaData = new IndexMetaData();
-      _client.readData(IPaths.INDEXES + "/" + index, metaData);
+      _zkClient.readData(IPaths.INDEXES + "/" + index, metaData);
       try {
         deployIndex(index, metaData);
       } catch (Exception e) {
@@ -181,7 +176,7 @@ public class Master {
     if (shards.size() == 0) {
       metaData.setState(IndexMetaData.IndexState.NO_VALID_KATTA_INDEX);
       try {
-        _client.writeData(indexPath, metaData);
+        _zkClient.writeData(indexPath, metaData);
       } catch (final KattaException ke) {
         throw new RuntimeException("Failed to write Index no valid katta index", ke);
       }
@@ -191,20 +186,20 @@ public class Master {
     // add shards to index..
     for (final AssignedShard shard : shards) {
       final String path = indexPath + "/" + shard.getShardName();
-      if (!_client.exists(path)) {
-        _client.create(path, shard);
+      if (!_zkClient.exists(path)) {
+        _zkClient.create(path, shard);
       }
     }
 
     // compute how to distribute shards to nodes
     final List<String> readNodes = readNodes();
     if (readNodes != null && readNodes.size() > 0) {
-      final Map<String, List<AssignedShard>> distributionMap = _policy.distribute(_client, readNodes, shards, metaData
-          .getReplicationLevel());
+      final Map<String, List<AssignedShard>> distributionMap = _policy.distribute(_zkClient, readNodes, shards,
+          metaData.getReplicationLevel());
       assignShards(distributionMap);
       try {
         metaData.setState(IndexMetaData.IndexState.ANNOUNCED);
-        _client.writeData(indexPath, metaData);
+        _zkClient.writeData(indexPath, metaData);
       } catch (final KattaException ke) {
         throw new RuntimeException("Failed to write Index announced", ke);
       }
@@ -221,7 +216,7 @@ public class Master {
                 Logger.info("Index '" + index + "' not yet fully deployed, waiting");
                 Thread.sleep(2000);
                 try {
-                  if (!_client.exists(indexPath)) {
+                  if (!_zkClient.exists(indexPath)) {
                     Logger.warn("Index '" + index + "' removed before the deployment completed.");
                     return;
                   }
@@ -234,7 +229,7 @@ public class Master {
                 return;
               }
             }
-            _client.readData(indexPath, metaData);
+            _zkClient.readData(indexPath, metaData);
             if (deployResult == DEPLOYED_WITH_ERRORS) {
               Logger.error("deploy of index '" + index + "' failed.");
               metaData.setState(IndexMetaData.IndexState.DEPLOY_ERROR);
@@ -242,12 +237,12 @@ public class Master {
               Logger.info("Finnaly the index '" + index + "' is deployed...");
               metaData.setState(IndexMetaData.IndexState.DEPLOYED);
             }
-            _client.writeData(indexPath, metaData);
+            _zkClient.writeData(indexPath, metaData);
           } catch (final KattaException e) {
             Logger.error("deploy of index '" + index + "' failed.", e);
             metaData.setState(IndexMetaData.IndexState.DEPLOY_ERROR);
             try {
-              _client.writeData(indexPath, metaData);
+              _zkClient.writeData(indexPath, metaData);
             } catch (final KattaException ke) {
               throw new RuntimeException("Failed to write Index deployError", ke);
             }
@@ -280,8 +275,8 @@ public class Master {
     final ArrayList<AssignedShard> shards = new ArrayList<AssignedShard>();
     try {
       final FileStatus[] listStatus = fileSystem.listStatus(path, new PathFilter() {
-        public boolean accept(final Path path) {
-          return !path.getName().startsWith(".");
+        public boolean accept(final Path aPath) {
+          return !aPath.getName().startsWith(".");
         }
       });
       for (final FileStatus fileStatus : listStatus) {
@@ -295,7 +290,7 @@ public class Master {
     return shards;
   }
 
-  private byte isDeployedAsExpected(final Map<String, List<AssignedShard>> distributionMap) throws KattaException {
+  protected byte isDeployedAsExpected(final Map<String, List<AssignedShard>> distributionMap) throws KattaException {
     byte result = NOT_DEPLOYED;
     int all = 0;
     int deployed = 0;
@@ -309,14 +304,14 @@ public class Master {
       for (final AssignedShard expectedShard : shardsToServe) {
         // lookup who is actually serving this shard.
         String shardPath = IPaths.SHARD_TO_NODE + "/" + expectedShard.getShardName();
-        final List<String> servingNodes = _client.getChildren(shardPath);
+        final List<String> servingNodes = _zkClient.getChildren(shardPath);
         // is the node we expect here already?
         boolean asExpected = false;
         for (final String servingNode : servingNodes) {
           if (node.equals(servingNode)) {
             asExpected = true;
             DeployedShard deployedShard = new DeployedShard();
-            _client.readData(shardPath + "/" + servingNode, deployedShard);
+            _zkClient.readData(shardPath + "/" + servingNode, deployedShard);
             if (deployedShard.hasError()) {
               error++;
             } else {
@@ -357,38 +352,38 @@ public class Master {
         // shard to server
         final String shardName = shard.getShardName();
         final String shardServerPath = IPaths.SHARD_TO_NODE + "/" + shardName;
-        if (!_client.exists(shardServerPath)) {
-          _client.create(shardServerPath);
+        if (!_zkClient.exists(shardServerPath)) {
+          _zkClient.create(shardServerPath);
         }
         // node to shard
         Logger.info("Assigning:" + shardName + " to: " + node);
         final String nodePath = IPaths.NODE_TO_SHARD + "/" + node;
         final String nodeShardPath = nodePath + "/" + shardName;
-        if (!_client.exists(nodeShardPath)) {
-          _client.create(nodeShardPath, shard);
+        if (!_zkClient.exists(nodeShardPath)) {
+          _zkClient.create(nodeShardPath, shard);
         }
       }
     }
   }
 
-  private void removeNodes(final List<String> removedNodes) throws KattaException {
+  protected void removeNodes(final List<String> removedNodes) throws KattaException {
     for (final String node : removedNodes) {
       // get the shards this node served...
       final String nodeToRemove = IPaths.NODE_TO_SHARD + "/" + node;
-      final List<String> toAsignShards = _client.getChildren(nodeToRemove);
+      final List<String> toAsignShards = _zkClient.getChildren(nodeToRemove);
       final List<AssignedShard> shards = new ArrayList<AssignedShard>();
       for (final String shardName : toAsignShards) {
         final AssignedShard metaData = new AssignedShard();
-        _client.readData(nodeToRemove + "/" + shardName, metaData);
+        _zkClient.readData(nodeToRemove + "/" + shardName, metaData);
         shards.add(metaData);
       }
-      _client.deleteRecursive(nodeToRemove);
+      _zkClient.deleteRecursive(nodeToRemove);
       if (toAsignShards.size() != 0) {
         // since we lost one shard, we want to use replication level 1, since
         // all other replica still exists..
         List<String> nodes = readNodes();
         if (nodes.size() > 0) {
-          final Map<String, List<AssignedShard>> asignmentMap = _policy.distribute(_client, nodes, shards, 1);
+          final Map<String, List<AssignedShard>> asignmentMap = _policy.distribute(_zkClient, nodes, shards, 1);
           assignShards(asignmentMap);
         } else {
           Logger.warn("No nodes left for shard redistribution.");
@@ -398,7 +393,7 @@ public class Master {
     }
   }
 
-  private void removeIndexes(final List<String> removedIndexes) {
+  protected void removeIndexes(final List<String> removedIndexes) {
     Logger.debug("Remove indexes.");
     for (final String indexName : removedIndexes) {
       try {
@@ -416,31 +411,32 @@ public class Master {
    * @throws KattaException
    */
   private void removeIndex(final String indexName) throws KattaException {
-    synchronized (_client.getSyncMutex()) {
+    synchronized (_zkClient.getSyncMutex()) {
       Logger.debug("Remove index: '" + indexName + "'.");
-      final List<String> nodes = _client.getChildren(IPaths.NODE_TO_SHARD);
+      final List<String> nodes = _zkClient.getChildren(IPaths.NODE_TO_SHARD);
       for (final String node : nodes) {
         final String nodePath = IPaths.NODE_TO_SHARD + "/" + node;
-        final List<String> assignedShards = _client.getChildren(nodePath);
+        final List<String> assignedShards = _zkClient.getChildren(nodePath);
         for (final String shard : assignedShards) {
           final AssignedShard shardWritable = new AssignedShard();
           final String shardPath = nodePath + "/" + shard;
-          _client.readData(shardPath, shardWritable);
+          _zkClient.readData(shardPath, shardWritable);
           if (shardWritable.getIndexName().equalsIgnoreCase(indexName)) {
-            _client.delete(shardPath);
+            _zkClient.delete(shardPath);
           }
         }
       }
     }
   }
 
-  private class NodeListener implements IZKEventListener {
-    public void process(final WatcherEvent event) {
+  protected class NodeListener implements IZkChildListener {
+
+    public void handleChildChange(String parentPath) throws KattaException {
       Logger.info("Node event.");
-      synchronized (_client.getSyncMutex()) {
+      synchronized (_zkClient.getSyncMutex()) {
         List<String> currentNodes;
         try {
-          currentNodes = _client.getChildren(event.getPath());
+          currentNodes = _zkClient.getChildren(parentPath);
           final List<String> removedNodes = ComparisonUtil.getRemoved(_nodes, currentNodes);
           removeNodes(removedNodes);
           ComparisonUtil.getNew(_nodes, currentNodes);
@@ -448,19 +444,20 @@ public class Master {
         } catch (final KattaException e) {
           throw new RuntimeException("Faled to read zookeeper data.", e);
         } finally {
-          _client.getSyncMutex().notifyAll();
+          _zkClient.getSyncMutex().notifyAll();
         }
       }
     }
   }
 
-  private class IndexListener implements IZKEventListener {
-    public void process(final WatcherEvent event) {
+  protected class IndexListener implements IZkChildListener {
+
+    public void handleChildChange(String parentPath) throws KattaException {
       Logger.info("Indexes event.");
-      synchronized (_client.getSyncMutex()) {
+      synchronized (_zkClient.getSyncMutex()) {
         List<String> freshIndexes;
         try {
-          freshIndexes = _client.getChildren(event.getPath());
+          freshIndexes = _zkClient.getChildren(parentPath);
           final List<String> removedIndices = ComparisonUtil.getRemoved(_indexes, freshIndexes);
           removeIndexes(removedIndices);
           final List<String> newIndexes = ComparisonUtil.getNew(_indexes, freshIndexes);
@@ -469,15 +466,16 @@ public class Master {
         } catch (final KattaException e) {
           throw new RuntimeException("Failed to read zookeeper data", e);
         } finally {
-          _client.getSyncMutex().notifyAll();
+          _zkClient.getSyncMutex().notifyAll();
         }
       }
     }
   }
 
-  private class MasterListener implements IZKEventListener {
-    public void process(final WatcherEvent event) {
-      synchronized (_client.getSyncMutex()) {
+  protected class MasterListener implements IZkDataListener {
+
+    public void handleDataChange(String parentPath) throws KattaException {
+      synchronized (_zkClient.getSyncMutex()) {
         // start from scratch again...
         Logger.info("An master failure was detected...");
         try {
@@ -490,21 +488,25 @@ public class Master {
   }
 
   protected List<String> readNodes() throws KattaException {
-    return _client.getChildren(IPaths.NODES);
+    return _zkClient.getChildren(IPaths.NODES);
   }
 
   protected List<String> readIndexes() throws KattaException {
-    return _client.getChildren(IPaths.INDEXES);
+    return _zkClient.getChildren(IPaths.INDEXES);
   }
 
   @Override
   protected void finalize() throws Throwable {
-    _client.delete(IPaths.MASTER);
+    _zkClient.delete(IPaths.MASTER);
     super.finalize();
   }
 
   public boolean isMaster() {
     return _isMaster;
+  }
+
+  public List<String> getNodes() {
+    return Collections.unmodifiableList(_nodes);
   }
 
 }

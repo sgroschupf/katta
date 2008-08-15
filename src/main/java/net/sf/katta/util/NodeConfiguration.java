@@ -19,6 +19,8 @@
  */
 package net.sf.katta.util;
 
+import java.io.File;
+
 public class NodeConfiguration extends KattaConfiguration {
 
   private final static String NODE_SERVER_PORT_START = "node.server.port.start";
@@ -32,8 +34,8 @@ public class NodeConfiguration extends KattaConfiguration {
     return getInt(NODE_SERVER_PORT_START);
   }
 
-  public String getShardFolder() {
-    return getProperty(SHARD_FOLDER);
+  public File getShardFolder() {
+    return getFile(SHARD_FOLDER);
   }
 
   public void setShardFolder(final String value) {

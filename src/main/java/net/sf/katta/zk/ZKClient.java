@@ -24,9 +24,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import net.sf.katta.master.IPaths;
-import net.sf.katta.node.IAnnouncer;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.Logger;
 import net.sf.katta.util.ZkConfiguration;
@@ -53,13 +53,13 @@ public class ZKClient implements Watcher {
 
   private final Object _mutex = new Object();
 
-  private final HashMap<String, HashSet<IZKEventListener>> _childListener = new HashMap<String, HashSet<IZKEventListener>>();
-  private final HashMap<String, HashSet<IZKEventListener>> _dataListener = new HashMap<String, HashSet<IZKEventListener>>();
+  private final HashMap<String, HashSet<IZkChildListener>> _childListener = new HashMap<String, HashSet<IZkChildListener>>();
+  private final HashMap<String, HashSet<IZkDataListener>> _dataListener = new HashMap<String, HashSet<IZkDataListener>>();
+  private final Set<IZkReconnectListener> _reconnectListener = new HashSet<IZkReconnectListener>();
 
   private final String _servers;
   private final int _port;
   private final int _timeOut;
-  private List<IAnnouncer> _announcers = new ArrayList<IAnnouncer>();
 
   public ZKClient(final ZkConfiguration configuration) {
     _servers = configuration.getZKServers();
@@ -95,7 +95,7 @@ public class ZKClient implements Watcher {
 
     // wait until connected
     try {
-      while (_zk.getState() != ZooKeeper.States.CONNECTED) {
+      while (_zk.getState() == ZooKeeper.States.CONNECTING) {
         ZooKeeper.States state = _zk.getState();
         if (System.currentTimeMillis() - startTime > maxMsToWaitUntilConnected) {
           _zk = null;
@@ -106,9 +106,6 @@ public class ZKClient implements Watcher {
       }
 
       createDefaultNameSpace();
-      for (IAnnouncer announcer : _announcers) {
-        announcer.announce(this);
-      }
     } catch (final InterruptedException e) {
       Logger.warn("waiting for the zookeeper server was interrupted", e);
     }
@@ -140,7 +137,7 @@ public class ZKClient implements Watcher {
    *           Thrown in case we can't read the children nodes. Note that we
    *           also remove the notification listener.
    */
-  public ArrayList<String> subscribeChildChanges(final String path, final IZKEventListener listener)
+  public ArrayList<String> subscribeChildChanges(final String path, final IZkChildListener listener)
       throws KattaException {
     ensureZkStarted();
     addChildListener(path, listener);
@@ -154,6 +151,10 @@ public class ZKClient implements Watcher {
     }
   }
 
+  public void subscribeReconnects(final IZkReconnectListener listener) {
+    _reconnectListener.add(listener);
+  }
+
   /**
    * Subscribes notifications for permanent notifications for data changes on
    * the given node path.
@@ -162,7 +163,7 @@ public class ZKClient implements Watcher {
    * @param listener
    * @throws KattaException
    */
-  public void subscribeDataChanges(final String path, final IZKEventListener listener) throws KattaException {
+  public void subscribeDataChanges(final String path, final IZkDataListener listener) throws KattaException {
     ensureZkStarted();
     synchronized (_mutex) {
       addDataListener(path, listener);
@@ -175,40 +176,40 @@ public class ZKClient implements Watcher {
     }
   }
 
-  private void removeDataListener(final String path, final IZKEventListener listener) {
+  private void removeDataListener(final String path, final IZkDataListener listener) {
     ensureZkStarted();
-    final HashSet<IZKEventListener> hashSet = _dataListener.get(path);
+    final HashSet<IZkDataListener> hashSet = _dataListener.get(path);
     if (hashSet != null) {
       hashSet.remove(listener);
     }
   }
 
-  private void removeChildListener(final String path, final IZKEventListener listener) {
+  private void removeChildListener(final String path, final IZkChildListener listener) {
     ensureZkStarted();
-    final HashSet<IZKEventListener> hashSet = _childListener.get(path);
+    final HashSet<IZkChildListener> hashSet = _childListener.get(path);
     if (hashSet != null) {
       hashSet.remove(listener);
     }
   }
 
-  private void addChildListener(final String path, final IZKEventListener listener) {
+  private void addChildListener(final String path, final IZkChildListener listener) {
     ensureZkStarted();
     if (listener != null) {
-      HashSet<IZKEventListener> set = _childListener.get(path);
+      HashSet<IZkChildListener> set = _childListener.get(path);
       if (set == null) {
-        set = new HashSet<IZKEventListener>();
+        set = new HashSet<IZkChildListener>();
         _childListener.put(path, set);
       }
       set.add(listener);
     }
   }
 
-  private void addDataListener(final String path, final IZKEventListener listener) {
+  private void addDataListener(final String path, final IZkDataListener listener) {
     ensureZkStarted();
     if (listener != null) {
-      HashSet<IZKEventListener> set = _dataListener.get(path);
+      HashSet<IZkDataListener> set = _dataListener.get(path);
       if (set == null) {
-        set = new HashSet<IZKEventListener>();
+        set = new HashSet<IZkDataListener>();
         _dataListener.put(path, set);
       }
       set.add(listener);
@@ -378,7 +379,7 @@ public class ZKClient implements Watcher {
     ensureZkStarted();
     synchronized (_mutex) {
       boolean watch = false;
-      final HashSet<IZKEventListener> set = _childListener.get(path);
+      final HashSet<IZkChildListener> set = _childListener.get(path);
       if (set != null && set.size() > 0) {
         watch = true;
       }
@@ -394,11 +395,11 @@ public class ZKClient implements Watcher {
     synchronized (_mutex) {
       final String path = event.getPath();
       if (event.getType() == Watcher.Event.EventNodeChildrenChanged) {
-        final HashSet<IZKEventListener> listeners = _childListener.get(path);
+        final HashSet<IZkChildListener> listeners = _childListener.get(path);
         if (listeners != null) {
-          for (final IZKEventListener listener : listeners) {
+          for (final IZkChildListener listener : listeners) {
             try {
-              listener.process(event);
+              listener.handleChildChange(event.getPath());
             } catch (final Throwable e) {
               Logger.error("Faild to process event with listener: " + listener, e);
             }
@@ -407,7 +408,7 @@ public class ZKClient implements Watcher {
           try {
             _zk.getChildren(event.getPath(), true);
           } catch (final Exception e) {
-            for (final IZKEventListener listener : listeners) {
+            for (final IZkChildListener listener : listeners) {
               removeChildListener(path, listener);
             }
             throw new RuntimeException("Unable to re subscribe to child change notification for: " + path, e);
@@ -415,11 +416,11 @@ public class ZKClient implements Watcher {
         }
       } else if (event.getType() == Watcher.Event.EventNodeDataChanged
           || event.getType() == Watcher.Event.EventNodeDeleted) {
-        final HashSet<IZKEventListener> listeners = _dataListener.get(path);
+        final HashSet<IZkDataListener> listeners = _dataListener.get(path);
         if (listeners != null) {
-          for (final IZKEventListener listener : listeners) {
+          for (final IZkDataListener listener : listeners) {
             try {
-              listener.process(event);
+              listener.handleDataChange(event.getPath());
             } catch (final Throwable e) {
               Logger.error("Faild to process event with listener: " + listener, e);
             }
@@ -428,8 +429,8 @@ public class ZKClient implements Watcher {
           try {
             _zk.getData(event.getPath(), true, null);
           } catch (final Exception e) {
-            for (final IZKEventListener listener : listeners) {
-              removeChildListener(path, listener);
+            for (final IZkDataListener listener : listeners) {
+              removeDataListener(path, listener);
             }
             throw new RuntimeException("Unable to re subscribe to data change notification.", e);
           }
@@ -437,12 +438,7 @@ public class ZKClient implements Watcher {
       } else if (event.getState() == Watcher.Event.KeeperStateExpired) {
         // we do a reconnect
         Logger.debug("Zookeeper session expired.");
-        try {
-          close();
-          start(1000 * 60 * 10);
-        } catch (final Exception e) {
-          throw new RuntimeException("Exception while restarting zk client", e);
-        }
+        reconnect();
       } else if ((event.getType() == Watcher.Event.EventNone)
           && (event.getState() == Watcher.Event.KeeperStateDisconnected)) {
         // TODO: What to do?
@@ -461,6 +457,24 @@ public class ZKClient implements Watcher {
     }
   }
 
+  private void reconnect() {
+    try {
+      close();
+      // try {
+      // ZooKeeper zooKeeper = new ZooKeeper(_servers, _timeOut, this);
+      // zooKeeper.getSessionId()
+      // } catch (Exception e) {
+      // // TODO: handle exception
+      // }
+      start(1000 * 60 * 10);
+      for (IZkReconnectListener reconnectListener : _reconnectListener) {
+        reconnectListener.handleReconnect();
+      }
+    } catch (final Exception e) {
+      throw new RuntimeException("Exception while restarting zk client", e);
+    }
+  }
+
   /**
    * Reads that data of given path into a writeable instance. Make sure you use
    * the same writable implementation as you used to write the data.
@@ -475,7 +489,7 @@ public class ZKClient implements Watcher {
     byte[] data;
     synchronized (_mutex) {
       boolean watch = false;
-      final HashSet<IZKEventListener> set = _dataListener.get(path);
+      final HashSet<IZkDataListener> set = _dataListener.get(path);
       if (set != null && set.size() > 0) {
         watch = true;
       }
@@ -622,16 +636,8 @@ public class ZKClient implements Watcher {
     return _port;
   }
 
-  public ZooKeeper.States getZookeeperStates() {
+  public ZooKeeper.States getZookeeperState() {
     return _zk != null ? _zk.getState() : null;
-  }
-
-  public void addAnnouncer(IAnnouncer announcer) throws KattaException {
-    _announcers.add(announcer);
-  }
-
-  public List<IAnnouncer> getAnnouncers() {
-    return _announcers;
   }
 
 }

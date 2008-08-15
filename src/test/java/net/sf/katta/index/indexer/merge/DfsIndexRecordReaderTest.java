@@ -25,7 +25,8 @@ import java.net.URI;
 import java.net.URISyntaxException;
 
 import junit.framework.TestCase;
-import net.sf.katta.util.TestUtil;
+import net.sf.katta.testutil.TestUtil;
+
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.MD5Hash;

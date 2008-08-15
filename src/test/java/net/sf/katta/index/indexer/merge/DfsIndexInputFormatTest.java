@@ -24,7 +24,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 
 import junit.framework.TestCase;
-import net.sf.katta.util.TestUtil;
+import net.sf.katta.testutil.TestUtil;
+
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.mapred.InputSplit;

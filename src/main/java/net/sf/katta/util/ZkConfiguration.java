@@ -55,6 +55,10 @@ public class ZkConfiguration extends KattaConfiguration {
     return getProperty(ZOOKEEPER_SERVERS);
   }
 
+  public void setZKServers(String servers) {
+    setProperty(ZOOKEEPER_SERVERS, servers);
+  }
+
   public int getZKTimeOut() {
     return getInt(ZOOKEEPER_TIMEOUT);
   }

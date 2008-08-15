@@ -89,10 +89,10 @@ public class MasterTest extends AbstractKattaTest {
     assertEquals(2, client.getChildren(IPaths.NODE_TO_SHARD).size());
 
     // there should be two shards here now
-    assertEquals(4, client.getChildren(IPaths.NODE_TO_SHARD + "/" + node1.getNode()).size());
+    assertEquals(4, client.getChildren(IPaths.NODE_TO_SHARD + "/" + node1.getName()).size());
 
     // there should be two shards here now
-    assertEquals(4, client.getChildren(IPaths.NODE_TO_SHARD + "/" + node2.getNode()).size());
+    assertEquals(4, client.getChildren(IPaths.NODE_TO_SHARD + "/" + node2.getName()).size());
     // there should be 4 shards indexes now..
     List<String> shardsToNode = client.getChildren(IPaths.SHARD_TO_NODE);
     assertEquals(4, shardsToNode.size());
@@ -110,20 +110,20 @@ public class MasterTest extends AbstractKattaTest {
       // the node event in the master NodeListerner should notify
       client.getSyncMutex().wait();
     }
-    assertEquals(4, client.getChildren(IPaths.NODE_TO_SHARD + "/" + node1.getNode()).size());
+    assertEquals(4, client.getChildren(IPaths.NODE_TO_SHARD + "/" + node1.getName()).size());
 
     List<String> shardsToIndex = client.getChildren(IPaths.INDEXES + "/indexA");
     assertEquals(4, shardsToIndex.size());
 
     katta.removeIndex("indexA");
     int count = 0;
-    while (client.getChildren(IPaths.NODE_TO_SHARD + "/" + node1.getNode()).size() != 0) {
+    while (client.getChildren(IPaths.NODE_TO_SHARD + "/" + node1.getName()).size() != 0) {
       Thread.sleep(500);
       if (count++ > 40) {
         fail("shards are still not removed from node after 20 sec.");
       }
     }
-    assertEquals(0, client.getChildren(IPaths.NODE_TO_SHARD + "/" + node1.getNode()).size());
+    assertEquals(0, client.getChildren(IPaths.NODE_TO_SHARD + "/" + node1.getName()).size());
 
     node1.shutdown();
     client.close();

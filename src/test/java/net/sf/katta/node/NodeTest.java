@@ -36,7 +36,7 @@ public class NodeTest extends AbstractKattaTest {
 
   public void testShardStatusSuccess() throws KattaException, InterruptedException {
     // start master
-    ZkServer zkServer = createZkServer();
+    createZkServer();
     ZKClient zkClient = new ZKClient(conf);
     zkClient.start(600000);
 
@@ -471,14 +471,13 @@ public class NodeTest extends AbstractKattaTest {
   // server.shutdown();
   // }
   //
-  public static Node startNodeServer(final ZKClient client, final String shardFolder) throws KattaException {
+  public static Node startNodeServer(final ZKClient client, final String shardFolder) {
 
     NodeConfiguration configuration = new NodeConfiguration();
     if (null != shardFolder) {
       configuration.setShardFolder(shardFolder);
     }
     final Node node = new Node(client, configuration);
-    client.addAnnouncer(node);
     try {
       node.start();
     } catch (final KattaException e) {
@@ -487,7 +486,7 @@ public class NodeTest extends AbstractKattaTest {
     return node;
   }
 
-  public static Node startNodeServer(final ZKClient client) throws KattaException {
+  public static Node startNodeServer(final ZKClient client) {
     return startNodeServer(client, null);
   }
 }

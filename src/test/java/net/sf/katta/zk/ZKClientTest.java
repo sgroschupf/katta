@@ -29,8 +29,6 @@ import net.sf.katta.util.ZkConfiguration;
 
 import org.apache.hadoop.io.Text;
 
-import com.yahoo.zookeeper.proto.WatcherEvent;
-
 public class ZKClientTest extends AbstractKattaTest {
 
   static Integer _mutex = new Integer(-1);
@@ -53,7 +51,7 @@ public class ZKClientTest extends AbstractKattaTest {
     client.close();
   }
 
-  public void testCreateFolder() throws KattaException, InterruptedException {
+  public void testCreateFolder() throws KattaException {
     createZkServer();
     final ZKClient client = new ZKClient(conf);
     final String path = "/katta";
@@ -139,15 +137,24 @@ public class ZKClientTest extends AbstractKattaTest {
     assertEquals("name", client.getNodeNameFromPath("/foo/bar/name/"));
   }
 
-  private class MyListener implements IZKEventListener {
+  protected class MyListener implements IZkChildListener, IZkDataListener {
+
     public int _counter = 0;
 
-    public void process(final WatcherEvent event) {
+    public void handleChildChange(String parentPath) throws KattaException {
+      handleEvent();
+    }
+
+    public void handleDataChange(String parentPath) throws KattaException {
+      handleEvent();
+    }
+
+    private void handleEvent() {
       _counter++;
       synchronized (_mutex) {
         _mutex.notify();
       }
-
     }
+
   }
 }

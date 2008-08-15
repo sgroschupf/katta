@@ -1,4 +1,4 @@
-package net.sf.katta.util;
+package net.sf.katta.testutil;
 
 import java.io.File;
 import java.io.FileInputStream;

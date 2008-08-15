@@ -25,7 +25,8 @@ import java.util.Arrays;
 import java.util.List;
 
 import junit.framework.TestCase;
-import net.sf.katta.util.TestUtil;
+import net.sf.katta.testutil.TestUtil;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;

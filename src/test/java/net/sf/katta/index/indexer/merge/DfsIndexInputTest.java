@@ -23,7 +23,8 @@ import java.io.File;
 import java.io.IOException;
 
 import junit.framework.TestCase;
-import net.sf.katta.util.TestUtil;
+import net.sf.katta.testutil.TestUtil;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;

@@ -7,10 +7,15 @@ import java.util.List;
 import junit.framework.TestCase;
 import net.sf.katta.master.Master;
 import net.sf.katta.util.KattaException;
+import net.sf.katta.util.NodeConfiguration;
 import net.sf.katta.util.ZkConfiguration;
+import net.sf.katta.zk.ZKClient;
 
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.ipc.RPC;
+
+import com.yahoo.zookeeper.ZooKeeper;
+import com.yahoo.zookeeper.ZooKeeper.States;
 
 public abstract class AbstractKattaTest extends TestCase {
 
@@ -47,6 +52,7 @@ public abstract class AbstractKattaTest extends TestCase {
   protected static void cleanZookeeperData(final ZkConfiguration configuration) throws IOException {
     FileUtil.fullyDelete(configuration.getZKDataDir());
     FileUtil.fullyDelete(configuration.getZKDataLogDir());
+    FileUtil.fullyDelete(new NodeConfiguration().getShardFolder());
   }
 
   protected Thread createStartMasterThread(final Master master) {
@@ -66,5 +72,19 @@ public abstract class AbstractKattaTest extends TestCase {
     ZkServer zkServer = new ZkServer(conf);
     _startedZkServer.add(zkServer);
     return zkServer;
+  }
+
+  protected void waitForStatus(ZKClient client, ZooKeeper.States state) throws Exception {
+    waitForStatus(client, state, conf.getZKTimeOut());
+  }
+
+  protected void waitForStatus(ZKClient client, States state, long timeout) throws Exception {
+    long maxWait = System.currentTimeMillis() + timeout;
+    while ((maxWait > System.currentTimeMillis())
+        && (client.getZookeeperState() == null || client.getZookeeperState() != state)) {
+      Thread.sleep(500);
+    }
+    assertEquals(state, client.getZookeeperState());
+
   }
 }

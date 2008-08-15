@@ -161,7 +161,6 @@ public class Katta {
     final ZkConfiguration configuration = new ZkConfiguration();
     final ZKClient client = new ZKClient(configuration);
     final Node node = new Node(client);
-    client.addAnnouncer(node);
     node.start();
     node.join();
   }
