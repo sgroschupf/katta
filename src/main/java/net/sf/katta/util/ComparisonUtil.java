@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ComparisonUtil {
+
   public static List<String> getNew(final List<String> oldList, final List<String> newList) {
     final List<String> list = new ArrayList<String>();
     for (final String string : newList) {

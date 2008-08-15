@@ -19,17 +19,38 @@
  */
 package net.sf.katta.master;
 
+import net.sf.katta.zk.ZkPathes;
+
 public interface IPaths {
+
+  /**
+   * @deprecated see {@link ZkPathes}
+   */
   public static final String ROOT_PATH = "/katta";
 
+  /**
+   * @deprecated see {@link ZkPathes}
+   */
   public static final String MASTER = ROOT_PATH + "/master";
 
+  /**
+   * @deprecated see {@link ZkPathes}
+   */
   public static final String NODES = ROOT_PATH + "/nodes";
 
+  /**
+   * @deprecated see {@link ZkPathes}
+   */
   public static final String INDEXES = ROOT_PATH + "/indexes";
 
+  /**
+   * @deprecated see {@link ZkPathes}
+   */
   public static final String NODE_TO_SHARD = ROOT_PATH + "/node-to-shard";
 
+  /**
+   * @deprecated see {@link ZkPathes}
+   */
   public static final String SHARD_TO_NODE = ROOT_PATH + "/shard-to-node";
 
 }
