@@ -38,7 +38,6 @@ import net.sf.katta.node.IQuery;
 import net.sf.katta.node.ISearch;
 import net.sf.katta.util.ComparisonUtil;
 import net.sf.katta.util.KattaException;
-import net.sf.katta.util.Logger;
 import net.sf.katta.util.ZkConfiguration;
 import net.sf.katta.zk.IZkChildListener;
 import net.sf.katta.zk.IZkDataListener;
@@ -47,12 +46,15 @@ import net.sf.katta.zk.ZKClient;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.MapWritable;
 import org.apache.hadoop.ipc.RPC;
+import org.apache.log4j.Logger;
 
 /**
  * Default implementation of {@link IClient}.
  * 
  */
 public class Client implements IClient {
+
+  protected final static Logger LOG = Logger.getLogger(Client.class);
   // TODO i see much space for improvement here, for example we do not need to
   // reload all index shards ...
 
@@ -120,19 +122,19 @@ public class Client implements IClient {
     final Configuration configuration = new Configuration();
     final int splitPoint = node.indexOf(':');
     if (-1 != splitPoint) {
-      Logger.debug("connecting to node: " + node);
+      LOG.debug("connecting to node: " + node);
       final String serverName = node.substring(0, splitPoint);
       final String port = node.substring(splitPoint + 1, node.length());
       try {
         final InetSocketAddress inetSocketAddress = new InetSocketAddress(serverName, Integer.parseInt(port));
         nodeProxy = (ISearch) RPC.getProxy(ISearch.class, 0L, inetSocketAddress, configuration);
       } catch (final IOException e) {
-        Logger.warn("One of the nodes cannot be reached.", e);
+        LOG.warn("One of the nodes cannot be reached.", e);
       } catch (final NumberFormatException e) {
-        Logger.warn("The supplied node port is wrong '" + port + "'");
+        LOG.warn("The supplied node port is wrong '" + port + "'");
       }
     } else {
-      Logger.warn("The format of the supplied node address is wrong: '" + node
+      LOG.warn("The format of the supplied node address is wrong: '" + node
           + "'. It should be a server name with a port number devided by a ':'.");
     }
 
@@ -153,7 +155,7 @@ public class Client implements IClient {
       for (final String shardName : indexShards) {
         final ArrayList<String> nodes = _zkClient.subscribeChildChanges(IPaths.SHARD_TO_NODE + "/" + shardName,
             _shardListener);
-        Logger.debug("Add shard listener in client.");
+        LOG.debug("Add shard listener in client.");
         _shardsToNode.put(shardName, nodes);
       }
     } else {
@@ -188,7 +190,7 @@ public class Client implements IClient {
       }
     }
     final Map<String, List<String>> nodeShardsMap = _policy.getNodeShardsMap(query, indexesToSearchIn);
-    Logger.info("Client.search()" + nodeShardsMap);
+    LOG.info("Client.search()" + nodeShardsMap);
     final Hits result = new Hits();
 
     final DocumentFrequenceWritable docFreqs = getDocFrequencies(query, nodeShardsMap);
@@ -203,22 +205,22 @@ public class Client implements IClient {
     }
 
     long start = 0;
-    if (Logger.isDebug()) {
+    if (LOG.isDebugEnabled()) {
       start = System.currentTimeMillis();
     }
     joinThreads(searchThreads);
-    if (Logger.isDebug()) {
+    if (LOG.isDebugEnabled()) {
       final long end = System.currentTimeMillis();
-      Logger.debug("Time for searching: " + (end - start) / 1000.0);
+      LOG.debug("Time for searching: " + (end - start) / 1000.0);
     }
 
-    if (Logger.isDebug()) {
+    if (LOG.isDebugEnabled()) {
       start = System.currentTimeMillis();
     }
     result.sort(count);
-    if (Logger.isDebug()) {
+    if (LOG.isDebugEnabled()) {
       final long end = System.currentTimeMillis();
-      Logger.debug("Time for sorting: " + (end - start) / 1000.0);
+      LOG.debug("Time for sorting: " + (end - start) / 1000.0);
     }
     _queryCount++;
     return result;
@@ -230,7 +232,7 @@ public class Client implements IClient {
         thread.join();
       }
     } catch (final InterruptedException e) {
-      Logger.warn("Join for search threads interrupted.", e);
+      LOG.warn("Join for search threads interrupted.", e);
     }
   }
 
@@ -249,7 +251,7 @@ public class Client implements IClient {
     // final long start = System.currentTimeMillis();
     joinThreads(searchThreads);
     // final long end = System.currentTimeMillis();
-    // Logger.info("Time for getting document frequencies: " + (end - start)
+    // LOG.info("Time for getting document frequencies: " + (end - start)
     // / 1000.0);
     return docFreqs;
   }
@@ -263,7 +265,7 @@ public class Client implements IClient {
         try {
           _zkClient.readData(parentPath, indexMetaData);
           if (indexMetaData.getState() == IndexMetaData.IndexState.DEPLOYED) {
-            final String indexName = _zkClient.getNodeNameFromPath(parentPath);
+            final String indexName = ZKClient.getNodeNameFromPath(parentPath);
             loadShardsFromIndex(indexName);
             // set datat for policy
             _policy.setShardsAndNodes(_indexToShards, _shardsToNode);
@@ -289,7 +291,7 @@ public class Client implements IClient {
           // create node connections..
           createNodeConnections();
         } catch (final KattaException e) {
-          Logger.error("Failed to read zookeeper information", e);
+          LOG.error("Failed to read zookeeper information", e);
         }
         // set datat for policy
       }
@@ -328,13 +330,13 @@ public class Client implements IClient {
   protected class ShardListener implements IZkChildListener {
 
     public void handleChildChange(String shardPath) throws KattaException {
-      Logger.debug("Shard event in client.");
+      LOG.debug("Shard event in client.");
       // a shard got a new node or one was removed...
       synchronized (_zkClient.getSyncMutex()) {
         List<String> newNodes;
         try {
           newNodes = _zkClient.getChildren(shardPath);
-          final String shardName = _zkClient.getNodeNameFromPath(shardPath);
+          final String shardName = ZKClient.getNodeNameFromPath(shardPath);
           final List<String> oldNodes = _shardsToNode.get(shardName);
           final List<String> toRemove = ComparisonUtil.getRemoved(oldNodes, newNodes);
           for (final String node : toRemove) {
@@ -383,7 +385,7 @@ public class Client implements IClient {
       }
     }
     final Map<String, List<String>> nodeShardsMap = _policy.getNodeShardsMap(query, indexesToSearchIn);
-    Logger.info("Client.count()" + nodeShardsMap);
+    LOG.info("Client.count()" + nodeShardsMap);
     final List<Integer> result = new ArrayList<Integer>();
 
     final long start = System.currentTimeMillis();
@@ -400,7 +402,7 @@ public class Client implements IClient {
 
     joinThreads(searchThreads);
     final long end = System.currentTimeMillis();
-    Logger.info("Time for counting: " + (end - start) / 1000.0);
+    LOG.info("Time for counting: " + (end - start) / 1000.0);
 
     int resultCount = 0;
     for (final Integer count : result) {
@@ -443,21 +445,21 @@ public class Client implements IClient {
     public void run() {
       try {
         long startThread = 0;
-        if (Logger.isDebug()) {
+        if (LOG.isDebugEnabled()) {
           startThread = System.currentTimeMillis();
         }
         final DocumentFrequenceWritable nodeDocFreqs = _searchNode.getDocFreqs(_query, _shards
             .toArray(new String[_shards.size()]));
         _docFreqs.addNumDocs(nodeDocFreqs.getNumDocs());
         _docFreqs.putAll(nodeDocFreqs.getAll());
-        if (Logger.isDebug()) {
+        if (LOG.isDebugEnabled()) {
           final long endThread = System.currentTimeMillis();
-          Logger.debug("Wait for thread " + _node + " tooks " + (endThread - startThread) / 1000.0 + "sec.");
+          LOG.debug("Wait for thread " + _node + " tooks " + (endThread - startThread) / 1000.0 + "sec.");
         }
       } catch (final IOException e) {
         // TODO we should Throw an Exception here since the results are
         // not correct..
-        Logger.error("Cannot open searcher.", e);
+        LOG.error("Cannot open searcher.", e);
       }
     }
   }
@@ -495,19 +497,19 @@ public class Client implements IClient {
       Hits hits = new Hits();
       try {
         long startThread = 0;
-        if (Logger.isDebug()) {
+        if (LOG.isDebugEnabled()) {
           startThread = System.currentTimeMillis();
         }
         final String[] shardsArray = _shards.toArray(new String[_shards.size()]);
         final HitsMapWritable shardToHits = _searchNode.search(_query, _docFreqs, shardsArray, _count);
         hits = shardToHits.getHits();
-        if (Logger.isDebug()) {
+        if (LOG.isDebugEnabled()) {
           final long endThread = System.currentTimeMillis();
-          Logger.debug("Wait for thread " + _node + " tooks " + (endThread - startThread) / 1000.0
+          LOG.debug("Wait for thread " + _node + " tooks " + (endThread - startThread) / 1000.0
               + "sec. Result size was " + hits.getHits().size());
         }
       } catch (final IOException e) {
-        Logger.error("Cannot open searcher.", e);
+        LOG.error("Cannot open searcher.", e);
       }
       _result.addHits(hits.getHits());
       _result.addTotalHits(hits.size());
@@ -536,17 +538,17 @@ public class Client implements IClient {
     public void run() {
       try {
         long startThread = 0;
-        if (Logger.isDebug()) {
+        if (LOG.isDebugEnabled()) {
           startThread = System.currentTimeMillis();
         }
         final int count = _searchNode.getResultCount(_query, _shards.toArray(new String[_shards.size()]));
         _result.add(count);
-        if (Logger.isDebug()) {
+        if (LOG.isDebugEnabled()) {
           final long endThread = System.currentTimeMillis();
-          Logger.debug("Wait for thread " + _node + " tooks " + (endThread - startThread) / 1000.0 + "sec.");
+          LOG.debug("Wait for thread " + _node + " tooks " + (endThread - startThread) / 1000.0 + "sec.");
         }
       } catch (final IOException e) {
-        Logger.error("Cannot open searcher, remove " + _node + " from connections.", e);
+        LOG.error("Cannot open searcher, remove " + _node + " from connections.", e);
         _nodes.remove(_node);
       }
     }

@@ -23,18 +23,19 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.Properties;
 import java.util.Set;
 
-import net.sf.katta.util.Logger;
 import net.sf.katta.util.NumberPaddingUtil;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.JobConf;
+import org.apache.log4j.Logger;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
@@ -43,6 +44,8 @@ import org.apache.lucene.document.Field.Index;
 import org.apache.lucene.document.Field.Store;
 
 public class XPathDocumentFactory implements IDocumentFactory<Text, Text> {
+
+  private final static Logger LOG = Logger.getLogger(XPathDocumentFactory.class);
 
   public static final String XPATH_INPUT_FILE = "xpath.input.file";
   private IXPathService _xPathService = new DefaultXPathService();
@@ -64,14 +67,14 @@ public class XPathDocumentFactory implements IDocumentFactory<Text, Text> {
           final Date date = _dateFormat.parse(parsedValue);
           final GregorianCalendar calendar = new GregorianCalendar();
           calendar.setTime(date);
-          parsedValue = "" + calendar.get(GregorianCalendar.YEAR) + calendar.get(GregorianCalendar.MONTH)
-              + calendar.get(GregorianCalendar.DAY_OF_MONTH);
+          parsedValue = "" + calendar.get(Calendar.YEAR) + calendar.get(Calendar.MONTH)
+              + calendar.get(Calendar.DAY_OF_MONTH);
         }
         final Field field = new Field("" + xpath.hashCode(), parsedValue, Store.YES, Index.UN_TOKENIZED);
         document.add(field);
       }
     } catch (final Exception e) {
-      Logger.warn("can not create document", e);
+      LOG.warn("can not create document", e);
     }
     return document;
   }

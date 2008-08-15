@@ -21,13 +21,14 @@ package net.sf.katta.index.indexer;
 
 import java.io.IOException;
 
-import net.sf.katta.util.Logger;
-
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapred.JobConf;
+import org.apache.log4j.Logger;
 
 public class IndexUploader implements IIndexPublisher {
+
+  private final static Logger LOG = Logger.getLogger(IndexUploader.class);
 
   private Path _ouputPath;
   private FileSystem _fileSystem;
@@ -41,7 +42,7 @@ public class IndexUploader implements IIndexPublisher {
   }
 
   public void publish(final String pathToIndex) throws IOException {
-    Logger.debug("copy '" + pathToIndex + "' to '" + _ouputPath + "'");
+    LOG.debug("copy '" + pathToIndex + "' to '" + _ouputPath + "'");
     _fileSystem.copyFromLocalFile(true, new Path(pathToIndex), _ouputPath);
   }
 

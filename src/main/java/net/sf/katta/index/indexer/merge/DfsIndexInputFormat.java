@@ -23,7 +23,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import net.sf.katta.util.Logger;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -35,22 +34,27 @@ import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.RecordReader;
 import org.apache.hadoop.mapred.Reporter;
+import org.apache.log4j.Logger;
 
 public class DfsIndexInputFormat extends FileInputFormat<Text, DocumentInformation> {
 
+  @SuppressWarnings("hiding")
+  private final static Logger LOG = Logger.getLogger(DfsIndexInputFormat.class);
+
   public static final String DOCUMENT_INFORMATION = "document.duplicate.information.class";
 
-  public RecordReader getRecordReader(final InputSplit inputSplit, final JobConf jobConf, Reporter reporter) throws IOException {
+  public RecordReader getRecordReader(final InputSplit inputSplit, final JobConf jobConf, Reporter reporter)
+      throws IOException {
     IDocumentDuplicateInformation duplicateInformation = null;
     String className = jobConf.get(DOCUMENT_INFORMATION);
     try {
       Class<?> byName = jobConf.getClassByName(className);
       duplicateInformation = (IDocumentDuplicateInformation) byName.newInstance();
     } catch (Exception e) {
-      Logger.error("can not load class: " + className, e);
+      LOG.error("can not load class: " + className, e);
       throw new IOException(e.getMessage());
     }
-    reporter.setStatus(((FileSplit)inputSplit).getPath().toString());
+    reporter.setStatus(((FileSplit) inputSplit).getPath().toString());
     return new DfsIndexRecordReader(jobConf, inputSplit, duplicateInformation);
   }
 
@@ -83,7 +87,7 @@ public class DfsIndexInputFormat extends FileInputFormat<Text, DocumentInformati
           boolean isZip = path.getName().endsWith(".zip");
           ret = !isFile || isZip;
         } catch (IOException e) {
-          Logger.warn("can not get child directory", e);
+          LOG.warn("can not get child directory", e);
         }
         return ret;
       }
@@ -98,6 +102,5 @@ public class DfsIndexInputFormat extends FileInputFormat<Text, DocumentInformati
       }
     }
   }
-
 
 }

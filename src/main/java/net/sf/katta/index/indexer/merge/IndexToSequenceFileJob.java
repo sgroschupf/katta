@@ -23,7 +23,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
 
-import net.sf.katta.util.Logger;
 import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -32,8 +31,11 @@ import org.apache.hadoop.mapred.JobClient;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.SequenceFileOutputFormat;
 import org.apache.hadoop.mapred.lib.IdentityMapper;
+import org.apache.log4j.Logger;
 
 public class IndexToSequenceFileJob implements Configurable {
+
+  private final static Logger LOG = Logger.getLogger(IndexToSequenceFileJob.class);
 
   private Configuration _configuration;
 
@@ -48,12 +50,12 @@ public class IndexToSequenceFileJob implements Configurable {
     jobConf.setOutputFormat(SequenceFileOutputFormat.class);
 
     // input and output path
-    Logger.info("read all shards from folder: " + indexPath);
+    LOG.info("read all shards from folder: " + indexPath);
     jobConf.addInputPath(indexPath);
-    Logger.info("write sequence file to: " + outputPath);
+    LOG.info("write sequence file to: " + outputPath);
     jobConf.setOutputPath(outputPath);
 
-    //set input and output key/value class
+    // set input and output key/value class
     jobConf.setOutputKeyClass(Text.class);
     jobConf.setOutputValueClass(DocumentInformation.class);
 

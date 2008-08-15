@@ -24,27 +24,29 @@ import java.io.IOException;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.log4j.Logger;
 import org.apache.lucene.store.BufferedIndexInput;
-import net.sf.katta.util.Logger;
 
 public class DfsIndexInput extends BufferedIndexInput {
+
+  private final static Logger LOG = Logger.getLogger(DfsIndexInput.class);
 
   private long _len;
   private FileSystem _fileSystem;
   private FSDataInputStream _fsDataInputStream;
 
   public DfsIndexInput(FileSystem fileSystem, Path file, int ioFileBufferSize) throws IOException {
+    // FIXME unsused parameter !!!
     _fileSystem = fileSystem;
     _len = _fileSystem.getFileStatus(file).getLen();
     _fsDataInputStream = _fileSystem.open(file);
   }
 
-
   protected void readInternal(byte[] b, int offset, int len) {
     try {
       _fsDataInputStream.read(b, offset, len);
     } catch (IOException e) {
-      Logger.warn("can not read datas from inputstream", e);
+      LOG.warn("can not read datas from inputstream", e);
     }
   }
 
@@ -63,6 +65,5 @@ public class DfsIndexInput extends BufferedIndexInput {
   protected void finalize() throws IOException {
     close();
   }
-
 
 }

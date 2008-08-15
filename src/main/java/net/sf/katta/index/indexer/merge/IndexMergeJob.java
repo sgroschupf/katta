@@ -23,7 +23,6 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
-import net.sf.katta.util.Logger;
 import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -31,16 +30,18 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.mapred.JobConf;
+import org.apache.log4j.Logger;
 
 public class IndexMergeJob implements Configurable {
+
+  private final static Logger LOG = Logger.getLogger(IndexMergeJob.class);
 
   private Configuration _configuration;
 
   private static final DateFormat DATE_FORMAT = new SimpleDateFormat("yyyyMMdd.hhmmss");
 
   public void merge(Path kattaIndices, Path ouputPath, Path archivePath) throws Exception {
-
-    Logger.info("collect all shards in this folder: " + kattaIndices);
+    LOG.info("collect all shards in this folder: " + kattaIndices);
 
     Path dedupPath = new Path("/tmp/katta.index.dedup", "" + System.currentTimeMillis());
 
@@ -53,14 +54,14 @@ public class IndexMergeJob implements Configurable {
     sequenceFileToIndexJob.setConf(_configuration);
     final String mergedIndex = sequenceFileToIndexJob.sequenceFileToIndex(dedupPath, ouputPath);
 
-    Logger.info("delete sequence file and extracted indices: " + dedupPath);
+    LOG.info("delete sequence file and extracted indices: " + dedupPath);
     FileSystem fileSystem = FileSystem.get(_configuration);
     fileSystem.delete(dedupPath);
 
-    Logger.info("move katta content of folder'" + kattaIndices + "' into a archive folder '" + archivePath + "'");
+    LOG.info("move katta content of folder'" + kattaIndices + "' into a archive folder '" + archivePath + "'");
     PathFilter filter = new PathFilter() {
       public boolean accept(Path path) {
-        return (!path.getName().equals(mergedIndex)); 
+        return (!path.getName().equals(mergedIndex));
       }
     };
     FileStatus[] fileStatuses = fileSystem.listStatus(kattaIndices, filter);
@@ -70,13 +71,11 @@ public class IndexMergeJob implements Configurable {
     for (FileStatus fileStatus : fileStatuses) {
       Path path = fileStatus.getPath();
       Path renamedPath = new Path(currentArchivePath, path.getName());
-      Logger.info("rename '" + path + "' to'" + renamedPath + "'");
+      LOG.info("rename '" + path + "' to'" + renamedPath + "'");
       fileSystem.rename(path, renamedPath);
     }
 
-
-    Logger.info("merging done.");
-
+    LOG.info("merging done.");
   }
 
   public void setConf(Configuration configuration) {

@@ -28,12 +28,12 @@ import java.util.Set;
 
 import net.sf.katta.master.IPaths;
 import net.sf.katta.util.KattaException;
-import net.sf.katta.util.Logger;
 import net.sf.katta.util.ZkConfiguration;
 
 import org.apache.hadoop.io.DataInputBuffer;
 import org.apache.hadoop.io.DataOutputBuffer;
 import org.apache.hadoop.io.Writable;
+import org.apache.log4j.Logger;
 
 import com.yahoo.zookeeper.KeeperException;
 import com.yahoo.zookeeper.Watcher;
@@ -49,8 +49,9 @@ import com.yahoo.zookeeper.proto.WatcherEvent;
  */
 public class ZKClient implements Watcher {
 
-  private ZooKeeper _zk = null;
+  private final static Logger LOG = Logger.getLogger(ZKClient.class);
 
+  private ZooKeeper _zk = null;
   private final Object _mutex = new Object();
 
   private final HashMap<String, HashSet<IZkChildListener>> _childListener = new HashMap<String, HashSet<IZkChildListener>>();
@@ -101,13 +102,13 @@ public class ZKClient implements Watcher {
           _zk = null;
           throw new KattaException("No connected with zookeeper server yet. Current state is " + state);
         }
-        Logger.debug("Zookeeper ZkServer not yet available, sleeping...");
+        LOG.debug("Zookeeper ZkServer not yet available, sleeping...");
         Thread.sleep(1000);
       }
 
       createDefaultNameSpace();
     } catch (final InterruptedException e) {
-      Logger.warn("waiting for the zookeeper server was interrupted", e);
+      LOG.warn("waiting for the zookeeper server was interrupted", e);
     }
   }
 
@@ -401,7 +402,7 @@ public class ZKClient implements Watcher {
             try {
               listener.handleChildChange(event.getPath());
             } catch (final Throwable e) {
-              Logger.error("Faild to process event with listener: " + listener, e);
+              LOG.error("Faild to process event with listener: " + listener, e);
             }
           }
           // re subscribe to event.
@@ -422,7 +423,7 @@ public class ZKClient implements Watcher {
             try {
               listener.handleDataChange(event.getPath());
             } catch (final Throwable e) {
-              Logger.error("Faild to process event with listener: " + listener, e);
+              LOG.error("Faild to process event with listener: " + listener, e);
             }
           }
           // re subscribe to event.
@@ -437,7 +438,7 @@ public class ZKClient implements Watcher {
         }
       } else if (event.getState() == Watcher.Event.KeeperStateExpired) {
         // we do a reconnect
-        Logger.warn("Zookeeper session expired.");
+        LOG.warn("Zookeeper session expired.");
         synchronized (_mutex) {
           if (_zk == null) {
             // already closing
@@ -452,13 +453,13 @@ public class ZKClient implements Watcher {
         if (null == event.getPath()) {
           event.setPath("null");
         }
-        Logger.debug("Received an unkown event: " + event.toString());
+        LOG.debug("Received an unkown event: " + event.toString());
       } else {
         // See ZOOKEEPER-77
         if (null == event.getPath()) {
           event.setPath("null");
         }
-        Logger.debug("Received an unkown event: " + event.toString());
+        LOG.debug("Received an unkown event: " + event.toString());
       }
     }
   }
@@ -611,7 +612,7 @@ public class ZKClient implements Watcher {
    * @throws KattaException
    */
   private void createDefaultNameSpace() throws KattaException {
-    Logger.debug("Creating default File structure if required....");
+    LOG.debug("Creating default File structure if required....");
     try {
       if (!exists(IPaths.ROOT_PATH)) {
         create(IPaths.ROOT_PATH);
@@ -631,7 +632,7 @@ public class ZKClient implements Watcher {
     } catch (KattaException e) {
       if (e.getCause() instanceof KeeperException && e.getCause().getMessage().contains("KeeperErrorCode = NodeExists")) {
         // if components starting concurrently the exists is not safe
-        Logger.debug("could not create default namespace " + e.getCause().getMessage());
+        LOG.debug("could not create default namespace " + e.getCause().getMessage());
       } else {
         throw e;
       }

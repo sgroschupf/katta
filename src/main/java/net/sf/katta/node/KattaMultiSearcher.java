@@ -40,8 +40,7 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import net.sf.katta.util.Logger;
-
+import org.apache.log4j.Logger;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.FieldSelector;
 import org.apache.lucene.index.CorruptIndexException;
@@ -71,11 +70,11 @@ import org.apache.lucene.util.PriorityQueue;
  */
 public class KattaMultiSearcher {
 
+  private final static Logger LOG = Logger.getLogger(KattaMultiSearcher.class);
+
   private final Map<String, IndexSearcher> _searchers = new ConcurrentHashMap<String, IndexSearcher>();
-
-  private int _maxDoc = 0;
-
   private final String _node;
+  private int _maxDoc = 0;
 
   public KattaMultiSearcher(final String node) {
     _node = node;
@@ -224,9 +223,8 @@ public class KattaMultiSearcher {
     }
     if (queries.length > 0) {
       return queries[0].combine(queries);
-    } else {
-      return original;
     }
+    return original;
   }
 
   /**
@@ -243,7 +241,7 @@ public class KattaMultiSearcher {
     if (searchable != null) {
       result = searchable.docFreq(term);
     } else {
-      Logger.error("No shard with the name '" + shardName + "' on in this searcher.");
+      LOG.error("No shard with the name '" + shardName + "' on in this searcher.");
     }
     return result;
   }
@@ -354,9 +352,8 @@ public class KattaMultiSearcher {
         // todo this of cource do not work since we have same shardKeys
         // (should we increment docIds?)
         return hitA.getDocId() > hitB.getDocId();
-      } else {
-        return hitA.getScore() < hitB.getScore();
       }
+      return hitA.getScore() < hitB.getScore();
     }
   }
 

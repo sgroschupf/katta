@@ -3,7 +3,7 @@ package com.yahoo.zookeeper.server;
 import java.io.IOException;
 import java.net.ServerSocket;
 
-import net.sf.katta.util.Logger;
+import org.apache.log4j.Logger;
 
 /**
  * Running all unit tests together produces some situations where the shutdown
@@ -11,6 +11,8 @@ import net.sf.katta.util.Logger;
  * 
  */
 public class ZkNioFactory extends NIOServerCnxn.Factory {
+
+  private final static Logger LOG = Logger.getLogger(ZkNioFactory.class);
 
   private final int _port;
 
@@ -32,12 +34,12 @@ public class ZkNioFactory extends NIOServerCnxn.Factory {
             ss.socket().close();
             selector.close();
           } catch (IOException e) {
-            Logger.error("could not close socket/selector", e);
+            LOG.error("could not close socket/selector", e);
           }
         }
       }
     } catch (final InterruptedException e) {
-      Logger.error("Failed to wait for zookeeper server release port", e);
+      LOG.error("Failed to wait for zookeeper server release port", e);
     }
 
   }

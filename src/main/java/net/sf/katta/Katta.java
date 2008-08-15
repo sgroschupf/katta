@@ -35,12 +35,15 @@ import net.sf.katta.node.Node;
 import net.sf.katta.node.NodeMetaData;
 import net.sf.katta.node.Query;
 import net.sf.katta.util.KattaException;
-import net.sf.katta.util.Logger;
 import net.sf.katta.util.ZkConfiguration;
 import net.sf.katta.zk.ZKClient;
 import net.sf.katta.zk.ZkServer;
 
+import org.apache.log4j.Logger;
+
 public class Katta {
+
+  private final static Logger LOG = Logger.getLogger(Katta.class);
 
   private final ZKClient _zkClient;
 
@@ -115,7 +118,7 @@ public class Katta {
         addIndex(indexName, indexMetaData.getPath(), indexMetaData.getAnalyzerClassName(), indexMetaData
             .getReplicationLevel());
       } catch (InterruptedException e) {
-        Logger.error("Redeployment of index '" + indexName + "' interrupted.");
+        LOG.error("Redeployment of index '" + indexName + "' interrupted.");
       }
     } else {
       System.err.println("Index '" + indexName + "' not found.");

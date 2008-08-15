@@ -31,7 +31,6 @@ import net.sf.katta.node.Hits;
 import net.sf.katta.node.Node;
 import net.sf.katta.node.Query;
 import net.sf.katta.util.KattaException;
-import net.sf.katta.util.Logger;
 import net.sf.katta.zk.ZKClient;
 import net.sf.katta.zk.ZkServer;
 
@@ -39,12 +38,15 @@ import org.apache.hadoop.io.MapWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.ipc.RPC;
+import org.apache.log4j.Logger;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 
 /**
  * Test for {@link Client}.
  */
 public class ClientTest extends AbstractKattaTest {
+
+  private static Logger LOG = Logger.getLogger(ClientTest.class);
 
   private ZkServer _zkServer;
   private Node _node1;
@@ -114,12 +116,12 @@ public class ClientTest extends AbstractKattaTest {
     assertNotNull(hits);
     assertEquals(1f, client.getQueryPerMinute());
     for (final Hit hit : hits.getHits()) {
-      Logger.info(hit.getNode() + " -- " + hit.getShard() + " -- " + hit.getScore() + " -- " + hit.getDocId());
+      LOG.info(hit.getNode() + " -- " + hit.getShard() + " -- " + hit.getScore() + " -- " + hit.getDocId());
     }
     assertEquals(8, hits.size());
     assertEquals(8, hits.getHits().size());
     for (final Hit hit : hits.getHits()) {
-      Logger.info(hit.getNode() + " -- " + hit.getScore() + " -- " + hit.getDocId());
+      LOG.info(hit.getNode() + " -- " + hit.getScore() + " -- " + hit.getDocId());
     }
   }
 
@@ -128,12 +130,12 @@ public class ClientTest extends AbstractKattaTest {
     final Hits hits = client.search(query, new String[] { "index2", "index1" }, 1);
     assertNotNull(hits);
     for (final Hit hit : hits.getHits()) {
-      Logger.info(hit.getNode() + " -- " + hit.getShard() + " -- " + hit.getScore() + " -- " + hit.getDocId());
+      LOG.info(hit.getNode() + " -- " + hit.getShard() + " -- " + hit.getScore() + " -- " + hit.getDocId());
     }
     assertEquals(8, hits.size());
     assertEquals(1, hits.getHits().size());
     for (final Hit hit : hits.getHits()) {
-      Logger.info(hit.getNode() + " -- " + hit.getScore() + " -- " + hit.getDocId());
+      LOG.info(hit.getNode() + " -- " + hit.getScore() + " -- " + hit.getDocId());
     }
   }
 
@@ -143,7 +145,7 @@ public class ClientTest extends AbstractKattaTest {
     assertNotNull(hits);
     assertEquals(4, hits.getHits().size());
     for (final Hit hit : hits.getHits()) {
-      Logger.info(hit.getNode() + " -- " + hit.getScore() + " -- " + hit.getDocId());
+      LOG.info(hit.getNode() + " -- " + hit.getScore() + " -- " + hit.getDocId());
     }
   }
 }

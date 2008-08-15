@@ -44,7 +44,6 @@ import net.sf.katta.index.DeployedShard;
 import net.sf.katta.master.IPaths;
 import net.sf.katta.util.ComparisonUtil;
 import net.sf.katta.util.KattaException;
-import net.sf.katta.util.Logger;
 import net.sf.katta.util.NetworkUtil;
 import net.sf.katta.util.NodeConfiguration;
 import net.sf.katta.zk.IZkChildListener;
@@ -61,6 +60,7 @@ import org.apache.hadoop.io.MapWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.ipc.RPC;
 import org.apache.hadoop.ipc.RPC.Server;
+import org.apache.log4j.Logger;
 import org.apache.lucene.analysis.KeywordAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
@@ -72,6 +72,8 @@ import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 
 public class Node implements ISearch, IZkReconnectListener {
+
+  protected final static Logger LOG = Logger.getLogger(Node.class);
 
   public static final long _protocolVersion = 0;
   @SuppressWarnings("unused")
@@ -121,15 +123,15 @@ public class Node implements ISearch, IZkReconnectListener {
    * @throws KattaException
    */
   public void start() throws KattaException {
-    Logger.debug("Starting node...");
+    LOG.debug("Starting node...");
     if (!_shardFolder.exists()) {
       _shardFolder.mkdirs();
     }
 
-    Logger.debug("Starting rpc server...");
+    LOG.debug("Starting rpc server...");
     _name = startRPCServer(_configuration);
 
-    Logger.debug("Starting zk client...");
+    LOG.debug("Starting zk client...");
     if (!_zkClient.isStarted()) {
       _zkClient.start(30000);
     }
@@ -139,7 +141,7 @@ public class Node implements ISearch, IZkReconnectListener {
 
     _searcher = new KattaMultiSearcher(_name);
 
-    Logger.info("Started: " + _name + "...");
+    LOG.info("Started: " + _name + "...");
 
     if (_rpcServer != null) {
       try {
@@ -181,26 +183,26 @@ public class Node implements ISearch, IZkReconnectListener {
    * Writes node ephemeral data into zookeeper
    */
   private ArrayList<String> announceNode(ZKClient client) throws KattaException {
-    Logger.debug("Announces node " + _name);
+    LOG.debug("Announces node " + _name);
     final NodeMetaData metaData = new NodeMetaData(_name, "booting", true, _startTime);
     final String nodePath = IPaths.NODES + "/" + _name;
     final String nodeToShardPath = IPaths.NODE_TO_SHARD + "/" + _name;
     if (client.exists(nodePath)) {
-      Logger.debug("Old node for this host detected, will be removed...");
+      LOG.debug("Old node for this host detected, will be removed...");
       client.delete(nodePath);
     }
     client.createEphemeral(nodePath, metaData);
     if (!client.exists(nodeToShardPath)) {
       client.create(nodeToShardPath);
     }
-    Logger.debug("Add shard listener in node.");
+    LOG.debug("Add shard listener in node.");
     return client.subscribeChildChanges(nodeToShardPath, new ShardListener());
   }
 
   public void handleReconnect() throws KattaException {
     ArrayList<String> shardsToServe = announceNode(_zkClient);
     updateStatus(NodeState.RECONNECTING);
-    Logger.info("My old shards to serve: " + shardsToServe);
+    LOG.info("My old shards to serve: " + shardsToServe);
     checkAndDeployExistingShards(NodeState.RECONNECTING, shardsToServe);
     updateStatus(NodeState.STARTING);
   }
@@ -214,7 +216,7 @@ public class Node implements ISearch, IZkReconnectListener {
     final String hostName = NetworkUtil.getLocalhostName();
     for (int i = serverPort; i < (serverPort + 10000); i++) {
       try {
-        Logger.info("starting RPC server on : " + hostName);
+        LOG.info("starting RPC server on : " + hostName);
         _rpcServer = RPC.getServer(this, "0.0.0.0", i, new Configuration());
         serverPort = i;
         break;
@@ -240,12 +242,12 @@ public class Node implements ISearch, IZkReconnectListener {
           return !name.startsWith(".");
         }
       });
-      if (Logger.isDebug()) {
-        Logger.debug("Getted local shard folder list.");
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("Getted local shard folder list.");
       }
       // in case not shards are assigned we want to remove local shards.
       if (shardsToDeploy == null || shardsToDeploy.size() == 0) {
-        Logger.debug("Remove all local shards, because no shard has to be deployed.");
+        LOG.debug("Remove all local shards, because no shard has to be deployed.");
         LocalFileSystem localFileSystem;
         try {
           localFileSystem = FileSystem.getLocal(new Configuration());
@@ -265,8 +267,8 @@ public class Node implements ISearch, IZkReconnectListener {
       final List<String> localShardList = Arrays.asList(localShards);
       List<String> removed = ComparisonUtil.getRemoved(localShardList, shardsToDeploy);
       removeShards(removed);
-      if (Logger.isDebug()) {
-        Logger.debug("No longer needed shards removed: " + removed);
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("No longer needed shards removed: " + removed);
       }
 
       // now only download those we do not yet have local or we can't deploy
@@ -283,10 +285,10 @@ public class Node implements ISearch, IZkReconnectListener {
 
             // load first or use local file
             if (!existingShards.contains(shardName)) {
-              Logger.debug("Shard '" + shardName + "' has to be deployed.");
+              LOG.debug("Shard '" + shardName + "' has to be deployed.");
               localShardFolder = loadAndUnzipShard(nodeState, assignedShard);
             } else {
-              Logger.debug("Shard '" + shardName + "' already deployed.");
+              LOG.debug("Shard '" + shardName + "' already deployed.");
               localShardFolder = new File(_shardFolder, shardName);
             }
             // deploy and announce
@@ -299,9 +301,7 @@ public class Node implements ISearch, IZkReconnectListener {
                 deleteFolder(localShardFolder);
               }
             }
-            if (Logger.isError()) {
-              Logger.error("Unable to load shard:", e);
-            }
+            LOG.error("Unable to load shard:", e);
             deployedShard = new DeployedShard(shardName, System.currentTimeMillis(), 0);
             deployedShard.setErrorMsg(e.getMessage());
           } finally {
@@ -336,9 +336,7 @@ public class Node implements ISearch, IZkReconnectListener {
           deleteFolder(localShardFolder);
         }
       }
-      if (Logger.isError()) {
-        Logger.error("Unable to load shard:", e);
-      }
+      LOG.error("Unable to load shard:", e);
       updateStatusWithError(e);
       deployedShard = new DeployedShard(shardName, System.currentTimeMillis(), 0);
       deployedShard.setErrorMsg(e.getMessage());
@@ -396,14 +394,14 @@ public class Node implements ISearch, IZkReconnectListener {
       }
     } catch (final URISyntaxException e) {
       final String msg = "Can not parse uri for path: " + assignedShard.getShardPath();
-      Logger.error(msg, e);
+      LOG.error(msg, e);
       updateStatusWithError(msg);
       updateShardStatusInNode(assignedShard.getIndexName(), msg);
 
       throw new RuntimeException(msg, e);
     } catch (final IOException e) {
       final String msg = "Can not load shard: " + assignedShard.getShardPath();
-      Logger.error(msg, e);
+      LOG.error(msg, e);
       updateStatusWithError(msg);
       updateShardStatusInNode(assignedShard.getIndexName(), msg);
       throw new RuntimeException(msg, e);
@@ -424,7 +422,7 @@ public class Node implements ISearch, IZkReconnectListener {
       ZipEntry entry;
       while ((entry = zis.getNextEntry()) != null) {
 
-        Logger.debug("Extracting:   " + entry + " from '" + source.getAbsolutePath() + "'");
+        LOG.debug("Extracting:   " + entry + " from '" + source.getAbsolutePath() + "'");
         // we need to remove the first element of the path since the
         // folder was compressed but we only want the folders content
         final String entryPath = entry.getName();
@@ -492,14 +490,12 @@ public class Node implements ISearch, IZkReconnectListener {
         _zkClient.writeData(nodePath, deployedShard);
       }
     } catch (final Exception e) {
-      if (Logger.isError()) {
-        Logger.error("Unable to serve Shard: " + deployedShard, e);
-      }
+      LOG.error("Unable to serve Shard: " + deployedShard, e);
     }
   }
 
   protected void removeShards(final List<String> shardsToRemove) {
-    Logger.info("Removing shards: " + shardsToRemove);
+    LOG.info("Removing shards: " + shardsToRemove);
     for (final String shardName : shardsToRemove) {
       removeShard(shardName);
     }
@@ -511,9 +507,7 @@ public class Node implements ISearch, IZkReconnectListener {
    */
   private void removeShard(final String shardName) {
     try {
-      if (Logger.isInfo()) {
-        Logger.info("Removing shard: " + shardName);
-      }
+      LOG.info("Removing shard: " + shardName);
       _searcher.removeShard(shardName);
       _deployedShards.remove(shardName);
       final String shardPath = IPaths.SHARD_TO_NODE + "/" + shardName;
@@ -529,9 +523,7 @@ public class Node implements ISearch, IZkReconnectListener {
         deleteFolder(new File(_shardFolder, shardName));
       }
     } catch (final Exception e) {
-      if (Logger.isError()) {
-        Logger.error("Failed to remove local shard: " + shardName, e);
-      }
+      LOG.error("Failed to remove local shard: " + shardName, e);
     }
   }
 
@@ -563,8 +555,8 @@ public class Node implements ISearch, IZkReconnectListener {
 
   public HitsMapWritable search(final IQuery query, final DocumentFrequenceWritable freqs, final String[] shards,
       final int count) throws IOException {
-    if (Logger.isDebug()) {
-      Logger.debug("You are searching with the query: '" + query.getQuery() + "'");
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("You are searching with the query: '" + query.getQuery() + "'");
     }
 
     Query luceneQuery;
@@ -573,38 +565,36 @@ public class Node implements ISearch, IZkReconnectListener {
     } catch (final ParseException e) {
 
       final String msg = "Failed to parse query: " + query.getQuery();
-      if (Logger.isError()) {
-        Logger.error(msg, e);
-      }
+      LOG.error(msg, e);
       final IOException exception = new IOException(msg);
       exception.setStackTrace(e.getStackTrace());
       throw exception;
     }
-    if (Logger.isDebug()) {
-      Logger.debug("Lucene query: " + luceneQuery.toString());
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("Lucene query: " + luceneQuery.toString());
     }
 
     long completeSearchTime = 0;
     final HitsMapWritable result = new net.sf.katta.node.HitsMapWritable(_name);
     if (_searcher != null) {
       long start = 0;
-      if (Logger.isDebug()) {
+      if (LOG.isDebugEnabled()) {
         start = System.currentTimeMillis();
       }
       _searcher.search(luceneQuery, freqs, shards, result, count);
-      if (Logger.isDebug()) {
+      if (LOG.isDebugEnabled()) {
         final long end = System.currentTimeMillis();
-        Logger.debug("Search took " + (end - start) / 1000.0 + "sec.");
+        LOG.debug("Search took " + (end - start) / 1000.0 + "sec.");
         completeSearchTime += (end - start);
       }
     } else {
-      Logger.error("No searcher for index found on '" + _name + "'.");
+      LOG.error("No searcher for index found on '" + _name + "'.");
     }
-    if (Logger.isDebug()) {
-      Logger.debug("Complete search took " + completeSearchTime / 1000.0 + "sec.");
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("Complete search took " + completeSearchTime / 1000.0 + "sec.");
       final DataOutputBuffer buffer = new DataOutputBuffer();
       result.write(buffer);
-      Logger.debug("Result size to transfer: " + buffer.getLength());
+      LOG.debug("Result size to transfer: " + buffer.getLength());
     }
     return result;
   }
@@ -621,9 +611,7 @@ public class Node implements ISearch, IZkReconnectListener {
       final String msg = "Unable to parse Query: " + input.getQuery();
       final IOException exception = new IOException(msg);
       exception.setStackTrace(e.getStackTrace());
-      if (Logger.isError()) {
-        Logger.error(msg, e);
-      }
+      LOG.error(msg, e);
       throw exception;
     }
 
@@ -715,7 +703,7 @@ public class Node implements ISearch, IZkReconnectListener {
       metaData.setStarting(state == NodeState.STARTING);
       _zkClient.writeData(path, metaData);
     } catch (KattaException e) {
-      Logger.error("Cannot update node status.", e);
+      LOG.error("Cannot update node status.", e);
     }
   }
 
@@ -732,7 +720,7 @@ public class Node implements ISearch, IZkReconnectListener {
       metaData.setException(errorString);
       _zkClient.writeData(path, metaData);
     } catch (KattaException e) {
-      Logger.error("Cannot update node status.", e);
+      LOG.error("Cannot update node status.", e);
     }
   }
 
@@ -750,9 +738,7 @@ public class Node implements ISearch, IZkReconnectListener {
         _zkClient.writeData(nodePath, deployedShard);
       }
     } catch (final Exception e) {
-      if (Logger.isError()) {
-        Logger.error("Failed to write shard status." + deployedShard, e);
-      }
+      LOG.error("Failed to write shard status." + deployedShard, e);
     }
   }
 
@@ -763,10 +749,10 @@ public class Node implements ISearch, IZkReconnectListener {
   protected class ShardListener implements IZkChildListener {
 
     public void handleChildChange(String parentPath) throws KattaException {
-      Logger.debug("Add/Remove shard.");
+      LOG.debug("Add/Remove shard.");
       synchronized (_zkClient.getSyncMutex()) {
-        if (Logger.isDebug()) {
-          Logger.debug("ShardListener.process()" + _name);
+        if (LOG.isDebugEnabled()) {
+          LOG.debug("ShardListener.process()" + _name);
         }
         List<String> newList;
         try {
@@ -803,7 +789,7 @@ public class Node implements ISearch, IZkReconnectListener {
             _zkClient.writeData(path, metaData);
           }
         } catch (final KattaException e) {
-          Logger.error("Failed to update node status (StatusUpdater).", e);
+          LOG.error("Failed to update node status (StatusUpdater).", e);
         }
       }
     }

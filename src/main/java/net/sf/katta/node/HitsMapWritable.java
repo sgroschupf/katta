@@ -28,19 +28,19 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-import net.sf.katta.util.Logger;
-
 import org.apache.hadoop.io.Writable;
+import org.apache.log4j.Logger;
 
 public class HitsMapWritable implements Writable {
 
+  private final static Logger LOG = Logger.getLogger(HitsMapWritable.class);
+
   private String _serverName;
-
   private final Map<String, List<Hit>> _hitToShard = new ConcurrentHashMap<String, List<Hit>>();
-
   private int _totalHits;
 
   public HitsMapWritable() {
+    // for serialization
   }
 
   public HitsMapWritable(final String serverName) {
@@ -49,13 +49,13 @@ public class HitsMapWritable implements Writable {
 
   public void readFields(final DataInput in) throws IOException {
     long start = 0;
-    if (Logger.isDebug()) {
+    if (LOG.isDebugEnabled()) {
       start = System.currentTimeMillis();
     }
     _serverName = in.readUTF();
     _totalHits = in.readInt();
-    if (Logger.isDebug()) {
-      Logger.debug("HitsMap reading start at: " + start + " for server " + _serverName);
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("HitsMap reading start at: " + start + " for server " + _serverName);
     }
     final int shardSize = in.readInt();
     for (int i = 0; i < shardSize; i++) {
@@ -68,15 +68,15 @@ public class HitsMapWritable implements Writable {
         addHitToShard(shardName, hit);
       }
     }
-    if (Logger.isDebug()) {
+    if (LOG.isDebugEnabled()) {
       final long end = System.currentTimeMillis();
-      Logger.debug("HitsMap reading took " + (end - start) / 1000.0 + "sec.");
+      LOG.debug("HitsMap reading took " + (end - start) / 1000.0 + "sec.");
     }
   }
 
   public void write(final DataOutput out) throws IOException {
     long start = 0;
-    if (Logger.isDebug()) {
+    if (LOG.isDebugEnabled()) {
       start = System.currentTimeMillis();
     }
     out.writeUTF(_serverName);
@@ -92,10 +92,10 @@ public class HitsMapWritable implements Writable {
         out.writeInt(hit.getDocId());
       }
     }
-    if (Logger.isDebug()) {
+    if (LOG.isDebugEnabled()) {
       final long end = System.currentTimeMillis();
-      Logger.debug("HitsMap writing took " + (end - start) / 1000.0 + "sec.");
-      Logger.debug("HitsMap writing ended at: " + end + " for server " + _serverName);
+      LOG.debug("HitsMap writing took " + (end - start) / 1000.0 + "sec.");
+      LOG.debug("HitsMap writing ended at: " + end + " for server " + _serverName);
     }
   }
 

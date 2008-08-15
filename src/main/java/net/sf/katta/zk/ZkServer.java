@@ -27,9 +27,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 
 import net.sf.katta.util.KattaException;
-import net.sf.katta.util.Logger;
 import net.sf.katta.util.NetworkUtil;
 import net.sf.katta.util.ZkConfiguration;
+
+import org.apache.log4j.Logger;
 
 import com.yahoo.zookeeper.server.ServerStats;
 import com.yahoo.zookeeper.server.ZkNioFactory;
@@ -40,25 +41,23 @@ import com.yahoo.zookeeper.server.quorum.QuorumPeer.QuorumServer;
 
 public class ZkServer {
 
+  private final static Logger LOG = Logger.getLogger(ZkServer.class);
+
   private QuorumPeer _quorumPeer;
-
   private ZooKeeperServer _zk;
-
   private Factory _nioFactory;
 
   public ZkServer(final ZkConfiguration conf) throws KattaException {
-    if (Logger.isInfo()) {
-      final String[] localHostNames = NetworkUtil.getLocalHostNames();
-      String names = "";
-      for (int i = 0; i < localHostNames.length; i++) {
-        final String name = localHostNames[i];
-        names += " " + name;
-        if (i + 1 != localHostNames.length) {
-          names += ",";
-        }
+    final String[] localHostNames = NetworkUtil.getLocalHostNames();
+    String names = "";
+    for (int i = 0; i < localHostNames.length; i++) {
+      final String name = localHostNames[i];
+      names += " " + name;
+      if (i + 1 != localHostNames.length) {
+        names += ",";
       }
-      Logger.info("Starting ZkServer on: [" + names + "] ...");
     }
+    LOG.info("Starting ZkServer on: [" + names + "] ...");
     startZooKeeperServer(conf);
   }
 
@@ -68,7 +67,7 @@ public class ZkServer {
     final String servers = conf.getZKServers();
     // check if this server needs to start a _client server.
     int pos = -1;
-    Logger.debug("check if hostNames " + servers + " is in list: " + Arrays.asList(localhostHostNames));
+    LOG.debug("check if hostNames " + servers + " is in list: " + Arrays.asList(localhostHostNames));
     if ((pos = NetworkUtil.hostNamesInList(servers, localhostHostNames)) != -1) {
       // yes this server needs to start a zookeeper server
       final String[] hosts = servers.split(",");
@@ -88,11 +87,11 @@ public class ZkServer {
         if (hosts.length > 1) {
           // multiple zk servers
           startQuorumPeer(conf, localhostHostNames, hosts, tickTime, dataDir, dataLogDir);
-          Logger.info("Distributed zookeeper server started...");
+          LOG.info("Distributed zookeeper server started...");
         } else {
           // single zk server
           startSingleZkServer(tickTime, dataDir, dataLogDir, port);
-          Logger.info("Single zookeeper server started...");
+          LOG.info("Single zookeeper server started...");
         }
         // now if required we initialize our namespace
         final ZKClient client = new ZKClient(conf);
@@ -101,7 +100,7 @@ public class ZkServer {
         // TODO jz: do we initialize the client only for creating the namespaces
         // ??
       } else {
-        Logger.error("Zookeeper port was already in use. Running in single machine mode?");
+        LOG.error("Zookeeper port was already in use. Running in single machine mode?");
       }
     }
   }
@@ -127,13 +126,13 @@ public class ZkServer {
     } catch (final IOException e) {
       throw new RuntimeException("Unable to start single ZooKeeper server.", e);
     } catch (final InterruptedException e) {
-      Logger.warn("ZooKeeper server was interrupted.", e);
+      LOG.warn("ZooKeeper server was interrupted.", e);
     }
   }
 
   private void startQuorumPeer(final ZkConfiguration conf, final String[] localhostHostNames, final String[] hosts,
       final int tickTime, final File dataDir, final File dataLogDir) {
-    Logger.info("Starting ZooKeeper ZkServer...");
+    LOG.info("Starting ZooKeeper ZkServer...");
     final ArrayList<QuorumServer> peers = new ArrayList<QuorumServer>();
     long myId = -1;
     int myPort = -1;
@@ -168,7 +167,7 @@ public class ZkServer {
       try {
         _quorumPeer.join();
       } catch (final InterruptedException e) {
-        Logger.info("QuorumPeer was interruped.", e);
+        LOG.info("QuorumPeer was interruped.", e);
       } finally {
         _quorumPeer.shutdown();
       }
@@ -176,7 +175,7 @@ public class ZkServer {
       try {
         _nioFactory.join();
       } catch (final InterruptedException e) {
-        Logger.info("Nio server was interruped.", e);
+        LOG.info("Nio server was interruped.", e);
       } finally {
         _nioFactory.shutdown();
       }
@@ -202,7 +201,7 @@ public class ZkServer {
   }
 
   public void shutdown() {
-    Logger.info("Shutting down server...");
+    LOG.info("Shutting down server...");
     if (_nioFactory != null) {
       _nioFactory.shutdown();
     }

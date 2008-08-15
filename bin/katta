@@ -89,7 +89,6 @@ for f in $KATTA_HOME/katta-*.jar; do
 done
 
 # add libs to CLASSPATH
-echo "get jars..."
 for file in `find ./lib -name "*.jar"`
 do
   CLASSPATH=${CLASSPATH}:$file

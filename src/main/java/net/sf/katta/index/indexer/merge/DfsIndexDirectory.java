@@ -23,21 +23,22 @@ import java.io.IOException;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-import net.sf.katta.util.Logger;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.log4j.Logger;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.store.IndexOutput;
 
 public class DfsIndexDirectory extends Directory {
 
+  private final static Logger LOG = Logger.getLogger(DfsIndexDirectory.class);
+
   private FileSystem _fileSystem;
   private Path _workingFolderPath;
-
 
   public DfsIndexDirectory(FileSystem fileSystem, Path zipFile, Path workingFolderPath) throws IOException {
     _fileSystem = fileSystem;
@@ -96,7 +97,7 @@ public class DfsIndexDirectory extends Directory {
   }
 
   public void close() throws IOException {
-    //_fileSystem.close();
+    // _fileSystem.close();
   }
 
   private void decompress(final Path source, final Path target) throws IOException {
@@ -114,7 +115,7 @@ public class DfsIndexDirectory extends Directory {
         if (!cleanUpPath.equals("")) {
           path = new Path(target, cleanUpPath);
         }
-        Logger.info("Extracting: " + entry + " to " + path);
+        LOG.info("Extracting: " + entry + " to " + path);
         if (entry.isDirectory()) {
           _fileSystem.mkdirs(path);
         } else {
@@ -131,7 +132,7 @@ public class DfsIndexDirectory extends Directory {
       zipInputStream.close();
 
     } catch (final Exception e) {
-      Logger.error("can not open zip file", e);
+      LOG.error("can not open zip file", e);
       throw new IOException("unable to expand upgrade files " + e.getMessage());
     }
   }

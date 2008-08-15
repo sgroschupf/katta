@@ -26,7 +26,7 @@ import java.util.Date;
 
 import net.sf.katta.index.indexer.IndexJobConf;
 import net.sf.katta.index.indexer.ShardSelectionMapper;
-import net.sf.katta.util.Logger;
+
 import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -35,13 +35,15 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.JobClient;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.SequenceFileInputFormat;
+import org.apache.log4j.Logger;
 
 public class SequenceFileToIndexJob implements Configurable {
+
+  private final static Logger LOG = Logger.getLogger(SequenceFileToIndexJob.class);
 
   private Configuration _configuration;
 
   private static final DateFormat DATE_FORMAT = new SimpleDateFormat("yyyyMMdd.hhmmss");
-
   public static final String MERGED_INDEX_PREFIX = "mergedIndex-";
 
   public String sequenceFileToIndex(Path sequenceFilePath, Path outputFolder) throws Exception {
@@ -53,29 +55,31 @@ public class SequenceFileToIndexJob implements Configurable {
 
     // input and output format
     jobConf.setInputFormat(SequenceFileInputFormat.class);
-    // no output format will be reduced because the index will be  creat local and will be copied into the hds
+    // no output format will be reduced because the index will be creat local
+    // and will be copied into the hds
 
     // input and output path
-    //overwrite the settet input path which is set via IndexJobConf.create
+    // overwrite the settet input path which is set via IndexJobConf.create
     jobConf.set("mapred.input.dir", "");
-    Logger.info("read document informations from sequence file: " + sequenceFilePath);
+    LOG.info("read document informations from sequence file: " + sequenceFilePath);
     jobConf.addInputPath(sequenceFilePath);
 
-    //configure the mapper
+    // configure the mapper
     jobConf.setMapOutputKeyClass(Text.class);
     jobConf.setMapOutputValueClass(BytesWritable.class);
     jobConf.setMapperClass(ShardSelectionMapper.class);
-    //the input key and input value class which is saved in the sequence file will be mapped out as value: BytesWritable
+    // the input key and input value class which is saved in the sequence file
+    // will be mapped out as value: BytesWritable
     jobConf.set("index.input.key.class", Text.class.getName());
     jobConf.set("index.input.value.class", DocumentInformation.class.getName());
     String indexFolder = MERGED_INDEX_PREFIX + DATE_FORMAT.format(new Date());
 
     Path newOutputPath = new Path(jobConf.getOutputPath(), indexFolder);
-    Logger.info("set mapred folder to: " + newOutputPath);
+    LOG.info("set mapred folder to: " + newOutputPath);
     jobConf.setOutputPath(newOutputPath);
 
     String uploadPath = outputFolder.toString() + "/" + indexFolder;
-    Logger.info("set index upload folder: '" + uploadPath + "'");
+    LOG.info("set index upload folder: '" + uploadPath + "'");
     jobConf.set(IndexJobConf.INDEX_UPLOAD_PATH, uploadPath);
 
     jobConf.set("document.factory.class", DfsIndexDocumentFactory.class.getName());

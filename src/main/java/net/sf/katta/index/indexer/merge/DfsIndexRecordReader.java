@@ -21,7 +21,6 @@ package net.sf.katta.index.indexer.merge;
 
 import java.io.IOException;
 
-import net.sf.katta.util.Logger;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.MD5Hash;
@@ -30,12 +29,14 @@ import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.RecordReader;
+import org.apache.log4j.Logger;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.MapFieldSelector;
 import org.apache.lucene.index.IndexReader;
 
-
 public class DfsIndexRecordReader implements RecordReader<Text, DocumentInformation> {
+
+  private final static Logger LOG = Logger.getLogger(DfsIndexRecordReader.class);
 
   private IDocumentDuplicateInformation _duplicateInformation;
 
@@ -51,22 +52,26 @@ public class DfsIndexRecordReader implements RecordReader<Text, DocumentInformat
 
   private FileSplit _fileSplit;
 
-
-  public DfsIndexRecordReader(JobConf jobConf, InputSplit inputSplit, IDocumentDuplicateInformation duplicateInformation) throws IOException {
+  public DfsIndexRecordReader(JobConf jobConf, InputSplit inputSplit, IDocumentDuplicateInformation duplicateInformation)
+      throws IOException {
     _duplicateInformation = duplicateInformation;
     FileSystem fileSystem = FileSystem.get(jobConf);
     _fileSplit = (FileSplit) inputSplit;
     Path indexPath = _fileSplit.getPath();
-    //we use md5 for uncompressed folder, because some shards can have the same name
+    // we use md5 for uncompressed folder, because some shards can have the same
+    // name
     String md5 = MD5Hash.digest(indexPath.toString()).toString();
-    Path workingFolder = new Path(jobConf.getOutputPath(), ".indexes/" + indexPath.getName() + "-" + md5 + "-uncompress");
-    //the outputpath is modified by hadoop and will be extend with "_temporary/jobId"
-    _indexPath = new Path(jobConf.getOutputPath().getParent().getParent(), ".indexes/" + indexPath.getName() + "-" + md5 + "-uncompress");
+    Path workingFolder = new Path(jobConf.getOutputPath(), ".indexes/" + indexPath.getName() + "-" + md5
+        + "-uncompress");
+    // the outputpath is modified by hadoop and will be extend with
+    // "_temporary/jobId"
+    _indexPath = new Path(jobConf.getOutputPath().getParent().getParent(), ".indexes/" + indexPath.getName() + "-"
+        + md5 + "-uncompress");
     try {
       _indexReader = IndexReader.open(new DfsIndexDirectory(fileSystem, indexPath, workingFolder));
       _maxDoc = _indexReader.maxDoc();
     } catch (Exception e) {
-      Logger.warn("can not open index '" + indexPath + "', ignore this index.", e);
+      LOG.warn("can not open index '" + indexPath + "', ignore this index.", e);
     }
   }
 
@@ -83,7 +88,7 @@ public class DfsIndexRecordReader implements RecordReader<Text, DocumentInformat
         keyInfo = _duplicateInformation.getKey(document);
         sortValue = _duplicateInformation.getSortValue(document);
       } catch (Exception e) {
-        Logger.warn("can not read document '" + _doc + "' from split '" + _fileSplit.getPath() + "'", e);
+        LOG.warn("can not read document '" + _doc + "' from split '" + _fileSplit.getPath() + "'", e);
       }
 
       if ((keyInfo == null || keyInfo.trim().equals(""))) {
@@ -123,7 +128,7 @@ public class DfsIndexRecordReader implements RecordReader<Text, DocumentInformat
   }
 
   public float getProgress() throws IOException {
-    return (float)_doc / _maxDoc;
+    return (float) _doc / _maxDoc;
   }
 
 }

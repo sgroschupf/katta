@@ -26,9 +26,11 @@ import java.io.IOException;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-import net.sf.katta.util.Logger;
+import org.apache.log4j.Logger;
 
 public class ZipService implements IZipService {
+
+  private final static Logger LOG = Logger.getLogger(ZipService.class);
 
   public boolean zipFolder(final File inputFolder, final File outputFile) {
     boolean ret = true;
@@ -40,7 +42,7 @@ public class ZipService implements IZipService {
       zip.close();
     } catch (final Exception e) {
       ret = false;
-      Logger.warn("can not create zip file", e);
+      LOG.warn("can not create zip file", e);
     }
     return ret;
   }
@@ -62,7 +64,7 @@ public class ZipService implements IZipService {
     int read = -1;
     final FileInputStream in = new FileInputStream(file);
     final String zipEntry = path + File.separator + file.getName();
-    Logger.debug("add zip entry: " + zipEntry);
+    LOG.debug("add zip entry: " + zipEntry);
     zip.putNextEntry(new ZipEntry(zipEntry));
     while ((read = in.read(buffer)) > -1) {
       zip.write(buffer, 0, read);

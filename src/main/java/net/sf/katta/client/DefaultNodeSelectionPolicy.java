@@ -26,12 +26,14 @@ import java.util.Map;
 import java.util.Set;
 
 import net.sf.katta.node.IQuery;
-import net.sf.katta.util.Logger;
+
+import org.apache.log4j.Logger;
 
 public class DefaultNodeSelectionPolicy implements INodeSelectionPolicy {
 
-  private Map<String, List<Map<String, List<String>>>> _nodeShardMap;
+  private final static Logger LOG = Logger.getLogger(DefaultNodeSelectionPolicy.class);
 
+  private Map<String, List<Map<String, List<String>>>> _nodeShardMap;
   private int _pos = 0;
 
   public Map<String, List<String>> getNodeShardsMap(final IQuery query, final String[] indexNames) {
@@ -42,7 +44,7 @@ public class DefaultNodeSelectionPolicy implements INodeSelectionPolicy {
     for (final String indexName : indexNames) {
       final List<Map<String, List<String>>> options = _nodeShardMap.get(indexName);
       if (options == null) {
-        Logger.warn("no index with name '" + indexName + "' deployed yet, try later again...");
+        LOG.warn("no index with name '" + indexName + "' deployed yet, try later again...");
         continue;
       }
       if (_pos >= options.size()) {
