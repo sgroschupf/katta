@@ -17,7 +17,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package net.sf.katta;
+package net.sf.katta.zk;
 
 import java.io.File;
 import java.io.IOException;
@@ -30,7 +30,6 @@ import net.sf.katta.util.KattaException;
 import net.sf.katta.util.Logger;
 import net.sf.katta.util.NetworkUtil;
 import net.sf.katta.util.ZkConfiguration;
-import net.sf.katta.zk.ZKClient;
 
 import com.yahoo.zookeeper.server.ServerStats;
 import com.yahoo.zookeeper.server.ZkNioFactory;
@@ -98,8 +97,9 @@ public class ZkServer {
         // now if required we initialize our namespace
         final ZKClient client = new ZKClient(conf);
         client.start(300000);
+        client.close();
         // TODO jz: do we initialize the client only for creating the namespaces
-        // ?? We should at least then close the client, huh ?
+        // ??
       } else {
         Logger.error("Zookeeper port was already in use. Running in single machine mode?");
       }

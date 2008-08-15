@@ -36,7 +36,13 @@ public class Gateway extends Thread {
         final InputStream incomingInputStream = socket.getInputStream();
         final OutputStream incomingOutputStream = socket.getOutputStream();
 
-        final Socket outgoingSocket = new Socket("localhost", _destinationPort);
+        final Socket outgoingSocket;
+        try {
+          outgoingSocket = new Socket("localhost", _destinationPort);
+        } catch (Exception e) {
+          LOG.warn("could not connect to " + _destinationPort);
+          continue;
+        }
         final InputStream outgoingInputStream = outgoingSocket.getInputStream();
         final OutputStream outgoingOutputStream = outgoingSocket.getOutputStream();
 
@@ -51,7 +57,9 @@ public class Gateway extends Thread {
               //
             }
             LOG.info("write thread terminated");
-            _runningThreads.remove(this);
+            synchronized (_runningThreads) {
+              _runningThreads.remove(this);
+            }
           }
 
           @Override
@@ -78,7 +86,9 @@ public class Gateway extends Thread {
               //
             }
             LOG.info("read thread terminated");
-            _runningThreads.remove(this);
+            synchronized (_runningThreads) {
+              _runningThreads.remove(this);
+            }
           }
         };
 
@@ -91,11 +101,12 @@ public class Gateway extends Thread {
       }
     } catch (SocketException e) {
       LOG.info("stopping gateway");
-      List<Thread> runningThreads = _runningThreads;
-      for (Thread thread : runningThreads) {
-        thread.interrupt();
+      synchronized (_runningThreads) {
+        List<Thread> runningThreads = _runningThreads;
+        for (Thread thread : runningThreads) {
+          thread.interrupt();
+        }
       }
-
     } catch (Exception e) {
       LOG.error("error on gateway execution", e);
     }
@@ -109,6 +120,11 @@ public class Gateway extends Thread {
       LOG.error("error on stopping gateway", cE);
     }
     super.interrupt();
+  }
+
+  public void interruptAndJoin() throws InterruptedException {
+    interrupt();
+    join();
   }
 
 }

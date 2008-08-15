@@ -17,7 +17,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package net.sf.katta;
+package net.sf.katta.zk;
+
+import net.sf.katta.AbstractKattaTest;
 
 import com.yahoo.zookeeper.Watcher;
 import com.yahoo.zookeeper.ZooKeeper;
@@ -25,7 +27,7 @@ import com.yahoo.zookeeper.ZooDefs.Ids;
 import com.yahoo.zookeeper.ZooKeeper.States;
 import com.yahoo.zookeeper.proto.WatcherEvent;
 
-public class ServerTest extends AbstractKattaTest implements Watcher {
+public class ZkServerTest extends AbstractKattaTest implements Watcher {
 
   public void testServer() throws Exception {
     final String path = "/testPath";
@@ -51,7 +53,6 @@ public class ServerTest extends AbstractKattaTest implements Watcher {
     zk.getChildren(path, true);
     zk.create(path + "/3", new byte[0], Ids.OPEN_ACL_UNSAFE, 0);
     zk.close();
-
   }
 
   public void process(final WatcherEvent event) {

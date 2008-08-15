@@ -101,12 +101,12 @@ public class Node implements ISearch, IZkReconnectListener {
     STARTING, RECONNECTING, IN_SERVICE, LOST;
   }
 
-  public Node(final ZKClient client) {
-    this(client, new NodeConfiguration());
+  public Node(final ZKClient zkClient) {
+    this(zkClient, new NodeConfiguration());
   }
 
-  public Node(final ZKClient client, final NodeConfiguration configuration) {
-    _zkClient = client;
+  public Node(final ZKClient zkClient, final NodeConfiguration configuration) {
+    _zkClient = zkClient;
     _configuration = configuration;
     _startTime = System.currentTimeMillis();
     _timer = new Timer("QueryCounter", true);
@@ -154,6 +154,13 @@ public class Node implements ISearch, IZkReconnectListener {
     _timer.schedule(new StatusUpdater(), new Date(), 60 * 1000);
   }
 
+  public void shutdown() {
+    // TODO jz: do decommission first?
+    _timer.cancel();
+    _zkClient.close();
+    _rpcServer.stop();
+  }
+
   public String getName() {
     return _name;
   }
@@ -164,15 +171,6 @@ public class Node implements ISearch, IZkReconnectListener {
     } catch (final InterruptedException e) {
       throw new RuntimeException("Failed to join node", e);
     }
-  }
-
-  public void shutdown() {
-    _timer.cancel();
-    // TODO do we really need to close the zk here?
-    if (_zkClient != null) {
-      _zkClient.close();
-    }
-    _rpcServer.stop();
   }
 
   public ArrayList<String> getDeployShards() {

@@ -437,8 +437,14 @@ public class ZKClient implements Watcher {
         }
       } else if (event.getState() == Watcher.Event.KeeperStateExpired) {
         // we do a reconnect
-        Logger.debug("Zookeeper session expired.");
-        reconnect();
+        Logger.warn("Zookeeper session expired.");
+        synchronized (_mutex) {
+          if (_zk == null) {
+            // already closing
+          } else {
+            reconnect();
+          }
+        }
       } else if ((event.getType() == Watcher.Event.EventNone)
           && (event.getState() == Watcher.Event.KeeperStateDisconnected)) {
         // TODO: What to do?
@@ -587,7 +593,7 @@ public class ZKClient implements Watcher {
    * @param path
    * @return
    */
-  public String getNodeNameFromPath(String path) {
+  public static String getNodeNameFromPath(String path) {
     assert path != null;
     if (path.endsWith("/")) {
       path = path.substring(0, path.length() - 1);

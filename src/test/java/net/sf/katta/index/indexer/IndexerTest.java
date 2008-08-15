@@ -27,6 +27,7 @@ import java.util.Iterator;
 
 import junit.framework.TestCase;
 import net.sf.katta.index.indexer.Indexer.DocumentCounter;
+
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.BytesWritable;
@@ -48,8 +49,8 @@ import org.jmock.Mockery;
 
 public class IndexerTest extends TestCase {
 
-  private static File _folder = new File(System.getProperty("java.io.tmpdir") + File.separator
-    + IndexerTest.class.getName());
+  protected static File _folder = new File(System.getProperty("java.io.tmpdir") + File.separator
+      + IndexerTest.class.getName());
   private final Mockery _mockery = new Mockery();
 
   public static class DummyFactory implements IDocumentFactory<WritableComparable, Writable> {
@@ -73,6 +74,7 @@ public class IndexerTest extends TestCase {
   public static class DummyDistributer implements IIndexPublisher {
 
     public void configure(final JobConf jobConf) {
+      // nothing todo
     }
 
     public void publish(final String pathToIndex) {

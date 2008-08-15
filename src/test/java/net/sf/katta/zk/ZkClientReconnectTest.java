@@ -1,7 +1,6 @@
 package net.sf.katta.zk;
 
 import net.sf.katta.AbstractKattaTest;
-import net.sf.katta.ZkServer;
 import net.sf.katta.testutil.Gateway;
 import net.sf.katta.util.ZkConfiguration;
 
@@ -54,7 +53,7 @@ public class ZkClientReconnectTest extends AbstractKattaTest {
       gateway = stopAndStartGateway(gateway, client);
     }
 
-    gateway.interrupt();
+    gateway.interruptAndJoin();
     server.shutdown();
     client.close();
 
@@ -63,15 +62,14 @@ public class ZkClientReconnectTest extends AbstractKattaTest {
   private Gateway stopAndStartGateway(Gateway gateway, ZKClient client) throws Exception {
     waitForStatus(client, ZooKeeper.States.CONNECTED);
     assertEquals(ZooKeeper.States.CONNECTED, client.getZookeeperState());
-    gateway.interrupt();
+    gateway.interruptAndJoin();
 
     waitForStatus(client, ZooKeeper.States.CONNECTING);
     assertEquals(ZooKeeper.States.CONNECTING, client.getZookeeperState());
 
     gateway = new Gateway(GATEWAY_PORT, ZK_SERVER_PORT);
-    Thread thread = new Thread(gateway);
-    thread.setDaemon(true);
-    thread.start();
+    gateway.setDaemon(true);
+    gateway.start();
 
     waitForStatus(client, ZooKeeper.States.CONNECTED);
     assertEquals(ZooKeeper.States.CONNECTED, client.getZookeeperState());

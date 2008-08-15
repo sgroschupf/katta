@@ -24,18 +24,16 @@ import java.util.Set;
 
 import net.sf.katta.AbstractKattaTest;
 import net.sf.katta.Katta;
-import net.sf.katta.TimingTestUtil;
-import net.sf.katta.ZkServer;
 import net.sf.katta.master.IPaths;
 import net.sf.katta.master.Master;
 import net.sf.katta.node.Hit;
 import net.sf.katta.node.Hits;
 import net.sf.katta.node.Node;
-import net.sf.katta.node.NodeTest;
 import net.sf.katta.node.Query;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.Logger;
 import net.sf.katta.zk.ZKClient;
+import net.sf.katta.zk.ZkServer;
 
 import org.apache.hadoop.io.MapWritable;
 import org.apache.hadoop.io.Text;
@@ -49,7 +47,6 @@ import org.apache.lucene.analysis.standard.StandardAnalyzer;
 public class ClientTest extends AbstractKattaTest {
 
   private ZkServer _zkServer;
-  private ZKClient _zkclient;
   private Node _node1;
   private Node _node2;
   private Master _master;
@@ -59,17 +56,16 @@ public class ClientTest extends AbstractKattaTest {
   @Override
   protected void onSetUp() throws Exception {
     _zkServer = new ZkServer(conf);
-    _zkclient = new ZKClient(conf);
-    _zkclient.start(600000);
 
-    _master = new Master(_zkclient);
+    ZKClient zkClientMaster = new ZKClient(conf);
+    _master = new Master(zkClientMaster);
     Thread masterThread = createStartMasterThread(_master);
     masterThread.start();
 
-    _node1 = NodeTest.startNodeServer(_zkclient);
-    _node2 = NodeTest.startNodeServer(_zkclient);
-    TimingTestUtil.waitFor(_zkclient, IPaths.NODES, 2);
+    _node1 = startNodeServer(new ZKClient(conf));
+    _node2 = startNodeServer(new ZKClient(conf));
     masterThread.join();
+    waitForChilds(zkClientMaster, IPaths.NODES, 2);
 
     _katta = new Katta();
     _katta.addIndex("index", "src/test/testIndexA/", StandardAnalyzer.class.getName(), 1);
@@ -81,12 +77,12 @@ public class ClientTest extends AbstractKattaTest {
 
   @Override
   protected void onTearDown() throws Exception {
+    client.close();
     _katta.close();
     _node1.shutdown();
     _node2.shutdown();
+    _master.shutdown();
     _zkServer.shutdown();
-    _zkclient.close();
-    client.close();
     RPC.stopClient();
   }
 

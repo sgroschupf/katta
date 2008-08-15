@@ -30,10 +30,8 @@ public class NodeMasterReconnectTest extends AbstractKattaTest {
     Thread masterThread = createStartMasterThread(master);
     masterThread.start();
 
-    Node node = new Node(zkNodeClient);
-    node.start();
+    Node node = startNodeServer(zkNodeClient);
     masterThread.join();
-
     assertTrue(zkMasterClient.getZookeeperState().equals(ZooKeeper.States.CONNECTED));
     assertTrue(zkNodeClient.getZookeeperState().equals(ZooKeeper.States.CONNECTED));
 
@@ -46,7 +44,7 @@ public class NodeMasterReconnectTest extends AbstractKattaTest {
     assertEquals(node.getName(), master.getNodes().get(0));
 
     // now break the node connection
-    gateway.interrupt();
+    gateway.interruptAndJoin();
     waitForStatus(zkNodeClient, ZooKeeper.States.CONNECTING);
     synchronized (zkMasterClient.getSyncMutex()) {
       if (master.getNodes().size() != 0) {
@@ -68,6 +66,6 @@ public class NodeMasterReconnectTest extends AbstractKattaTest {
 
     node.shutdown();
     zkMasterClient.close();
-    gateway.interrupt();
+    gateway.interruptAndJoin();
   }
 }

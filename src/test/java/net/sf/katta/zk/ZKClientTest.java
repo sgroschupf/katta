@@ -22,21 +22,14 @@ package net.sf.katta.zk;
 import java.util.List;
 
 import net.sf.katta.AbstractKattaTest;
-import net.sf.katta.ZkServer;
 import net.sf.katta.index.IndexMetaData;
 import net.sf.katta.util.KattaException;
-import net.sf.katta.util.ZkConfiguration;
 
 import org.apache.hadoop.io.Text;
 
 public class ZKClientTest extends AbstractKattaTest {
 
   static Integer _mutex = new Integer(-1);
-
-  @Override
-  protected void onSetUp() throws Exception {
-    System.out.println("_____________" + getName());
-  }
 
   public void testWait() throws Exception {
     final ZKClient client = new ZKClient(conf);
@@ -47,7 +40,7 @@ public class ZKClientTest extends AbstractKattaTest {
       // expected
     }
     createZkServer();
-    client.start(3000);// now should work
+    client.start(30000);// now should work
     client.close();
   }
 
@@ -84,7 +77,7 @@ public class ZKClientTest extends AbstractKattaTest {
   }
 
   public void testChildNotifications() throws Exception {
-    final ZkServer zkServer = new ZkServer(conf);
+    createZkServer();
     final ZKClient client = new ZKClient(conf);
     client.start(10000);
     final MyListener listener = new MyListener();
@@ -102,12 +95,10 @@ public class ZKClientTest extends AbstractKattaTest {
     }
     assertEquals(10, listener._counter);
     client.close();
-    Thread.sleep(200);
-    zkServer.shutdown();
   }
 
   public void testDataNotifications() throws Exception {
-    final ZkServer zkServer = new ZkServer(conf);
+    createZkServer();
     final ZKClient client = new ZKClient(conf);
     client.start(10000);
     final MyListener listener = new MyListener();
@@ -127,14 +118,12 @@ public class ZKClientTest extends AbstractKattaTest {
     }
     assertEquals(10, listener._counter);
     client.close();
-    Thread.sleep(200);
-    zkServer.shutdown();
   }
 
   public void testGetPath() throws Exception {
-    final ZKClient client = new ZKClient(new ZkConfiguration());
-    assertEquals("name", client.getNodeNameFromPath("/foo/bar/name"));
-    assertEquals("name", client.getNodeNameFromPath("/foo/bar/name/"));
+    assertEquals("name", ZKClient.getNodeNameFromPath("/foo/bar/name"));
+    assertEquals("name", ZKClient.getNodeNameFromPath("/foo/bar/name/"));
+
   }
 
   protected class MyListener implements IZkChildListener, IZkDataListener {

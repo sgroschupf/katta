@@ -61,8 +61,8 @@ public class Master {
   private IDeployPolicy _policy;
   private boolean _isMaster;
 
-  public Master(final ZKClient client) throws KattaException {
-    _zkClient = client;
+  public Master(final ZKClient zkClient) throws KattaException {
+    _zkClient = zkClient;
     final MasterConfiguration masterConfiguration = new MasterConfiguration();
     final String deployPolicy = masterConfiguration.getDeployPolicy();
     try {
@@ -89,8 +89,12 @@ public class Master {
       // secondary master
       _zkClient.subscribeDataChanges(IPaths.MASTER, new MasterListener());
       Logger.info("Secondary Master started...");
-
     }
+  }
+
+  public void shutdown() {
+    // TODO jz: do decommission first?
+    _zkClient.close();
   }
 
   private boolean becomeMaster() {

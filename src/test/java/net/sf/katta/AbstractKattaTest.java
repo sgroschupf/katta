@@ -6,10 +6,12 @@ import java.util.List;
 
 import junit.framework.TestCase;
 import net.sf.katta.master.Master;
+import net.sf.katta.node.Node;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.NodeConfiguration;
 import net.sf.katta.util.ZkConfiguration;
 import net.sf.katta.zk.ZKClient;
+import net.sf.katta.zk.ZkServer;
 
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.ipc.RPC;
@@ -25,6 +27,7 @@ public abstract class AbstractKattaTest extends TestCase {
 
   @Override
   protected final void setUp() throws Exception {
+    System.out.println("~~~~~~~~~~~~~~~ " + getClass().getName() + "#" + getName() + "() ~~~~~~~~~~~~~~~");
     RPC.stopClient();
     cleanZookeeperData(conf);
     onSetUp();
@@ -55,6 +58,12 @@ public abstract class AbstractKattaTest extends TestCase {
     FileUtil.fullyDelete(new NodeConfiguration().getShardFolder());
   }
 
+  protected ZkServer createZkServer() throws KattaException {
+    ZkServer zkServer = new ZkServer(conf);
+    _startedZkServer.add(zkServer);
+    return zkServer;
+  }
+
   protected Thread createStartMasterThread(final Master master) {
     Thread thread = new Thread(new Runnable() {
       public void run() {
@@ -68,10 +77,18 @@ public abstract class AbstractKattaTest extends TestCase {
     return thread;
   }
 
-  protected ZkServer createZkServer() throws KattaException {
-    ZkServer zkServer = new ZkServer(conf);
-    _startedZkServer.add(zkServer);
-    return zkServer;
+  public static Node startNodeServer(final ZKClient client) throws KattaException {
+    return startNodeServer(client, null);
+  }
+
+  public static Node startNodeServer(final ZKClient client, final String shardFolder) throws KattaException {
+    NodeConfiguration configuration = new NodeConfiguration();
+    if (null != shardFolder) {
+      configuration.setShardFolder(shardFolder);
+    }
+    final Node node = new Node(client, configuration);
+    node.start();
+    return node;
   }
 
   protected void waitForStatus(ZKClient client, ZooKeeper.States state) throws Exception {
@@ -86,5 +103,22 @@ public abstract class AbstractKattaTest extends TestCase {
     }
     assertEquals(state, client.getZookeeperState());
 
+  }
+
+  public static void waitForPath(final ZKClient client, final String path) throws KattaException, InterruptedException {
+    int tryCount = 0;
+    while (!client.exists(path) && tryCount++ < 100) {
+      Thread.sleep(500);
+    }
+    assertTrue("path '" + path + "' does not exists", client.exists(path));
+  }
+
+  public static void waitForChilds(final ZKClient client, final String path, final int childCount)
+      throws InterruptedException, KattaException {
+    int tryCount = 0;
+    while (client.getChildren(path).size() != childCount && tryCount++ < 100) {
+      Thread.sleep(500);
+    }
+    assertEquals(childCount, client.getChildren(path).size());
   }
 }

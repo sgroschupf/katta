@@ -21,13 +21,10 @@ package net.sf.katta.node;
 
 import net.sf.katta.AbstractKattaTest;
 import net.sf.katta.Katta;
-import net.sf.katta.TimingTestUtil;
-import net.sf.katta.ZkServer;
 import net.sf.katta.index.IndexMetaData;
 import net.sf.katta.master.IPaths;
 import net.sf.katta.master.Master;
 import net.sf.katta.util.KattaException;
-import net.sf.katta.util.NodeConfiguration;
 import net.sf.katta.zk.ZKClient;
 
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
@@ -37,16 +34,16 @@ public class NodeTest extends AbstractKattaTest {
   public void testShardStatusSuccess() throws KattaException, InterruptedException {
     // start master
     createZkServer();
-    ZKClient zkClient = new ZKClient(conf);
-    zkClient.start(600000);
+    ZKClient zkClientMaster = new ZKClient(conf);
+    ZKClient zkClientNode = new ZKClient(conf);
 
-    final Master master = new Master(zkClient);
+    final Master master = new Master(zkClientMaster);
     Thread masterThread = createStartMasterThread(master);
     masterThread.start();
 
-    Node node = NodeTest.startNodeServer(zkClient);
+    Node node = startNodeServer(zkClientNode);
     masterThread.join();
-    TimingTestUtil.waitFor(zkClient, IPaths.NODES, 1);
+    waitForChilds(zkClientMaster, IPaths.NODES, 1);
 
     // deploy index
     Katta katta = new Katta();
@@ -55,29 +52,27 @@ public class NodeTest extends AbstractKattaTest {
     // test
     final String indexPath = IPaths.INDEXES + "/index";
     IndexMetaData indexMetaData = new IndexMetaData();
-    zkClient.readData(indexPath, indexMetaData);
+    zkClientMaster.readData(indexPath, indexMetaData);
     assertEquals(IndexMetaData.IndexState.DEPLOYED, indexMetaData.getState());
 
     // close all
     katta.close();
-    zkClient.close();
     node.shutdown();
-    Thread.sleep(2000);
+    master.shutdown();
   }
 
   public void testShardStatusNoSuccessNoIndexGiven() throws KattaException, InterruptedException {
-    // start master
-    ZkServer zkServer = createZkServer();
-    ZKClient zkClient = new ZKClient(conf);
-    zkClient.start(600000);
+    createZkServer();
+    ZKClient zkClientMaster = new ZKClient(conf);
+    ZKClient zkClientNode = new ZKClient(conf);
 
-    final Master master = new Master(zkClient);
+    final Master master = new Master(zkClientMaster);
     Thread masterThread = createStartMasterThread(master);
     masterThread.start();
 
-    Node node = NodeTest.startNodeServer(zkClient);
+    Node node = startNodeServer(zkClientNode);
     masterThread.join();
-    TimingTestUtil.waitFor(zkClient, IPaths.NODES, 1);
+    AbstractKattaTest.waitForChilds(zkClientMaster, IPaths.NODES, 1);
 
     // deploy index
     Katta katta = new Katta();
@@ -86,15 +81,13 @@ public class NodeTest extends AbstractKattaTest {
     // test
     final String indexPath = IPaths.INDEXES + "/index";
     IndexMetaData indexMetaData = new IndexMetaData();
-    zkClient.readData(indexPath, indexMetaData);
+    zkClientMaster.readData(indexPath, indexMetaData);
     assertEquals(IndexMetaData.IndexState.DEPLOY_ERROR, indexMetaData.getState());
 
     // close all
     katta.close();
-    zkClient.close();
     node.shutdown();
-    zkServer.shutdown();
-    Thread.sleep(2000);
+    master.shutdown();
   }
 
   //
@@ -471,22 +464,5 @@ public class NodeTest extends AbstractKattaTest {
   // server.shutdown();
   // }
   //
-  public static Node startNodeServer(final ZKClient client, final String shardFolder) {
 
-    NodeConfiguration configuration = new NodeConfiguration();
-    if (null != shardFolder) {
-      configuration.setShardFolder(shardFolder);
-    }
-    final Node node = new Node(client, configuration);
-    try {
-      node.start();
-    } catch (final KattaException e) {
-      e.printStackTrace();
-    }
-    return node;
-  }
-
-  public static Node startNodeServer(final ZKClient client) {
-    return startNodeServer(client, null);
-  }
 }

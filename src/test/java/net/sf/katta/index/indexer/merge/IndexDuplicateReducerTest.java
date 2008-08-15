@@ -33,7 +33,7 @@ import org.jmock.Mockery;
 
 public class IndexDuplicateReducerTest extends TestCase {
 
-  public void testMerge() throws InterruptedException, IOException {
+  public void testMerge() throws IOException {
     IndexDuplicateReducer reducer = new IndexDuplicateReducer();
     Set<DocumentInformation> hashSet = new HashSet<DocumentInformation>();
     final Text key = new Text("foo");
@@ -47,7 +47,6 @@ public class IndexDuplicateReducerTest extends TestCase {
       if (i == 5) {
         information = collectedInformation;
       }
-      Thread.sleep(500);
       hashSet.add(information);
     }
 

@@ -38,15 +38,16 @@ import net.sf.katta.util.KattaException;
 import net.sf.katta.util.Logger;
 import net.sf.katta.util.ZkConfiguration;
 import net.sf.katta.zk.ZKClient;
+import net.sf.katta.zk.ZkServer;
 
 public class Katta {
 
-  private final ZKClient _client;
+  private final ZKClient _zkClient;
 
   public Katta() throws KattaException {
     final ZkConfiguration configuration = new ZkConfiguration();
-    _client = new ZKClient(configuration);
-    _client.start(5000);
+    _zkClient = new ZKClient(configuration);
+    _zkClient.start(5000);
   }
 
   public static void main(final String[] args) throws KattaException {
@@ -106,8 +107,8 @@ public class Katta {
   private void redeployIndex(final String indexName) throws KattaException {
     String indexPath = IPaths.INDEXES + "/" + indexName;
     IndexMetaData indexMetaData = new IndexMetaData();
-    if (_client.exists(indexPath)) {
-      _client.readData(indexPath, indexMetaData);
+    if (_zkClient.exists(indexPath)) {
+      _zkClient.readData(indexPath, indexMetaData);
       try {
         removeIndex(indexName);
         Thread.sleep(5000);
@@ -125,18 +126,18 @@ public class Katta {
   private void showErrors(final String indexName) throws KattaException {
     System.out.println("List of errors:");
     String indexPath = IPaths.INDEXES + "/" + indexName;
-    if (_client.exists(indexPath)) {
-      List<String> shards = _client.getChildren(indexPath);
+    if (_zkClient.exists(indexPath)) {
+      List<String> shards = _zkClient.getChildren(indexPath);
       for (String shardName : shards) {
         System.out.println("Shard: " + shardName);
         String shardPath = IPaths.SHARD_TO_NODE + "/" + shardName;
-        if (_client.exists(shardPath)) {
-          List<String> nodes = _client.getChildren(shardPath);
+        if (_zkClient.exists(shardPath)) {
+          List<String> nodes = _zkClient.getChildren(shardPath);
           for (String node : nodes) {
             System.out.print("\tNode: " + node);
             String shardToNodePath = shardPath + "/" + node;
             DeployedShard deployedShard = new DeployedShard();
-            _client.readData(shardToNodePath, deployedShard);
+            _zkClient.readData(shardToNodePath, deployedShard);
             if (deployedShard.hasError()) {
               System.out.println("\tError: " + deployedShard.getErrorMsg());
             } else {
@@ -167,8 +168,8 @@ public class Katta {
 
   public void removeIndex(final String indexName) throws KattaException {
     final String indexPath = IPaths.INDEXES + "/" + indexName;
-    if (_client.exists(indexPath)) {
-      _client.deleteRecursive(indexPath);
+    if (_zkClient.exists(indexPath)) {
+      _zkClient.deleteRecursive(indexPath);
     } else {
       System.err.println("Unknown index:" + indexName);
     }
@@ -176,11 +177,11 @@ public class Katta {
   }
 
   public void showStructure() throws KattaException {
-    _client.showFolders();
+    _zkClient.showFolders();
   }
 
   public void listNodes() throws KattaException {
-    final List<String> nodes = _client.getChildren(IPaths.NODES);
+    final List<String> nodes = _zkClient.getChildren(IPaths.NODES);
     if (null != nodes) {
       // header
       final Table table = new Table(new String[] { "Name", "Start time", "Healthy", "Status", "Starting" });
@@ -188,7 +189,7 @@ public class Katta {
       for (final String node : nodes) {
         final String path = IPaths.NODES + "/" + node;
         final NodeMetaData nodeMetaData = new NodeMetaData();
-        _client.readData(path, nodeMetaData);
+        _zkClient.readData(path, nodeMetaData);
         table.addRow(new String[] { nodeMetaData.getName(), nodeMetaData.getStartTimeAsDate(),
             "" + nodeMetaData.isHealth(), nodeMetaData.getStatus(), nodeMetaData.isStarting() + "" });
       }
@@ -199,10 +200,10 @@ public class Katta {
   public void listIndex() throws KattaException {
     final Table t = new Table(new String[] { "Name", "Deployed", "Analyzer", "Path" });
 
-    final List<String> indexes = _client.getChildren(IPaths.INDEXES);
+    final List<String> indexes = _zkClient.getChildren(IPaths.INDEXES);
     for (final String index : indexes) {
       final IndexMetaData metaData = new IndexMetaData();
-      _client.readData(IPaths.INDEXES + "/" + index, metaData);
+      _zkClient.readData(IPaths.INDEXES + "/" + index, metaData);
       t.addRow(new String[] { index, metaData.getState().toString(), metaData.getAnalyzerClassName(),
           metaData.getPath() });
       // maybe show shards
@@ -216,12 +217,12 @@ public class Katta {
       throws KattaException {
     final String indexPath = IPaths.INDEXES + "/" + name;
     if (!name.trim().equals("*")) {
-      if (!_client.exists(indexPath)) {
-        _client.create(indexPath, new IndexMetaData(path, analyzerClass, replicationLevel,
+      if (!_zkClient.exists(indexPath)) {
+        _zkClient.create(indexPath, new IndexMetaData(path, analyzerClass, replicationLevel,
             IndexMetaData.IndexState.ANNOUNCED));
         final IndexMetaData data = new IndexMetaData();
         while (true) {
-          _client.readData(indexPath, data);
+          _zkClient.readData(indexPath, data);
           if (data.getState() == IndexMetaData.IndexState.DEPLOYED) {
             break;
           } else if (data.getState() == IndexMetaData.IndexState.DEPLOY_ERROR) {
@@ -354,8 +355,8 @@ public class Katta {
   }
 
   public void close() {
-    if (_client != null) {
-      _client.close();
+    if (_zkClient != null) {
+      _zkClient.close();
     }
   }
 

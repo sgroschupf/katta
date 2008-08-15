@@ -30,12 +30,10 @@ import net.sf.katta.master.Master;
 import net.sf.katta.node.Hit;
 import net.sf.katta.node.Hits;
 import net.sf.katta.node.Node;
-import net.sf.katta.node.NodeTest;
 import net.sf.katta.node.Query;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.zk.ZKClient;
 
-import org.apache.hadoop.ipc.RPC;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 
 public class PerformanceTest extends AbstractKattaTest {
@@ -48,18 +46,19 @@ public class PerformanceTest extends AbstractKattaTest {
   }
 
   private void start() throws InterruptedException, KattaException {
-    final ZKClient zkclient = new ZKClient(conf);
-    final ZkServer server = createZkServer();
-    zkclient.start(5000);
+    createZkServer();
+    final ZKClient zkclientMaster = new ZKClient(conf);
+    final ZKClient zkclientNode1 = new ZKClient(conf);
+    final ZKClient zkclientNode2 = new ZKClient(conf);
 
-    final Master master = new Master(zkclient);
+    final Master master = new Master(zkclientMaster);
     Thread masterThread = createStartMasterThread(master);
     masterThread.start();
 
-    final Node server1 = NodeTest.startNodeServer(zkclient);
-    final Node server2 = NodeTest.startNodeServer(zkclient);
+    final Node node1 = startNodeServer(zkclientNode1);
+    final Node node2 = startNodeServer(zkclientNode2);
     masterThread.join();
-    TimingTestUtil.waitFor(zkclient, IPaths.NODES, 2);
+    waitForChilds(zkclientMaster, IPaths.NODES, 2);
 
     final Katta katta = new Katta();
     katta.addIndex("index1", "src/test/testIndexA", StandardAnalyzer.class.getName(), 1);
@@ -79,12 +78,10 @@ public class PerformanceTest extends AbstractKattaTest {
     }
     System.out.println("count took: " + (System.currentTimeMillis() - start));
     katta.close();
-    RPC.stopClient();
-    server1.shutdown();
-    server2.shutdown();
-    Thread.sleep(3000);
-    zkclient.close();
-    server.shutdown();
+    client.close();
+    node1.shutdown();
+    node2.shutdown();
+    master.shutdown();
   }
 
   public void testSortSpeed() {

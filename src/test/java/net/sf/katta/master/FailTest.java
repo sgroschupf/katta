@@ -21,7 +21,6 @@ package net.sf.katta.master;
 
 import net.sf.katta.AbstractKattaTest;
 import net.sf.katta.Katta;
-import net.sf.katta.TimingTestUtil;
 import net.sf.katta.client.Client;
 import net.sf.katta.node.Node;
 import net.sf.katta.node.Query;
@@ -36,8 +35,6 @@ public class FailTest extends AbstractKattaTest {
 
   public void testMasterFail() throws Exception {
     createZkServer();
-    final ZKClient client = new ZKClient(conf);
-    client.start(100000);
     final ZKClient nodeClient = new ZKClient(conf);
     final ZKClient masterClient = new ZKClient(conf);
     final ZKClient secMasterClient = new ZKClient(conf);
@@ -64,8 +61,8 @@ public class FailTest extends AbstractKattaTest {
     secMaster.start();
 
     clientThread.join();
-    TimingTestUtil.waitFor(client, IPaths.MASTER);
-    TimingTestUtil.waitFor(client, IPaths.NODES, 1);
+    waitForPath(nodeClient, IPaths.MASTER);
+    waitForChilds(nodeClient, IPaths.NODES, 1);
 
     // kill master
     masterClient.close();
@@ -75,26 +72,21 @@ public class FailTest extends AbstractKattaTest {
     }
 
     // just make sure we can read the file
-    TimingTestUtil.waitFor(client, IPaths.MASTER);
+    AbstractKattaTest.waitForPath(nodeClient, IPaths.MASTER);
 
     assertTrue(secMaster.isMaster());
-    client.close();
     nodeClient.close();
     secMasterClient.close();
   }
 
   public void testNodeFailure() throws Exception {
     createZkServer();
-    final ZKClient zkClient = new ZKClient(conf);
-    zkClient.start(100000);
     // TODO we did run in issues in case the index is already deployed,so we
     // should check this..
-    final ZKClient masterClient = new ZKClient(conf);
-
-    final Master master = new Master(masterClient);
+    final ZKClient zkClientMaster = new ZKClient(conf);
+    final Master master = new Master(zkClientMaster);
     Thread masterThread = createStartMasterThread(master);
     masterThread.start();
-    TimingTestUtil.waitFor(zkClient, IPaths.MASTER);
 
     // create 3 nodes
     final NodeConfiguration sconf1 = new NodeConfiguration();
@@ -111,8 +103,9 @@ public class FailTest extends AbstractKattaTest {
     final String defaulFolder3 = sconf3.getShardFolder().getAbsolutePath();
     sconf3.setShardFolder(defaulFolder3 + "/" + 3);
     final DummyNode s3 = new DummyNode(conf, sconf3);
-    TimingTestUtil.waitFor(zkClient, IPaths.NODES, 3);
+    waitForChilds(zkClientMaster, IPaths.NODES, 3);
     masterThread.join();
+    waitForPath(zkClientMaster, IPaths.MASTER);
     // deploy index
 
     final Katta katta = new Katta();
@@ -120,7 +113,7 @@ public class FailTest extends AbstractKattaTest {
     katta.addIndex(indexName, "src/test/testIndexC/", StandardAnalyzer.class.getName(), 3);
     final Client client = new Client();
     assertEquals(2, client.count(new Query("foo:bar"), new String[] { indexName }));
-    zkClient.showFolders();
+    zkClientMaster.showFolders();
     assertEquals(1, s1.countShards());
     assertEquals(1, s2.countShards());
     assertEquals(1, s3.countShards());
@@ -141,13 +134,10 @@ public class FailTest extends AbstractKattaTest {
     // bring back 2 nodes
 
     // things should be good distributed again.
-    katta.close();
-    masterClient.close();
     client.close();
-    s1.close();
-    s2.close();
+    katta.close();
+    master.shutdown();
     s3.close();
-
   }
 
   private class DummyNode {
