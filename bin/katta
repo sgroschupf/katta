@@ -72,12 +72,12 @@ fi
 CLASSPATH="${KATTA_CONF_DIR}"
 
 # for developers, add Katta classes to CLASSPATH
-if [ -d "$KATTA_HOME/target/classes" ]; then
-  CLASSPATH=${CLASSPATH}:$KATTA_HOME/target/classes
+if [ -d "$KATTA_HOME/build/classes" ]; then
+  CLASSPATH=${CLASSPATH}:$KATTA_HOME/build/classes
 fi
 
-if [ -d "$KATTA_HOME/target/test-classes" ]; then
-  CLASSPATH=${CLASSPATH}:$KATTA_HOME/target/test-classes
+if [ -d "$KATTA_HOME/build/test-classes" ]; then
+  CLASSPATH=${CLASSPATH}:$KATTA_HOME/build/test-classes
 fi
 
 # so that filenames w/ spaces are handled correctly in loops below
@@ -89,9 +89,8 @@ for f in $KATTA_HOME/katta-*.jar; do
 done
 
 # add libs to CLASSPATH
-for file in `find ./lib -name "*.jar"`
-do
-  CLASSPATH=${CLASSPATH}:$file
+for jar in $KATTA_HOME/lib/*.jar; do
+  CLASSPATH=${CLASSPATH}:$jar;
 done
 
 # add user-specified CLASSPATH last
