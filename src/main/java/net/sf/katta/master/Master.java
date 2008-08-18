@@ -496,7 +496,14 @@ public class Master {
 					if (!disconnectedNodes.isEmpty()) {
 						LOG.info(disconnectedNodes.size()
 								+ " node/s disconnected: " + disconnectedNodes);
-						removeNodes(disconnectedNodes);
+						// removeNodes(disconnectedNodes);
+						// jz: we don't remove the node-2-shard mapping since
+						// the node might reconnect in a short time and then it
+						// won't get any shards assigned (only on new
+						// deployments). Once we have a shard balancing tast we
+						// should enable this in one or another form (idea: see
+						// DelayQueue). Since we have replication a down node
+						// should not affect the shard availibility too much.
 					}
 					List<String> newNodes = ComparisonUtil.getNew(_nodes,
 							currentNodes);
