@@ -61,6 +61,7 @@ public class ZKClient implements Watcher {
   private final String _servers;
   private final int _port;
   private final int _timeOut;
+  private boolean _shutdownTriggered;
 
   public ZKClient(final ZkConfiguration configuration) {
     _servers = configuration.getZKServers();
@@ -112,7 +113,7 @@ public class ZKClient implements Watcher {
     }
   }
 
-  private void ensureZkStarted() {
+  private void ensureZkRunning() {
     if (_zk == null) {
       throw new IllegalStateException("zk client has not been started yet");
     }
@@ -140,7 +141,7 @@ public class ZKClient implements Watcher {
    */
   public ArrayList<String> subscribeChildChanges(final String path, final IZkChildListener listener)
       throws KattaException {
-    ensureZkStarted();
+    ensureZkRunning();
     addChildListener(path, listener);
     synchronized (_zk) {
       try {
@@ -165,7 +166,7 @@ public class ZKClient implements Watcher {
    * @throws KattaException
    */
   public void subscribeDataChanges(final String path, final IZkDataListener listener) throws KattaException {
-    ensureZkStarted();
+    ensureZkRunning();
     synchronized (_mutex) {
       addDataListener(path, listener);
       try {
@@ -178,7 +179,7 @@ public class ZKClient implements Watcher {
   }
 
   private void removeDataListener(final String path, final IZkDataListener listener) {
-    ensureZkStarted();
+    ensureZkRunning();
     final HashSet<IZkDataListener> hashSet = _dataListener.get(path);
     if (hashSet != null) {
       hashSet.remove(listener);
@@ -186,7 +187,7 @@ public class ZKClient implements Watcher {
   }
 
   private void removeChildListener(final String path, final IZkChildListener listener) {
-    ensureZkStarted();
+    ensureZkRunning();
     final HashSet<IZkChildListener> hashSet = _childListener.get(path);
     if (hashSet != null) {
       hashSet.remove(listener);
@@ -194,7 +195,7 @@ public class ZKClient implements Watcher {
   }
 
   private void addChildListener(final String path, final IZkChildListener listener) {
-    ensureZkStarted();
+    ensureZkRunning();
     if (listener != null) {
       HashSet<IZkChildListener> set = _childListener.get(path);
       if (set == null) {
@@ -206,7 +207,7 @@ public class ZKClient implements Watcher {
   }
 
   private void addDataListener(final String path, final IZkDataListener listener) {
-    ensureZkStarted();
+    ensureZkRunning();
     if (listener != null) {
       HashSet<IZkDataListener> set = _dataListener.get(path);
       if (set == null) {
@@ -239,7 +240,7 @@ public class ZKClient implements Watcher {
   }
 
   private void create(final String path, final Writable writable, final int flags) throws KattaException {
-    ensureZkStarted();
+    ensureZkRunning();
     assert path != null;
     final byte[] data = writableToByteArray(writable);
     synchronized (_mutex) {
@@ -296,7 +297,7 @@ public class ZKClient implements Watcher {
    * @throws KattaException
    */
   public boolean delete(final String path) throws KattaException {
-    ensureZkStarted();
+    ensureZkRunning();
     synchronized (_mutex) {
       try {
         if (_zk != null) {
@@ -323,7 +324,7 @@ public class ZKClient implements Watcher {
    * @throws KattaException
    */
   public boolean deleteRecursive(final String path) throws KattaException {
-    ensureZkStarted();
+    ensureZkRunning();
     synchronized (_mutex) {
       try {
         final ArrayList<String> children = _zk.getChildren(path, false);
@@ -359,7 +360,7 @@ public class ZKClient implements Watcher {
    * @throws KattaException
    */
   public boolean exists(final String path) throws KattaException {
-    ensureZkStarted();
+    ensureZkRunning();
     synchronized (_mutex) {
       try {
         return _zk.exists(path, false) != null;
@@ -377,7 +378,7 @@ public class ZKClient implements Watcher {
    * @throws KattaException
    */
   public List<String> getChildren(final String path) throws KattaException {
-    ensureZkStarted();
+    ensureZkRunning();
     synchronized (_mutex) {
       boolean watch = false;
       final HashSet<IZkChildListener> set = _childListener.get(path);
@@ -393,7 +394,16 @@ public class ZKClient implements Watcher {
   }
 
   public void process(final WatcherEvent event) {
+    // TODO: prohibit nullpointer (See ZOOKEEPER-77)
+    if (null == event.getPath()) {
+      event.setPath("null");
+    }
+
     synchronized (_mutex) {
+      if (_shutdownTriggered) {
+        LOG.warn("ignoring event '" + event + "' since shutdown triggered");
+        return;
+      }
       final String path = event.getPath();
       if (event.getType() == Watcher.Event.EventNodeChildrenChanged) {
         final HashSet<IZkChildListener> listeners = _childListener.get(path);
@@ -448,17 +458,8 @@ public class ZKClient implements Watcher {
         }
       } else if ((event.getType() == Watcher.Event.EventNone)
           && (event.getState() == Watcher.Event.KeeperStateDisconnected)) {
-        // TODO: What to do?
-        // See ZOOKEEPER-77
-        if (null == event.getPath()) {
-          event.setPath("null");
-        }
         LOG.debug("Received an unkown event: " + event.toString());
       } else {
-        // See ZOOKEEPER-77
-        if (null == event.getPath()) {
-          event.setPath("null");
-        }
         LOG.debug("Received an unkown event: " + event.toString());
       }
     }
@@ -492,7 +493,7 @@ public class ZKClient implements Watcher {
    * @throws KattaException
    */
   public void readData(final String path, final Writable writable) throws KattaException {
-    ensureZkStarted();
+    ensureZkRunning();
     byte[] data;
     synchronized (_mutex) {
       boolean watch = false;
@@ -522,6 +523,7 @@ public class ZKClient implements Watcher {
   public void close() {
     synchronized (_mutex) {
       try {
+        _shutdownTriggered = true;
         if (_zk != null) {
           _zk.close();
           _zk = null;
@@ -576,7 +578,7 @@ public class ZKClient implements Watcher {
    * @throws KattaException
    */
   public void writeData(final String path, final Writable writable) throws KattaException {
-    ensureZkStarted();
+    ensureZkRunning();
     synchronized (_mutex) {
       final byte[] data = writableToByteArray(writable);
       try {

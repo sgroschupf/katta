@@ -40,7 +40,7 @@ public class NodeMasterReconnectTest extends AbstractKattaTest {
     }
 
     // check node-master link
-    assertEquals(1, master.getNodes().size());
+    assertEquals("wrong node count:" + master.getNodes(), 1, master.getNodes().size());
     assertEquals(node.getName(), master.getNodes().get(0));
 
     // now break the node connection

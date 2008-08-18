@@ -86,13 +86,16 @@ public class ZkServer {
 
         if (hosts.length > 1) {
           // multiple zk servers
+          LOG.info("Start distributed zookeeper server...");
           startQuorumPeer(conf, localhostHostNames, hosts, tickTime, dataDir, dataLogDir);
-          LOG.info("Distributed zookeeper server started...");
         } else {
           // single zk server
+          LOG.info("Start single zookeeper server...");
           startSingleZkServer(tickTime, dataDir, dataLogDir, port);
-          LOG.info("Single zookeeper server started...");
         }
+        LOG.info("data dir: " + dataDir);
+        LOG.info("data log dir: " + dataLogDir);
+
         // now if required we initialize our namespace
         final ZKClient client = new ZKClient(conf);
         client.start(300000);
