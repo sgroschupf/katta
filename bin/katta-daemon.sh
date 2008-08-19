@@ -110,7 +110,7 @@ case $startStop in
 
     if [ "$KATTA_MASTER" != "" ]; then
       echo rsync from "$KATTA_MASTER"
-      rsync -a -e ssh --delete --exclude=.svn "$KATTA_MASTER"/ "$KATTA_HOME"
+      rsync -a -e ssh --delete --exclude=.svn --exclude=logs "$KATTA_MASTER"/ "$KATTA_HOME"
     fi
 
     katta_rotate_log "$log"
