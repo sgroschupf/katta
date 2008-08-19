@@ -87,6 +87,7 @@ public class ZKClient implements Watcher {
     if (_zk != null) {
       throw new IllegalStateException("zk client has already been started");
     }
+    _shutdownTriggered = false;
     final long startTime = System.currentTimeMillis();
     try {
       _zk = new ZooKeeper(_servers, _timeOut, this);
