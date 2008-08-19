@@ -23,13 +23,13 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import net.sf.katta.index.IndexMetaData;
-import net.sf.katta.master.IPaths;
 import net.sf.katta.node.DocumentFrequenceWritable;
 import net.sf.katta.node.Hit;
 import net.sf.katta.node.Hits;
@@ -42,6 +42,7 @@ import net.sf.katta.util.ZkConfiguration;
 import net.sf.katta.zk.IZkChildListener;
 import net.sf.katta.zk.IZkDataListener;
 import net.sf.katta.zk.ZKClient;
+import net.sf.katta.zk.ZkPathes;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.MapWritable;
@@ -86,14 +87,14 @@ public class Client implements IClient {
     synchronized (_zkClient.getSyncMutex()) {
       _zkClient.start(30000);
       // first get all changes on index..
-      _zkClient.subscribeChildChanges(IPaths.INDEXES, _indexPathChangeListener);
+      _zkClient.subscribeChildChanges(ZkPathes.INDEXES, _indexPathChangeListener);
       loadIndexAndShardsData();
     }
     _start = System.currentTimeMillis();
   }
 
   protected void loadIndexAndShardsData() throws KattaException {
-    final List<String> knownIndexes = _zkClient.getChildren(IPaths.INDEXES);
+    final List<String> knownIndexes = _zkClient.getChildren(ZkPathes.INDEXES);
     for (final String indexName : knownIndexes) {
       loadShardsFromIndex(indexName);
     }
@@ -146,16 +147,20 @@ public class Client implements IClient {
   }
 
   protected void loadShardsFromIndex(final String indexName) throws KattaException {
-    final String indexPath = IPaths.INDEXES + "/" + indexName;
+    final String indexPath = ZkPathes.getIndexPath(indexName);
     final IndexMetaData indexMetaData = new IndexMetaData();
     _zkClient.readData(indexPath, indexMetaData);
     if (indexMetaData.getState() == IndexMetaData.IndexState.DEPLOYED) {
       final List<String> indexShards = _zkClient.getChildren(indexPath);
       _indexToShards.put(indexName, indexShards);
       for (final String shardName : indexShards) {
-        final ArrayList<String> nodes = _zkClient.subscribeChildChanges(IPaths.SHARD_TO_NODE + "/" + shardName,
-            _shardListener);
-        LOG.debug("Add shard listener in client.");
+        List<String> nodes;
+        try {
+          nodes = _zkClient.subscribeChildChanges(ZkPathes.getShard2NodeRootPath(shardName), _shardListener);
+        } catch (KattaException e) {
+          nodes = Collections.EMPTY_LIST;
+          LOG.error("shard '" + shardName + "' of index '" + indexName + "' is not deployed");
+        }
         _shardsToNode.put(shardName, nodes);
       }
     } else {
@@ -163,22 +168,10 @@ public class Client implements IClient {
     }
   }
 
-  /*
-   * (non-Javadoc)
-   * 
-   * @see net.sf.katta.client.IClient#search(net.sf.katta.node.IQuery,
-   * java.lang.String[])
-   */
   public Hits search(final IQuery query, final String[] indexNames) throws KattaException {
     return search(query, indexNames, Integer.MAX_VALUE);
   }
 
-  /*
-   * (non-Javadoc)
-   * 
-   * @see net.sf.katta.client.IClient#search(net.sf.katta.node.IQuery,
-   * java.lang.String[], int)
-   */
   public Hits search(final IQuery query, final String[] indexNames, final int count) throws KattaException {
     String[] indexesToSearchIn = indexNames;
     for (String indexName : indexNames) {
@@ -298,21 +291,10 @@ public class Client implements IClient {
     }
   }
 
-  /*
-   * (non-Javadoc)
-   * 
-   * @see net.sf.katta.client.IClient#getDetails(net.sf.katta.node.Hit)
-   */
   public MapWritable getDetails(final Hit hit) throws IOException {
     return getDetails(hit, null);
   }
 
-  /*
-   * (non-Javadoc)
-   * 
-   * @see net.sf.katta.client.IClient#getDetails(net.sf.katta.node.Hit,
-   * java.lang.String)
-   */
   public MapWritable getDetails(final Hit hit, final String[] fields) throws IOException {
     final ISearch searchNode = _nodes.get(hit.getNode());
     // TODO only risk would be that between search and get detail the node
@@ -357,23 +339,12 @@ public class Client implements IClient {
 
   }
 
-  /*
-   * (non-Javadoc)
-   * 
-   * @see net.sf.katta.client.IClient#getQueryPerMinute()
-   */
   public float getQueryPerMinute() {
     long time = (System.currentTimeMillis() - _start) / (60 * 1000);
     time = Math.max(time, 1);
     return (float) _queryCount / time;
   }
 
-  /*
-   * (non-Javadoc)
-   * 
-   * @see net.sf.katta.client.IClient#count(net.sf.katta.node.IQuery,
-   * java.lang.String[])
-   */
   public int count(final IQuery query, final String[] indexNames) {
     String[] indexesToSearchIn = indexNames;
     for (String indexName : indexNames) {

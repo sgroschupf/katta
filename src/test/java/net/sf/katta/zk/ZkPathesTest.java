@@ -8,12 +8,18 @@ public class ZkPathesTest extends TestCase {
 
   String node1 = "node1:20000";
   String node2 = "node2:20000";
-  String shard1 = "index1_1";
-  String shard2 = "index1_2";
+  String index1 = "index1";
+  String shard1 = index1 + "_1";
+  String shard2 = index1 + "_2";
 
   public void testGetNodePath() throws Exception {
     assertEquals(ZkPathes.NODES + "/" + node1, ZkPathes.getNodePath(node1));
     assertFalse(ZkPathes.getNodePath(node1).equals(ZkPathes.getNodePath(node2)));
+  }
+
+  public void testGetIndexPath() throws Exception {
+    assertEquals(ZkPathes.INDEXES + "/" + index1, ZkPathes.getIndexPath(index1));
+    assertFalse(ZkPathes.getIndexPath(node1).equals(ZkPathes.getIndexPath("index2")));
   }
 
   public void testGetShard2NodePath() throws Exception {
@@ -33,5 +39,10 @@ public class ZkPathesTest extends TestCase {
     assertEquals(new File(ZkPathes.getNode2ShardRootPath(node1)).getAbsolutePath(), new File(ZkPathes
         .getNode2ShardPath(node1, shard1)).getParentFile().getAbsolutePath());
     assertFalse(ZkPathes.getNode2ShardPath(node1, shard1).equals(ZkPathes.getShard2NodePath(shard1, node1)));
+  }
+
+  public void testGetName() throws Exception {
+    assertEquals(node1, ZkPathes.getName(ZkPathes.getNode2ShardRootPath(node1)));
+    assertEquals(shard1, ZkPathes.getName(ZkPathes.getShard2NodeRootPath(shard1)));
   }
 }
