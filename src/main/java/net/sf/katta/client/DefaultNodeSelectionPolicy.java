@@ -34,45 +34,42 @@ public class DefaultNodeSelectionPolicy implements INodeSelectionPolicy {
   private final static Logger LOG = Logger.getLogger(DefaultNodeSelectionPolicy.class);
 
   private Map<String, List<Map<String, List<String>>>> _nodeShardMap;
-  private volatile int _pos = 0;
+  private int _pos = 0;
 
   public Map<String, List<String>> getNodeShardsMap(final IQuery query, final String[] indexNames) {
     if (_nodeShardMap == null) {
       throw new IllegalStateException("no index deployed yet, try later again...");
     }
-    final HashMap<String, List<String>> resultMap = new HashMap<String, List<String>>();
-
+    final HashMap<String, List<String>> map = new HashMap<String, List<String>>();
     for (final String indexName : indexNames) {
-      final List<Map<String, List<String>>> listWithNode2ShardMap = _nodeShardMap.get(indexName);
-      if (listWithNode2ShardMap == null) {
+      final List<Map<String, List<String>>> options = _nodeShardMap.get(indexName);
+      if (options == null) {
         LOG.warn("no index with name '" + indexName + "' deployed yet, try later again...");
         continue;
       }
-      if (_pos >= listWithNode2ShardMap.size()) {
+      if (_pos >= options.size()) {
         _pos = 0;
       }
 
-      final Map<String, List<String>> oneOptionForIndex = listWithNode2ShardMap.get(_pos);
-      final Set<String> nodes = oneOptionForIndex.keySet();
-      for (final String node : nodes) {
-        List<String> shardList = resultMap.get(node);
-        if (shardList == null) {
-          shardList = new ArrayList<String>();
-          resultMap.put(node, shardList);
+      final Map<String, List<String>> oneOptionForIndex = options.get(_pos);
+
+      final Set<String> salves = oneOptionForIndex.keySet();
+      for (final String node : salves) {
+        List<String> arrayList = map.get(node);
+        if (arrayList == null) {
+          arrayList = new ArrayList<String>();
+          map.put(node, arrayList);
         }
-        shardList.addAll(oneOptionForIndex.get(node));
+        arrayList.addAll(oneOptionForIndex.get(node));
       }
     }
     _pos++;
-    return resultMap;
+    return map;
   }
 
   public void setShardsAndNodes(final Map<String, List<String>> indexToShards,
       final Map<String, List<String>> shardsToNode) {
     _nodeShardMap = computeMap(indexToShards, shardsToNode);
-    if (LOG.isDebugEnabled()) {
-      LOG.debug("computed shard map: " + _nodeShardMap);
-    }
   }
 
   private Map<String, List<Map<String, List<String>>>> computeMap(final Map<String, List<String>> indexToShards,
@@ -90,14 +87,14 @@ public class DefaultNodeSelectionPolicy implements INodeSelectionPolicy {
     for (final String indexName : indexNames) {
       int pos = 0;
       while (true) {
+
         // the shards we need to server for a given index.
         final List<String> requiredShards = indexToShards.get(indexName);
+        // in case we have a corruped index with 0 shards..
 
         if (requiredShards.size() == 0) {
-          // in case we have a corruped index with 0 shards..
           break;
         }
-
         // the nodes to shard map, where we collect the different
         // shards a node has to search in..
         final HashMap<String, List<String>> nodeToShardMap = new HashMap<String, List<String>>();
@@ -106,10 +103,7 @@ public class DefaultNodeSelectionPolicy implements INodeSelectionPolicy {
           // now we pic one node base on our position pos. Pos will
           // be incremented with each while loop.
           final List<String> nodes = shardsToNode.get(shard);
-//          if (nodes.size() == 0) {
-//            continue;
-//          }
-          if (pos >= nodes.size()) {
+          if (pos == nodes.size()) {
             newSet = false;
             break;
           }

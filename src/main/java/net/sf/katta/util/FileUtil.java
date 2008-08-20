@@ -5,7 +5,6 @@ import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.io.FilenameFilter;
 import java.io.IOException;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -17,12 +16,6 @@ public class FileUtil {
   private final static Logger LOG = Logger.getLogger(FileUtil.class);
 
   private static final int BUFFER = 4096;
-
-  public static final FilenameFilter VISIBLE_FILES_FILTER = new FilenameFilter() {
-    public boolean accept(final File dir, final String name) {
-      return !name.startsWith(".");
-    }
-  };
 
   public static void deleteFolder(File folder) {
     try {
