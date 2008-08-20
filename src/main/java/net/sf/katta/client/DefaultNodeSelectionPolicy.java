@@ -106,9 +106,9 @@ public class DefaultNodeSelectionPolicy implements INodeSelectionPolicy {
           // now we pic one node base on our position pos. Pos will
           // be incremented with each while loop.
           final List<String> nodes = shardsToNode.get(shard);
-          if (nodes.size() == 0) {
-            continue;
-          }
+//          if (nodes.size() == 0) {
+//            continue;
+//          }
           if (pos >= nodes.size()) {
             newSet = false;
             break;
