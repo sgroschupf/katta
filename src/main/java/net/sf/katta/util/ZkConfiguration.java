@@ -23,67 +23,67 @@ import java.io.File;
 
 public class ZkConfiguration extends KattaConfiguration {
 
-  public static final String ZOOKEEPER_SERVERS = "zookeeper.servers";
+    public static final String ZOOKEEPER_SERVERS = "zookeeper.servers";
 
-  public static final String ZOOKEEPER_TIMEOUT = "zookeeper.timeout";
+    public static final String ZOOKEEPER_TIMEOUT = "zookeeper.timeout";
 
-  public static final String ZOOKEEPER_TICK_TIME = "zookeeper.tick-time";
+    public static final String ZOOKEEPER_TICK_TIME = "zookeeper.tick-time";
 
-  public static final String ZOOKEEPER_INIT_LIMIT = "zookeeper.init-limit";
+    public static final String ZOOKEEPER_INIT_LIMIT = "zookeeper.init-limit";
 
-  public static final String ZOOKEEPER_SYNC_LIMIT = "zookeeper.sync-limit";
+    public static final String ZOOKEEPER_SYNC_LIMIT = "zookeeper.sync-limit";
 
-  public static final String ZOOKEEPER_DATA_DIR = "zookeeper.data-dir";
+    public static final String ZOOKEEPER_DATA_DIR = "zookeeper.data-dir";
 
-  public static final String ZOOKEEPER_LOG_DATA_DIR = "zookeeper.log-data-dir";
+    public static final String ZOOKEEPER_LOG_DATA_DIR = "zookeeper.log-data-dir";
 
-  public static final String ZOOKEEPER_CLIENT_PORT = "zookeeper.clientPort";
+    public static final String ZOOKEEPER_CLIENT_PORT = "zookeeper.clientPort";
 
-  public ZkConfiguration() {
-    super("/katta.zk.properties");
-  }
+    public ZkConfiguration() {
+        super("/katta.zk.properties");
+    }
 
-  public ZkConfiguration(final String path) {
-    super(path);
-  }
+    public ZkConfiguration(final String path) {
+        super(path);
+    }
 
-  public ZkConfiguration(final File file) {
-    super(file);
-  }
+    public ZkConfiguration(final File file) {
+        super(file);
+    }
 
-  public String getZKServers() {
-    return getProperty(ZOOKEEPER_SERVERS);
-  }
+    public String getZKServers() {
+        return getProperty(ZOOKEEPER_SERVERS);
+    }
 
-  public void setZKServers(String servers) {
-    setProperty(ZOOKEEPER_SERVERS, servers);
-  }
+    public void setZKServers(final String servers) {
+        setProperty(ZOOKEEPER_SERVERS, servers);
+    }
 
-  public int getZKTimeOut() {
-    return getInt(ZOOKEEPER_TIMEOUT);
-  }
+    public int getZKTimeOut() {
+        return getInt(ZOOKEEPER_TIMEOUT);
+    }
 
-  public int getZKTickTime() {
-    return getInt(ZOOKEEPER_TICK_TIME);
-  }
+    public int getZKTickTime() {
+        return getInt(ZOOKEEPER_TICK_TIME);
+    }
 
-  public int getZKInitLimit() {
-    return getInt(ZOOKEEPER_INIT_LIMIT);
-  }
+    public int getZKInitLimit() {
+        return getInt(ZOOKEEPER_INIT_LIMIT);
+    }
 
-  public int getZKSyncLimit() {
-    return getInt(ZOOKEEPER_SYNC_LIMIT);
-  }
+    public int getZKSyncLimit() {
+        return getInt(ZOOKEEPER_SYNC_LIMIT);
+    }
 
-  public File getZKDataDir() {
-    return getFile(ZOOKEEPER_DATA_DIR);
-  }
+    public File getZKDataDir() {
+        return getFile(ZOOKEEPER_DATA_DIR);
+    }
 
-  public File getZKDataLogDir() {
-    return getFile(ZOOKEEPER_LOG_DATA_DIR);
-  }
+    public File getZKDataLogDir() {
+        return getFile(ZOOKEEPER_LOG_DATA_DIR);
+    }
 
-  public int getZKClientPort() {
-    return getInt(ZOOKEEPER_CLIENT_PORT);
-  }
+    public int getZKClientPort() {
+        return getInt(ZOOKEEPER_CLIENT_PORT);
+    }
 }
