@@ -20,8 +20,8 @@ sourceCompatibility = 1.5
 targetCompatibility = 1.5
 
 createTask('wrapper', type: Wrapper).configure {
-  urlRoot = 'http://snapshots.dist.codehaus.org/gradle/'
-  gradleVersion = '0.3-080716153750+0200'
+  urlRoot = 'http://dist.codehaus.org/gradle/'
+  gradleVersion = '0.3'
   jarPath = 'src/build/resources/lib'
 }
 
