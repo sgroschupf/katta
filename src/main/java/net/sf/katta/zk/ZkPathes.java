@@ -24,6 +24,14 @@ public class ZkPathes {
     return buildPath(NODES, node);
   }
 
+  public static String getIndexPath(String index) {
+    return buildPath(INDEXES, index);
+  }
+
+  public static String getShardPath(String index, String shard) {
+    return buildPath(INDEXES, index, shard);
+  }
+
   public static String getShard2NodeRootPath(String shard) {
     return buildPath(SHARD_TO_NODE, shard);
   }
@@ -48,5 +56,9 @@ public class ZkPathes {
     }
     builder.deleteCharAt(builder.length() - 1);
     return builder.toString();
+  }
+
+  public static String getName(String path) {
+    return path.substring(path.lastIndexOf(SEPERATOR)+1);
   }
 }

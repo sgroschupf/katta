@@ -237,11 +237,7 @@ public class Node implements ISearch, IZkReconnectListener {
 			final ArrayList<String> shardsToDeploy) throws KattaException {
 		synchronized (_shardsFolder) {
 			List<String> localShards = Arrays.asList(_shardsFolder
-					.list(new FilenameFilter() {
-						public boolean accept(final File dir, final String name) {
-							return !name.startsWith(".");
-						}
-					}));
+					.list(FileUtil.VISIBLE_FILES_FILTER));
 
 			// remove exiting but not to deploy
 			List<String> removedShards = ComparisonUtil.getRemoved(localShards,
