@@ -19,47 +19,105 @@
  */
 package net.sf.katta.master;
 
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
-import net.sf.katta.index.AssignedShard;
-import net.sf.katta.zk.ZKClient;
+import net.sf.katta.util.CircularList;
 
+import org.apache.log4j.Logger;
+
+/**
+ * 
+ * Simple deploy policy which distributes the shards in round robin style.<b>
+ * Following features are supported:<br>
+ * - initial shard distribution<br>
+ * - shard distribution when under replicated<br>
+ * - shard removal when over-replicated <br>
+ * 
+ * <p>
+ * Missing feature:<br>
+ * - shard/node rebalancing<br>
+ * 
+ * TODO jz: node load rebalancing
+ */
 public class DefaultDistributionPolicy implements IDeployPolicy {
 
-  /**
-   * simply iterate over all shards and assign them to the available nodes.
-   */
-  public Map<String, List<AssignedShard>> distribute(final ZKClient client, final List<String> nodes,
-      final List<AssignedShard> shards, final int replicationLevel) {
-    if (nodes.size() == 0) {
-      throw new IllegalArgumentException("no nodes");
-    }
-    if (shards.size() == 0) {
-      throw new IllegalArgumentException("no shards");
+  private final static Logger LOG = Logger.getLogger(DefaultDistributionPolicy.class);
+
+  public Map<String, List<String>> createDistributionPlan(final Map<String, List<String>> currentShard2NodesMap,
+      final Map<String, List<String>> currentNode2ShardsMap, List<String> aliveNodes, final int replicationLevel) {
+    if (aliveNodes.size() == 0) {
+      throw new IllegalArgumentException("no alive nodes to distribute to");
     }
 
-    final Map<String, List<AssignedShard>> map = new HashMap<String, List<AssignedShard>>();
-    int count = 0;
-    for (int i = 0; i < shards.size(); i++) {
-      final AssignedShard shard = shards.get(i);
-      for (int j = 0; j < replicationLevel; j++) {
+    CircularList<String> roundRobinNodes = new CircularList<String>(aliveNodes);
+    Set<String> shards = currentShard2NodesMap.keySet();
+    for (String shard : shards) {
+      Set<String> assignedNodes = new HashSet<String>(replicationLevel);
+      int neededDeployments = replicationLevel - countValues(currentShard2NodesMap, shard);
+      assignedNodes.addAll(currentShard2NodesMap.get(shard));
 
-        if (nodes.size() == count) {
-          count = 0;
-        }
-        final String node = nodes.get(count++);
-        List<AssignedShard> arrayList = map.get(node);
-        if (arrayList == null) {
-          arrayList = new ArrayList<AssignedShard>();
-          map.put(node, arrayList);
-        }
-        arrayList.add(shard);
+      // now assign new nodes based on round robin algorithm
+      neededDeployments = chooseNewNodes(currentNode2ShardsMap, roundRobinNodes, shard, assignedNodes,
+          neededDeployments);
+
+      if (neededDeployments > 0) {
+        LOG.warn("cannot replicate shard '" + shard + "' " + replicationLevel + " times, cause only "
+            + roundRobinNodes.size() + " nodes connected");
+      } else if (neededDeployments < 0) {
+        LOG.info("found shard '" + shard + "' over-replicated");
+        // TODO jz: maybe we should add a configurable threshold tha e.g. 10%
+        // over replication is ok ?
+        removeOverreplicatedShards(currentShard2NodesMap, currentNode2ShardsMap, shard, neededDeployments);
       }
     }
-    return map;
+    return currentNode2ShardsMap;
+  }
+
+  private int chooseNewNodes(final Map<String, List<String>> currentNode2ShardsMap,
+      CircularList<String> roundRobinNodes, String shard, Set<String> assignedNodes, int neededDeployments) {
+    String tailNode = roundRobinNodes.getTail();
+    String currentNode = null;
+    while (neededDeployments > 0 && !tailNode.equals(currentNode)) {
+      currentNode = roundRobinNodes.getNext();
+      if (!assignedNodes.contains(currentNode)) {
+        if (LOG.isDebugEnabled()) {
+          LOG.debug("assign " + shard + " to " + currentNode);
+        }
+        currentNode2ShardsMap.get(currentNode).add(shard);
+        assignedNodes.add(currentNode);
+        neededDeployments--;
+      }
+    }
+    return neededDeployments;
+  }
+
+  private void removeOverreplicatedShards(final Map<String, List<String>> currentShard2NodesMap,
+      final Map<String, List<String>> currentNode2ShardsMap, String shard, int neededDeployments) {
+    while (neededDeployments < 0) {
+      int maxShardServingCount = 0;
+      String maxShardServingNode = null;
+      List<String> nodeNames = currentShard2NodesMap.get(shard);
+      for (String node : nodeNames) {
+        int shardCount = countValues(currentNode2ShardsMap, node);
+        if (shardCount > maxShardServingCount) {
+          maxShardServingCount = shardCount;
+          maxShardServingNode = node;
+        }
+      }
+      currentNode2ShardsMap.get(maxShardServingNode).remove(shard);
+      neededDeployments++;
+    }
+  }
+
+  private int countValues(Map<String, List<String>> multiMap, String key) {
+    List<String> list = multiMap.get(key);
+    if (list == null) {
+      return 0;
+    }
+    return list.size();
   }
 
 }

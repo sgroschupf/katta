@@ -23,7 +23,6 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -87,15 +86,14 @@ public class Client implements IClient {
     synchronized (_zkClient.getSyncMutex()) {
       _zkClient.start(30000);
       // first get all changes on index..
-      _zkClient.subscribeChildChanges(ZkPathes.INDEXES, _indexPathChangeListener);
-      loadIndexAndShardsData();
+      List<String> indexes = _zkClient.subscribeChildChanges(ZkPathes.INDEXES, _indexPathChangeListener);
+      loadIndexAndShardsData(indexes);
     }
     _start = System.currentTimeMillis();
   }
 
-  protected void loadIndexAndShardsData() throws KattaException {
-    final List<String> knownIndexes = _zkClient.getChildren(ZkPathes.INDEXES);
-    for (final String indexName : knownIndexes) {
+  protected void loadIndexAndShardsData(List<String> indexes) throws KattaException {
+    for (final String indexName : indexes) {
       loadShardsFromIndex(indexName);
     }
     // set datat for policy
@@ -177,7 +175,6 @@ public class Client implements IClient {
       }
     }
     final Map<String, List<String>> nodeShardsMap = _policy.getNodeShardsMap(query, indexesToSearchIn);
-    LOG.info("Client.search()" + nodeShardsMap);
     final Hits result = new Hits();
 
     final DocumentFrequenceWritable docFreqs = getDocFrequencies(query, nodeShardsMap);
@@ -243,44 +240,43 @@ public class Client implements IClient {
     return docFreqs;
   }
 
-  protected class IndexDataListener implements IZkDataListener {
+  protected class IndexDataListener implements IZkDataListener<IndexMetaData> {
 
-    public void handleDataChange(String parentPath) throws KattaException {
-      // a existing index is now deployed..
-      synchronized (_zkClient.getSyncMutex()) {
-        final IndexMetaData indexMetaData = new IndexMetaData();
-        try {
-          _zkClient.readData(parentPath, indexMetaData);
-          if (indexMetaData.getState() == IndexMetaData.IndexState.DEPLOYED) {
-            final String indexName = ZKClient.getNodeNameFromPath(parentPath);
-            loadShardsFromIndex(indexName);
-            // set datat for policy
-            _policy.setShardsAndNodes(_indexToShards, _shardsToNode);
-            // create node connections..
-            createNodeConnections();
-          }
-        } catch (final KattaException e) {
-          throw new RuntimeException("unable to read zookeeper data", e);
-        }
-      }
-
+    public void handleDataAdded(String dataPath, IndexMetaData data) throws KattaException {
+      // handled through IndexPathListener
     }
+
+    public void handleDataChange(String dataPath, IndexMetaData data) throws KattaException {
+      final String indexName = ZkPathes.getName(dataPath);
+      loadShardsFromIndex(indexName);
+      // set datat for policy
+      _policy.setShardsAndNodes(_indexToShards, _shardsToNode);
+      // create node connections..
+      createNodeConnections();
+    }
+
+    public void handleDataDeleted(String dataPath) throws KattaException {
+      // handled through IndexPathListener
+    }
+
+    public IndexMetaData createWritable() {
+      return new IndexMetaData();
+    }
+
   }
 
   protected class IndexPathListener implements IZkChildListener {
 
-    public void handleChildChange(String parentPath) throws KattaException {
-      // new index added...
-      synchronized (_zkClient.getSyncMutex()) {
-        try {
-          loadIndexAndShardsData();
-          _policy.setShardsAndNodes(_indexToShards, _shardsToNode);
-          // create node connections..
-          createNodeConnections();
-        } catch (final KattaException e) {
-          LOG.error("Failed to read zookeeper information", e);
-        }
-        // set datat for policy
+    public void handleChildChange(String parentPath, List<String> currentIndexes) throws KattaException {
+      // index added/removed...
+      // TODO jz: i think index removal is not handled
+      try {
+        loadIndexAndShardsData(currentIndexes);
+        _policy.setShardsAndNodes(_indexToShards, _shardsToNode);
+        // create node connections..
+        createNodeConnections();
+      } catch (final KattaException e) {
+        LOG.error("Failed to read zookeeper information", e);
       }
     }
   }
@@ -305,32 +301,24 @@ public class Client implements IClient {
 
   protected class ShardListener implements IZkChildListener {
 
-    public void handleChildChange(String shardPath) throws KattaException {
+    public void handleChildChange(String parentPath, List<String> currentNodes) throws KattaException {
       LOG.debug("Shard event in client.");
       // a shard got a new node or one was removed...
-      synchronized (_zkClient.getSyncMutex()) {
-        List<String> newNodes;
-        try {
-          newNodes = _zkClient.getChildren(shardPath);
-          final String shardName = ZKClient.getNodeNameFromPath(shardPath);
-          final List<String> oldNodes = _shardsToNode.get(shardName);
-          final List<String> toRemove = ComparisonUtil.getRemoved(oldNodes, newNodes);
-          for (final String node : toRemove) {
-            oldNodes.remove(node);
-            // TODO do we need to shut thoese down..?
-            _nodes.remove(node);
-          }
-          final List<String> toAdd = ComparisonUtil.getNew(oldNodes, newNodes);
-          for (final String node : toAdd) {
-            oldNodes.add(node);
-            _nodes.put(node, getNodeProxy(node));
-          }
-        } catch (final KattaException e) {
-          throw new RuntimeException("Failed to read zookeeper data.", e);
-        }
+      final String shardName = ZkPathes.getName(parentPath);
+      final List<String> oldNodes = _shardsToNode.get(shardName);
+      final List<String> toRemove = ComparisonUtil.getRemoved(oldNodes, currentNodes);
+      for (final String node : toRemove) {
+        oldNodes.remove(node);
+        // TODO do we need to shut thoese down..? (hadoop0.17 has
+        // RPC.stopProxy())
+        _nodes.remove(node);
+      }
+      final List<String> toAdd = ComparisonUtil.getNew(oldNodes, currentNodes);
+      for (final String node : toAdd) {
+        oldNodes.add(node);
+        _nodes.put(node, getNodeProxy(node));
       }
     }
-
   }
 
   public float getQueryPerMinute() {

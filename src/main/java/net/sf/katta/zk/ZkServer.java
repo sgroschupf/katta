@@ -93,8 +93,8 @@ public class ZkServer {
           LOG.info("Start single zookeeper server...");
           startSingleZkServer(tickTime, dataDir, dataLogDir, port);
         }
-        LOG.info("data dir: " + dataDir);
-        LOG.info("data log dir: " + dataLogDir);
+        LOG.info("data dir: " + dataDir.getAbsolutePath());
+        LOG.info("data log dir: " + dataLogDir.getAbsolutePath());
 
         // now if required we initialize our namespace
         final ZKClient client = new ZKClient(conf);

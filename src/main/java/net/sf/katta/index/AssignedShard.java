@@ -28,10 +28,10 @@ import org.apache.hadoop.io.Writable;
 public class AssignedShard implements Writable {
 
   private String _indexName;
-
   private String _shardPath;
 
   public AssignedShard() {
+    // for serialization
   }
 
   public AssignedShard(final String indexName, final String shardPath) {

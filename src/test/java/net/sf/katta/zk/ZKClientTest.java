@@ -26,6 +26,7 @@ import net.sf.katta.index.IndexMetaData;
 import net.sf.katta.util.KattaException;
 
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.Writable;
 
 public class ZKClientTest extends AbstractKattaTest {
 
@@ -120,22 +121,28 @@ public class ZKClientTest extends AbstractKattaTest {
     client.close();
   }
 
-  public void testGetPath() throws Exception {
-    assertEquals("name", ZKClient.getNodeNameFromPath("/foo/bar/name"));
-    assertEquals("name", ZKClient.getNodeNameFromPath("/foo/bar/name/"));
-
-  }
-
   protected class MyListener implements IZkChildListener, IZkDataListener {
 
     public int _counter = 0;
 
-    public void handleChildChange(String parentPath) throws KattaException {
+    public void handleChildChange(String parentPath, List<String> currentChilds) throws KattaException {
       handleEvent();
     }
 
-    public void handleDataChange(String parentPath) throws KattaException {
+    public void handleDataAdded(String dataPath, Writable data) throws KattaException {
       handleEvent();
+    }
+
+    public void handleDataChange(String dataPath, Writable data) throws KattaException {
+      handleEvent();
+    }
+
+    public void handleDataDeleted(String dataPath) throws KattaException {
+      handleEvent();
+    }
+
+    public Writable createWritable() {
+      return new IndexMetaData();
     }
 
     private void handleEvent() {

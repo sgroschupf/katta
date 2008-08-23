@@ -25,8 +25,10 @@ import java.util.List;
 import net.sf.katta.AbstractKattaTest;
 import net.sf.katta.Katta;
 import net.sf.katta.index.IndexMetaData;
+import net.sf.katta.index.IndexMetaData.IndexState;
 import net.sf.katta.node.Node;
 import net.sf.katta.node.NodeMetaData;
+import net.sf.katta.util.FileUtil;
 import net.sf.katta.zk.ZKClient;
 import net.sf.katta.zk.ZkPathes;
 
@@ -47,10 +49,12 @@ public class MasterTest extends AbstractKattaTest {
     Thread masterThread = createStartMasterThread(master);
     masterThread.start();
 
-    zkClientMaster.createEphemeral(IPaths.NODES + "/node1", new NodeMetaData("node1", "OK", true, 1));
-    zkClientMaster.create(IPaths.NODE_TO_SHARD + "/node1");
-    zkClientMaster.createEphemeral(IPaths.NODES + "/node2", new NodeMetaData("node2", "OK", true, 2));
-    zkClientMaster.create(IPaths.NODE_TO_SHARD + "/node2");
+    String node1 = "node1";
+    String node2 = "node2";
+    zkClientMaster.createEphemeral(ZkPathes.getNodePath(node1), new NodeMetaData(node1, "OK", true, 1));
+    zkClientMaster.create(ZkPathes.getNode2ShardRootPath(node1));
+    zkClientMaster.createEphemeral(ZkPathes.getNodePath(node2), new NodeMetaData(node2, "OK", true, 2));
+    zkClientMaster.create(ZkPathes.getNode2ShardRootPath(node2));
 
     masterThread.join();
     assertEquals(2, master.readNodes().size());
@@ -70,6 +74,7 @@ public class MasterTest extends AbstractKattaTest {
     masterThread.start();
 
     String nodePath = ZkPathes.getNodePath("node1");
+    zkClientMaster.create(ZkPathes.getNode2ShardRootPath("node1"));
     zkClientMaster.create(nodePath, new NodeMetaData("node1", "OK", true, 1));
 
     masterThread.join();
@@ -102,53 +107,94 @@ public class MasterTest extends AbstractKattaTest {
     Node node1 = startNodeServer(zkClientNode1);
     Node node2 = startNodeServer(zkClientNode2, "/tmp/katta-shards2");
     masterThread.join();
-    waitForPath(zkClientMaster, IPaths.MASTER);
-    waitForChilds(zkClientMaster, IPaths.NODES, 2);
+    waitForPath(zkClientMaster, ZkPathes.MASTER);
+    waitForChilds(zkClientMaster, ZkPathes.NODES, 2);
 
-    final File file = new File("./src/test/testIndexA");
-    final String path = "file://" + file.getAbsolutePath();
+    final File indexFile = new File("src/test/testIndexA");
     final Katta katta = new Katta();
-    katta.addIndex("indexA", path, StandardAnalyzer.class.getName(), 2);
+    String index = "indexA";
+    katta.addIndex(index, "file://" + indexFile.getAbsolutePath(), StandardAnalyzer.class.getName(), 2);
 
-    // there should be two servers here now.
-    assertEquals(2, zkClientMaster.getChildren(IPaths.NODE_TO_SHARD).size());
+    int shardCount = indexFile.list(FileUtil.VISIBLE_FILES_FILTER).length;
+    assertEquals(shardCount, zkClientMaster.countChildren(ZkPathes.getIndexPath(index)));
+    assertEquals(shardCount, zkClientMaster.countChildren(ZkPathes.getNode2ShardRootPath(node1.getName())));
+    assertEquals(shardCount, zkClientMaster.countChildren(ZkPathes.getNode2ShardRootPath(node2.getName())));
 
-    // there should be two shards here now
-    assertEquals(4, zkClientMaster.getChildren(IPaths.NODE_TO_SHARD + "/" + node1.getName()).size());
-
-    // there should be two shards here now
-    assertEquals(4, zkClientMaster.getChildren(IPaths.NODE_TO_SHARD + "/" + node2.getName()).size());
-    // there should be 4 shards indexes now..
-    List<String> shardsToNode = zkClientMaster.getChildren(IPaths.SHARD_TO_NODE);
-    assertEquals(4, shardsToNode.size());
-
-    // now we fake the nodes and add the nodes to the shards
-    shardsToNode = zkClientMaster.getChildren(IPaths.SHARD_TO_NODE);
-    assertEquals(4, shardsToNode.size());
+    List<String> shards = zkClientMaster.getChildren(ZkPathes.SHARD_TO_NODE);
+    assertEquals(shardCount, shards.size());
+    for (String shard : shards) {
+      // each shard should be on both nodes
+      assertEquals(2, zkClientMaster.getChildren(ZkPathes.getShard2NodeRootPath(shard)).size());
+    }
 
     final IndexMetaData metaData = new IndexMetaData();
-    zkClientMaster.readData(IPaths.INDEXES + "/indexA", metaData);
+    zkClientMaster.readData(ZkPathes.getIndexPath(index), metaData);
     assertEquals(IndexMetaData.IndexState.DEPLOYED, metaData.getState());
 
-    synchronized (zkClientMaster.getSyncMutex()) {
-      node2.shutdown();
-      // the node event in the master NodeListerner should notify
-      zkClientMaster.getSyncMutex().wait();
-    }
-    assertEquals(4, zkClientMaster.getChildren(IPaths.NODE_TO_SHARD + "/" + node1.getName()).size());
-
-    List<String> shardsToIndex = zkClientMaster.getChildren(IPaths.INDEXES + "/indexA");
-    assertEquals(4, shardsToIndex.size());
-
-    katta.removeIndex("indexA");
+    katta.removeIndex(index);
     int count = 0;
-    while (zkClientMaster.getChildren(IPaths.NODE_TO_SHARD + "/" + node1.getName()).size() != 0) {
+    while (zkClientMaster.getChildren(ZkPathes.getNode2ShardRootPath(node1.getName())).size() != 0) {
       Thread.sleep(500);
       if (count++ > 40) {
         fail("shards are still not removed from node after 20 sec.");
       }
     }
-    assertEquals(0, zkClientMaster.getChildren(IPaths.NODE_TO_SHARD + "/" + node1.getName()).size());
+    assertEquals(0, zkClientMaster.getChildren(ZkPathes.getNode2ShardRootPath(node1.getName())).size());
+
+    node1.shutdown();
+    node2.shutdown();
+    master.shutdown();
+  }
+
+  public void testRebalanceIndexAfterNodeCrash() throws Exception {
+    createZkServer();
+    final ZKClient zkClientMaster = new ZKClient(conf);
+    final ZKClient zkClientNode1 = new ZKClient(conf);
+    final ZKClient zkClientNode2 = new ZKClient(conf);
+    zkClientMaster.start(5000);
+
+    final Master master = new Master(zkClientMaster);
+    Thread masterThread = createStartMasterThread(master);
+    masterThread.start();
+
+    Node node1 = startNodeServer(zkClientNode1);
+    Node node2 = startNodeServer(zkClientNode2, "/tmp/katta-shards2");
+    masterThread.join();
+    waitForPath(zkClientMaster, ZkPathes.MASTER);
+    waitForChilds(zkClientMaster, ZkPathes.NODES, 2);
+
+    final File indexFile = new File("src/test/testIndexA");
+    final Katta katta = new Katta();
+    String index = "indexA";
+    katta.addIndex(index, "file://" + indexFile.getAbsolutePath(), StandardAnalyzer.class.getName(), 2);
+
+    int shardCount = indexFile.list(FileUtil.VISIBLE_FILES_FILTER).length;
+    assertEquals(shardCount, zkClientMaster.countChildren(ZkPathes.getIndexPath(index)));
+    assertEquals(shardCount, zkClientMaster.countChildren(ZkPathes.getNode2ShardRootPath(node1.getName())));
+    assertEquals(shardCount, zkClientMaster.countChildren(ZkPathes.getNode2ShardRootPath(node2.getName())));
+
+    List<String> shards = zkClientMaster.getChildren(ZkPathes.SHARD_TO_NODE);
+    assertEquals(shardCount, shards.size());
+    for (String shard : shards) {
+      // each shard should be on both nodes
+      assertEquals(2, zkClientMaster.getChildren(ZkPathes.getShard2NodeRootPath(shard)).size());
+    }
+
+    final IndexMetaData metaData = new IndexMetaData();
+    zkClientMaster.readData(ZkPathes.getIndexPath(index), metaData);
+    assertEquals(IndexMetaData.IndexState.DEPLOYED, metaData.getState());
+    node2.shutdown();
+
+    long time = System.currentTimeMillis();
+    IndexState indexState;
+    do {
+      zkClientMaster.readData(ZkPathes.getIndexPath(index), metaData);
+      indexState = metaData.getState();
+      System.out.println(System.currentTimeMillis() - time);
+      if (System.currentTimeMillis() - time > 1000 * 60) {
+        fail("index is not in deployed state again");
+      }
+    } while (indexState != IndexState.DEPLOYED || master.getNodes().size() > 1);
 
     node1.shutdown();
     master.shutdown();
@@ -167,20 +213,55 @@ public class MasterTest extends AbstractKattaTest {
     Node node1 = startNodeServer(zkClientNode1);
     Node node2 = startNodeServer(zkClientNode2);
     masterThread.join();
-    waitForPath(zkClientMaster, IPaths.MASTER);
-    waitForChilds(zkClientMaster, IPaths.NODES, 2);
+    waitForPath(zkClientMaster, ZkPathes.MASTER);
+    waitForChilds(zkClientMaster, ZkPathes.NODES, 2);
 
-    final File file = new File("./src/test/testIndexInvalid");
-    final String path = "file://" + file.getAbsolutePath();
+    final File indexFile = new File("src/test/testIndexInvalid");
     final Katta katta = new Katta();
-    katta.addIndex("indexA", path, StandardAnalyzer.class.getName(), 2);
+    String index = "indexA";
+    katta.addIndex(index, "file://" + indexFile.getAbsolutePath(), StandardAnalyzer.class.getName(), 2);
 
     final IndexMetaData metaData = new IndexMetaData();
-    zkClientMaster.readData(IPaths.INDEXES + "/indexA", metaData);
+    zkClientMaster.readData(ZkPathes.getIndexPath(index), metaData);
     assertEquals(IndexMetaData.IndexState.DEPLOY_ERROR, metaData.getState());
 
     node1.shutdown();
     node2.shutdown();
+    master.shutdown();
+  }
+
+  public void testIndexPickupAfterMasterRestart() throws Exception {
+    createZkServer();
+    final ZKClient zkClientMaster = new ZKClient(conf);
+    final ZKClient zkClientNode1 = new ZKClient(conf);
+
+    Master master = new Master(zkClientMaster);
+    Thread masterThread = createStartMasterThread(master);
+    masterThread.start();
+
+    Node node1 = startNodeServer(zkClientNode1);
+    masterThread.join();
+    waitForPath(zkClientMaster, ZkPathes.MASTER);
+    waitForChilds(zkClientMaster, ZkPathes.NODES, 1);
+
+    // add index
+    final File indexFile = new File("src/test/testIndexA");
+    int shardCount = indexFile.list(FileUtil.VISIBLE_FILES_FILTER).length;
+
+    final Katta katta = new Katta();
+    String index = "indexA";
+    katta.addIndex(index, "file://" + indexFile.getAbsolutePath(), StandardAnalyzer.class.getName(), 2);
+    assertEquals(shardCount, zkClientMaster.countChildren(ZkPathes.getIndexPath(index)));
+
+    // restartmaster
+    master.shutdown();
+    master = new Master(zkClientMaster);
+    masterThread = createStartMasterThread(master);
+    masterThread.start();
+    masterThread.join();
+    assertEquals(1, master.getIndexes().size());
+
+    node1.shutdown();
     master.shutdown();
   }
 }

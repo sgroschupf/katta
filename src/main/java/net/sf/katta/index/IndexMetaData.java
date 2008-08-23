@@ -37,7 +37,7 @@ public class IndexMetaData implements Writable {
   private IndexState _state;
 
   public enum IndexState {
-    ANNOUNCED(0), DEPLOYED(1), DEPLOY_ERROR(2), UNDEPLOYED(3), NO_VALID_KATTA_INDEX(4);
+    ANNOUNCED(0), DEPLOYED(1), DEPLOY_ERROR(2), UNDEPLOYED(3), NO_VALID_KATTA_INDEX(4), DEPLOYING(5), REBALANCING(6);
     private int _value;
 
     IndexState(final int value) {
@@ -58,6 +58,10 @@ public class IndexMetaData implements Writable {
         return DEPLOY_ERROR;
       case 3:
         return UNDEPLOYED;
+      case 5:
+        return DEPLOYING;
+      case 6:
+        return REBALANCING;
       default:
         return DEPLOY_ERROR;
       }
@@ -72,6 +76,7 @@ public class IndexMetaData implements Writable {
   }
 
   public IndexMetaData() {
+    // for serialization
   }
 
   public void readFields(final DataInput in) throws IOException {

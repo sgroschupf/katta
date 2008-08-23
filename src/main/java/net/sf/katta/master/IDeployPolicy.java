@@ -22,12 +22,9 @@ package net.sf.katta.master;
 import java.util.List;
 import java.util.Map;
 
-import net.sf.katta.index.AssignedShard;
-import net.sf.katta.zk.ZKClient;
-
 public interface IDeployPolicy {
 
-  Map<String, List<AssignedShard>> distribute(ZKClient client, List<String> nodes, List<AssignedShard> shards,
-      int replicationLevel);
+  Map<String, List<String>> createDistributionPlan(Map<String, List<String>> currentShard2NodesMap,
+      Map<String, List<String>> currentNode2ShardsMap, List<String> aliveNodes, int replicationLevel);
 
 }

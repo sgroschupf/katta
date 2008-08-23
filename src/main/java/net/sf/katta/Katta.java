@@ -20,13 +20,17 @@
 package net.sf.katta;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import net.sf.katta.client.Client;
 import net.sf.katta.client.IClient;
 import net.sf.katta.index.DeployedShard;
 import net.sf.katta.index.IndexMetaData;
-import net.sf.katta.master.IPaths;
+import net.sf.katta.index.IndexMetaData.IndexState;
 import net.sf.katta.master.Master;
 import net.sf.katta.node.Hit;
 import net.sf.katta.node.Hits;
@@ -40,11 +44,7 @@ import net.sf.katta.zk.ZKClient;
 import net.sf.katta.zk.ZkPathes;
 import net.sf.katta.zk.ZkServer;
 
-import org.apache.log4j.Logger;
-
 public class Katta {
-
-  private final static Logger LOG = Logger.getLogger(Katta.class);
 
   private final ZKClient _zkClient;
 
@@ -95,6 +95,9 @@ public class Katta {
       } else if (command.endsWith("showStructure")) {
         katta = new Katta();
         katta.showStructure();
+      } else if (command.endsWith("check")) {
+        katta = new Katta();
+        katta.check();
       } else if (command.endsWith("listErrors")) {
         if (args.length > 1) {
           katta = new Katta();
@@ -111,6 +114,9 @@ public class Katta {
           System.err.println("Missing parameter index name.");
           printUsageAndExit();
         }
+      } else {
+        System.err.println("unknown command " + command);
+        printUsageAndExit();
       }
       if (katta != null) {
         katta.close();
@@ -119,44 +125,48 @@ public class Katta {
   }
 
   private void redeployIndex(final String indexName) throws KattaException {
-    String indexPath = IPaths.INDEXES + "/" + indexName;
+    String indexPath = ZkPathes.getIndexPath(indexName);
+    if (!_zkClient.exists(indexPath)) {
+      printError("index '" + indexName + "' does not exist");
+      return;
+    }
+
     IndexMetaData indexMetaData = new IndexMetaData();
-    if (_zkClient.exists(indexPath)) {
-      _zkClient.readData(indexPath, indexMetaData);
-      try {
-        removeIndex(indexName);
-        Thread.sleep(5000);
-        addIndex(indexName, indexMetaData.getPath(), indexMetaData.getAnalyzerClassName(), indexMetaData
-            .getReplicationLevel());
-      } catch (InterruptedException e) {
-        LOG.error("Redeployment of index '" + indexName + "' interrupted.");
-      }
-    } else {
-      System.err.println("Index '" + indexName + "' not found.");
+    _zkClient.readData(indexPath, indexMetaData);
+    try {
+      removeIndex(indexName);
+      Thread.sleep(5000);
+      addIndex(indexName, indexMetaData.getPath(), indexMetaData.getAnalyzerClassName(), indexMetaData
+          .getReplicationLevel());
+    } catch (InterruptedException e) {
+      printError("Redeployment of index '" + indexName + "' interrupted.");
     }
 
   }
 
   private void showErrors(final String indexName) throws KattaException {
+    String indexPath = ZkPathes.getIndexPath(indexName);
+    if (!_zkClient.exists(indexPath)) {
+      printError("index '" + indexName + "' does not exist");
+      return;
+    }
+
     System.out.println("List of errors:");
-    String indexPath = IPaths.INDEXES + "/" + indexName;
-    if (_zkClient.exists(indexPath)) {
-      List<String> shards = _zkClient.getChildren(indexPath);
-      for (String shardName : shards) {
-        System.out.println("Shard: " + shardName);
-        String shardPath = IPaths.SHARD_TO_NODE + "/" + shardName;
-        if (_zkClient.exists(shardPath)) {
-          List<String> nodes = _zkClient.getChildren(shardPath);
-          for (String node : nodes) {
-            System.out.print("\tNode: " + node);
-            String shardToNodePath = shardPath + "/" + node;
-            DeployedShard deployedShard = new DeployedShard();
-            _zkClient.readData(shardToNodePath, deployedShard);
-            if (deployedShard.hasError()) {
-              System.out.println("\tError: " + deployedShard.getErrorMsg());
-            } else {
-              System.out.println("\tNo Error");
-            }
+    List<String> shards = _zkClient.getChildren(indexPath);
+    for (String shardName : shards) {
+      System.out.println("Shard: " + shardName);
+      String shard2NodeRootPath = ZkPathes.getShard2NodeRootPath(shardName);
+      if (_zkClient.exists(shard2NodeRootPath)) {
+        List<String> nodes = _zkClient.getChildren(shard2NodeRootPath);
+        for (String node : nodes) {
+          System.out.print("\tNode: " + node);
+          String shardToNodePath = ZkPathes.getShard2NodePath(shardName, node);
+          DeployedShard deployedShard = new DeployedShard();
+          _zkClient.readData(shardToNodePath, deployedShard);
+          if (deployedShard.hasError()) {
+            System.out.println("\tError: " + deployedShard.getErrorMsg());
+          } else {
+            System.out.println("\tNo Error");
           }
         }
       }
@@ -181,16 +191,74 @@ public class Katta {
   }
 
   public void removeIndex(final String indexName) throws KattaException {
-    final String indexPath = IPaths.INDEXES + "/" + indexName;
-    if (_zkClient.exists(indexPath)) {
-      _zkClient.deleteRecursive(indexPath);
-    } else {
-      System.err.println("Unknown index:" + indexName);
+    final String indexPath = ZkPathes.getIndexPath(indexName);
+    if (!_zkClient.exists(indexPath)) {
+      printError("index '" + indexName + "' does not exist");
+      return;
     }
+    _zkClient.deleteRecursive(indexPath);
   }
 
   public void showStructure() throws KattaException {
     _zkClient.showFolders();
+  }
+
+  private void check() throws KattaException {
+    // System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+    System.out.println("Index Analysis");
+    System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+    List<String> indexes = _zkClient.getChildren(ZkPathes.INDEXES);
+    IndexMetaData indexMetaData = new IndexMetaData();
+    CounterMap<IndexState> indexStateCounterMap = new CounterMap<IndexState>();
+    for (String index : indexes) {
+      _zkClient.readData(ZkPathes.getIndexPath(index), indexMetaData);
+      indexStateCounterMap.increment(indexMetaData.getState());
+    }
+    Table tableIndexStates = new Table(new String[] { "index state", "count" });
+    Set<IndexState> keySet = indexStateCounterMap.keySet();
+    for (IndexState indexState : keySet) {
+      tableIndexStates.addRow(new String[] { indexState.toString(), indexStateCounterMap.getCount(indexState) + "" });
+    }
+    System.out.println(tableIndexStates.toString());
+    System.out.println(indexes.size() + " indexes announced");
+
+    System.out.println("\n");
+    System.out.println("Shard Analysis");
+    System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
+    for (String index : indexes) {
+      System.out.println("checking " + index + " ...");
+      _zkClient.readData(ZkPathes.getIndexPath(index), indexMetaData);
+      List<String> shards = _zkClient.getChildren(ZkPathes.getIndexPath(index));
+      for (String shard : shards) {
+        int shardReplication = _zkClient.countChildren(ZkPathes.getShard2NodeRootPath(shard));
+        if (shardReplication < indexMetaData.getReplicationLevel()) {
+          System.out.println("\tshard " + shard + " is under-replicated (" + shardReplication + "/"
+              + indexMetaData.getReplicationLevel() + ")");
+        } else if (shardReplication > indexMetaData.getReplicationLevel()) {
+          System.out.println("\tshard " + shard + " is over-replicated (" + shardReplication + "/"
+              + indexMetaData.getReplicationLevel() + ")");
+        }
+      }
+    }
+
+    System.out.println("\n");
+    System.out.println("Node Analysis");
+    System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
+    Table tableNodeLoad = new Table("node", "connected", "deployed shards");
+    List<String> nodes = _zkClient.getChildren(ZkPathes.NODE_TO_SHARD);
+    for (String node : nodes) {
+      boolean isConnected = _zkClient.exists(ZkPathes.getNodePath(node));
+      int shardCount = _zkClient.countChildren(ZkPathes.getNode2ShardRootPath(node));
+      StringBuilder builder = new StringBuilder();
+      builder.append(" ");
+      for (int i = 0; i < shardCount; i++) {
+        builder.append("|");
+      }
+      builder.append(" ");
+      builder.append(shardCount);
+      tableNodeLoad.addRow(node, "" + isConnected, builder.toString());
+    }
+    System.out.println(tableNodeLoad);
   }
 
   public void listNodes() throws KattaException {
@@ -209,17 +277,17 @@ public class Katta {
           nodeMetaData.getStatus(), nodeMetaData.isStarting() + "" });
     }
     table.setHeader(new String[] { "Name", "Start time", "Healthy",
-        "Status (" + inServiceNodeCount + "/" + nodes.size() + " nodes in Service)", "Starting" });
+        "Status (" + inServiceNodeCount + "/" + nodes.size() + " nodes connected)", "Starting" });
     System.out.println(table.toString());
   }
 
   public void listIndex() throws KattaException {
     final Table t = new Table(new String[] { "Name", "Deployed", "Analyzer", "Path" });
 
-    final List<String> indexes = _zkClient.getChildren(IPaths.INDEXES);
+    final List<String> indexes = _zkClient.getChildren(ZkPathes.INDEXES);
     for (final String index : indexes) {
       final IndexMetaData metaData = new IndexMetaData();
-      _zkClient.readData(IPaths.INDEXES + "/" + index, metaData);
+      _zkClient.readData(ZkPathes.getIndexPath(index), metaData);
       t.addRow(new String[] { index, metaData.getState().toString(), metaData.getAnalyzerClassName(),
           metaData.getPath() });
       // maybe show shards
@@ -231,35 +299,35 @@ public class Katta {
 
   public void addIndex(final String name, final String path, final String analyzerClass, final int replicationLevel)
       throws KattaException {
-    final String indexPath = IPaths.INDEXES + "/" + name;
+    final String indexPath = ZkPathes.getIndexPath(name);
     if (name.trim().equals("*")) {
-      System.err.println("Index with name " + name + " isn't allowed.");
+      printError("Index with name " + name + " isn't allowed.");
       return;
     }
     if (_zkClient.exists(indexPath)) {
-      System.out.println("Index with name " + name + " already exists.");
+      printError("Index with name " + name + " already exists.");
+      return;
     }
 
     _zkClient.create(indexPath, new IndexMetaData(path, analyzerClass, replicationLevel,
         IndexMetaData.IndexState.ANNOUNCED));
     final IndexMetaData data = new IndexMetaData();
-    while (true) {
-      _zkClient.readData(indexPath, data);
-      if (data.getState() == IndexMetaData.IndexState.DEPLOYED) {
-        break;
-      } else if (data.getState() == IndexMetaData.IndexState.DEPLOY_ERROR) {
-        System.err.println("not deployed.");
-        return;
-      }
-      System.out.print(".");
-      try {
+    try {
+      while (true) {
+        _zkClient.readData(indexPath, data);
+        if (data.getState() == IndexMetaData.IndexState.DEPLOYED) {
+          break;
+        } else if (data.getState() == IndexMetaData.IndexState.DEPLOY_ERROR) {
+          System.err.println("not deployed.");
+          return;
+        }
+        System.out.print(".");
         Thread.sleep(1000);
-      } catch (final InterruptedException e) {
-        e.printStackTrace();
       }
+    } catch (final InterruptedException e) {
+      printError("interrupted wait on index deployment");
     }
     System.out.println("deployed index " + name + ".");
-
   }
 
   public static void search(final String[] indexNames, final String queryString, final int count) throws KattaException {
@@ -288,6 +356,16 @@ public class Katta {
     System.out.println(hitsSize + " Hits found in " + ((end - start) / 1000.0) + "sec.");
   }
 
+  public void close() {
+    if (_zkClient != null) {
+      _zkClient.close();
+    }
+  }
+
+  private void printError(String errorMsg) {
+    System.err.println("ERROR: " + errorMsg);
+  }
+
   private static void printUsageAndExit() {
     System.err.println("Usage: ");
     System.err
@@ -297,11 +375,12 @@ public class Katta {
     System.err.println("\tstartMaster\tStarts a local master.");
     System.err.println("\tstartNode\tStarts a local node.");
     System.err.println("\tshowStructure\tShows the structure of a Katta installation.");
-    System.err.println("\tremoveIndex <index name>\tRemove a index from a Katta installation.");
+    System.err.println("\tcheck\tAnalyze index/shard/node status.");
     System.err
         .println("\taddIndex <index name> <path to index> <lucene analyzer class> [<replication level>]\tAdd a index to a Katta installation.");
-    System.err.println("\tlistErrors <index name>\tLists all deploy errors for a specified index.");
+    System.err.println("\tremoveIndex <index name>\tRemove a index from a Katta installation.");
     System.err.println("\tredeployIndex <index name>\tTries to deploy an index.");
+    System.err.println("\tlistErrors <index name>\tLists all deploy errors for a specified index.");
     System.exit(1);
   }
 
@@ -309,7 +388,7 @@ public class Katta {
     private String[] _header;
     private final List<String[]> _rows = new ArrayList<String[]>();
 
-    public Table(final String[] header) {
+    public Table(final String... header) {
       _header = header;
     }
 
@@ -321,7 +400,7 @@ public class Katta {
       _header = header;
     }
 
-    public void addRow(final String[] row) {
+    public void addRow(final String... row) {
       _rows.add(row);
     }
 
@@ -379,9 +458,33 @@ public class Katta {
     }
   }
 
-  public void close() {
-    if (_zkClient != null) {
-      _zkClient.close();
+  private static class CounterMap<K> {
+
+    private Map<K, AtomicInteger> _counterMap = new HashMap<K, AtomicInteger>();
+
+    public CounterMap() {
+      super();
+    }
+
+    public void increment(K key) {
+      AtomicInteger integer = _counterMap.get(key);
+      if (integer == null) {
+        integer = new AtomicInteger(0);
+        _counterMap.put(key, integer);
+      }
+      integer.incrementAndGet();
+    }
+
+    public int getCount(K key) {
+      AtomicInteger integer = _counterMap.get(key);
+      if (integer == null) {
+        return 0;
+      }
+      return integer.get();
+    }
+
+    public Set<K> keySet() {
+      return _counterMap.keySet();
     }
   }
 
