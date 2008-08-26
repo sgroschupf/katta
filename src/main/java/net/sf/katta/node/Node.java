@@ -145,6 +145,10 @@ public class Node implements ISearch, IZkReconnectListener {
   }
 
   private void cleanupLocalShardFolder() throws KattaException {
+    if (!_shardsFolder.exists()) {
+      return;
+    }
+
     String node2ShardRootPath = ZkPathes.getNode2ShardRootPath(_nodeName);
     List<String> shardsToServe = Collections.EMPTY_LIST;
     if (_zkClient.exists(node2ShardRootPath)) {
