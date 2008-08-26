@@ -108,16 +108,16 @@ public class NodeTest extends AbstractKattaTest {
     // deploy index
     assertEquals(0, node.getDeployedShards().size());
     Katta katta = new Katta();
-    katta.addIndex("index", "src/test/testIndexA/", StandardAnalyzer.class.getName(), 1);
+    String index = "index";
+    katta.addIndex(index, "src/test/testIndexA/", StandardAnalyzer.class.getName(), 1);
 
     // test
     assertTrue(node.getDeployedShards().size() > 0);
-    final String indexPath = ZkPathes.INDEXES + "/index";
     IndexMetaData indexMetaData = new IndexMetaData();
-    zkClientMaster.readData(indexPath, indexMetaData);
+    zkClientMaster.readData(ZkPathes.getIndexPath(index), indexMetaData);
     assertEquals(IndexMetaData.IndexState.DEPLOYED, indexMetaData.getState());
 
-    node.shutdown();
+    shutdownNode(node);
     node = startNodeServer(zkClientNode);
     assertTrue(node.getDeployedShards().size() > 0);
 
@@ -126,6 +126,7 @@ public class NodeTest extends AbstractKattaTest {
     node.shutdown();
     master.shutdown();
   }
+
   //
   // public void testCommunication() throws IOException, ParseException,
   // InterruptedException {

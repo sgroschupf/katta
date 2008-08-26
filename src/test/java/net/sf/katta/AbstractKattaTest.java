@@ -8,6 +8,7 @@ import junit.framework.TestCase;
 import net.sf.katta.master.Master;
 import net.sf.katta.node.Node;
 import net.sf.katta.util.KattaException;
+import net.sf.katta.util.NetworkUtil;
 import net.sf.katta.util.NodeConfiguration;
 import net.sf.katta.util.ZkConfiguration;
 import net.sf.katta.zk.ZKClient;
@@ -120,5 +121,16 @@ public abstract class AbstractKattaTest extends TestCase {
       Thread.sleep(500);
     }
     assertEquals(childCount, client.getChildren(path).size());
+  }
+
+  protected void shutdownNode(Node node) {
+    node.shutdown();
+    try {
+      while (!NetworkUtil.isPortFree(node.getSearchServerPort())) {
+        Thread.sleep(100);
+      }
+    } catch (InterruptedException e) {
+      // proceed
+    }
   }
 }

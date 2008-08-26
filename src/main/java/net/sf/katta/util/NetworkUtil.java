@@ -19,8 +19,10 @@
  */
 package net.sf.katta.util;
 
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
+import java.net.Socket;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.Enumeration;
@@ -28,9 +30,12 @@ import java.util.HashSet;
 import java.util.Set;
 
 public class NetworkUtil {
+
   public static String[] getLocalHostNames() {
     final Set<String> hostNames = new HashSet<String>();
-    //we add localhost to this set manually, because if the ip 127.0.0.1 is configured with more than one name in the /etc/hosts, only the first name is returned 
+    // we add localhost to this set manually, because if the ip 127.0.0.1 is
+    // configured with more than one name in the /etc/hosts, only the first name
+    // is returned
     hostNames.add("localhost");
     try {
       final Enumeration<NetworkInterface> networkInterfaces = NetworkInterface.getNetworkInterfaces();
@@ -82,6 +87,18 @@ public class NetworkUtil {
       }
     }
     return false;
+  }
+
+  public static boolean isPortFree(int port) {
+    try {
+      Socket socket = new Socket("localhost", port);
+      socket.close();
+      return true;
+    } catch (UnknownHostException e) {
+      throw new RuntimeException(e);
+    } catch (IOException e) {
+      return false;
+    }
   }
 
   public static String getLocalhostName() {

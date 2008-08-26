@@ -62,6 +62,7 @@ public class Master {
 
   public void start() throws KattaException {
     if (!_zkClient.isStarted()) {
+      LOG.info("connecting with zookeeper");
       _zkClient.start(300000);
     }
     becomeMasterOrSecondaryMaster();

@@ -81,6 +81,7 @@ public class Node implements ISearch, IZkReconnectListener {
   private final QueryParser _luceneQueryParser = new QueryParser("field", new KeywordAnalyzer());
 
   protected String _nodeName;
+  protected int _searchServerPort;
   protected File _shardsFolder;
   // contains the deploy errors two
   protected final Set<String> _deployedShards = new HashSet<String>();
@@ -152,12 +153,10 @@ public class Node implements ISearch, IZkReconnectListener {
     List<String> localShards = Arrays.asList(_shardsFolder.list(FileUtil.VISIBLE_FILES_FILTER));
 
     List<String> shardsToRemove = CollectionUtil.getListOfRemoved(localShards, shardsToServe);
-    if (!shardsToRemove.isEmpty()) {
-      for (String shard : shardsToRemove) {
-        File localShard = getLocalShardFolder(shard);
-        LOG.info("delete local shard " + localShard.getAbsolutePath());
-        FileUtil.deleteFolder(localShard);
-      }
+    for (String shard : shardsToRemove) {
+      File localShard = getLocalShardFolder(shard);
+      LOG.info("delete local shard " + localShard.getAbsolutePath());
+      FileUtil.deleteFolder(localShard);
     }
   }
 
@@ -312,6 +311,10 @@ public class Node implements ISearch, IZkReconnectListener {
     return _nodeName;
   }
 
+  public int getSearchServerPort() {
+    return _searchServerPort;
+  }
+
   public NodeState getState() {
     return _currentState;
   }
@@ -336,7 +339,7 @@ public class Node implements ISearch, IZkReconnectListener {
       try {
         LOG.info("starting RPC server on : " + hostName);
         _rpcServer = RPC.getServer(this, "0.0.0.0", serverPort, new Configuration());
-        break;
+        _searchServerPort = serverPort;
       } catch (final BindException e) {
         if (configuration.getStartPort() - serverPort < tryCount) {
           serverPort++;
