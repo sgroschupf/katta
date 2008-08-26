@@ -120,6 +120,9 @@ public class Node implements ISearch, IZkReconnectListener {
     if (!_shardsFolder.exists()) {
       _shardsFolder.mkdirs();
     }
+    if (!_shardsFolder.exists()) {
+      throw new IllegalStateException("could not create slocal shard folder '" + _shardsFolder.getAbsolutePath() + "'");
+    }
 
     LOG.debug("Starting rpc search server...");
     _nodeName = startRPCServer(_configuration);
@@ -145,10 +148,6 @@ public class Node implements ISearch, IZkReconnectListener {
   }
 
   private void cleanupLocalShardFolder() throws KattaException {
-    if (!_shardsFolder.exists()) {
-      return;
-    }
-
     String node2ShardRootPath = ZkPathes.getNode2ShardRootPath(_nodeName);
     List<String> shardsToServe = Collections.EMPTY_LIST;
     if (_zkClient.exists(node2ShardRootPath)) {
