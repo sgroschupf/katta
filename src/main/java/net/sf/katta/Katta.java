@@ -262,7 +262,7 @@ public class Katta {
   }
 
   public void listNodes() throws KattaException {
-    final List<String> nodes = _zkClient.getChildren(ZkPathes.NODES);
+    final List<String> nodes = _zkClient.getKnownNodes();
     int inServiceNodeCount = 0;
     final Table table = new Table();
     for (final String node : nodes) {
