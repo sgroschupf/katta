@@ -21,12 +21,8 @@ package net.sf.katta.master;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
-import net.sf.katta.index.AssignedShard;
-import net.sf.katta.util.ComparisonUtil;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.MasterConfiguration;
 import net.sf.katta.util.NetworkUtil;
@@ -41,9 +37,10 @@ public class Master {
 
   protected final static Logger LOG = Logger.getLogger(Master.class);
 
-  protected DistributeShardsThread _distributeShardThread;
+  protected DistributeShardsThread _manageShardThread;
   protected ZKClient _zkClient;
 
+  // TODO jz: remove these variables, takte from shard thread
   protected List<String> _nodes = new ArrayList<String>();
   protected List<String> _indexes = new ArrayList<String>();
 
@@ -60,7 +57,7 @@ public class Master {
     } catch (final Exception e) {
       throw new KattaException("Unable to instantiate deploy policy", e);
     }
-    _distributeShardThread = new DistributeShardsThread(_zkClient, deployPolicy);
+    _manageShardThread = new DistributeShardsThread(_zkClient, deployPolicy);
   }
 
   public void start() throws KattaException {
@@ -70,20 +67,22 @@ public class Master {
     becomeMasterOrSecondaryMaster();
     if (_isMaster) {
       startNodeManagement();
-      _distributeShardThread.start();
       startIndexManagement();
+      _manageShardThread.start();
     }
   }
 
   public void shutdown() {
-    _distributeShardThread.interrupt();
-    try {
-      _zkClient.unsubscribe();
-      _zkClient.delete(ZkPathes.MASTER);
-    } catch (KattaException e) {
-      LOG.error("could bot delete the master data from zk");
+    synchronized (_zkClient.getSyncMutex()) {
+      _manageShardThread.interrupt();
+      try {
+        _zkClient.unsubscribeAll();
+        _zkClient.delete(ZkPathes.MASTER);
+      } catch (KattaException e) {
+        LOG.error("could bot delete the master data from zk");
+      }
+      _zkClient.close();
     }
-    _zkClient.close();
   }
 
   private void becomeMasterOrSecondaryMaster() throws KattaException {
@@ -119,10 +118,8 @@ public class Master {
     LOG.debug("Loading indexes...");
     synchronized (_zkClient.getSyncMutex()) {
       _indexes = _zkClient.subscribeChildChanges(ZkPathes.INDEXES, new IndexListener());
-      // TODO jz: do a integrety check ?
-      for (String index : _indexes) {
-        _distributeShardThread.addIndex(index);
-      }
+      _manageShardThread.updateIndexes(_indexes);
+      _manageShardThread.reportStartup();
     }
   }
 
@@ -130,35 +127,7 @@ public class Master {
     LOG.info("start managing nodes...");
     synchronized (_zkClient.getSyncMutex()) {
       _nodes = _zkClient.subscribeChildChanges(ZkPathes.NODES, new NodeListener());
-      _distributeShardThread.updateNodes(_nodes);
-    }
-  }
-
-  protected void removeNodes(final List<String> removedNodes) throws KattaException {
-    for (final String node : removedNodes) {
-      // get the shards this node served...
-      final String node2ShardRootPath = ZkPathes.getNode2ShardRootPath(node);
-      final List<String> assignedShards = _zkClient.getChildren(node2ShardRootPath);
-      final List<AssignedShard> shards = new ArrayList<AssignedShard>();
-      for (final String shardName : assignedShards) {
-        final AssignedShard metaData = new AssignedShard();
-        _zkClient.readData(ZkPathes.getNode2ShardPath(node2ShardRootPath, shardName), metaData);
-        shards.add(metaData);
-      }
-      _zkClient.deleteRecursive(node2ShardRootPath);
-      // if (assignedShards.size() != 0) {
-      // // since we lost one shard, we want to use replication level 1,
-      // // since all other replica still exists..
-      // List<String> nodes = readNodes();
-      // if (nodes.size() > 0) {
-      // final Map<String, List<AssignedShard>> asignmentMap =
-      // _policy.distribute(_zkClient, nodes, shards, 1);
-      // assignShards(asignmentMap);
-      // } else {
-      // LOG.warn("No nodes left for shard redistribution.");
-      // }
-      // }
-      // TODO assign this to new nodes
+      _manageShardThread.updateNodes(_nodes);
     }
   }
 
@@ -167,35 +136,7 @@ public class Master {
     public void handleChildChange(String parentPath, List<String> currentNodes) throws KattaException {
       LOG.info("got node event: " + currentNodes);
       try {
-        List<String> newNodes = ComparisonUtil.getNew(_nodes, currentNodes);
-        if (!newNodes.isEmpty()) {
-          LOG.info(newNodes.size() + " new node/s connected: " + newNodes);
-          _distributeShardThread.updateNodes(currentNodes);
-        }
-
-        final List<String> disconnectedNodes = ComparisonUtil.getRemoved(_nodes, currentNodes);
-        if (!disconnectedNodes.isEmpty()) {
-          LOG.info(disconnectedNodes.size() + " node/s disconnected: " + disconnectedNodes);
-          _distributeShardThread.updateNodes(currentNodes);
-
-          // get all indexes which the node carried
-          Set<String> serverdIndexes = new HashSet<String>();
-          for (String node : disconnectedNodes) {
-            String node2ShardRootPath = ZkPathes.getNode2ShardRootPath(node);
-            List<String> shards = _zkClient.getChildren(node2ShardRootPath);
-            for (String shard : shards) {
-              AssignedShard assignedShard = new AssignedShard();
-              _zkClient.readData(ZkPathes.getNode2ShardPath(node, shard), assignedShard);
-              serverdIndexes.add(assignedShard.getIndexName());
-            }
-          }
-
-          // rebalance them
-          for (String index : serverdIndexes) {
-            _distributeShardThread.addIndex(index);
-          }
-        }
-
+        _manageShardThread.updateNodes(currentNodes);
         _nodes = currentNodes;
       } finally {
         _zkClient.getSyncMutex().notifyAll();
@@ -208,19 +149,7 @@ public class Master {
     public void handleChildChange(String parentPath, List<String> currentIndexes) throws KattaException {
       LOG.info("got index event: " + currentIndexes);
       try {
-        final List<String> removedIndices = ComparisonUtil.getRemoved(_indexes, currentIndexes);
-        for (String index : removedIndices) {
-          try {
-            _distributeShardThread.removeIndex(index);
-          } catch (Exception e) {
-            LOG.error("could not undeploy index '" + index + "' properly", e);
-            // TODO jz: should we set the state to undeploy error ??
-          }
-        }
-        final List<String> addedIndexes = ComparisonUtil.getNew(_indexes, currentIndexes);
-        for (String newIndex : addedIndexes) {
-          _distributeShardThread.addIndex(newIndex);
-        }
+        _manageShardThread.updateIndexes(currentIndexes);
         _indexes = currentIndexes;
       } finally {
         _zkClient.getSyncMutex().notifyAll();

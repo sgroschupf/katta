@@ -99,6 +99,7 @@ public class ZkServer {
         // now if required we initialize our namespace
         final ZKClient client = new ZKClient(conf);
         client.start(300000);
+        client.createDefaultNameSpace();
         client.close();
         // TODO jz: do we initialize the client only for creating the namespaces
         // ??

@@ -28,8 +28,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import net.sf.katta.client.Client;
 import net.sf.katta.client.IClient;
-import net.sf.katta.index.DeployedShard;
 import net.sf.katta.index.IndexMetaData;
+import net.sf.katta.index.ShardError;
 import net.sf.katta.index.IndexMetaData.IndexState;
 import net.sf.katta.master.Master;
 import net.sf.katta.node.Hit;
@@ -38,6 +38,7 @@ import net.sf.katta.node.IQuery;
 import net.sf.katta.node.Node;
 import net.sf.katta.node.NodeMetaData;
 import net.sf.katta.node.Query;
+import net.sf.katta.node.Node.NodeState;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.ZkConfiguration;
 import net.sf.katta.zk.ZKClient;
@@ -54,7 +55,7 @@ public class Katta {
     _zkClient.start(10000);
   }
 
-  public static void main(final String[] args) throws KattaException {
+  public static void main(final String[] args) throws KattaException, InterruptedException {
     if (args.length < 1) {
       printUsageAndExit();
     }
@@ -145,29 +146,28 @@ public class Katta {
   }
 
   private void showErrors(final String indexName) throws KattaException {
-    String indexPath = ZkPathes.getIndexPath(indexName);
-    if (!_zkClient.exists(indexPath)) {
+    String indexZkPath = ZkPathes.getIndexPath(indexName);
+    if (!_zkClient.exists(indexZkPath)) {
       printError("index '" + indexName + "' does not exist");
       return;
     }
+    IndexMetaData indexMetaData = new IndexMetaData();
+    _zkClient.readData(indexZkPath, indexMetaData);
+    System.out.println("Error: " + indexMetaData.getErrorMessage());
 
-    System.out.println("List of errors:");
-    List<String> shards = _zkClient.getChildren(indexPath);
+    System.out.println("List of node-errors:");
+    List<String> shards = _zkClient.getChildren(indexZkPath);
     for (String shardName : shards) {
       System.out.println("Shard: " + shardName);
-      String shard2NodeRootPath = ZkPathes.getShard2NodeRootPath(shardName);
-      if (_zkClient.exists(shard2NodeRootPath)) {
-        List<String> nodes = _zkClient.getChildren(shard2NodeRootPath);
-        for (String node : nodes) {
-          System.out.print("\tNode: " + node);
-          String shardToNodePath = ZkPathes.getShard2NodePath(shardName, node);
-          DeployedShard deployedShard = new DeployedShard();
-          _zkClient.readData(shardToNodePath, deployedShard);
-          if (deployedShard.hasError()) {
-            System.out.println("\tError: " + deployedShard.getErrorMsg());
-          } else {
-            System.out.println("\tNo Error");
-          }
+      String shard2ErrorRootPath = ZkPathes.getShard2ErrorRootPath(shardName);
+      if (_zkClient.exists(shard2ErrorRootPath)) {
+        List<String> errors = _zkClient.getChildren(shard2ErrorRootPath);
+        for (String nodeName : errors) {
+          System.out.print("\tNode: " + nodeName);
+          String shardToNodePath = ZkPathes.getShard2ErrorPath(shardName, nodeName);
+          ShardError shardError = new ShardError();
+          _zkClient.readData(shardToNodePath, shardError);
+          System.out.println("\tError: " + shardError.getErrorMsg());
         }
       }
     }
@@ -182,7 +182,7 @@ public class Katta {
     zkServer.join();
   }
 
-  public static void startNode() throws KattaException {
+  public static void startNode() throws KattaException, InterruptedException {
     final ZkConfiguration configuration = new ZkConfiguration();
     final ZKClient client = new ZKClient(configuration);
     final Node node = new Node(client);
@@ -269,15 +269,13 @@ public class Katta {
       final String path = ZkPathes.getNodePath(node);
       final NodeMetaData nodeMetaData = new NodeMetaData();
       _zkClient.readData(path, nodeMetaData);
-      boolean inService = nodeMetaData.isHealth();
-      if (inService) {
+      NodeState nodeState = nodeMetaData.getState();
+      if (nodeState == NodeState.IN_SERVICE) {
         inServiceNodeCount++;
       }
-      table.addRow(new String[] { nodeMetaData.getName(), nodeMetaData.getStartTimeAsDate(), "" + inService,
-          nodeMetaData.getStatus(), nodeMetaData.isStarting() + "" });
+      table.addRow(nodeMetaData.getName(), nodeMetaData.getStartTimeAsDate(), nodeState.name());
     }
-    table.setHeader(new String[] { "Name", "Start time", "Healthy",
-        "Status (" + inServiceNodeCount + "/" + nodes.size() + " nodes connected)", "Starting" });
+    table.setHeader("Name (" + inServiceNodeCount + "/" + nodes.size() + " nodes connected)", "Start time", "State");
     System.out.println(table.toString());
   }
 
@@ -315,9 +313,9 @@ public class Katta {
     try {
       while (true) {
         _zkClient.readData(indexPath, data);
-        if (data.getState() == IndexMetaData.IndexState.DEPLOYED) {
+        if (data.getState() == IndexState.DEPLOYED) {
           break;
-        } else if (data.getState() == IndexMetaData.IndexState.DEPLOY_ERROR) {
+        } else if (data.getState() == IndexMetaData.IndexState.ERROR) {
           System.err.println("not deployed.");
           return;
         }
@@ -396,7 +394,7 @@ public class Katta {
       // setting header later
     }
 
-    public void setHeader(String[] header) {
+    public void setHeader(String... header) {
       _header = header;
     }
 

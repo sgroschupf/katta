@@ -35,7 +35,7 @@ import net.sf.katta.node.Hits;
 import net.sf.katta.node.HitsMapWritable;
 import net.sf.katta.node.IQuery;
 import net.sf.katta.node.ISearch;
-import net.sf.katta.util.ComparisonUtil;
+import net.sf.katta.util.CollectionUtil;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.ZkConfiguration;
 import net.sf.katta.zk.IZkChildListener;
@@ -306,14 +306,14 @@ public class Client implements IClient {
       // a shard got a new node or one was removed...
       final String shardName = ZkPathes.getName(parentPath);
       final List<String> oldNodes = _shardsToNode.get(shardName);
-      final List<String> toRemove = ComparisonUtil.getRemoved(oldNodes, currentNodes);
+      final List<String> toRemove = CollectionUtil.getListOfRemoved(oldNodes, currentNodes);
       for (final String node : toRemove) {
         oldNodes.remove(node);
         // TODO do we need to shut thoese down..? (hadoop0.17 has
         // RPC.stopProxy())
         _nodes.remove(node);
       }
-      final List<String> toAdd = ComparisonUtil.getNew(oldNodes, currentNodes);
+      final List<String> toAdd = CollectionUtil.getListOfAdded(oldNodes, currentNodes);
       for (final String node : toAdd) {
         oldNodes.add(node);
         _nodes.put(node, getNodeProxy(node));

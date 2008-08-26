@@ -28,6 +28,7 @@ import net.sf.katta.index.IndexMetaData;
 import net.sf.katta.index.IndexMetaData.IndexState;
 import net.sf.katta.node.Node;
 import net.sf.katta.node.NodeMetaData;
+import net.sf.katta.node.Node.NodeState;
 import net.sf.katta.util.FileUtil;
 import net.sf.katta.zk.ZKClient;
 import net.sf.katta.zk.ZkPathes;
@@ -51,9 +52,9 @@ public class MasterTest extends AbstractKattaTest {
 
     String node1 = "node1";
     String node2 = "node2";
-    zkClientMaster.createEphemeral(ZkPathes.getNodePath(node1), new NodeMetaData(node1, "OK", true, 1));
+    zkClientMaster.createEphemeral(ZkPathes.getNodePath(node1), new NodeMetaData(node1, NodeState.IN_SERVICE));
     zkClientMaster.create(ZkPathes.getNode2ShardRootPath(node1));
-    zkClientMaster.createEphemeral(ZkPathes.getNodePath(node2), new NodeMetaData(node2, "OK", true, 2));
+    zkClientMaster.createEphemeral(ZkPathes.getNodePath(node2), new NodeMetaData(node2, NodeState.IN_SERVICE));
     zkClientMaster.create(ZkPathes.getNode2ShardRootPath(node2));
 
     masterThread.join();
@@ -75,7 +76,7 @@ public class MasterTest extends AbstractKattaTest {
 
     String nodePath = ZkPathes.getNodePath("node1");
     zkClientMaster.create(ZkPathes.getNode2ShardRootPath("node1"));
-    zkClientMaster.create(nodePath, new NodeMetaData("node1", "OK", true, 1));
+    zkClientMaster.create(nodePath, new NodeMetaData("node1", NodeState.IN_SERVICE));
 
     masterThread.join();
     assertEquals(1, master.readNodes().size());
@@ -86,7 +87,7 @@ public class MasterTest extends AbstractKattaTest {
 
     // reconnect
     synchronized (zkClientMaster.getSyncMutex()) {
-      zkClientMaster.create(nodePath, new NodeMetaData("node1", "OK", true, 1));
+      zkClientMaster.create(nodePath, new NodeMetaData("node1", NodeState.IN_SERVICE));
       zkClientMaster.getSyncMutex().wait();
     }
     assertEquals(1, master.readNodes().size());
@@ -166,18 +167,18 @@ public class MasterTest extends AbstractKattaTest {
     final File indexFile = new File("src/test/testIndexA");
     final Katta katta = new Katta();
     String index = "indexA";
-    katta.addIndex(index, "file://" + indexFile.getAbsolutePath(), StandardAnalyzer.class.getName(), 2);
+    katta.addIndex(index, "file://" + indexFile.getAbsolutePath(), StandardAnalyzer.class.getName(), 1);
 
     int shardCount = indexFile.list(FileUtil.VISIBLE_FILES_FILTER).length;
     assertEquals(shardCount, zkClientMaster.countChildren(ZkPathes.getIndexPath(index)));
-    assertEquals(shardCount, zkClientMaster.countChildren(ZkPathes.getNode2ShardRootPath(node1.getName())));
-    assertEquals(shardCount, zkClientMaster.countChildren(ZkPathes.getNode2ShardRootPath(node2.getName())));
+    assertEquals(shardCount / 2, zkClientMaster.countChildren(ZkPathes.getNode2ShardRootPath(node1.getName())));
+    assertEquals(shardCount / 2, zkClientMaster.countChildren(ZkPathes.getNode2ShardRootPath(node2.getName())));
 
     List<String> shards = zkClientMaster.getChildren(ZkPathes.SHARD_TO_NODE);
     assertEquals(shardCount, shards.size());
     for (String shard : shards) {
-      // each shard should be on both nodes
-      assertEquals(2, zkClientMaster.getChildren(ZkPathes.getShard2NodeRootPath(shard)).size());
+      // each shard should be on one nodes
+      assertEquals(1, zkClientMaster.getChildren(ZkPathes.getShard2NodeRootPath(shard)).size());
     }
 
     final IndexMetaData metaData = new IndexMetaData();
@@ -190,7 +191,6 @@ public class MasterTest extends AbstractKattaTest {
     do {
       zkClientMaster.readData(ZkPathes.getIndexPath(index), metaData);
       indexState = metaData.getState();
-      System.out.println(System.currentTimeMillis() - time);
       if (System.currentTimeMillis() - time > 1000 * 60) {
         fail("index is not in deployed state again");
       }
@@ -223,7 +223,7 @@ public class MasterTest extends AbstractKattaTest {
 
     final IndexMetaData metaData = new IndexMetaData();
     zkClientMaster.readData(ZkPathes.getIndexPath(index), metaData);
-    assertEquals(IndexMetaData.IndexState.DEPLOY_ERROR, metaData.getState());
+    assertEquals(IndexMetaData.IndexState.ERROR, metaData.getState());
 
     node1.shutdown();
     node2.shutdown();

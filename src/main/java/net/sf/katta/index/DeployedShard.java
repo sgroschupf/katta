@@ -29,16 +29,14 @@ public class DeployedShard implements Writable {
 
   private String _shardName;
   private int _numOfDocs;
-  private long _deployTime;
-  private String _errorMsg = "";
-  private boolean _hasError = false;
+  private long _deployTime = System.currentTimeMillis();
 
   public DeployedShard() {
+    // for serialization
   }
 
-  public DeployedShard(final String shardName, final long currentTimeMillis, final int numOfDocs) {
+  public DeployedShard(final String shardName, final int numOfDocs) {
     _shardName = shardName;
-    _deployTime = currentTimeMillis;
     _numOfDocs = numOfDocs;
   }
 
@@ -46,17 +44,12 @@ public class DeployedShard implements Writable {
     _shardName = in.readUTF();
     _deployTime = in.readLong();
     _numOfDocs = in.readInt();
-    _errorMsg = in.readUTF();
-    _hasError = in.readBoolean();
   }
 
   public void write(final DataOutput out) throws IOException {
     out.writeUTF(_shardName);
     out.writeLong(_deployTime);
     out.writeInt(_numOfDocs);
-    out.writeUTF(_errorMsg);
-    out.writeBoolean(_hasError);
-
   }
 
   public String getShardName() {
@@ -71,21 +64,4 @@ public class DeployedShard implements Writable {
     return _numOfDocs;
   }
 
-  public void cleanError() {
-    _errorMsg = "";
-    _hasError = false;
-  }
-
-  public boolean hasError() {
-    return _hasError;
-  }
-
-  public void setErrorMsg(final String errorMsg) {
-    _errorMsg = errorMsg;
-    _hasError = true;
-  }
-
-  public String getErrorMsg() {
-    return _errorMsg;
-  }
 }

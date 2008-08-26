@@ -23,6 +23,7 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
+import net.sf.katta.node.Node.NodeState;
 import net.sf.katta.util.DefaultDateFormat;
 
 import org.apache.hadoop.io.Text;
@@ -31,39 +32,37 @@ import org.apache.hadoop.io.Writable;
 public class NodeMetaData implements Writable {
 
   private Text _name = new Text();
-
-  private Text _status = new Text();
-
-  private boolean _isHealthy = true;
-
-  private Text _exception = new Text();
-
+  private NodeState _state;
   private float _queriesPerMinute = 0f;
-
-  private long _startTimeStamp;
-
-  private boolean _starting;
-
-  public boolean isStarting() {
-    return _starting;
-  }
+  private long _startTimeStamp = System.currentTimeMillis();
 
   public NodeMetaData() {
+    // for serialization
   }
 
-  public NodeMetaData(final String name, final String status, final boolean isHealthy, final long startTime) {
+  public NodeMetaData(final String name, NodeState nodeState) {
     _name = new Text(name);
-    _status = new Text(status);
-    _isHealthy = isHealthy;
-    _startTimeStamp = startTime;
+    _state = nodeState;
   }
 
-  public void setStatus(final String status) {
-    _status = new Text(status);
+  public String getName() {
+    return _name.toString();
   }
 
-  public void setException(final String exception) {
-    _exception = new Text(exception);
+  public String getStartTimeAsDate() {
+    return DefaultDateFormat.longToDateString(_startTimeStamp);
+  }
+
+  public NodeState getState() {
+    return _state;
+  }
+
+  public void setState(NodeState state) {
+    _state = state;
+  }
+
+  public float getQueriesPerMinute() {
+    return _queriesPerMinute;
   }
 
   public void setQueriesPerMinute(final float queriesPerMinute) {
@@ -72,56 +71,21 @@ public class NodeMetaData implements Writable {
 
   public void readFields(final DataInput in) throws IOException {
     _name.readFields(in);
-    _status.readFields(in);
-    _queriesPerMinute = in.readFloat();
-    _isHealthy = in.readBoolean();
-    _exception.readFields(in);
     _startTimeStamp = in.readLong();
-    _starting = in.readBoolean();
-
+    _state = NodeState.values()[in.readByte()];
+    _queriesPerMinute = in.readFloat();
   }
 
   public void write(final DataOutput out) throws IOException {
     _name.write(out);
-    _status.write(out);
-    out.writeFloat(_queriesPerMinute);
-    out.writeBoolean(_isHealthy);
-    _exception.write(out);
     out.writeLong(_startTimeStamp);
-    out.writeBoolean(_starting);
+    out.writeByte(_state.ordinal());
+    out.writeFloat(_queriesPerMinute);
   }
 
   @Override
   public String toString() {
-    String msg = getName() + "\t:\t" + getStartTimeAsDate() + "\t:\t" + isHealth() + "\t:\t" + getStatus();
-    if (!isHealth()) {
-      msg += "\n " + getException();
-    }
-    return msg;
-  }
-
-  private String getException() {
-    return _exception.toString();
-  }
-
-  public String getStartTimeAsDate() {
-    return DefaultDateFormat.longToDateString(_startTimeStamp);
-  }
-
-  public String getStatus() {
-    return _status.toString();
-  }
-
-  public boolean isHealth() {
-    return _isHealthy;
-  }
-
-  public String getName() {
-    return _name.toString();
-  }
-
-  public void setStarting(final boolean starting) {
-    _starting = starting;
+    return getName() + "\t:\t" + getStartTimeAsDate() + "\t:\t" + getState();
   }
 
 }

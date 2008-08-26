@@ -152,7 +152,7 @@ public class FailTest extends AbstractKattaTest {
     }
 
     public int countShards() {
-      return _node.getDeployShards().size();
+      return _node.getDeployedShards().size();
     }
 
     void close() {

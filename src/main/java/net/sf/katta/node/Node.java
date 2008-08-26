@@ -24,17 +24,20 @@ import java.io.IOException;
 import java.net.BindException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 
 import net.sf.katta.index.AssignedShard;
 import net.sf.katta.index.DeployedShard;
-import net.sf.katta.util.ComparisonUtil;
+import net.sf.katta.index.ShardError;
+import net.sf.katta.util.CollectionUtil;
 import net.sf.katta.util.FileUtil;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.NetworkUtil;
@@ -58,6 +61,7 @@ import org.apache.lucene.analysis.KeywordAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.Fieldable;
+import org.apache.lucene.index.CorruptIndexException;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.queryParser.ParseException;
 import org.apache.lucene.queryParser.QueryParser;
@@ -69,8 +73,6 @@ public class Node implements ISearch, IZkReconnectListener {
   protected final static Logger LOG = Logger.getLogger(Node.class);
 
   public static final long _protocolVersion = 0;
-  @SuppressWarnings("unused")
-  private static final long versionID = 0;
 
   protected ZKClient _zkClient;
   private Server _rpcServer;
@@ -80,14 +82,14 @@ public class Node implements ISearch, IZkReconnectListener {
 
   protected String _nodeName;
   protected File _shardsFolder;
-  protected final ArrayList<String> _deployedShards = new ArrayList<String>();
+  // contains the deploy errors two
+  protected final Set<String> _deployedShards = new HashSet<String>();
 
   private final Timer _timer;
-  protected final long _startTime;
+  protected final long _startTime = System.currentTimeMillis();
   protected long _queryCounter;
 
   private final NodeConfiguration _configuration;
-
   private NodeState _currentState;
 
   public static enum NodeState {
@@ -101,7 +103,6 @@ public class Node implements ISearch, IZkReconnectListener {
   public Node(final ZKClient zkClient, final NodeConfiguration configuration) {
     _zkClient = zkClient;
     _configuration = configuration;
-    _startTime = System.currentTimeMillis();
     _timer = new Timer("QueryCounter", true);
 
     _shardsFolder = _configuration.getShardFolder();
@@ -119,37 +120,190 @@ public class Node implements ISearch, IZkReconnectListener {
       _shardsFolder.mkdirs();
     }
 
-    LOG.debug("Starting rpc server...");
+    LOG.debug("Starting rpc search server...");
     _nodeName = startRPCServer(_configuration);
 
     LOG.debug("Starting zk client...");
     if (!_zkClient.isStarted()) {
       _zkClient.start(30000);
     }
-    List<String> shards = announceNode();
-    updateStatus(NodeState.STARTING);
-    _searcher = new KattaMultiSearcher(_nodeName);
-    checkAndDeployExistingShards(NodeState.STARTING, shards);
+    cleanupLocalShardFolder();
+    announceNode(NodeState.STARTING);
+    startShardServing(false);
 
-    LOG.info("Started: " + _nodeName + "...");
-
-    if (_rpcServer != null) {
-      try {
-        _rpcServer.start();
-      } catch (final IOException e) {
-        throw new RuntimeException("Failed to start node server.", e);
-      }
-    } else {
-      throw new RuntimeException("tried 10000 ports and no one is free...");
-    }
+    LOG.info("Started node: " + _nodeName + "...");
     updateStatus(NodeState.IN_SERVICE);
     _timer.schedule(new StatusUpdater(), new Date(), 60 * 1000);
+  }
+
+  public void handleReconnect() throws KattaException {
+    announceNode(NodeState.RECONNECTING);
+    cleanupLocalShardFolder();
+    startShardServing(true);
+    updateStatus(NodeState.IN_SERVICE);
+  }
+
+  private void cleanupLocalShardFolder() throws KattaException {
+    String node2ShardRootPath = ZkPathes.getNode2ShardRootPath(_nodeName);
+    List<String> shardsToServe = Collections.EMPTY_LIST;
+    if (_zkClient.exists(node2ShardRootPath)) {
+      shardsToServe = _zkClient.getChildren(node2ShardRootPath);
+    }
+    List<String> localShards = Arrays.asList(_shardsFolder.list(FileUtil.VISIBLE_FILES_FILTER));
+
+    List<String> shardsToRemove = CollectionUtil.getListOfRemoved(localShards, shardsToServe);
+    if (!shardsToRemove.isEmpty()) {
+      for (String shard : shardsToRemove) {
+        File localShard = getLocalShardFolder(shard);
+        LOG.info("delete local shard " + localShard.getAbsolutePath());
+        FileUtil.deleteFolder(localShard);
+      }
+    }
+  }
+
+  /*
+   * Writes node ephemeral data into zookeeper
+   */
+  private void announceNode(NodeState nodeState) throws KattaException {
+    LOG.info("announce node '" + _nodeName + "'...");
+    final NodeMetaData metaData = new NodeMetaData(_nodeName, nodeState);
+    final String nodePath = ZkPathes.getNodePath(_nodeName);
+    if (_zkClient.exists(nodePath)) {
+      LOG.warn("old node path '" + nodePath + "' for this node detected, delete it...");
+      _zkClient.delete(nodePath);
+    }
+
+    final String nodeToShardPath = ZkPathes.getNode2ShardRootPath(_nodeName);
+    if (!_zkClient.exists(nodeToShardPath)) {
+      _zkClient.create(nodeToShardPath);
+    }
+    _zkClient.createEphemeral(nodePath, metaData);
+    LOG.info("announced node " + _nodeName);
+  }
+
+  private void startShardServing(boolean restart) throws KattaException {
+    LOG.info("start serving shards...");
+    final String nodeToShardPath = ZkPathes.getNode2ShardRootPath(_nodeName);
+    synchronized (_zkClient.getSyncMutex()) {
+      List<String> shards = _zkClient.subscribeChildChanges(nodeToShardPath, new ShardListener());
+      if (restart) {
+        List<String> removed = CollectionUtil.getListOfRemoved(_deployedShards, shards);
+        undeployShards(removed);
+      }
+      deployShards(shards);
+      _deployedShards.clear();
+      _deployedShards.addAll(shards);
+    }
+  }
+
+  protected void deployShards(final List<String> shardsToAdd) throws KattaException {
+    for (String shard : shardsToAdd) {
+      File localShardFolder = getLocalShardFolder(shard);
+      try {
+        if (!localShardFolder.exists()) {
+          installShard(shard, localShardFolder);
+        }
+        serveShard(shard, localShardFolder);
+        announceShard(shard);
+      } catch (Exception e) {
+        LOG.error(_nodeName + ": could not deploy shard '" + shard + "'", e);
+        ShardError shardError = new ShardError(e.getMessage());
+        _zkClient.createEphemeral(ZkPathes.getShard2ErrorPath(shard, _nodeName), shardError);
+        FileUtil.deleteFolder(localShardFolder);
+      }
+    }
+  }
+
+  protected void undeployShards(final List<String> shardsToRemove) {
+    for (String shard : shardsToRemove) {
+      try {
+        LOG.info("Undeploying shard: " + shard);
+        _searcher.removeShard(shard);
+        String shard2NodePath = ZkPathes.getShard2NodePath(shard, _nodeName);
+        if (_zkClient.exists(shard2NodePath)) {
+          _zkClient.delete(shard2NodePath);
+        }
+        synchronized (_shardsFolder) {
+          FileUtil.deleteFolder(_shardsFolder);
+        }
+      } catch (final Exception e) {
+        LOG.error("Failed to undeploy shard: " + shard, e);
+      }
+    }
+  }
+
+  /*
+   * Creates an index search and adds it to the KattaMultiSearch
+   */
+  private void serveShard(final String shardName, final File localShardFolder) throws CorruptIndexException,
+      IOException {
+    IndexSearcher indexSearcher = new IndexSearcher(localShardFolder.getAbsolutePath());
+    _searcher.addShard(shardName, indexSearcher);
+  }
+
+  /*
+   * Announce in zookeeper node is serving this shard,
+   */
+  private void announceShard(String shard) throws KattaException {
+    LOG.info("announce shard '" + shard + "'");
+    // announce that this node serves this shard now...
+    final String shard2NodePath = ZkPathes.getShard2NodePath(shard, _nodeName);
+    if (_zkClient.exists(shard2NodePath)) {
+      LOG.warn("detected old shard-to-node entry - deleting it..");
+      // must be an old ephemeral
+      _zkClient.delete(shard2NodePath);
+    }
+
+    DeployedShard deployedShard = new DeployedShard(shard, _searcher.getNumDoc(shard));
+    _zkClient.createEphemeral(shard2NodePath, deployedShard);
+  }
+
+  /*
+   * Loads a shard from the given URI. The uri is handled bye the hadoop file
+   * system. So all hadoop support file systems can be used, like local hdfs s3
+   * etc. In case the shard is compressed we also unzip the content.
+   */
+  private void installShard(String shardName, File localShardFolder) throws KattaException {
+    final String shardPath = readAssignedShard(shardName).getShardPath();
+    LOG.info("install shard '" + shardName + "' from " + shardPath);
+    URI uri;
+    try {
+      uri = new URI(shardPath);
+      final FileSystem fileSystem = FileSystem.get(uri, new Configuration());
+      final Path path = new Path(shardPath);
+      boolean isZip = fileSystem.isFile(path) && shardPath.endsWith(".zip");
+
+      File shardTmpFolder = new File(localShardFolder.getAbsolutePath() + "_tmp");
+      // we download extract first to tmp dir in case something went wrong
+      synchronized (_shardsFolder) {
+        FileUtil.deleteFolder(localShardFolder);
+        FileUtil.deleteFolder(shardTmpFolder);
+
+        if (isZip) {
+          final File shardZipLocal = new File(_shardsFolder, shardName + ".zip");
+          if (shardZipLocal.exists()) {
+            // make sure we overwrite cleanly
+            shardZipLocal.delete();
+          }
+          fileSystem.copyToLocalFile(path, new Path(shardZipLocal.getAbsolutePath()));
+          FileUtil.unzip(shardZipLocal, shardTmpFolder);
+          shardZipLocal.delete();
+        } else {
+          fileSystem.copyToLocalFile(path, new Path(shardTmpFolder.getAbsolutePath()));
+        }
+        shardTmpFolder.renameTo(localShardFolder);
+      }
+    } catch (final URISyntaxException e) {
+      throw new KattaException("Can not parse uri for path: " + shardPath, e);
+    } catch (final IOException e) {
+      throw new KattaException("Can not load shard: " + shardPath, e);
+    }
   }
 
   public void shutdown() {
     // TODO jz: do decommission first?
     _timer.cancel();
-    _zkClient.unsubscribe();
+    _zkClient.unsubscribeAll();
     _zkClient.close();
     _rpcServer.stop();
   }
@@ -158,47 +312,16 @@ public class Node implements ISearch, IZkReconnectListener {
     return _nodeName;
   }
 
-  public void join() {
-    try {
-      _rpcServer.join();
-    } catch (final InterruptedException e) {
-      throw new RuntimeException("Failed to join node", e);
-    }
+  public NodeState getState() {
+    return _currentState;
   }
 
-  public ArrayList<String> getDeployShards() {
+  public void join() throws InterruptedException {
+    _rpcServer.join();
+  }
+
+  public Collection<String> getDeployedShards() {
     return _deployedShards;
-  }
-
-  /*
-   * Writes node ephemeral data into zookeeper
-   */
-  private List<String> announceNode() throws KattaException {
-    LOG.info("Announces node " + _nodeName);
-    final NodeMetaData metaData = new NodeMetaData(_nodeName, NodeState.STARTING.name(), true, _startTime);
-    final String nodePath = ZkPathes.getNodePath(_nodeName);
-    if (_zkClient.exists(nodePath)) {
-      LOG.warn("Old node path '" + nodePath + "' for this node detected, delete it...");
-      _zkClient.delete(nodePath);
-    }
-
-    final String nodeToShardPath = ZkPathes.getNode2ShardRootPath(_nodeName);
-    if (!_zkClient.exists(nodeToShardPath)) {
-      _zkClient.create(nodeToShardPath);
-    }
-    LOG.debug("Add shard listener in node.");
-    List<String> shards = _zkClient.subscribeChildChanges(nodeToShardPath, new ShardListener());
-
-    _zkClient.createEphemeral(nodePath, metaData);
-    return shards;
-  }
-
-  public void handleReconnect() throws KattaException {
-    List<String> shardsToServe = announceNode();
-    updateStatus(NodeState.RECONNECTING);
-    LOG.info("My old shards to serve: " + shardsToServe);
-    checkAndDeployExistingShards(NodeState.RECONNECTING, shardsToServe);
-    updateStatus(NodeState.STARTING);
   }
 
   /*
@@ -208,236 +331,43 @@ public class Node implements ISearch, IZkReconnectListener {
   private String startRPCServer(final NodeConfiguration configuration) {
     int serverPort = configuration.getStartPort();
     final String hostName = NetworkUtil.getLocalhostName();
-    for (int i = serverPort; i < (serverPort + 10000); i++) {
+    int tryCount = 10000;
+    while (_rpcServer == null) {
       try {
         LOG.info("starting RPC server on : " + hostName);
-        _rpcServer = RPC.getServer(this, "0.0.0.0", i, new Configuration());
-        serverPort = i;
+        _rpcServer = RPC.getServer(this, "0.0.0.0", serverPort, new Configuration());
         break;
       } catch (final BindException e) {
-        // try again
+        if (configuration.getStartPort() - serverPort < tryCount) {
+          serverPort++;
+          // try again
+        } else {
+          throw new RuntimeException("tried " + tryCount + " ports and no one is free...");
+        }
       } catch (final IOException e) {
-        throw new RuntimeException("unable to start node server", e);
+        throw new RuntimeException("unable to create rpc search server", e);
       }
+    }
+    _searcher = new KattaMultiSearcher(_nodeName);
+    try {
+      _rpcServer.start();
+    } catch (final IOException e) {
+      throw new RuntimeException("failed to start rpc search server", e);
     }
     return hostName + ":" + serverPort;
   }
 
-  /*
-   * When starting a node there might be shards assigned that are still on local
-   * hhd. Therefore we compare what is assigned, what can be re-used and which
-   * shards we need to load from the remote hdd.
-   */
-  private void checkAndDeployExistingShards(NodeState nodeState, final List<String> shardsToDeploy)
-      throws KattaException {
-    synchronized (_shardsFolder) {
-      List<String> localShards = Arrays.asList(_shardsFolder.list(FileUtil.VISIBLE_FILES_FILTER));
-      LOG.info("found following local shards:" + localShards);
-
-      // remove exiting but not to deploy
-      List<String> removedShards = ComparisonUtil.getRemoved(localShards, shardsToDeploy);
-      removeShards(removedShards);
-
-      // now only download those we do not yet have local
-      final HashSet<String> existingShards = new HashSet<String>();
-      existingShards.addAll(localShards);
-
-      for (final String shard : shardsToDeploy) {
-        DeployedShard deployedShard = null;
-        final AssignedShard assignedShard = getAssignedShard(shard);
-        File shardTargetFolder = new File(_shardsFolder, shard);
-        try {
-          // load first or use local file
-          if (!existingShards.contains(shard)) {
-            LOG.debug("Shard '" + shard + "' has to be deployed.");
-            loadAndUnzipShard(nodeState, assignedShard, shardTargetFolder);
-          }
-
-          // deploy and announce
-          final int numOfDocs = deployShard(shard, shardTargetFolder);
-          deployedShard = new DeployedShard(shard, System.currentTimeMillis(), numOfDocs);
-        } catch (final Exception e) {
-          FileUtil.deleteFolder(shardTargetFolder);
-          updateStatusWithError(e);
-          LOG.error("Unable to load shard:", e);
-          deployedShard = new DeployedShard(shard, System.currentTimeMillis(), 0);
-          deployedShard.setErrorMsg(e.getMessage());
-        } finally {
-          announceShard(deployedShard);
-        }
-      }
-    }
-  }
-
-  protected void deployAndAnnounceShards(NodeState state, final List<String> shardsToServe) {
-    for (final String shardName : shardsToServe) {
-      deployAndAnnounceShard(state, shardName);
-    }
-  }
-
-  /*
-   * Loads, deploys and announce a single fresh assigned shard.
-   */
-  private void deployAndAnnounceShard(NodeState state, final String shardName) {
-    DeployedShard deployedShard = null;
-    File shardTargetFolder = new File(_shardsFolder, shardName);
-    AssignedShard assignedShard = null;
-    try {
-      assignedShard = getAssignedShard(shardName);
-      loadAndUnzipShard(state, assignedShard, shardTargetFolder);
-      final int numOfDocs = deployShard(shardName, shardTargetFolder);
-      deployedShard = new DeployedShard(shardName, System.currentTimeMillis(), numOfDocs);
-    } catch (final Exception e) {
-      if (shardTargetFolder.exists()) {
-        FileUtil.deleteFolder(shardTargetFolder);
-      }
-      LOG.error("Unable to load shard:" + shardName, e);
-      updateStatusWithError(e);
-      deployedShard = new DeployedShard(shardName, System.currentTimeMillis(), 0);
-      deployedShard.setErrorMsg(e.getMessage());
-    } finally {
-      announceShard(deployedShard);
-    }
-  }
-
-  /*
-   * Loads a shard from the given URI. The uri is handled bye the hadoop file
-   * system. So all hadoop support file systems can be used, like local hdfs s3
-   * etc. In case the shard is compressed we also unzip the content.
-   */
-  private void loadAndUnzipShard(NodeState nodeState, final AssignedShard assignedShard, File shardTargetFolder) {
-    final String shardName = assignedShard.getShardName();
-    final String shardPath = assignedShard.getShardPath();
-    LOG.info("load and unzip shard '" + shardName + "' from " + shardPath);
-    URI uri;
-    try {
-      uri = new URI(shardPath);
-      final FileSystem fileSystem = FileSystem.get(uri, new Configuration());
-      final Path path = new Path(shardPath);
-      boolean isZip = fileSystem.isFile(path) && shardPath.endsWith(".zip");
-
-      File shardTmpFolder = new File(shardTargetFolder.getAbsolutePath() + "_tmp");
-      // we download extract first to tmp dir in case something went wrong
-      synchronized (_shardsFolder) {
-        FileUtil.deleteFolder(shardTargetFolder);
-        FileUtil.deleteFolder(shardTmpFolder);
-
-        if (isZip) {
-          final File shardZipLocal = new File(_shardsFolder, assignedShard.getShardName() + ".zip");
-          updateStatus(nodeState, "copy shard: " + shardName);
-          if (shardZipLocal.exists()) {
-            // make sure we overwrite cleanly
-            shardZipLocal.delete();
-          }
-          fileSystem.copyToLocalFile(path, new Path(shardZipLocal.getAbsolutePath()));
-
-          // decompress
-          updateStatus(nodeState, "decompressing shard: " + shardName);
-          FileUtil.unzip(shardZipLocal, shardTmpFolder);
-
-          // remove zip
-          shardZipLocal.delete();
-        } else {
-          updateStatus(nodeState, "copy shard: " + shardName);
-          fileSystem.copyToLocalFile(path, new Path(shardTmpFolder.getAbsolutePath()));
-        }
-        shardTmpFolder.renameTo(shardTargetFolder);
-        updateStatus(nodeState, "Load and Unzip Shard ready.");
-      }
-    } catch (final URISyntaxException e) {
-      final String msg = "Can not parse uri for path: " + assignedShard.getShardPath();
-      LOG.error(msg, e);
-      updateStatusWithError(msg);
-      updateShardStatusInNode(assignedShard.getIndexName(), msg);
-      throw new RuntimeException(msg, e);
-    } catch (final IOException e) {
-      final String msg = "Can not load shard: " + assignedShard.getShardPath();
-      LOG.error(msg, e);
-      updateStatusWithError(msg);
-      updateShardStatusInNode(assignedShard.getIndexName(), msg);
-      throw new RuntimeException(msg, e);
-    }
-  }
-
-  /*
-   * Creates an index search and adds it to the KattaMultiSearch
-   */
-  private int deployShard(final String shardName, final File localShardFolder) {
-    IndexSearcher indexSearcher;
-    try {
-      indexSearcher = new IndexSearcher(localShardFolder.getAbsolutePath());
-      _searcher.addShard(shardName, indexSearcher);
-      _deployedShards.add(shardName);
-      return indexSearcher.maxDoc();
-    } catch (final Exception e) {
-      String msg = "Shard index " + shardName + " can't be started";
-      throw new RuntimeException(msg, e);
-    }
+  private File getLocalShardFolder(final String shardName) {
+    return new File(_shardsFolder, shardName);
   }
 
   /*
    * Reads AssignedShard data from ZooKeeper
    */
-  private AssignedShard getAssignedShard(final String shardName) throws KattaException {
+  private AssignedShard readAssignedShard(final String shardName) throws KattaException {
     final AssignedShard assignedShard = new AssignedShard();
     _zkClient.readData(ZkPathes.getNode2ShardPath(_nodeName, shardName), assignedShard);
     return assignedShard;
-  }
-
-  /*
-   * Announce in zookeeper node is serving this shard,
-   */
-
-  private void announceShard(final DeployedShard deployedShard) {
-    try {
-      // announce that this node serves this shard now...
-      final String nodePath = ZkPathes.getShard2NodePath(deployedShard.getShardName(), _nodeName);
-      if (!_zkClient.exists(nodePath)) {
-        _zkClient.createEphemeral(nodePath, deployedShard);
-      } else {
-        // only update
-        _zkClient.writeData(nodePath, deployedShard);
-      }
-    } catch (final Exception e) {
-      // TODO jz: update status ??
-      LOG.error("Unable to serve Shard: " + deployedShard, e);
-    }
-  }
-
-  protected void removeShards(final List<String> shardsToRemove) {
-    for (final String shardName : shardsToRemove) {
-      removeShard(shardName);
-    }
-  }
-
-  /*
-   * Removes the shard from KattaMultiSearcher, our list of deployed Shards and
-   * removes the index from local hdd.
-   */
-  private void removeShard(final String shardName) {
-    try {
-      LOG.info("Removing shard: " + shardName);
-      _searcher.removeShard(shardName);
-      _deployedShards.remove(shardName);
-      String shard2NodePath = ZkPathes.getShard2NodePath(shardName, _nodeName);
-      if (_zkClient.exists(shard2NodePath)) {
-        // remove node serving it.
-        // TODO shouldn't that be done by the master ?
-        _zkClient.delete(shard2NodePath);
-      }
-
-      final String shard2NodeRootPath = ZkPathes.getShard2NodeRootPath(shardName);
-      if (_zkClient.exists(shard2NodeRootPath) && _zkClient.getChildren(shard2NodeRootPath).size() == 0) {
-        // this was the last node
-        // TODO shouldn't that be done by the master ?
-        _zkClient.delete(shard2NodeRootPath);
-      }
-      synchronized (_shardsFolder) {
-        FileUtil.deleteFolder(_shardsFolder);
-      }
-    } catch (final Exception e) {
-      LOG.error("Failed to remove local shard: " + shardName, e);
-    }
   }
 
   public HitsMapWritable search(final IQuery query, final DocumentFrequenceWritable freqs, final String[] shards)
@@ -577,61 +507,13 @@ public class Node implements ISearch, IZkReconnectListener {
     shutdown();
   }
 
-  private void updateStatus(NodeState state) {
-    updateStatus(state, null);
-  }
-
-  private synchronized void updateStatus(NodeState state, final String statusMsg) {
+  private synchronized void updateStatus(NodeState state) throws KattaException {
     _currentState = state;
     final String nodePath = ZkPathes.getNodePath(_nodeName);
     final NodeMetaData metaData = new NodeMetaData();
-    try {
-      _zkClient.readData(nodePath, metaData);
-      if (statusMsg == null) {
-        metaData.setStatus(state.name());
-      } else {
-        metaData.setStatus(state + ": " + statusMsg);
-      }
-      metaData.setStarting(state == NodeState.STARTING);
-      _zkClient.writeData(nodePath, metaData);
-    } catch (KattaException e) {
-      LOG.error("Cannot update node status.", e);
-    }
-  }
-
-  private void updateStatusWithError(Exception exception) {
-    // TODO jz: stringify exception / multiple exceptions ?
-    updateStatusWithError(exception.getMessage());
-  }
-
-  private void updateStatusWithError(String errorString) {
-    final String nodePath = ZkPathes.getNodePath(_nodeName);
-    final NodeMetaData metaData = new NodeMetaData();
-    try {
-      _zkClient.readData(nodePath, metaData);
-      metaData.setException(errorString);
-      _zkClient.writeData(nodePath, metaData);
-    } catch (KattaException e) {
-      LOG.error("Cannot update node status.", e);
-    }
-  }
-
-  private void updateShardStatusInNode(final String shardName, final String errorMsg) {
-    final String shard2nodePath = ZkPathes.getShard2NodePath(shardName, _nodeName);
-    DeployedShard deployedShard = new DeployedShard();
-    try {
-      if (_zkClient.exists(shard2nodePath)) {
-        _zkClient.readData(shard2nodePath, deployedShard);
-        if (null == errorMsg) {
-          deployedShard.cleanError();
-        } else {
-          deployedShard.setErrorMsg(errorMsg);
-        }
-        _zkClient.writeData(shard2nodePath, deployedShard);
-      }
-    } catch (final Exception e) {
-      LOG.error("Failed to write shard status." + deployedShard, e);
-    }
+    _zkClient.readData(nodePath, metaData);
+    metaData.setState(state);
+    _zkClient.writeData(nodePath, metaData);
   }
 
   /*
@@ -644,15 +526,15 @@ public class Node implements ISearch, IZkReconnectListener {
       if (LOG.isDebugEnabled()) {
         LOG.debug("Add/Remove shard.");
       }
-      synchronized (_zkClient.getSyncMutex()) {
-        try {
-          final List<String> shardsToRemove = ComparisonUtil.getRemoved(_deployedShards, shardsToServe);
-          removeShards(shardsToRemove);
-          final List<String> shardsToDeploy = ComparisonUtil.getNew(_deployedShards, shardsToServe);
-          deployAndAnnounceShards(NodeState.IN_SERVICE, shardsToDeploy);
-        } finally {
-          _zkClient.getSyncMutex().notifyAll();
-        }
+      try {
+        final List<String> shardsToUndeploy = CollectionUtil.getListOfRemoved(_deployedShards, shardsToServe);
+        final List<String> shardsToDeploy = CollectionUtil.getListOfAdded(_deployedShards, shardsToServe);
+        _deployedShards.removeAll(shardsToUndeploy);
+        _deployedShards.addAll(shardsToDeploy);
+        undeployShards(shardsToUndeploy);
+        deployShards(shardsToDeploy);
+      } finally {
+        _zkClient.getSyncMutex().notifyAll();
       }
     }
 
@@ -665,28 +547,24 @@ public class Node implements ISearch, IZkReconnectListener {
     @Override
     public void run() {
       if (_nodeName != null) {
-        synchronized (_zkClient.getSyncMutex()) {
-          long time = (System.currentTimeMillis() - _startTime) / (60 * 1000);
-          time = Math.max(time, 1);
-          final float qpm = (float) _queryCounter / time;
-          final NodeMetaData metaData = new NodeMetaData();
-          final String nodePath = ZkPathes.getNodePath(_nodeName);
-          try {
-            if (_zkClient.exists(nodePath)) {
-              _zkClient.readData(nodePath, metaData);
-              metaData.setQueriesPerMinute(qpm);
-              _zkClient.writeData(nodePath, metaData);
-            }
-          } catch (final Exception e) {
-            LOG.error("Failed to update node status (StatusUpdater).", e);
-          }
+        // not yet started
+        return;
+      }
+      long time = (System.currentTimeMillis() - _startTime) / (60 * 1000);
+      time = Math.max(time, 1);
+      final float qpm = (float) _queryCounter / time;
+      final NodeMetaData metaData = new NodeMetaData();
+      final String nodePath = ZkPathes.getNodePath(_nodeName);
+      try {
+        if (_zkClient.exists(nodePath)) {
+          _zkClient.readData(nodePath, metaData);
+          metaData.setQueriesPerMinute(qpm);
+          _zkClient.writeData(nodePath, metaData);
         }
+      } catch (final Exception e) {
+        LOG.error("Failed to update node status.", e);
       }
     }
-  }
-
-  public NodeState getState() {
-    return _currentState;
   }
 
 }

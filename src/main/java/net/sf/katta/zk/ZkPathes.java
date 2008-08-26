@@ -19,6 +19,7 @@ public class ZkPathes {
   public static final String NODE_TO_SHARD = ROOT_PATH + "/node-to-shard";
 
   public static final String SHARD_TO_NODE = ROOT_PATH + "/shard-to-node";
+  public static final String SHARD_TO_ERROR = ROOT_PATH + "/shard-to-error";
 
   public static String getNodePath(String node) {
     return buildPath(NODES, node);
@@ -40,6 +41,14 @@ public class ZkPathes {
     return buildPath(SHARD_TO_NODE, shard, node);
   }
 
+  public static String getShard2ErrorRootPath(String shard) {
+    return buildPath(SHARD_TO_ERROR, shard);
+  }
+
+  public static String getShard2ErrorPath(String shard, String node) {
+    return buildPath(SHARD_TO_ERROR, shard, node);
+  }
+
   public static String getNode2ShardRootPath(String node) {
     return buildPath(NODE_TO_SHARD, node);
   }
@@ -59,6 +68,6 @@ public class ZkPathes {
   }
 
   public static String getName(String path) {
-    return path.substring(path.lastIndexOf(SEPERATOR)+1);
+    return path.substring(path.lastIndexOf(SEPERATOR) + 1);
   }
 }
