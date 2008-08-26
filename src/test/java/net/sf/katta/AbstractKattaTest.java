@@ -126,8 +126,14 @@ public abstract class AbstractKattaTest extends TestCase {
   protected void shutdownNode(Node node) {
     node.shutdown();
     try {
+      int tryCount = 0;
+      int maxTries = 100;
       while (!NetworkUtil.isPortFree(node.getSearchServerPort())) {
         Thread.sleep(100);
+        tryCount++;
+        if (tryCount >= maxTries) {
+          fail("node shutdown but port " + node.getSearchServerPort() + " is still blocked");
+        }
       }
     } catch (InterruptedException e) {
       // proceed

@@ -20,6 +20,7 @@
 package net.sf.katta.util;
 
 import java.io.IOException;
+import java.net.ConnectException;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.Socket;
@@ -93,11 +94,13 @@ public class NetworkUtil {
     try {
       Socket socket = new Socket("localhost", port);
       socket.close();
+      return false;
+    } catch (ConnectException e) {
       return true;
     } catch (UnknownHostException e) {
       throw new RuntimeException(e);
     } catch (IOException e) {
-      return false;
+      throw new RuntimeException(e);
     }
   }
 

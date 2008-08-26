@@ -330,7 +330,9 @@ public class DistributeShardsThread extends Thread {
     try {
       int knownNodes = _zkClient.getKnownNodes().size();
       int aliveNodes = _statusUpdate.getNodes().size();
-      while (_statusUpdate.getNodes().isEmpty() || aliveNodes * 2 < knownNodes) {
+      // we want to wait if nodeCount is increasing & more then the half nodes
+      // are not connected (this i mainly for startup synchronization)
+      while (aliveNodes >= _liveNodes.size() && (aliveNodes == 0 || aliveNodes * 2 < knownNodes)) {
         LOG.info(aliveNodes + "/" + knownNodes + " nodes connected, waiting...");
         _updatedCondition.await();
         aliveNodes = _statusUpdate.getNodes().size();

@@ -332,6 +332,12 @@ public class ZKClient implements Watcher {
     }
   }
 
+  public void deleteIfExists(String path) throws KattaException {
+    if (exists(path)) {
+      delete(path);
+    }
+  }
+
   /**
    * Deletes a path and all children recursivly.
    * 

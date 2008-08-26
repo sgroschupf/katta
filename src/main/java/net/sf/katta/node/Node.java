@@ -300,11 +300,28 @@ public class Node implements ISearch, IZkReconnectListener {
   }
 
   public void shutdown() {
-    // TODO jz: do decommission first?
-    _timer.cancel();
-    _zkClient.unsubscribeAll();
-    _zkClient.close();
-    _rpcServer.stop();
+    LOG.info("shutdown " + _nodeName + " ...");
+    synchronized (_zkClient.getSyncMutex()) {
+      try {
+        // we deleting the ephemeral's since this is the fastest and the safest
+        // way, but if this does not work, it shouldn't be too bad
+        _zkClient.delete(ZkPathes.getNodePath(_nodeName));
+        Set<String> deployedShards = _deployedShards;
+        for (String shard : deployedShards) {
+          String shard2NodePath = ZkPathes.getShard2NodePath(shard, _nodeName);
+          String shard2ErrorPath = ZkPathes.getShard2ErrorPath(shard, _nodeName);
+          _zkClient.deleteIfExists(shard2NodePath);
+          _zkClient.deleteIfExists(shard2ErrorPath);
+        }
+      } catch (Exception e) {
+        LOG.warn("could'nt cleanup zk ephemeral pathes:" + e.getMessage());
+      }
+      _timer.cancel();
+      _zkClient.unsubscribeAll();
+      _zkClient.close();
+      _rpcServer.stop();
+    }
+    LOG.info("shutdown " + _nodeName + " finished");
   }
 
   public String getName() {
