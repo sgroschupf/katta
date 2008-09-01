@@ -30,9 +30,7 @@ import org.apache.hadoop.io.Writable;
 
 public class ZKClientTest extends AbstractKattaTest {
 
-  static Integer _mutex = new Integer(-1);
-
-  public void testWait() throws Exception {
+  public void testStart() throws Exception {
     final ZKClient client = new ZKClient(conf);
     try {
       client.start(500);
@@ -89,10 +87,10 @@ public class ZKClientTest extends AbstractKattaTest {
     client.create(file);
     client.subscribeChildChanges(file, listener);
     for (int i = 0; i < 10; i++) {
-      synchronized (_mutex) {
-        client.create(file + "/" + i);
-        _mutex.wait();
-      }
+      client.getEventLock().lock();
+      client.create(file + "/" + i);
+      client.getEventLock().getDataChangedCondition().await();
+      client.getEventLock().unlock();
     }
     assertEquals(10, listener._counter);
     client.close();
@@ -110,12 +108,12 @@ public class ZKClientTest extends AbstractKattaTest {
     client.create(katta, new IndexMetaData("path", "someAnalyzr", 3, IndexMetaData.IndexState.ANNOUNCED));
     client.subscribeDataChanges(katta, listener);
     for (int i = 0; i < 10; i++) {
-      synchronized (_mutex) {
-        final IndexMetaData indexMetaData = new IndexMetaData("path", "someAnalyzr" + i, 3,
-            IndexMetaData.IndexState.ANNOUNCED);
-        client.writeData(katta, indexMetaData);
-        _mutex.wait();
-      }
+      client.getEventLock().lock();
+      final IndexMetaData indexMetaData = new IndexMetaData("path", "someAnalyzr" + i, 3,
+          IndexMetaData.IndexState.ANNOUNCED);
+      client.writeData(katta, indexMetaData);
+      client.getEventLock().getDataChangedCondition().await();
+      client.getEventLock().unlock();
     }
     assertEquals(10, listener._counter);
     client.close();
@@ -147,9 +145,6 @@ public class ZKClientTest extends AbstractKattaTest {
 
     private void handleEvent() {
       _counter++;
-      synchronized (_mutex) {
-        _mutex.notify();
-      }
     }
 
   }
