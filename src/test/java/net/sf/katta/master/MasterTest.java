@@ -82,14 +82,18 @@ public class MasterTest extends AbstractKattaTest {
     assertEquals(1, master.readNodes().size());
 
     // disconnect
+    zkClientMaster.getEventLock().lock();
     assertTrue(zkClientMaster.delete(nodePath));
+    zkClientMaster.getEventLock().getDataChangedCondition().await();
+    zkClientMaster.getEventLock().unlock();
     assertEquals(0, master.readNodes().size());
 
     // reconnect
-    synchronized (zkClientMaster.getSyncMutex()) {
-      zkClientMaster.create(nodePath, new NodeMetaData("node1", NodeState.IN_SERVICE));
-      zkClientMaster.getSyncMutex().wait();
-    }
+    zkClientMaster.getEventLock().lock();
+    zkClientMaster.create(nodePath, new NodeMetaData("node1", NodeState.IN_SERVICE));
+    zkClientMaster.getEventLock().getDataChangedCondition().await();
+    zkClientMaster.getEventLock().unlock();
+
     assertEquals(1, master.readNodes().size());
     master.shutdown();
   }

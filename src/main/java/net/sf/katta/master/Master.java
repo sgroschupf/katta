@@ -61,20 +61,26 @@ public class Master {
   }
 
   public void start() throws KattaException {
-    if (!_zkClient.isStarted()) {
-      LOG.info("connecting with zookeeper");
-      _zkClient.start(300000);
-    }
-    becomeMasterOrSecondaryMaster();
-    if (_isMaster) {
-      startNodeManagement();
-      startIndexManagement();
-      _manageShardThread.start();
+    try {
+      _zkClient.getEventLock().lock();
+      if (!_zkClient.isStarted()) {
+        LOG.info("connecting with zookeeper");
+        _zkClient.start(300000);
+      }
+      becomeMasterOrSecondaryMaster();
+      if (_isMaster) {
+        startNodeManagement();
+        startIndexManagement();
+        _manageShardThread.start();
+      }
+    } finally {
+      _zkClient.getEventLock().unlock();
     }
   }
 
   public void shutdown() {
-    synchronized (_zkClient.getSyncMutex()) {
+    try {
+      _zkClient.getEventLock().lock();
       _manageShardThread.interrupt();
       try {
         _zkClient.unsubscribeAll();
@@ -83,24 +89,24 @@ public class Master {
         LOG.error("could bot delete the master data from zk");
       }
       _zkClient.close();
+    } finally {
+      _zkClient.getEventLock().unlock();
     }
   }
 
   private void becomeMasterOrSecondaryMaster() throws KattaException {
-    synchronized (_zkClient.getSyncMutex()) {
-      final String hostName = NetworkUtil.getLocalhostName();
-      cleanupOldMasterData(hostName);
+    final String hostName = NetworkUtil.getLocalhostName();
+    cleanupOldMasterData(hostName);
 
-      final MasterMetaData freshMaster = new MasterMetaData(hostName, System.currentTimeMillis());
-      if (!_zkClient.exists(ZkPathes.MASTER)) {
-        LOG.info(hostName + " starting as master...");
-        _isMaster = true;
-        _zkClient.createEphemeral(ZkPathes.MASTER, freshMaster);
-      } else {
-        LOG.info(hostName + " starting as secondary master...");
-        _isMaster = false;
-        _zkClient.subscribeDataChanges(ZkPathes.MASTER, new MasterListener());
-      }
+    final MasterMetaData freshMaster = new MasterMetaData(hostName, System.currentTimeMillis());
+    if (!_zkClient.exists(ZkPathes.MASTER)) {
+      LOG.info(hostName + " starting as master...");
+      _isMaster = true;
+      _zkClient.createEphemeral(ZkPathes.MASTER, freshMaster);
+    } else {
+      LOG.info(hostName + " starting as secondary master...");
+      _isMaster = false;
+      _zkClient.subscribeDataChanges(ZkPathes.MASTER, new MasterListener());
     }
   }
 
@@ -117,31 +123,23 @@ public class Master {
 
   private void startIndexManagement() throws KattaException {
     LOG.debug("Loading indexes...");
-    synchronized (_zkClient.getSyncMutex()) {
-      _indexes = _zkClient.subscribeChildChanges(ZkPathes.INDEXES, new IndexListener());
-      _manageShardThread.updateIndexes(_indexes);
-      _manageShardThread.reportStartup();
-    }
+    _indexes = _zkClient.subscribeChildChanges(ZkPathes.INDEXES, new IndexListener());
+    _manageShardThread.updateIndexes(_indexes);
+    _manageShardThread.reportStartup();
   }
 
   private void startNodeManagement() throws KattaException {
     LOG.info("start managing nodes...");
-    synchronized (_zkClient.getSyncMutex()) {
-      _nodes = _zkClient.subscribeChildChanges(ZkPathes.NODES, new NodeListener());
-      _manageShardThread.updateNodes(_nodes);
-    }
+    _nodes = _zkClient.subscribeChildChanges(ZkPathes.NODES, new NodeListener());
+    _manageShardThread.updateNodes(_nodes);
   }
 
   protected class NodeListener implements IZkChildListener {
 
     public void handleChildChange(String parentPath, List<String> currentNodes) throws KattaException {
       LOG.info("got node event: " + currentNodes);
-      try {
-        _manageShardThread.updateNodes(currentNodes);
-        _nodes = currentNodes;
-      } finally {
-        _zkClient.getSyncMutex().notifyAll();
-      }
+      _manageShardThread.updateNodes(currentNodes);
+      _nodes = currentNodes;
     }
   }
 
@@ -149,12 +147,8 @@ public class Master {
 
     public void handleChildChange(String parentPath, List<String> currentIndexes) throws KattaException {
       LOG.info("got index event: " + currentIndexes);
-      try {
-        _manageShardThread.updateIndexes(currentIndexes);
-        _indexes = currentIndexes;
-      } finally {
-        _zkClient.getSyncMutex().notifyAll();
-      }
+      _manageShardThread.updateIndexes(currentIndexes);
+      _indexes = currentIndexes;
     }
   }
 

@@ -83,11 +83,14 @@ public class Client implements IClient {
   public Client(final INodeSelectionPolicy policy, final ZkConfiguration config) throws KattaException {
     _policy = policy;
     _zkClient = new ZKClient(config);
-    synchronized (_zkClient.getSyncMutex()) {
+    try {
+      _zkClient.getEventLock().lock();
       _zkClient.start(30000);
       // first get all changes on index..
       List<String> indexes = _zkClient.subscribeChildChanges(ZkPathes.INDEXES, _indexPathChangeListener);
       loadIndexAndShardsData(indexes);
+    } finally {
+      _zkClient.getEventLock().unlock();
     }
     _start = System.currentTimeMillis();
   }

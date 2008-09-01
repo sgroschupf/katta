@@ -307,10 +307,10 @@ public class Katta {
       return;
     }
 
-    _zkClient.create(indexPath, new IndexMetaData(path, analyzerClass, replicationLevel,
-        IndexMetaData.IndexState.ANNOUNCED));
-    final IndexMetaData data = new IndexMetaData();
     try {
+      final IndexMetaData data = new IndexMetaData(path, analyzerClass, replicationLevel,
+          IndexMetaData.IndexState.ANNOUNCED);
+      _zkClient.create(indexPath, data);
       while (true) {
         _zkClient.readData(indexPath, data);
         if (data.getState() == IndexState.DEPLOYED) {
@@ -324,7 +324,7 @@ public class Katta {
       }
     } catch (final InterruptedException e) {
       printError("interrupted wait on index deployment");
-    }
+    } 
     System.out.println("deployed index " + name + ".");
   }
 

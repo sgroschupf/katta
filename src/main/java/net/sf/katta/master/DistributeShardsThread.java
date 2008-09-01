@@ -97,6 +97,12 @@ public class DistributeShardsThread extends Thread {
         boolean startupReported = _statusUpdate.isStartupReported();
         Set<String> updatedIndexes = _statusUpdate.getIndexes();
         Set<String> updatedNodes = _statusUpdate.getNodes();
+        if (updatedNodes.isEmpty()) {
+          // jz: if connected nodes in under a certain threshold go in
+          // safe-mode?
+          LOG.warn("no nodes connected - delaying updated");
+          continue;
+        }
         _statusUpdate.reset();
         _updateLock.unlock();
 
@@ -332,7 +338,7 @@ public class DistributeShardsThread extends Thread {
       int aliveNodes = _statusUpdate.getNodes().size();
       // we want to wait if nodeCount is increasing & more then the half nodes
       // are not connected (this i mainly for startup synchronization)
-      while (aliveNodes >= _liveNodes.size() && (aliveNodes == 0 || aliveNodes * 2 < knownNodes)) {
+      while (aliveNodes == 0 || (aliveNodes >= _liveNodes.size() && (aliveNodes * 2 < knownNodes))) {
         LOG.info(aliveNodes + "/" + knownNodes + " nodes connected, waiting...");
         _updatedCondition.await();
         aliveNodes = _statusUpdate.getNodes().size();

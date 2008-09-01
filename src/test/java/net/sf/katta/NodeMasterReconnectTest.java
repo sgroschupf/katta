@@ -1,5 +1,7 @@
 package net.sf.katta;
 
+import java.util.concurrent.TimeUnit;
+
 import net.sf.katta.master.Master;
 import net.sf.katta.node.Node;
 import net.sf.katta.node.Node.NodeState;
@@ -44,24 +46,18 @@ public class NodeMasterReconnectTest extends AbstractKattaTest {
     assertEquals(node.getName(), master.getNodes().get(0));
 
     // now break the node connection
+    zkMasterClient.getEventLock().lock();
     gateway.interruptAndJoin();
-    waitForStatus(zkNodeClient, ZooKeeper.States.CONNECTING);
-    synchronized (zkMasterClient.getSyncMutex()) {
-      if (master.getNodes().size() != 0) {
-        zkMasterClient.getSyncMutex().wait();
-      }
-    }
+    zkMasterClient.getEventLock().getDataChangedCondition().await(20, TimeUnit.SECONDS);
+    zkMasterClient.getEventLock().unlock();
     assertEquals(0, master.getNodes().size());
 
     // now fix the node connection
     gateway = new Gateway(GATEWAY_PORT, ZK_SERVER_PORT);
+    zkMasterClient.getEventLock().lock();
     gateway.start();
-    waitForStatus(zkNodeClient, ZooKeeper.States.CONNECTED);
-    synchronized (zkMasterClient.getSyncMutex()) {
-      if (master.getNodes().size() != 1) {
-        zkMasterClient.getSyncMutex().wait();
-      }
-    }
+    zkMasterClient.getEventLock().getDataChangedCondition().await(20, TimeUnit.SECONDS);
+    zkMasterClient.getEventLock().unlock();
     assertEquals(1, master.getNodes().size());
 
     node.shutdown();
