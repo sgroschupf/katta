@@ -26,31 +26,31 @@ public interface IPaths {
   /**
    * @deprecated see {@link ZkPathes}
    */
-  public static final String ROOT_PATH = "/katta";
+  public static final String ROOT_PATH = ZkPathes.ROOT_PATH;
 
   /**
    * @deprecated see {@link ZkPathes}
    */
-  public static final String MASTER = ROOT_PATH + "/master";
+  public static final String MASTER = ZkPathes.MASTER;
 
   /**
    * @deprecated see {@link ZkPathes}
    */
-  public static final String NODES = ROOT_PATH + "/nodes";
+  public static final String NODES = ZkPathes.NODES;
 
   /**
    * @deprecated see {@link ZkPathes}
    */
-  public static final String INDEXES = ROOT_PATH + "/indexes";
+  public static final String INDEXES = ZkPathes.INDEXES;
 
   /**
    * @deprecated see {@link ZkPathes}
    */
-  public static final String NODE_TO_SHARD = ROOT_PATH + "/node-to-shard";
+  public static final String NODE_TO_SHARD = ZkPathes.NODE_TO_SHARD;
 
   /**
    * @deprecated see {@link ZkPathes}
    */
-  public static final String SHARD_TO_NODE = ROOT_PATH + "/shard-to-node";
+  public static final String SHARD_TO_NODE = ZkPathes.SHARD_TO_NODE;
 
 }
