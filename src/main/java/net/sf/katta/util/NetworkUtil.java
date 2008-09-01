@@ -97,6 +97,11 @@ public class NetworkUtil {
       return false;
     } catch (ConnectException e) {
       return true;
+    } catch (SocketException e) {
+      if (e.getMessage().equals("Connection reset by peer")) {
+        return true;
+      }
+      throw new RuntimeException(e);
     } catch (UnknownHostException e) {
       throw new RuntimeException(e);
     } catch (IOException e) {

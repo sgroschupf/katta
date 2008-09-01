@@ -123,10 +123,9 @@ public class ZkServer {
     try {
       ServerStats.registerAsConcrete();
       _zk = new ZooKeeperServer(dataDir, dataLogDir, tickTime);
-      _zk.startup();
       // _nioFactory = new NIOServerCnxn.Factory(port);
       _nioFactory = new ZkNioFactory(port);
-      _nioFactory.setZooKeeperServer(_zk);
+      _nioFactory.startup(_zk);
     } catch (final IOException e) {
       throw new RuntimeException("Unable to start single ZooKeeper server.", e);
     } catch (final InterruptedException e) {

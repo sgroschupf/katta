@@ -19,6 +19,8 @@
  */
 package net.sf.katta.master;
 
+import java.util.concurrent.TimeUnit;
+
 import net.sf.katta.AbstractKattaTest;
 import net.sf.katta.Katta;
 import net.sf.katta.client.Client;
@@ -28,6 +30,7 @@ import net.sf.katta.util.KattaException;
 import net.sf.katta.util.NodeConfiguration;
 import net.sf.katta.util.ZkConfiguration;
 import net.sf.katta.zk.ZKClient;
+import net.sf.katta.zk.ZkPathes;
 
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 
@@ -61,18 +64,17 @@ public class FailTest extends AbstractKattaTest {
     secMaster.start();
 
     clientThread.join();
-    waitForPath(nodeClient, IPaths.MASTER);
-    waitForChilds(nodeClient, IPaths.NODES, 1);
+    waitForPath(nodeClient, ZkPathes.MASTER);
+    waitForChilds(nodeClient, ZkPathes.NODES, 1);
 
     // kill master
+    secMasterClient.getEventLock().lock();
     masterClient.close();
-    int count = 0;
-    while (!secMaster.isMaster() && count++ < 100) {
-      Thread.sleep(1000);
-    }
+    secMasterClient.getEventLock().getDataChangedCondition().await(30, TimeUnit.SECONDS);
+    secMasterClient.getEventLock().unlock();
 
     // just make sure we can read the file
-    AbstractKattaTest.waitForPath(nodeClient, IPaths.MASTER);
+    waitForPath(nodeClient, ZkPathes.MASTER);
 
     assertTrue(secMaster.isMaster());
     nodeClient.close();
@@ -81,8 +83,6 @@ public class FailTest extends AbstractKattaTest {
 
   public void testNodeFailure() throws Exception {
     createZkServer();
-    // TODO we did run in issues in case the index is already deployed,so we
-    // should check this..
     final ZKClient zkClientMaster = new ZKClient(conf);
     final Master master = new Master(zkClientMaster);
     Thread masterThread = createStartMasterThread(master);
@@ -103,11 +103,11 @@ public class FailTest extends AbstractKattaTest {
     final String defaulFolder3 = sconf3.getShardFolder().getAbsolutePath();
     sconf3.setShardFolder(defaulFolder3 + "/" + 3);
     final DummyNode s3 = new DummyNode(conf, sconf3);
-    waitForChilds(zkClientMaster, IPaths.NODES, 3);
+    waitForChilds(zkClientMaster, ZkPathes.NODES, 3);
     masterThread.join();
-    waitForPath(zkClientMaster, IPaths.MASTER);
-    // deploy index
+    waitForPath(zkClientMaster, ZkPathes.MASTER);
 
+    // deploy index
     final Katta katta = new Katta();
     final String indexName = "index";
     katta.addIndex(indexName, "src/test/testIndexC/", StandardAnalyzer.class.getName(), 3);
