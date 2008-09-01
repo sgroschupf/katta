@@ -37,6 +37,13 @@ import org.apache.lucene.analysis.standard.StandardAnalyzer;
 
 public class MasterTest extends AbstractKattaTest {
 
+  private static final String SECOND_SHARD_FOLDER = "/tmp/katta-shards2";
+
+  @Override
+  protected void onSetUp() throws Exception {
+    org.apache.hadoop.fs.FileUtil.fullyDelete(new File(SECOND_SHARD_FOLDER));
+  }
+
   /*
    * create /katta/nodes folder, subscribe notification handle addIndex by
    * distibute shards to nodes handle node failure
@@ -110,7 +117,7 @@ public class MasterTest extends AbstractKattaTest {
     masterThread.start();
 
     Node node1 = startNodeServer(zkClientNode1);
-    Node node2 = startNodeServer(zkClientNode2, "/tmp/katta-shards2");
+    Node node2 = startNodeServer(zkClientNode2, SECOND_SHARD_FOLDER);
     masterThread.join();
     waitForPath(zkClientMaster, ZkPathes.MASTER);
     waitForChilds(zkClientMaster, ZkPathes.NODES, 2);
@@ -163,7 +170,7 @@ public class MasterTest extends AbstractKattaTest {
     masterThread.start();
 
     Node node1 = startNodeServer(zkClientNode1);
-    Node node2 = startNodeServer(zkClientNode2, "/tmp/katta-shards2");
+    Node node2 = startNodeServer(zkClientNode2, SECOND_SHARD_FOLDER);
     masterThread.join();
     waitForPath(zkClientMaster, ZkPathes.MASTER);
     waitForChilds(zkClientMaster, ZkPathes.NODES, 2);
