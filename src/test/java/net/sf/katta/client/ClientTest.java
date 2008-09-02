@@ -35,7 +35,6 @@ import net.sf.katta.zk.ZkPathes;
 import org.apache.hadoop.io.MapWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
-import org.apache.hadoop.ipc.RPC;
 import org.apache.log4j.Logger;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 
@@ -50,14 +49,18 @@ public class ClientTest extends AbstractKattaTest {
   private static final String INDEX2 = "index2";
   private static final String INDEX3 = "index3";
 
-  private Node _node1;
-  private Node _node2;
-  private Master _master;
-  private Katta _katta;
-  private IClient _client;
+  private static Node _node1;
+  private static Node _node2;
+  private static Master _master;
+  private static Katta _katta;
+  private static IClient _client;
+
+  public ClientTest() {
+    super(false);
+  }
 
   @Override
-  protected void onSetUp2() throws Exception {
+  protected void onBeforeClass() throws Exception {
     MasterStartThread masterStartThread = startMaster();
     _master = masterStartThread.getMaster();
 
@@ -79,13 +82,12 @@ public class ClientTest extends AbstractKattaTest {
   }
 
   @Override
-  protected void onTearDown() throws Exception {
+  protected void onAfterClass() throws Exception {
     _client.close();
     _katta.close();
     _node1.shutdown();
     _node2.shutdown();
     _master.shutdown();
-    RPC.stopClient();
   }
 
   public void testCount() {
@@ -110,9 +112,10 @@ public class ClientTest extends AbstractKattaTest {
 
   public void testSearch() throws KattaException {
     final Query query = new Query("foo: bar");
+    float currentQueryPerMinute = _client.getQueryPerMinute();
     final Hits hits = _client.search(query, new String[] { INDEX3, INDEX2 });
     assertNotNull(hits);
-    assertEquals(1f, _client.getQueryPerMinute());
+    assertEquals(currentQueryPerMinute + 1, _client.getQueryPerMinute());
     for (final Hit hit : hits.getHits()) {
       LOG.info(hit.getNode() + " -- " + hit.getShard() + " -- " + hit.getScore() + " -- " + hit.getDocId());
     }

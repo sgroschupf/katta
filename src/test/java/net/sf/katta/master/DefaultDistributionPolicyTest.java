@@ -7,9 +7,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import net.sf.katta.AbstractKattaTest;
+import junit.framework.TestCase;
 
-public class DefaultDistributionPolicyTest extends AbstractKattaTest {
+public class DefaultDistributionPolicyTest extends TestCase {
 
   private DefaultDistributionPolicy _distributionPolicy = new DefaultDistributionPolicy();
   Map<String, List<String>> _currentShard2NodesMap = new HashMap<String, List<String>>();

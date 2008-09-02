@@ -1,6 +1,7 @@
 package net.sf.katta;
 
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 
 import net.sf.katta.master.Master;
 import net.sf.katta.node.Node;
@@ -12,6 +13,7 @@ import net.sf.katta.util.ZkConfiguration;
 import net.sf.katta.zk.ZKClient;
 import net.sf.katta.zk.ZkPathes;
 import net.sf.katta.zk.ZkServer;
+import net.sf.katta.zk.ZKClient.ZkLock;
 
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.ipc.RPC;
@@ -28,15 +30,27 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
 
   private static ZkServer _zkServer;
   protected final ZkConfiguration _conf = new ZkConfiguration();
+  private final boolean _resetZkNamespaceBetweenTests;
+
+  public AbstractKattaTest() {
+    this(true);
+  }
+
+  public AbstractKattaTest(boolean resetZkNamespaceBetweenTests) {
+    _resetZkNamespaceBetweenTests = resetZkNamespaceBetweenTests;
+  }
 
   @Override
   protected final void beforeClass() throws Exception {
     cleanZookeeperData(_conf);
     startZkServer();
+    resetZkNamespace();
+    onBeforeClass();
   }
 
   @Override
   protected final void afterClass() throws Exception {
+    onAfterClass();
     stopZkServer();
     cleanZookeeperData(_conf);
     RPC.stopClient();
@@ -44,7 +58,9 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
 
   @Override
   protected final void onSetUp() throws Exception {
-    resetZkNamespace();
+    if (_resetZkNamespaceBetweenTests) {
+      resetZkNamespace();
+    }
     onSetUp2();
   }
 
@@ -56,6 +72,14 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
     }
     zkClient.createDefaultNameSpace();
     zkClient.close();
+  }
+
+  protected void onBeforeClass() throws Exception {
+    // subclasses may override
+  }
+
+  protected void onAfterClass() throws Exception {
+    // subclasses may override
   }
 
   protected void onSetUp2() throws Exception {
@@ -146,6 +170,21 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
       Thread.sleep(500);
     }
     assertEquals(childCount, client.getChildren(path).size());
+  }
+
+  protected void waitOnNodes(MasterStartThread masterThread, int nodeCount) throws InterruptedException {
+    long startWait = System.currentTimeMillis();
+    ZKClient zkClient = masterThread.getZkClient();
+    ZkLock eventLock = zkClient.getEventLock();
+    eventLock.lock();
+    while (masterThread.getMaster().getNodes().size() != nodeCount) {
+      if (System.currentTimeMillis() - startWait > 1000 * 60) {
+        break;
+      }
+      eventLock.getDataChangedCondition().await(10, TimeUnit.SECONDS);
+    }
+    eventLock.unlock();
+    assertEquals(nodeCount, masterThread.getMaster().getNodes().size());
   }
 
   protected class MasterStartThread extends Thread {
