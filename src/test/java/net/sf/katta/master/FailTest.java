@@ -37,10 +37,9 @@ import org.apache.lucene.analysis.standard.StandardAnalyzer;
 public class FailTest extends AbstractKattaTest {
 
   public void testMasterFail() throws Exception {
-    createZkServer();
-    final ZKClient nodeClient = new ZKClient(conf);
-    final ZKClient masterClient = new ZKClient(conf);
-    final ZKClient secMasterClient = new ZKClient(conf);
+    final ZKClient nodeClient = new ZKClient(_conf);
+    final ZKClient masterClient = new ZKClient(_conf);
+    final ZKClient secMasterClient = new ZKClient(_conf);
 
     final Node node = new Node(nodeClient);
     Thread clientThread = new Thread(new Runnable() {
@@ -82,8 +81,7 @@ public class FailTest extends AbstractKattaTest {
   }
 
   public void testNodeFailure() throws Exception {
-    createZkServer();
-    final ZKClient zkClientMaster = new ZKClient(conf);
+    final ZKClient zkClientMaster = new ZKClient(_conf);
     final Master master = new Master(zkClientMaster);
     Thread masterThread = createStartMasterThread(master);
     masterThread.start();
@@ -92,17 +90,17 @@ public class FailTest extends AbstractKattaTest {
     final NodeConfiguration sconf1 = new NodeConfiguration();
     final String defaulFolder = sconf1.getShardFolder().getAbsolutePath();
     sconf1.setShardFolder(defaulFolder + "/" + 1);
-    final DummyNode s1 = new DummyNode(conf, sconf1);
+    final DummyNode s1 = new DummyNode(_conf, sconf1);
 
     final NodeConfiguration sconf2 = new NodeConfiguration();
     final String defaulFolder2 = sconf2.getShardFolder().getAbsolutePath();
     sconf2.setShardFolder(defaulFolder2 + "/" + 2);
-    final DummyNode s2 = new DummyNode(conf, sconf2);
+    final DummyNode s2 = new DummyNode(_conf, sconf2);
 
     final NodeConfiguration sconf3 = new NodeConfiguration();
     final String defaulFolder3 = sconf3.getShardFolder().getAbsolutePath();
     sconf3.setShardFolder(defaulFolder3 + "/" + 3);
-    final DummyNode s3 = new DummyNode(conf, sconf3);
+    final DummyNode s3 = new DummyNode(_conf, sconf3);
     waitForChilds(zkClientMaster, ZkPathes.NODES, 3);
     masterThread.join();
     waitForPath(zkClientMaster, ZkPathes.MASTER);

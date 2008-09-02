@@ -30,9 +30,7 @@ import net.sf.katta.node.Hits;
 import net.sf.katta.node.Node;
 import net.sf.katta.node.Query;
 import net.sf.katta.util.KattaException;
-import net.sf.katta.zk.ZKClient;
 import net.sf.katta.zk.ZkPathes;
-import net.sf.katta.zk.ZkServer;
 
 import org.apache.hadoop.io.MapWritable;
 import org.apache.hadoop.io.Text;
@@ -52,7 +50,6 @@ public class ClientTest extends AbstractKattaTest {
   private static final String INDEX2 = "index2";
   private static final String INDEX3 = "index3";
 
-  private ZkServer _zkServer;
   private Node _node1;
   private Node _node2;
   private Master _master;
@@ -60,18 +57,18 @@ public class ClientTest extends AbstractKattaTest {
   private IClient _client;
 
   @Override
-  protected void onSetUp() throws Exception {
-    _zkServer = new ZkServer(conf);
+  protected void onSetUp2() throws Exception {
+    MasterStartThread masterStartThread = startMaster();
+    _master = masterStartThread.getMaster();
 
-    ZKClient zkClientMaster = new ZKClient(conf);
-    _master = new Master(zkClientMaster);
-    Thread masterThread = createStartMasterThread(_master);
-    masterThread.start();
-
-    _node1 = startNodeServer(new ZKClient(conf));
-    _node2 = startNodeServer(new ZKClient(conf));
-    masterThread.join();
-    waitForChilds(zkClientMaster, ZkPathes.NODES, 2);
+    NodeStartThread nodeStartThread1 = startNode();
+    NodeStartThread nodeStartThread2 = startNode();
+    _node1 = nodeStartThread1.getNode();
+    _node2 = nodeStartThread2.getNode();
+    masterStartThread.join();
+    nodeStartThread1.join();
+    nodeStartThread2.join();
+    waitForChilds(masterStartThread.getZkClient(), ZkPathes.NODES, 2);
 
     _katta = new Katta();
     _katta.addIndex(INDEX1, "src/test/testIndexA/", StandardAnalyzer.class.getName(), 1);
@@ -88,7 +85,6 @@ public class ClientTest extends AbstractKattaTest {
     _node1.shutdown();
     _node2.shutdown();
     _master.shutdown();
-    _zkServer.shutdown();
     RPC.stopClient();
   }
 

@@ -4,7 +4,6 @@ import java.util.concurrent.TimeUnit;
 
 import net.sf.katta.master.Master;
 import net.sf.katta.node.Node;
-import net.sf.katta.node.Node.NodeState;
 import net.sf.katta.testutil.Gateway;
 import net.sf.katta.util.ZkConfiguration;
 import net.sf.katta.zk.ZKClient;
@@ -24,22 +23,17 @@ public class NodeMasterReconnectTest extends AbstractKattaTest {
     Gateway gateway = new Gateway(GATEWAY_PORT, ZK_SERVER_PORT);
     gateway.start();
 
-    createZkServer();
-    ZKClient zkMasterClient = new ZKClient(conf);
+    MasterStartThread masterStartThread = startMaster();
     ZKClient zkNodeClient = new ZKClient(gatewayConf);
+    Node node = new Node(zkNodeClient);
+    node.start();
+    masterStartThread.join();
+    ZKClient zkMasterClient = masterStartThread.getZkClient();
 
-    Master master = new Master(zkMasterClient);
-    Thread masterThread = createStartMasterThread(master);
-    masterThread.start();
+    Master master = masterStartThread.getMaster();
 
-    Node node = startNodeServer(zkNodeClient);
-    masterThread.join();
     assertTrue(zkMasterClient.getZookeeperState().equals(ZooKeeper.States.CONNECTED));
     assertTrue(zkNodeClient.getZookeeperState().equals(ZooKeeper.States.CONNECTED));
-
-    while (node.getState() == NodeState.STARTING) {
-      Thread.sleep(500);
-    }
 
     // check node-master link
     assertEquals("wrong node count:" + master.getNodes(), 1, master.getNodes().size());
@@ -61,7 +55,7 @@ public class NodeMasterReconnectTest extends AbstractKattaTest {
     assertEquals(1, master.getNodes().size());
 
     node.shutdown();
-    zkMasterClient.close();
+    masterStartThread.shutdown();
     gateway.interruptAndJoin();
   }
 }

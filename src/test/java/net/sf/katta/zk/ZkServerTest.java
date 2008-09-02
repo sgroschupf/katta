@@ -30,18 +30,19 @@ import com.yahoo.zookeeper.proto.WatcherEvent;
 public class ZkServerTest extends AbstractKattaTest implements Watcher {
 
   public void testServer() throws Exception {
+    stopZkServer();
     final String path = "/testPath";
     ZooKeeper zk = null;
     try {
-      zk = new ZooKeeper(conf.getZKServers(), conf.getZKClientPort(), this);
+      zk = new ZooKeeper(_conf.getZKServers(), _conf.getZKClientPort(), this);
       zk.create(path, null, Ids.OPEN_ACL_UNSAFE, 0);
       fail("no server yet started");
     } catch (final Exception e) {
       zk.close();
     }
 
-    createZkServer();
-    zk = new ZooKeeper(conf.getZKServers(), conf.getZKClientPort(), this);
+    startZkServer();
+    zk = new ZooKeeper(_conf.getZKServers(), _conf.getZKClientPort(), this);
     while (zk.getState() == States.CONNECTING) {
       Thread.sleep(500);
     }

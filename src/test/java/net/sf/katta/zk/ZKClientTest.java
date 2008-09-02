@@ -31,21 +31,21 @@ import org.apache.hadoop.io.Writable;
 public class ZKClientTest extends AbstractKattaTest {
 
   public void testStart() throws Exception {
-    final ZKClient client = new ZKClient(conf);
+    stopZkServer();
+    final ZKClient client = new ZKClient(_conf);
     try {
       client.start(500);
       fail("this should fail, since no zk server is yet started.");
     } catch (final Exception e) {
       // expected
     }
-    createZkServer();
+    startZkServer();
     client.start(30000);// now should work
     client.close();
   }
 
   public void testCreateFolder() throws KattaException {
-    createZkServer();
-    final ZKClient client = new ZKClient(conf);
+    final ZKClient client = new ZKClient(_conf);
     final String path = "/katta";
     client.start(10000);
     if (client.exists(path)) {
@@ -76,8 +76,7 @@ public class ZKClientTest extends AbstractKattaTest {
   }
 
   public void testChildNotifications() throws Exception {
-    createZkServer();
-    final ZKClient client = new ZKClient(conf);
+    final ZKClient client = new ZKClient(_conf);
     client.start(10000);
     final MyListener listener = new MyListener();
     final String file = "/childFile";
@@ -97,8 +96,7 @@ public class ZKClientTest extends AbstractKattaTest {
   }
 
   public void testDataNotifications() throws Exception {
-    createZkServer();
-    final ZKClient client = new ZKClient(conf);
+    final ZKClient client = new ZKClient(_conf);
     client.start(10000);
     final MyListener listener = new MyListener();
     final String katta = "/dataFile";

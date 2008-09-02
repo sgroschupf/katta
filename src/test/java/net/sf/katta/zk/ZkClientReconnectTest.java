@@ -12,8 +12,7 @@ public class ZkClientReconnectTest extends AbstractKattaTest {
   int ZK_SERVER_PORT = 2181;
 
   public void testServerDown() throws Exception {
-    ZkServer server = new ZkServer(conf);
-    ZKClient client = new ZKClient(conf);
+    ZKClient client = new ZKClient(_conf);
 
     // connect sever and client
     client.start(30000);
@@ -21,19 +20,18 @@ public class ZkClientReconnectTest extends AbstractKattaTest {
     System.out.println("test client is connected");
 
     // disconnect server
-    server.shutdown();
+    stopZkServer();
     waitForStatus(client, ZooKeeper.States.CONNECTING);
     assertTrue(client.getZookeeperState().equals(ZooKeeper.States.CONNECTING));
     System.out.println("test client is re-connecting");
 
     // restart server
-    server = new ZkServer(conf);
+    startZkServer();
     waitForStatus(client, ZooKeeper.States.CONNECTED);
     assertTrue(client.getZookeeperState().equals(ZooKeeper.States.CONNECTED));
     System.out.println("test client is connected again");
 
     client.close();
-    server.shutdown();
   }
 
   public void testNetworkDown() throws Exception {

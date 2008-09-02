@@ -23,8 +23,6 @@ import net.sf.katta.AbstractKattaTest;
 import net.sf.katta.Katta;
 import net.sf.katta.index.IndexMetaData;
 import net.sf.katta.index.IndexMetaData.IndexState;
-import net.sf.katta.master.Master;
-import net.sf.katta.zk.ZKClient;
 import net.sf.katta.zk.ZkPathes;
 
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
@@ -32,18 +30,11 @@ import org.apache.lucene.analysis.standard.StandardAnalyzer;
 public class NodeTest extends AbstractKattaTest {
 
   public void testShardStatusSuccess() throws Exception {
-    // start master
-    createZkServer();
-    ZKClient zkClientMaster = new ZKClient(conf);
-    ZKClient zkClientNode = new ZKClient(conf);
-
-    final Master master = new Master(zkClientMaster);
-    Thread masterThread = createStartMasterThread(master);
-    masterThread.start();
-
-    Node node = startNodeServer(zkClientNode);
+    MasterStartThread masterThread = startMaster();
+    NodeStartThread nodeThread = startNode();
     masterThread.join();
-    waitForChilds(zkClientMaster, ZkPathes.NODES, 1);
+    nodeThread.join();
+    waitForChilds(masterThread.getZkClient(), ZkPathes.NODES, 1);
 
     // deploy index
     Katta katta = new Katta();
@@ -52,27 +43,21 @@ public class NodeTest extends AbstractKattaTest {
     // test
     final String indexPath = ZkPathes.INDEXES + "/index";
     IndexMetaData indexMetaData = new IndexMetaData();
-    zkClientMaster.readData(indexPath, indexMetaData);
+    masterThread.getZkClient().readData(indexPath, indexMetaData);
     assertEquals(IndexMetaData.IndexState.DEPLOYED, indexMetaData.getState());
 
     // close all
     katta.close();
-    node.shutdown();
-    master.shutdown();
+    nodeThread.shutdown();
+    masterThread.shutdown();
   }
 
   public void testShardStatusNoSuccessNoIndexGiven() throws Exception {
-    createZkServer();
-    ZKClient zkClientMaster = new ZKClient(conf);
-    ZKClient zkClientNode = new ZKClient(conf);
-
-    final Master master = new Master(zkClientMaster);
-    Thread masterThread = createStartMasterThread(master);
-    masterThread.start();
-
-    Node node = startNodeServer(zkClientNode);
+    MasterStartThread masterThread = startMaster();
+    NodeStartThread nodeThread = startNode();
     masterThread.join();
-    AbstractKattaTest.waitForChilds(zkClientMaster, ZkPathes.NODES, 1);
+    nodeThread.join();
+    waitForChilds(masterThread.getZkClient(), ZkPathes.NODES, 1);
 
     // deploy index
     Katta katta = new Katta();
@@ -81,31 +66,25 @@ public class NodeTest extends AbstractKattaTest {
     // test
     final String indexPath = ZkPathes.INDEXES + "/index";
     IndexMetaData indexMetaData = new IndexMetaData();
-    zkClientMaster.readData(indexPath, indexMetaData);
+    masterThread.getZkClient().readData(indexPath, indexMetaData);
     assertEquals(IndexState.ERROR, indexMetaData.getState());
     assertNotNull(indexMetaData.getErrorMessage());
 
     // close all
     katta.close();
-    node.shutdown();
-    master.shutdown();
+    nodeThread.shutdown();
+    masterThread.shutdown();
   }
 
   public void testDeployShardAfterRestart() throws Exception {
-    // start master
-    createZkServer();
-    ZKClient zkClientMaster = new ZKClient(conf);
-    ZKClient zkClientNode = new ZKClient(conf);
-
-    final Master master = new Master(zkClientMaster);
-    Thread masterThread = createStartMasterThread(master);
-    masterThread.start();
-
-    Node node = startNodeServer(zkClientNode);
+    MasterStartThread masterThread = startMaster();
+    NodeStartThread nodeThread = startNode();
     masterThread.join();
-    waitForChilds(zkClientMaster, ZkPathes.NODES, 1);
+    nodeThread.join();
+    waitForChilds(masterThread.getZkClient(), ZkPathes.NODES, 1);
 
     // deploy index
+    Node node = nodeThread.getNode();
     assertEquals(0, node.getDeployedShards().size());
     Katta katta = new Katta();
     String index = "index";
@@ -114,17 +93,19 @@ public class NodeTest extends AbstractKattaTest {
     // test
     assertTrue(node.getDeployedShards().size() > 0);
     IndexMetaData indexMetaData = new IndexMetaData();
-    zkClientMaster.readData(ZkPathes.getIndexPath(index), indexMetaData);
+    masterThread.getZkClient().readData(ZkPathes.getIndexPath(index), indexMetaData);
     assertEquals(IndexMetaData.IndexState.DEPLOYED, indexMetaData.getState());
 
-    shutdownNode(node);
-    node = startNodeServer(zkClientNode);
+    nodeThread.shutdown();
+    nodeThread = startNode();
+    nodeThread.join();
+    node = nodeThread.getNode();
     assertTrue(node.getDeployedShards().size() > 0);
 
     // close all
     katta.close();
-    node.shutdown();
-    master.shutdown();
+    nodeThread.shutdown();
+    masterThread.shutdown();
   }
 
   //
