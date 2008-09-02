@@ -137,6 +137,9 @@ public class Client implements IClient {
         }
       }
     }
+    if (!failedNodes.isEmpty()) {
+      _policy.setShardsAndNodes(_indexToShards, _shardsToNode);
+    }
   }
 
   protected ISearch getNodeProxy(final String node) throws IOException {
