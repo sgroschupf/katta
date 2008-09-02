@@ -24,6 +24,8 @@ import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -66,11 +68,13 @@ public class Client implements IClient {
 
   protected final Map<String, List<String>> _indexToShards = new HashMap<String, List<String>>();
   protected final Map<String, List<String>> _shardsToNode = new HashMap<String, List<String>>();
-  protected final Map<String, ISearch> _nodes = new HashMap<String, ISearch>();
+  protected final Map<String, ISearch> _nodeNames2Proxy = new HashMap<String, ISearch>();
 
   protected final INodeSelectionPolicy _policy;
   private long _queryCount = 0;
   private final long _start;
+
+  private Configuration _hadoopConf = new Configuration();
 
   public Client(final INodeSelectionPolicy nodeSelectionPolicy) throws KattaException {
     this(nodeSelectionPolicy, new ZkConfiguration());
@@ -99,7 +103,7 @@ public class Client implements IClient {
     for (final String indexName : indexes) {
       loadShardsFromIndex(indexName);
     }
-    // set datat for policy
+    // set data for policy
     if (_indexToShards.size() != 0 && _shardsToNode.size() != 0) {
       _policy.setShardsAndNodes(_indexToShards, _shardsToNode);
       // create node connections..
@@ -108,43 +112,45 @@ public class Client implements IClient {
   }
 
   protected void createNodeConnections() {
-    final Collection<List<String>> values = _shardsToNode.values();
-    for (final List<String> nodeList : values) {
+    final Collection<List<String>> listOfNodeLists = _shardsToNode.values();
+    Set<String> failedNodes = new HashSet<String>();
+    for (final List<String> nodeList : listOfNodeLists) {
       for (final String node : nodeList) {
-        if (!_nodes.containsKey(node)) {
-          final ISearch nodeProxy = getNodeProxy(node);
-          _nodes.put(node, nodeProxy);
+        try {
+          if (!_nodeNames2Proxy.containsKey(node) && !failedNodes.contains(node)) {
+            final ISearch nodeProxy = getNodeProxy(node);
+            _nodeNames2Proxy.put(node, nodeProxy);
+          }
+        } catch (Exception e) {
+          LOG.error("could not create proxy for node " + node);
+          failedNodes.add(node);
+        }
+      }
+    }
+
+    // cleanup "unreachable" nodes
+    for (final List<String> nodeList : listOfNodeLists) {
+      for (Iterator iterator = nodeList.iterator(); iterator.hasNext();) {
+        String node = (String) iterator.next();
+        if (failedNodes.contains(node)) {
+          iterator.remove();
         }
       }
     }
   }
 
-  protected ISearch getNodeProxy(final String node) {
-    ISearch nodeProxy = null;
-    final Configuration configuration = new Configuration();
-    final int splitPoint = node.indexOf(':');
-    if (-1 != splitPoint) {
-      LOG.debug("connecting to node: " + node);
-      final String serverName = node.substring(0, splitPoint);
-      final String port = node.substring(splitPoint + 1, node.length());
-      try {
-        final InetSocketAddress inetSocketAddress = new InetSocketAddress(serverName, Integer.parseInt(port));
-        nodeProxy = (ISearch) RPC.getProxy(ISearch.class, 0L, inetSocketAddress, configuration);
-      } catch (final IOException e) {
-        LOG.warn("One of the nodes cannot be reached.", e);
-      } catch (final NumberFormatException e) {
-        LOG.warn("The supplied node port is wrong '" + port + "'");
-      }
-    } else {
-      LOG.warn("The format of the supplied node address is wrong: '" + node
-          + "'. It should be a server name with a port number devided by a ':'.");
-    }
+  protected ISearch getNodeProxy(final String node) throws IOException {
+    LOG.debug("creating proxy for node: " + node);
 
-    if (nodeProxy == null) {
-      throw new RuntimeException("Unable to create node proxy");
+    String[] hostName_port = node.split(":");
+    if (hostName_port.length != 2) {
+      throw new RuntimeException("invalid node name format '" + node
+          + "' (It should be a host name with a port number devided by a ':')");
     }
-
-    return nodeProxy;
+    final String hostName = hostName_port[0];
+    final String port = hostName_port[1];
+    final InetSocketAddress inetSocketAddress = new InetSocketAddress(hostName, Integer.parseInt(port));
+    return (ISearch) RPC.getProxy(ISearch.class, 0L, inetSocketAddress, _hadoopConf);
   }
 
   protected void loadShardsFromIndex(final String indexName) throws KattaException {
@@ -184,7 +190,7 @@ public class Client implements IClient {
     final List<Thread> searchThreads = new ArrayList<Thread>(nodeShardsMap.size());
     final Set<String> keySet = nodeShardsMap.keySet();
     for (final String node : keySet) {
-      final ISearch searchNode = _nodes.get(node);
+      final ISearch searchNode = _nodeNames2Proxy.get(node);
       final List<String> shards = nodeShardsMap.get(node);
       final Thread searchThread = new SearchThread(query, docFreqs, searchNode, shards, result, node, count);
       searchThread.start();
@@ -228,7 +234,7 @@ public class Client implements IClient {
     final List<Thread> searchThreads = new ArrayList<Thread>(nodeShardsMap.size());
     final Set<String> keySet = nodeShardsMap.keySet();
     for (final String node : keySet) {
-      final ISearch searchNode = _nodes.get(node);
+      final ISearch searchNode = _nodeNames2Proxy.get(node);
       final List<String> shards = nodeShardsMap.get(node);
       final Thread documentFrequencyThread = new GetDocumentFrequencyThread(searchNode, query, docFreqs, node, shards);
       documentFrequencyThread.start();
@@ -289,7 +295,7 @@ public class Client implements IClient {
   }
 
   public MapWritable getDetails(final Hit hit, final String[] fields) throws IOException {
-    final ISearch searchNode = _nodes.get(hit.getNode());
+    final ISearch searchNode = _nodeNames2Proxy.get(hit.getNode());
     // TODO only risk would be that between search and get detail the node
     // crashs.
     MapWritable details;
@@ -308,18 +314,22 @@ public class Client implements IClient {
       LOG.debug("Shard event in client.");
       // a shard got a new node or one was removed...
       final String shardName = ZkPathes.getName(parentPath);
-      final List<String> oldNodes = _shardsToNode.get(shardName);
-      final List<String> toRemove = CollectionUtil.getListOfRemoved(oldNodes, currentNodes);
+      final List<String> knownShardNodes = _shardsToNode.get(shardName);
+      final List<String> toRemove = CollectionUtil.getListOfRemoved(knownShardNodes, currentNodes);
       for (final String node : toRemove) {
-        oldNodes.remove(node);
+        knownShardNodes.remove(node);
         // TODO do we need to shut thoese down..? (hadoop0.17 has
         // RPC.stopProxy())
-        _nodes.remove(node);
+        _nodeNames2Proxy.remove(node);
       }
-      final List<String> toAdd = CollectionUtil.getListOfAdded(oldNodes, currentNodes);
+      final List<String> toAdd = CollectionUtil.getListOfAdded(knownShardNodes, currentNodes);
       for (final String node : toAdd) {
-        oldNodes.add(node);
-        _nodes.put(node, getNodeProxy(node));
+        knownShardNodes.add(node);
+        try {
+          _nodeNames2Proxy.put(node, getNodeProxy(node));
+        } catch (Exception e) {
+          LOG.error("could not create proxy for node " + node, e);
+        }
       }
     }
   }
@@ -348,7 +358,7 @@ public class Client implements IClient {
     final List<Thread> searchThreads = new ArrayList<Thread>();
     final Set<String> keySet = nodeShardsMap.keySet();
     for (final String node : keySet) {
-      final ISearch searchNode = _nodes.get(node);
+      final ISearch searchNode = _nodeNames2Proxy.get(node);
       final List<String> shards = nodeShardsMap.get(node);
       final Runnable searchRunnable = new ResultCountThread(query, searchNode, shards, result, node);
       final Thread searchThread = new Thread(searchRunnable, node);
@@ -505,7 +515,7 @@ public class Client implements IClient {
         }
       } catch (final IOException e) {
         LOG.error("Cannot open searcher, remove " + _node + " from connections.", e);
-        _nodes.remove(_node);
+        _nodeNames2Proxy.remove(_node);
       }
     }
 
