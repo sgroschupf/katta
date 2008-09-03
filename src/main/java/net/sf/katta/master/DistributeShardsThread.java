@@ -375,25 +375,29 @@ public class DistributeShardsThread extends Thread {
 
   private Map<String, AssignedShard> readShardsFromFs(final String index, final IndexMetaData indexMetaData)
       throws IndexInvalidException {
-    final String indexPath = indexMetaData.getPath();
+    final String indexPathString = indexMetaData.getPath();
     // get shard folders from source
     URI uri;
     try {
-      uri = new URI(indexPath);
+      uri = new URI(indexPathString);
     } catch (final URISyntaxException e) {
-      throw new IndexInvalidException("unable to parse index path uri '" + indexPath
+      throw new IndexInvalidException("unable to parse index path uri '" + indexPathString
           + "', make sure it starts with file:// or hdfs:// ", e);
     }
     FileSystem fileSystem;
     try {
       fileSystem = FileSystem.get(uri, new Configuration());
     } catch (final IOException e) {
-      throw new IndexInvalidException("unable to retrive file system for index path '" + indexPath
+      throw new IndexInvalidException("unable to retrive file system for index path '" + indexPathString
           + "', make sure your path starts with hadoop support prefix like file:// or hdfs://", e);
     }
     Map<String, AssignedShard> shard2AssignedShard = new HashMap<String, AssignedShard>();
     try {
-      final FileStatus[] listStatus = fileSystem.listStatus(new Path(indexPath), new PathFilter() {
+      Path indexPath = new Path(indexPathString);
+      if (!fileSystem.exists(indexPath)) {
+        throw new IndexInvalidException("index path '" + uri + "' does not exists");
+      }
+      final FileStatus[] listStatus = fileSystem.listStatus(indexPath, new PathFilter() {
         public boolean accept(final Path aPath) {
           return !aPath.getName().startsWith(".");
         }
@@ -405,7 +409,7 @@ public class DistributeShardsThread extends Thread {
         }
       }
     } catch (final IOException e) {
-      throw new IndexInvalidException("could not access index path: " + indexPath, e);
+      throw new IndexInvalidException("could not access index path: " + indexPathString, e);
     }
 
     if (shard2AssignedShard.size() == 0) {
