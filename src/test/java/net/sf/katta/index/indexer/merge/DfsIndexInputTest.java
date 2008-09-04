@@ -23,6 +23,7 @@ import java.io.File;
 import java.io.IOException;
 
 import junit.framework.TestCase;
+import net.sf.katta.testutil.TestResources;
 import net.sf.katta.testutil.TestUtil;
 
 import org.apache.hadoop.conf.Configuration;
@@ -47,7 +48,8 @@ public class DfsIndexInputTest extends TestCase {
   public void testReadIndex() throws IOException {
     Configuration configuration = new Configuration();
     FileSystem fileSystem = FileSystem.get(configuration);
-    Directory directory = new DfsIndexDirectory(fileSystem, new Path("src/test/testIndexB/aIndex.zip"), new Path(_file.getAbsolutePath()));
+    Directory directory = new DfsIndexDirectory(fileSystem, new Path(TestResources.SHARD1.getAbsolutePath()), new Path(
+        _file.getAbsolutePath()));
     IndexReader reader = IndexReader.open(directory);
     int maxDocs = reader.maxDoc();
     assertEquals(2, maxDocs);

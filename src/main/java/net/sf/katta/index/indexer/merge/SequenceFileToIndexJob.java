@@ -19,13 +19,8 @@
  */
 package net.sf.katta.index.indexer.merge;
 
-import java.io.InputStream;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-
-import net.sf.katta.index.indexer.IndexJobConf;
 import net.sf.katta.index.indexer.ShardSelectionMapper;
+import net.sf.katta.util.IndexConfiguration;
 
 import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.conf.Configuration;
@@ -43,13 +38,8 @@ public class SequenceFileToIndexJob implements Configurable {
 
   private Configuration _configuration;
 
-  private static final DateFormat DATE_FORMAT = new SimpleDateFormat("yyyyMMdd.hhmmss");
-  public static final String MERGED_INDEX_PREFIX = "mergedIndex-";
-
-  public String sequenceFileToIndex(Path sequenceFilePath, Path outputFolder) throws Exception {
-
-    InputStream resourceAsStream = SequenceFileToIndexJob.class.getResourceAsStream("/katta.index.properties");
-    JobConf jobConf = new IndexJobConf().create(_configuration, resourceAsStream);
+  public void sequenceFileToIndex(Path sequenceFilePath, Path outputFolder) throws Exception {
+    JobConf jobConf = new IndexConfiguration().createJobConf(_configuration);
 
     jobConf.setJobName("SequenceFileToIndex");
 
@@ -72,22 +62,18 @@ public class SequenceFileToIndexJob implements Configurable {
     // will be mapped out as value: BytesWritable
     jobConf.set("index.input.key.class", Text.class.getName());
     jobConf.set("index.input.value.class", DocumentInformation.class.getName());
-    String indexFolder = MERGED_INDEX_PREFIX + DATE_FORMAT.format(new Date());
 
-    Path newOutputPath = new Path(jobConf.getOutputPath(), indexFolder);
+    Path newOutputPath = new Path(jobConf.get(IndexConfiguration.MAPRED_OUTPUT_PATH), outputFolder.getName());
     LOG.info("set mapred folder to: " + newOutputPath);
     jobConf.setOutputPath(newOutputPath);
 
-    String uploadPath = outputFolder.toString() + "/" + indexFolder;
-    LOG.info("set index upload folder: '" + uploadPath + "'");
-    jobConf.set(IndexJobConf.INDEX_UPLOAD_PATH, uploadPath);
+    LOG.info("set index upload folder: '" + outputFolder + "'");
+    jobConf.set(IndexConfiguration.INDEX_UPLOAD_PATH, outputFolder.toString());
 
     jobConf.set("document.factory.class", DfsIndexDocumentFactory.class.getName());
 
     // run the job
     JobClient.runJob(jobConf);
-
-    return indexFolder;
   }
 
   public void setConf(Configuration configuration) {
@@ -102,6 +88,8 @@ public class SequenceFileToIndexJob implements Configurable {
     SequenceFileToIndexJob mergeJob = new SequenceFileToIndexJob();
     JobConf jobConf = new JobConf();
     jobConf.setJarByClass(SequenceFileToIndexJob.class);
+    new IndexConfiguration().enrichJobConf(jobConf, IndexConfiguration.INDEX_SHARD_KEY_GENERATOR_CLASS);
+
     mergeJob.setConf(jobConf);
     mergeJob.sequenceFileToIndex(new Path(args[0]), new Path("/tmp/" + System.currentTimeMillis()));
 

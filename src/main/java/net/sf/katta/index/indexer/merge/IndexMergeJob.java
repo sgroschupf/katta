@@ -19,16 +19,14 @@
  */
 package net.sf.katta.index.indexer.merge;
 
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.Date;
+import java.util.Arrays;
+
+import net.sf.katta.util.IndexConfiguration;
 
 import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.log4j.Logger;
 
@@ -38,10 +36,21 @@ public class IndexMergeJob implements Configurable {
 
   private Configuration _configuration;
 
-  private static final DateFormat DATE_FORMAT = new SimpleDateFormat("yyyyMMdd.hhmmss");
+  /**
+   * Merges all index shards inside the given kattaIndices path to one index
+   * with optimal shard count. Note that the kattaIndices path can span multiple
+   * indexes.
+   */
+  public void merge(Path kattaIndices, Path ouputPath) throws Exception {
+    merge(new Path[] { kattaIndices }, ouputPath);
+  }
 
-  public void merge(Path kattaIndices, Path ouputPath, Path archivePath) throws Exception {
-    LOG.info("collect all shards in this folder: " + kattaIndices);
+  /**
+   * Merges the shards from all given kattaIndices to one index with optimal
+   * shard count.
+   */
+  public void merge(Path[] kattaIndices, Path ouputPath) throws Exception {
+    LOG.info("merge indices " + Arrays.asList(kattaIndices) + " to " + ouputPath);
 
     Path dedupPath = new Path("/tmp/katta.index.dedup", "" + System.currentTimeMillis());
 
@@ -52,30 +61,12 @@ public class IndexMergeJob implements Configurable {
 
     SequenceFileToIndexJob sequenceFileToIndexJob = new SequenceFileToIndexJob();
     sequenceFileToIndexJob.setConf(_configuration);
-    final String mergedIndex = sequenceFileToIndexJob.sequenceFileToIndex(dedupPath, ouputPath);
+    sequenceFileToIndexJob.sequenceFileToIndex(dedupPath, ouputPath);
 
     LOG.info("delete sequence file and extracted indices: " + dedupPath);
     FileSystem fileSystem = FileSystem.get(_configuration);
     fileSystem.delete(dedupPath);
-
-    LOG.info("move katta content of folder'" + kattaIndices + "' into a archive folder '" + archivePath + "'");
-    PathFilter filter = new PathFilter() {
-      public boolean accept(Path path) {
-        return (!path.getName().equals(mergedIndex));
-      }
-    };
-    FileStatus[] fileStatuses = fileSystem.listStatus(kattaIndices, filter);
-
-    Path currentArchivePath = new Path(archivePath, kattaIndices.getName() + "-" + DATE_FORMAT.format(new Date()));
-    fileSystem.mkdirs(currentArchivePath);
-    for (FileStatus fileStatus : fileStatuses) {
-      Path path = fileStatus.getPath();
-      Path renamedPath = new Path(currentArchivePath, path.getName());
-      LOG.info("rename '" + path + "' to'" + renamedPath + "'");
-      fileSystem.rename(path, renamedPath);
-    }
-
-    LOG.info("merging done.");
+    LOG.info("merging done. find the result here: " + ouputPath);
   }
 
   public void setConf(Configuration configuration) {
@@ -89,11 +80,15 @@ public class IndexMergeJob implements Configurable {
   public static void main(String[] args) throws Exception {
     Path kattaIndices = new Path(args[0]);
     Path out = new Path(args[1]);
-    Path archive = new Path(args[2]);
-    IndexMergeJob job = new IndexMergeJob();
+
     JobConf jobConf = new JobConf();
+    IndexMergeJob job = new IndexMergeJob();
     jobConf.setJarByClass(IndexMergeJob.class);
+    IndexConfiguration indexConfiguration = new IndexConfiguration();
+    indexConfiguration.enrichJobConf(jobConf, DfsIndexInputFormat.DOCUMENT_INFORMATION);
+    indexConfiguration.enrichJobConf(jobConf, IndexConfiguration.INDEX_SHARD_KEY_GENERATOR_CLASS);
+
     job.setConf(jobConf);
-    job.merge(kattaIndices, out, archive);
+    job.merge(kattaIndices, out);
   }
 }

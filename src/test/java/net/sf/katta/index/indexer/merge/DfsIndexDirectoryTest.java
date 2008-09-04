@@ -25,6 +25,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import junit.framework.TestCase;
+import net.sf.katta.testutil.TestResources;
 import net.sf.katta.testutil.TestUtil;
 
 import org.apache.hadoop.conf.Configuration;
@@ -47,17 +48,18 @@ public class DfsIndexDirectoryTest extends TestCase {
   public void testFileExists() throws IOException {
     Configuration configuration = new Configuration();
     FileSystem fileSystem = FileSystem.get(configuration);
-    Directory directory = new DfsIndexDirectory(fileSystem, new Path("src/test/testIndexB/aIndex.zip"), new Path(_file.getAbsolutePath()));
+    Directory directory = new DfsIndexDirectory(fileSystem, new Path(TestResources.SHARD1.getAbsolutePath()), new Path(
+        _file.getAbsolutePath()));
     assertTrue(directory.fileExists("segments.gen"));
   }
 
   public void testListFiles() throws IOException {
     Configuration configuration = new Configuration();
     FileSystem fileSystem = FileSystem.get(configuration);
-    Directory directory = new DfsIndexDirectory(fileSystem, new Path("src/test/testIndexB/aIndex.zip"), new Path(_file.getAbsolutePath()));
+    Directory directory = new DfsIndexDirectory(fileSystem, new Path(TestResources.SHARD1.getAbsolutePath()), new Path(
+        _file.getAbsolutePath()));
     String[] strings = directory.list();
     List<String> list = Arrays.asList(strings);
     assertEquals(3, list.size());
   }
 }
-

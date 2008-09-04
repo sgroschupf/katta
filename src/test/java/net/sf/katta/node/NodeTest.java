@@ -23,6 +23,7 @@ import net.sf.katta.AbstractKattaTest;
 import net.sf.katta.Katta;
 import net.sf.katta.index.IndexMetaData;
 import net.sf.katta.index.IndexMetaData.IndexState;
+import net.sf.katta.testutil.TestResources;
 import net.sf.katta.zk.ZkPathes;
 
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
@@ -38,7 +39,7 @@ public class NodeTest extends AbstractKattaTest {
 
     // deploy index
     Katta katta = new Katta();
-    katta.addIndex("index", "src/test/testIndexA/", StandardAnalyzer.class.getName(), 1);
+    katta.addIndex("index", TestResources.INDEX1.getAbsolutePath(), StandardAnalyzer.class.getName(), 1);
 
     // test
     final String indexPath = ZkPathes.INDEXES + "/index";
@@ -88,7 +89,7 @@ public class NodeTest extends AbstractKattaTest {
     assertEquals(0, node.getDeployedShards().size());
     Katta katta = new Katta();
     String index = "index";
-    katta.addIndex(index, "src/test/testIndexA/", StandardAnalyzer.class.getName(), 1);
+    katta.addIndex(index, TestResources.INDEX1.getAbsolutePath(), StandardAnalyzer.class.getName(), 1);
 
     // test
     assertTrue(node.getDeployedShards().size() > 0);

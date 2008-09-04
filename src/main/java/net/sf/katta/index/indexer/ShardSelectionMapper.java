@@ -21,6 +21,8 @@ package net.sf.katta.index.indexer;
 
 import java.io.IOException;
 
+import net.sf.katta.util.IndexConfiguration;
+
 import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.DataOutputBuffer;
 import org.apache.hadoop.io.Text;
@@ -54,14 +56,15 @@ public class ShardSelectionMapper implements Mapper {
   }
 
   public void configure(final JobConf jobconf) {
-    final Class<?> generator = jobconf.getClass(IndexJobConf.INDEX_SHARD_KEY_GENERATOR_CLASS, IShardKeyGenerator.class);
+    final Class<?> generator = jobconf.getClass(IndexConfiguration.INDEX_SHARD_KEY_GENERATOR_CLASS,
+        IShardKeyGenerator.class);
     LOG.debug("use shardKeyGenerator '" + generator.getName() + "' to generate shard keys");
     try {
       _shardKeyGenerator = (IShardKeyGenerator) generator.newInstance();
     } catch (final Exception e) {
       throw new RuntimeException("unable to instantiate shardKeyGenerator: ", e);
     }
-    _numOfShards = jobconf.getInt(IndexJobConf.INDEX_SHARD_COUNT, 10);
+    _numOfShards = jobconf.getInt(IndexConfiguration.INDEX_SHARD_COUNT, 10);
   }
 
   public void close() throws IOException {

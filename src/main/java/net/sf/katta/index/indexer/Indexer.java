@@ -23,6 +23,8 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Iterator;
 
+import net.sf.katta.util.IndexConfiguration;
+
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.DataInputBuffer;
@@ -75,16 +77,16 @@ public class Indexer implements Reducer<WritableComparable, Writable, WritableCo
     _factory = getDocumentFactory(jobConf);
     _indexPublisher = getPublisher(jobConf);
     _zipService = getZipper(jobConf);
-    _tmpIndexDirectory = jobConf.get(IndexJobConf.INDEX_TMP_DIRECTORY, (System.getProperty("java.io.tmpdir")))
+    _tmpIndexDirectory = jobConf.get(IndexConfiguration.INDEX_TMP_DIRECTORY, (System.getProperty("java.io.tmpdir")))
         + File.separator + System.currentTimeMillis();
-    _indexFlushThreshold = jobConf.getInt(IndexJobConf.FLUSH_THRESHOLD, 10);
-    _indexerMaxMerge = jobConf.getInt(IndexJobConf.INDEXER_MAX_MERGE, 10);
-    _indexerMergeFactor = jobConf.getInt(IndexJobConf.INDEXER_MERGE_FACTOR, 10);
-    _termIndexIntervall = jobConf.getInt(IndexJobConf.INDEXER_TERM_INTERVALL, 128);
-    _maxFieldLength = jobConf.getInt(IndexJobConf.INDEXER_MAX_FIELD_LENGTH, 10000);
-    _maxBufferedDocs = jobConf.getInt(IndexJobConf.INDEXER_MAX_BUFFERED_DOCS, 10);
-    final Class<?> inputKeyClass = jobConf.getClass(IndexJobConf.INPUT_KEY_CLASS, WritableComparable.class);
-    final Class<?> inputValueClass = jobConf.getClass(IndexJobConf.INPUT_VALUE_CLASS, Writable.class);
+    _indexFlushThreshold = jobConf.getInt(IndexConfiguration.FLUSH_THRESHOLD, 10);
+    _indexerMaxMerge = jobConf.getInt(IndexConfiguration.INDEXER_MAX_MERGE, 10);
+    _indexerMergeFactor = jobConf.getInt(IndexConfiguration.INDEXER_MERGE_FACTOR, 10);
+    _termIndexIntervall = jobConf.getInt(IndexConfiguration.INDEXER_TERM_INTERVALL, 128);
+    _maxFieldLength = jobConf.getInt(IndexConfiguration.INDEXER_MAX_FIELD_LENGTH, 10000);
+    _maxBufferedDocs = jobConf.getInt(IndexConfiguration.INDEXER_MAX_BUFFERED_DOCS, 10);
+    final Class<?> inputKeyClass = jobConf.getClass(IndexConfiguration.INPUT_KEY_CLASS, WritableComparable.class);
+    final Class<?> inputValueClass = jobConf.getClass(IndexConfiguration.INPUT_VALUE_CLASS, Writable.class);
     try {
       _inputKey = (WritableComparable) inputKeyClass.newInstance();
       _inputValue = (Writable) inputValueClass.newInstance();
@@ -182,7 +184,7 @@ public class Indexer implements Reducer<WritableComparable, Writable, WritableCo
 
   private IZipService getZipper(final JobConf jobConf) {
     IZipService zipService = new ZipService();
-    final String className = jobConf.get(IndexJobConf.INDEX_ZIP_CLASS);
+    final String className = jobConf.get(IndexConfiguration.INDEX_ZIP_CLASS);
     if (className != null) {
       try {
         final Class<IZipService> clazz = (Class<IZipService>) Class.forName(className);
@@ -196,7 +198,7 @@ public class Indexer implements Reducer<WritableComparable, Writable, WritableCo
 
   private IIndexPublisher getPublisher(final JobConf configuration) {
     IIndexPublisher distributer = new IndexUploader();
-    final String indexdistributerClass = configuration.get(IndexJobConf.INDEX_PUBLISHER_CLASS);
+    final String indexdistributerClass = configuration.get(IndexConfiguration.INDEX_PUBLISHER_CLASS);
     if (indexdistributerClass != null) {
       try {
         final Class<IIndexPublisher> clazz = (Class<IIndexPublisher>) Class.forName(indexdistributerClass);
@@ -217,7 +219,7 @@ public class Indexer implements Reducer<WritableComparable, Writable, WritableCo
   @SuppressWarnings("unchecked")
   private IDocumentFactory<WritableComparable, Writable> getDocumentFactory(final JobConf configuration) {
     IDocumentFactory<WritableComparable, Writable> factory;
-    final String converterClass = configuration.get(IndexJobConf.DOCUMENT_FACTORY_CLASS);
+    final String converterClass = configuration.get(IndexConfiguration.DOCUMENT_FACTORY_CLASS);
     try {
       final Class<IDocumentFactory> clazz = (Class<IDocumentFactory>) Class.forName(converterClass);
       factory = clazz.newInstance();

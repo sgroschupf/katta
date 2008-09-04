@@ -20,8 +20,8 @@
 package net.sf.katta.index.indexer.merge;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.util.Properties;
+
+import net.sf.katta.util.IndexConfiguration;
 
 import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.conf.Configuration;
@@ -39,10 +39,8 @@ public class IndexToSequenceFileJob implements Configurable {
 
   private Configuration _configuration;
 
-  public void indexToSequenceFile(Path indexPath, Path outputPath) throws IOException {
-
+  public void indexToSequenceFile(Path[] indexPathes, Path outputPath) throws IOException {
     JobConf jobConf = new JobConf(_configuration);
-
     jobConf.setJobName("IndexToSequenceFile");
 
     // input and output format
@@ -50,8 +48,10 @@ public class IndexToSequenceFileJob implements Configurable {
     jobConf.setOutputFormat(SequenceFileOutputFormat.class);
 
     // input and output path
-    LOG.info("read all shards from folder: " + indexPath);
-    jobConf.addInputPath(indexPath);
+    for (Path indexPath : indexPathes) {
+      LOG.info("read all shards from folder: " + indexPath);
+      jobConf.addInputPath(indexPath);
+    }
     LOG.info("write sequence file to: " + outputPath);
     jobConf.setOutputPath(outputPath);
 
@@ -63,16 +63,8 @@ public class IndexToSequenceFileJob implements Configurable {
     jobConf.setMapperClass(IdentityMapper.class);
     jobConf.setReducerClass(IndexDuplicateReducer.class);
 
-    // set document.duplicate.information.class
-    InputStream asStream = IndexToSequenceFileJob.class.getResourceAsStream("/katta.index.properties");
-    Properties properties = new Properties();
-    properties.load(asStream);
-    String className = (String) properties.get(DfsIndexInputFormat.DOCUMENT_INFORMATION);
-    jobConf.set("document.duplicate.information.class", className);
-
     // run the job
     JobClient.runJob(jobConf);
-
   }
 
   public void setConf(Configuration configuration) {
@@ -87,8 +79,10 @@ public class IndexToSequenceFileJob implements Configurable {
     IndexToSequenceFileJob index = new IndexToSequenceFileJob();
     JobConf jobConf = new JobConf();
     jobConf.setJarByClass(IndexToSequenceFileJob.class);
+    new IndexConfiguration().enrichJobConf(jobConf, DfsIndexInputFormat.DOCUMENT_INFORMATION);
+
     index.setConf(jobConf);
-    index.indexToSequenceFile(new Path(args[0]), new Path(args[1]));
+    index.indexToSequenceFile(new Path[] { new Path(args[0]) }, new Path(args[1]));
   }
 
 }

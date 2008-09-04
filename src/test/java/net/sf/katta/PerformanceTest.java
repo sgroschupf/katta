@@ -28,6 +28,7 @@ import net.sf.katta.client.IClient;
 import net.sf.katta.node.Hit;
 import net.sf.katta.node.Hits;
 import net.sf.katta.node.Query;
+import net.sf.katta.testutil.TestResources;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.zk.ZKClient;
 import net.sf.katta.zk.ZkPathes;
@@ -55,8 +56,8 @@ public class PerformanceTest extends AbstractKattaTest {
     waitForChilds(zkClientMaster, ZkPathes.NODES, 2);
 
     final Katta katta = new Katta();
-    katta.addIndex("index1", "src/test/testIndexA", StandardAnalyzer.class.getName(), 1);
-    katta.addIndex("index2", "src/test/testIndex2", StandardAnalyzer.class.getName(), 1);
+    katta.addIndex("index1", TestResources.INDEX1.getAbsolutePath(), StandardAnalyzer.class.getName(), 1);
+    katta.addIndex("index2", TestResources.INDEX2.getAbsolutePath(), StandardAnalyzer.class.getName(), 1);
 
     final IClient client = new Client();
     final Query query = new Query("foo: bar");

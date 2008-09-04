@@ -21,6 +21,8 @@ package net.sf.katta.index.indexer;
 
 import java.io.IOException;
 
+import net.sf.katta.util.IndexConfiguration;
+
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapred.JobConf;
@@ -34,7 +36,7 @@ public class IndexUploader implements IIndexPublisher {
   private FileSystem _fileSystem;
 
   public void configure(final JobConf jobConf) throws Exception {
-    final Path path = new Path(jobConf.get(IndexJobConf.INDEX_UPLOAD_PATH));
+    final Path path = new Path(jobConf.get(IndexConfiguration.INDEX_UPLOAD_PATH));
     _ouputPath = new Path(path, "indexes");
     _fileSystem = FileSystem.get(jobConf);
     _fileSystem.mkdirs(_ouputPath);

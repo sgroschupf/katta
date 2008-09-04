@@ -26,6 +26,7 @@ import net.sf.katta.Katta;
 import net.sf.katta.client.Client;
 import net.sf.katta.node.Node;
 import net.sf.katta.node.Query;
+import net.sf.katta.testutil.TestResources;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.NodeConfiguration;
 import net.sf.katta.util.ZkConfiguration;
@@ -108,7 +109,7 @@ public class FailTest extends AbstractKattaTest {
     // deploy index
     final Katta katta = new Katta();
     final String indexName = "index";
-    katta.addIndex(indexName, "src/test/testIndexC/", StandardAnalyzer.class.getName(), 3);
+    katta.addIndex(indexName, TestResources.UNZIPPED_INDEX.getAbsolutePath(), StandardAnalyzer.class.getName(), 3);
     final Client client = new Client();
     assertEquals(2, client.count(new Query("foo:bar"), new String[] { indexName }));
     zkClientMaster.showFolders();

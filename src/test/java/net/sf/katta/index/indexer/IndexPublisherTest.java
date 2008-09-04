@@ -24,6 +24,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import junit.framework.TestCase;
+import net.sf.katta.util.IndexConfiguration;
 
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.mapred.JobConf;
@@ -51,7 +52,8 @@ public class IndexPublisherTest extends TestCase {
     // copy file: /folder/input/shard
     final IIndexPublisher publisher = new IndexUploader();
     final JobConf jobConf = new JobConf();
-    jobConf.set(IndexJobConf.INDEX_UPLOAD_PATH, "file://" + _folder.getAbsolutePath() + File.separator + "output");
+    jobConf
+        .set(IndexConfiguration.INDEX_UPLOAD_PATH, "file://" + _folder.getAbsolutePath() + File.separator + "output");
     publisher.configure(jobConf);
 
     final File out = new File(_folder, "output");

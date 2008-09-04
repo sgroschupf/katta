@@ -29,6 +29,7 @@ import net.sf.katta.index.IndexMetaData.IndexState;
 import net.sf.katta.node.Node;
 import net.sf.katta.node.NodeMetaData;
 import net.sf.katta.node.Node.NodeState;
+import net.sf.katta.testutil.TestResources;
 import net.sf.katta.util.FileUtil;
 import net.sf.katta.zk.ZKClient;
 import net.sf.katta.zk.ZkPathes;
@@ -113,7 +114,7 @@ public class MasterTest extends AbstractKattaTest {
     waitForPath(zkClientMaster, ZkPathes.MASTER);
     waitForChilds(zkClientMaster, ZkPathes.NODES, 2);
 
-    final File indexFile = new File("src/test/testIndexA");
+    final File indexFile = TestResources.INDEX1;
     final Katta katta = new Katta();
     String index = "indexA";
     katta.addIndex(index, "file://" + indexFile.getAbsolutePath(), StandardAnalyzer.class.getName(), 2);
@@ -163,7 +164,7 @@ public class MasterTest extends AbstractKattaTest {
     waitForPath(zkClientMaster, ZkPathes.MASTER);
     waitForChilds(zkClientMaster, ZkPathes.NODES, 2);
 
-    final File indexFile = new File("src/test/testIndexA");
+    final File indexFile = TestResources.INDEX1;
     final Katta katta = new Katta();
     String index = "indexA";
     katta.addIndex(index, "file://" + indexFile.getAbsolutePath(), StandardAnalyzer.class.getName(), 1);
@@ -211,7 +212,7 @@ public class MasterTest extends AbstractKattaTest {
     waitForPath(zkClientMaster, ZkPathes.MASTER);
     waitForChilds(zkClientMaster, ZkPathes.NODES, 2);
 
-    final File indexFile = new File("src/test/testIndexInvalid");
+    final File indexFile = TestResources.INVALID_INDEX;
     final Katta katta = new Katta();
     String index = "indexA";
     katta.addIndex(index, "file://" + indexFile.getAbsolutePath(), StandardAnalyzer.class.getName(), 2);
@@ -236,7 +237,7 @@ public class MasterTest extends AbstractKattaTest {
     waitForChilds(zkClientMaster, ZkPathes.NODES, 1);
 
     // add index
-    final File indexFile = new File("src/test/testIndexA");
+    final File indexFile = TestResources.INDEX1;
     int shardCount = indexFile.list(FileUtil.VISIBLE_FILES_FILTER).length;
 
     final Katta katta = new Katta();

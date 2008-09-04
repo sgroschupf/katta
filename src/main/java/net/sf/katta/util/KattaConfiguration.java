@@ -22,9 +22,11 @@ package net.sf.katta.util;
 import java.io.File;
 import java.util.Properties;
 
+import org.apache.hadoop.fs.Path;
+
 public class KattaConfiguration {
 
-  private Properties _properties;
+  protected Properties _properties;
 
   public KattaConfiguration(final String path) {
     _properties = PropertyUtil.loadProperties(path);
@@ -34,17 +36,11 @@ public class KattaConfiguration {
     _properties = PropertyUtil.loadProperties(file);
   }
 
-  protected int getInt(final String key) {
-    final String value = getProperty(key);
-    return Integer.parseInt(value);
+  public boolean containsProperty(final String key) {
+    return _properties.contains(key);
   }
 
-  protected File getFile(final String key) {
-    final String value = getProperty(key);
-    return new File(value);
-  }
-
-  protected String getProperty(final String key) {
+  public String getProperty(final String key) {
     final String value = _properties.getProperty(key);
     if (value == null) {
       throw new IllegalStateException("no property with key '" + key + "' found");
@@ -52,7 +48,7 @@ public class KattaConfiguration {
     return value;
   }
 
-  protected String getProperty(final String key, final String defaultValue) {
+  public String getProperty(final String key, final String defaultValue) {
     String value = _properties.getProperty(key);
     if (value == null) {
       value = defaultValue;
@@ -62,6 +58,27 @@ public class KattaConfiguration {
 
   protected void setProperty(String key, String value) {
     _properties.setProperty(key, value);
+  }
+
+  public int getInt(final String key) {
+    return Integer.parseInt(getProperty(key));
+  }
+
+  public File getFile(final String key) {
+    return new File(getProperty(key));
+  }
+
+  public Path getPath(final String key) {
+    return new Path(getProperty(key));
+  }
+
+  public Class<?> getClass(final String key) {
+    final String className = getProperty(key);
+    try {
+      return Class.forName(className);
+    } catch (ClassNotFoundException e) {
+      throw new RuntimeException("can not create class " + className, e);
+    }
   }
 
 }

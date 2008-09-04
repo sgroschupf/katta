@@ -29,6 +29,7 @@ import net.sf.katta.node.Hit;
 import net.sf.katta.node.Hits;
 import net.sf.katta.node.Node;
 import net.sf.katta.node.Query;
+import net.sf.katta.testutil.TestResources;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.zk.ZkPathes;
 
@@ -74,10 +75,10 @@ public class ClientTest extends AbstractKattaTest {
     waitForChilds(masterStartThread.getZkClient(), ZkPathes.NODES, 2);
 
     _katta = new Katta();
-    _katta.addIndex(INDEX1, "src/test/testIndexA/", StandardAnalyzer.class.getName(), 1);
+    _katta.addIndex(INDEX1, TestResources.INDEX1.getAbsolutePath(), StandardAnalyzer.class.getName(), 1);
 
-    _katta.addIndex(INDEX2, "src/test/testIndexA/", StandardAnalyzer.class.getName(), 1);
-    _katta.addIndex(INDEX3, "src/test/testIndexA/", StandardAnalyzer.class.getName(), 1);
+    _katta.addIndex(INDEX2, TestResources.INDEX1.getAbsolutePath(), StandardAnalyzer.class.getName(), 1);
+    _katta.addIndex(INDEX3, TestResources.INDEX1.getAbsolutePath(), StandardAnalyzer.class.getName(), 1);
     _client = new Client();
   }
 

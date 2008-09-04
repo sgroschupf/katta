@@ -7,6 +7,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
+import org.apache.hadoop.fs.Path;
+
 public class TestUtil {
 
   public static final boolean deleteDirectory(File directory) {
@@ -49,6 +51,10 @@ public class TestUtil {
       inputStream.close();
       outputStream.close();
     }
+  }
+
+  public static Path newTestFolder(String name) {
+    return new Path("build/tests/" + name);
   }
 
 }

@@ -23,6 +23,7 @@ import java.io.DataOutput;
 import java.io.IOException;
 
 import junit.framework.TestCase;
+import net.sf.katta.util.IndexConfiguration;
 
 import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.Text;
@@ -63,7 +64,7 @@ public class ShardSelectionMapperTest extends TestCase {
 
     final Mapper mapper = new ShardSelectionMapper();
     final JobConf jobConf = new JobConf();
-    jobConf.set(IndexJobConf.INDEX_SHARD_KEY_GENERATOR_CLASS, DummyKeyGenerator.class.getName());
+    jobConf.set(IndexConfiguration.INDEX_SHARD_KEY_GENERATOR_CLASS, DummyKeyGenerator.class.getName());
     mapper.configure(jobConf);
     mapper.map(writableComparable, writable, outputCollector, reporter);
 
