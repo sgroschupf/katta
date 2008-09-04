@@ -27,7 +27,10 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import net.sf.katta.client.Client;
+import net.sf.katta.client.DeployClient;
 import net.sf.katta.client.IClient;
+import net.sf.katta.client.IDeployClient;
+import net.sf.katta.client.IIndexDeployFuture;
 import net.sf.katta.index.IndexMetaData;
 import net.sf.katta.index.ShardError;
 import net.sf.katta.index.IndexMetaData.IndexState;
@@ -191,12 +194,12 @@ public class Katta {
   }
 
   public void removeIndex(final String indexName) throws KattaException {
-    final String indexPath = ZkPathes.getIndexPath(indexName);
-    if (!_zkClient.exists(indexPath)) {
+    IDeployClient deployClient = new DeployClient(_zkClient);
+    if (!deployClient.existsIndex(indexName)) {
       printError("index '" + indexName + "' does not exist");
       return;
     }
-    _zkClient.deleteRecursive(indexPath);
+    deployClient.removeIndex(indexName);
   }
 
   public void showStructure() throws KattaException {
@@ -297,35 +300,33 @@ public class Katta {
 
   public void addIndex(final String name, final String path, final String analyzerClass, final int replicationLevel)
       throws KattaException {
-    final String indexPath = ZkPathes.getIndexPath(name);
+    final String indexZkPath = ZkPathes.getIndexPath(name);
     if (name.trim().equals("*")) {
       printError("Index with name " + name + " isn't allowed.");
       return;
     }
-    if (_zkClient.exists(indexPath)) {
+    if (_zkClient.exists(indexZkPath)) {
       printError("Index with name " + name + " already exists.");
       return;
     }
 
     try {
-      final IndexMetaData data = new IndexMetaData(path, analyzerClass, replicationLevel,
-          IndexMetaData.IndexState.ANNOUNCED);
-      _zkClient.create(indexPath, data);
+      IDeployClient deployClient = new DeployClient(_zkClient);
+      IIndexDeployFuture deployFuture = deployClient.addIndex(name, path, analyzerClass, replicationLevel);
       while (true) {
-        _zkClient.readData(indexPath, data);
-        if (data.getState() == IndexState.DEPLOYED) {
+        if (deployFuture.getState() == IndexState.DEPLOYED) {
+          System.out.println("deployed index " + name);
           break;
-        } else if (data.getState() == IndexMetaData.IndexState.ERROR) {
-          System.err.println("not deployed.");
-          return;
+        } else if (deployFuture.getState() == IndexMetaData.IndexState.ERROR) {
+          System.err.println("not deployed index" + name);
+          break;
         }
         System.out.print(".");
-        Thread.sleep(1000);
+        deployFuture.joinDeployment(1000);
       }
     } catch (final InterruptedException e) {
       printError("interrupted wait on index deployment");
-    } 
-    System.out.println("deployed index " + name + ".");
+    }
   }
 
   public static void search(final String[] indexNames, final String queryString, final int count) throws KattaException {

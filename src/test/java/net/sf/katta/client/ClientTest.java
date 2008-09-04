@@ -23,7 +23,6 @@ import java.io.IOException;
 import java.util.Set;
 
 import net.sf.katta.AbstractKattaTest;
-import net.sf.katta.Katta;
 import net.sf.katta.master.Master;
 import net.sf.katta.node.Hit;
 import net.sf.katta.node.Hits;
@@ -53,7 +52,7 @@ public class ClientTest extends AbstractKattaTest {
   private static Node _node1;
   private static Node _node2;
   private static Master _master;
-  private static Katta _katta;
+  private static IDeployClient _deployClient;
   private static IClient _client;
 
   public ClientTest() {
@@ -74,18 +73,20 @@ public class ClientTest extends AbstractKattaTest {
     nodeStartThread2.join();
     waitForChilds(masterStartThread.getZkClient(), ZkPathes.NODES, 2);
 
-    _katta = new Katta();
-    _katta.addIndex(INDEX1, TestResources.INDEX1.getAbsolutePath(), StandardAnalyzer.class.getName(), 1);
-
-    _katta.addIndex(INDEX2, TestResources.INDEX1.getAbsolutePath(), StandardAnalyzer.class.getName(), 1);
-    _katta.addIndex(INDEX3, TestResources.INDEX1.getAbsolutePath(), StandardAnalyzer.class.getName(), 1);
+    _deployClient = new DeployClient(_conf);
+    _deployClient.addIndex(INDEX1, TestResources.INDEX1.getAbsolutePath(), StandardAnalyzer.class.getName(), 1)
+        .joinDeployment();
+    _deployClient.addIndex(INDEX2, TestResources.INDEX1.getAbsolutePath(), StandardAnalyzer.class.getName(), 1)
+        .joinDeployment();
+    _deployClient.addIndex(INDEX3, TestResources.INDEX1.getAbsolutePath(), StandardAnalyzer.class.getName(), 1)
+        .joinDeployment();
     _client = new Client();
   }
 
   @Override
   protected void onAfterClass() throws Exception {
     _client.close();
-    _katta.close();
+    _deployClient.disconnect();
     _node1.shutdown();
     _node2.shutdown();
     _master.shutdown();

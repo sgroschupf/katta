@@ -208,7 +208,7 @@ public class ZKClient implements Watcher {
       _zk.getData(path, true, null);
     } catch (final Exception e) {
       removeDataListener(path, listener);
-      throw new KattaException("Unable to subscribe data changes", e);
+      throw new KattaException("Unable to subscribe data changes for path: " + path, e);
     }
   }
 
