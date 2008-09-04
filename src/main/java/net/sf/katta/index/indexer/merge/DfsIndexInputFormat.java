@@ -39,7 +39,7 @@ import org.apache.log4j.Logger;
 public class DfsIndexInputFormat extends FileInputFormat<Text, DocumentInformation> {
 
   @SuppressWarnings("hiding")
-  private final static Logger LOG = Logger.getLogger(DfsIndexInputFormat.class);
+  protected final static Logger LOG = Logger.getLogger(DfsIndexInputFormat.class);
 
   public static final String DOCUMENT_INFORMATION = "document.duplicate.information.class";
 
@@ -51,8 +51,7 @@ public class DfsIndexInputFormat extends FileInputFormat<Text, DocumentInformati
       Class<?> byName = jobConf.getClassByName(className);
       duplicateInformation = (IDocumentDuplicateInformation) byName.newInstance();
     } catch (Exception e) {
-      LOG.error("can not load class: " + className, e);
-      throw new IOException(e.getMessage());
+      throw new RuntimeException("could not instantiate " + IDocumentDuplicateInformation.class.getName(), e);
     }
     reporter.setStatus(((FileSplit) inputSplit).getPath().toString());
     return new DfsIndexRecordReader(jobConf, inputSplit, duplicateInformation);
