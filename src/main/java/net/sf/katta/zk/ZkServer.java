@@ -22,7 +22,6 @@ package net.sf.katta.zk;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.net.ServerSocket;
 import java.util.ArrayList;
 import java.util.Arrays;
 
@@ -77,7 +76,7 @@ public class ZkServer {
         port = Integer.parseInt(hostSplitted[1]);
       }
       // check if this machine is already something running..
-      if (isPortFree(port)) {
+      if (NetworkUtil.isPortFree(port)) {
         final int tickTime = conf.getZKTickTime();
         final File dataDir = conf.getZKDataDir();
         final File dataLogDir = conf.getZKDataLogDir();
@@ -104,18 +103,9 @@ public class ZkServer {
         // TODO jz: do we initialize the client only for creating the namespaces
         // ??
       } else {
-        LOG.error("Zookeeper port was already in use. Running in single machine mode?");
+        // TODO jz: shoudn't we better throw an exception
+        LOG.error("Zookeeper port " + port + " was already in use. Running in single machine mode?");
       }
-    }
-  }
-
-  private boolean isPortFree(final int port) {
-    try {
-      final ServerSocket socket = new ServerSocket(port);
-      socket.close();
-      return true;
-    } catch (final Exception e) {
-      return false;
     }
   }
 
