@@ -123,8 +123,8 @@ fi
 
 CLASS='net.sf.katta.Katta'
 
-#KATTA_OPTS="$KATTA_OPTS -Dkatta.log.dir='$KATTA_LOG_DIR'"
-#KATTA_OPTS="$KATTA_OPTS -Dkatta.log.file='$KATTA_LOGFILE'"
+KATTA_OPTS="$KATTA_OPTS -Dkatta.log.dir=$KATTA_LOG_DIR"
+KATTA_OPTS="$KATTA_OPTS -Dkatta.log.file=$KATTA_LOGFILE"
 KATTA_OPTS="$KATTA_OPTS -Dkatta.home.dir=$KATTA_HOME"
 KATTA_OPTS="$KATTA_OPTS -Dkatta.id.str=$KATTA_IDENT_STRING"
 KATTA_OPTS="$KATTA_OPTS -Dkatta.root.logger=${KATTA_ROOT_LOGGER:-INFO,console}"
