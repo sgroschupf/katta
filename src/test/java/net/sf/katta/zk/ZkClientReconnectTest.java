@@ -35,6 +35,7 @@ public class ZkClientReconnectTest extends AbstractKattaTest {
   }
 
   public void testNetworkDown() throws Exception {
+    stopZkServer();
     ZkConfiguration serverConfiguration = new ZkConfiguration();
     ZkConfiguration clientConfiguration = new ZkConfiguration();
     clientConfiguration.setZKServers("localhost:" + GATEWAY_PORT);
@@ -54,7 +55,7 @@ public class ZkClientReconnectTest extends AbstractKattaTest {
     gateway.interruptAndJoin();
     server.shutdown();
     client.close();
-
+    startZkServer();
   }
 
   private Gateway stopAndStartGateway(Gateway gateway, ZKClient client) throws Exception {

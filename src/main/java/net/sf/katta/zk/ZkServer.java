@@ -42,6 +42,8 @@ public class ZkServer {
 
   private final static Logger LOG = Logger.getLogger(ZkServer.class);
 
+  public static final int DEFAULT_PORT = 2181;
+
   private QuorumPeer _quorumPeer;
   private ZooKeeperServer _zk;
   private Factory _nioFactory;
@@ -71,7 +73,7 @@ public class ZkServer {
       // yes this server needs to start a zookeeper server
       final String[] hosts = servers.split(",");
       final String[] hostSplitted = hosts[pos].split(":");
-      int port = 2181;
+      int port = DEFAULT_PORT;
       if (hostSplitted.length > 1) {
         port = Integer.parseInt(hostSplitted[1]);
       }

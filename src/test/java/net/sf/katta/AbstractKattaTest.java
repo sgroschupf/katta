@@ -96,6 +96,10 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
     if (_zkServer != null) {
       throw new IllegalStateException("zk server already running");
     }
+    if (!NetworkUtil.isPortFree(ZkServer.DEFAULT_PORT)) {
+      throw new IllegalStateException("port " + ZkServer.DEFAULT_PORT
+          + " blocked. Probably other zk server is running.");
+    }
     _zkServer = new ZkServer(_conf);
   }
 
