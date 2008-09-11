@@ -11,6 +11,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -37,18 +38,22 @@ public class DistributeShardsThread extends Thread {
 
   private final ZKClient _zkClient;
   private final IDeployPolicy _deployPolicy;
+  private final long _maxSafeModeTime;
 
   private Set<String> _liveNodes = new HashSet<String>();
   private Set<String> _liveIndexes = new HashSet<String>();
+  private boolean _safeMode = true;
 
   private Lock _updateLock = new ReentrantLock();
   private Condition _updatedCondition = _updateLock.newCondition();
+  private Condition _safeModeLeftCondition = _updateLock.newCondition();
 
   private StatusUpdate _statusUpdate = new StatusUpdate();
 
-  public DistributeShardsThread(ZKClient zkClient, IDeployPolicy deployPolicy) {
+  public DistributeShardsThread(ZKClient zkClient, IDeployPolicy deployPolicy, long maxSafeMaxTime) {
     _deployPolicy = deployPolicy;
     _zkClient = zkClient;
+    _maxSafeModeTime = maxSafeMaxTime;
     setDaemon(true);
   }
 
@@ -90,9 +95,19 @@ public class DistributeShardsThread extends Thread {
     return _liveIndexes;
   }
 
+  public void joinLeaveSafeMode() throws InterruptedException {
+    _updateLock.lock();
+    if (_safeMode) {
+      _safeModeLeftCondition.await();
+    }
+    _updateLock.unlock();
+  }
+
   @Override
   public void run() {
     try {
+      LOG.info("starting...");
+      processSafeMode();
       while (true) {
         _updateLock.lock();
         if (!_statusUpdate.hasChanges(_liveIndexes, _liveNodes)) {
@@ -100,7 +115,6 @@ public class DistributeShardsThread extends Thread {
           // TODO jz: wait x ms and if nothing happens rebalance
         }
         LOG.info("processing of update started...");
-        waitOnNodes();
 
         boolean startupReported = _statusUpdate.isStartupReported();
         Set<String> updatedIndexes = _statusUpdate.getIndexes();
@@ -108,7 +122,8 @@ public class DistributeShardsThread extends Thread {
         if (updatedNodes.isEmpty()) {
           // jz: if connected nodes in under a certain threshold go in
           // safe-mode?
-          LOG.warn("no nodes connected - delaying updated");
+          LOG.warn("no nodes connected - delaying update");
+          _updatedCondition.await();
           continue;
         }
         _statusUpdate.reset();
@@ -134,13 +149,16 @@ public class DistributeShardsThread extends Thread {
             handleAddedNodes(addedNodes);// maybe rebalance
           }
         } catch (KattaException e) {
+          if (e.getCause() instanceof InterruptedException) {
+            throw (InterruptedException) e.getCause();
+          }
           LOG.error("Failed to execute shard update to {" + toString(updatedIndexes, updatedNodes, startupReported)
               + "}", e);
         }
         LOG.info("processing of update finsihed!");
       }
     } catch (InterruptedException e) {
-      LOG.info("index deploy thread stopped");
+      LOG.info("manage shard thread stopped");
       try {
         _updateLock.unlock();
       } catch (Exception e2) {
@@ -339,24 +357,36 @@ public class DistributeShardsThread extends Thread {
     return node2ShardNames;
   }
 
-  private void waitOnNodes() throws InterruptedException {
+  private void processSafeMode() throws InterruptedException {
     _updateLock.lock();
     try {
       int knownNodes = _zkClient.getKnownNodes().size();
       int aliveNodes = _statusUpdate.getNodes().size();
-      // we want to wait if nodeCount is increasing & more then the half nodes
-      // are not connected (this i mainly for startup synchronization)
-      while (aliveNodes == 0 || (aliveNodes >= _liveNodes.size() && (aliveNodes * 2 < knownNodes))) {
-        LOG.info(aliveNodes + "/" + knownNodes + " nodes connected, waiting...");
+      LOG.info("entering safe mode (maximum " + _maxSafeModeTime + " ms)");
+      _safeMode = true;
+
+      // wait maximum safe mode time for new nodes
+      Thread.sleep(_maxSafeModeTime);
+
+      // but we stay longer if absolutely no nodes are connected
+      _updatedCondition.await(1, TimeUnit.NANOSECONDS);// allow node-update
+      aliveNodes = _statusUpdate.getNodes().size();
+      while (aliveNodes == 0) {
+        LOG.warn("still no connected nodes - staying in safe mode");
         _updatedCondition.await();
         aliveNodes = _statusUpdate.getNodes().size();
       }
+
+      LOG.info("leaving safe mode with " + _statusUpdate.getNodes().size() + " connected nodes of formerly "
+          + knownNodes + " known nodes");
     } catch (KattaException e) {
       if (e.getCause() instanceof InterruptedException) {
         throw (InterruptedException) e.getCause();
       }
       throw new RuntimeException(e);
     } finally {
+      _safeMode = false;
+      _safeModeLeftCondition.signalAll();
       _updateLock.unlock();
     }
   }

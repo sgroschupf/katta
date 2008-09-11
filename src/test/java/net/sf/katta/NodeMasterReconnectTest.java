@@ -24,13 +24,12 @@ public class NodeMasterReconnectTest extends AbstractKattaTest {
     gateway.start();
 
     MasterStartThread masterStartThread = startMaster();
+    Master master = masterStartThread.getMaster();
     ZKClient zkNodeClient = new ZKClient(gatewayConf);
     Node node = new Node(zkNodeClient);
     node.start();
     masterStartThread.join();
     ZKClient zkMasterClient = masterStartThread.getZkClient();
-
-    Master master = masterStartThread.getMaster();
 
     assertTrue(zkMasterClient.getZookeeperState().equals(ZooKeeper.States.CONNECTED));
     assertTrue(zkNodeClient.getZookeeperState().equals(ZooKeeper.States.CONNECTED));

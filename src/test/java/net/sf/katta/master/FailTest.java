@@ -22,8 +22,9 @@ package net.sf.katta.master;
 import java.util.concurrent.TimeUnit;
 
 import net.sf.katta.AbstractKattaTest;
-import net.sf.katta.Katta;
 import net.sf.katta.client.Client;
+import net.sf.katta.client.DeployClient;
+import net.sf.katta.client.IDeployClient;
 import net.sf.katta.node.Node;
 import net.sf.katta.node.Query;
 import net.sf.katta.testutil.TestResources;
@@ -38,23 +39,9 @@ import org.apache.lucene.analysis.standard.StandardAnalyzer;
 public class FailTest extends AbstractKattaTest {
 
   public void testMasterFail() throws Exception {
-    final ZKClient nodeClient = new ZKClient(_conf);
     final ZKClient masterClient = new ZKClient(_conf);
     final ZKClient secMasterClient = new ZKClient(_conf);
-
-    final Node node = new Node(nodeClient);
-    Thread clientThread = new Thread(new Runnable() {
-      // the masters start() methods are blocking unitl at least one node is
-      // connected, so we start the node in a seperate thread
-      public void run() {
-        try {
-          node.start();
-        } catch (KattaException e) {
-          e.printStackTrace();
-        }
-      }
-    });
-    clientThread.start();
+    NodeStartThread nodeThread = startNode();
 
     final Master master = new Master(masterClient);
     master.start();
@@ -63,64 +50,69 @@ public class FailTest extends AbstractKattaTest {
     final Master secMaster = new Master(secMasterClient);
     secMaster.start();
 
-    clientThread.join();
-    waitForPath(nodeClient, ZkPathes.MASTER);
-    waitForChilds(nodeClient, ZkPathes.NODES, 1);
+    nodeThread.join();
+    master.joinLeaveSafeMode();
+    waitForPath(masterClient, ZkPathes.MASTER);
+    waitForChilds(masterClient, ZkPathes.NODES, 1);
 
     // kill master
+    master.joinLeaveSafeMode();
     secMasterClient.getEventLock().lock();
     masterClient.close();
     secMasterClient.getEventLock().getDataChangedCondition().await(30, TimeUnit.SECONDS);
     secMasterClient.getEventLock().unlock();
 
     // just make sure we can read the file
-    waitForPath(nodeClient, ZkPathes.MASTER);
-
+    waitForPath(secMasterClient, ZkPathes.MASTER);
     assertTrue(secMaster.isMaster());
-    nodeClient.close();
+
+    nodeThread.shutdown();
     secMasterClient.close();
+
+    try {
+      master.shutdown();
+    } catch (Exception e) {
+      // zkClient is already down, we just want to interrupt the
+      // manage-shard-thread
+    }
   }
 
   public void testNodeFailure() throws Exception {
-    final ZKClient zkClientMaster = new ZKClient(_conf);
-    final Master master = new Master(zkClientMaster);
-    Thread masterThread = createStartMasterThread(master);
-    masterThread.start();
+    MasterStartThread masterThread = startMaster();
+    final ZKClient zkClientMaster = masterThread.getZkClient();
 
     // create 3 nodes
     final NodeConfiguration sconf1 = new NodeConfiguration();
     final String defaulFolder = sconf1.getShardFolder().getAbsolutePath();
     sconf1.setShardFolder(defaulFolder + "/" + 1);
-    final DummyNode s1 = new DummyNode(_conf, sconf1);
+    final DummyNode node1 = new DummyNode(_conf, sconf1);
 
     final NodeConfiguration sconf2 = new NodeConfiguration();
     final String defaulFolder2 = sconf2.getShardFolder().getAbsolutePath();
     sconf2.setShardFolder(defaulFolder2 + "/" + 2);
-    final DummyNode s2 = new DummyNode(_conf, sconf2);
+    final DummyNode node2 = new DummyNode(_conf, sconf2);
 
     final NodeConfiguration sconf3 = new NodeConfiguration();
     final String defaulFolder3 = sconf3.getShardFolder().getAbsolutePath();
     sconf3.setShardFolder(defaulFolder3 + "/" + 3);
-    final DummyNode s3 = new DummyNode(_conf, sconf3);
+    final DummyNode node3 = new DummyNode(_conf, sconf3);
     waitForChilds(zkClientMaster, ZkPathes.NODES, 3);
     masterThread.join();
     waitForPath(zkClientMaster, ZkPathes.MASTER);
 
     // deploy index
-    final Katta katta = new Katta();
+    IDeployClient deployClient = new DeployClient(_conf);
     final String indexName = "index";
-    katta.addIndex(indexName, TestResources.UNZIPPED_INDEX.getAbsolutePath(), StandardAnalyzer.class.getName(), 3);
+    deployClient.addIndex(indexName, TestResources.UNZIPPED_INDEX.getAbsolutePath(), StandardAnalyzer.class.getName(),
+        3).joinDeployment();
     final Client client = new Client();
     assertEquals(2, client.count(new Query("foo:bar"), new String[] { indexName }));
-    zkClientMaster.showFolders();
-    assertEquals(1, s1.countShards());
-    assertEquals(1, s2.countShards());
-    assertEquals(1, s3.countShards());
-    s1.close();
-    Thread.sleep(10000);
+    assertEquals(1, node1.countShards());
+    assertEquals(1, node2.countShards());
+    assertEquals(1, node3.countShards());
+    node1.close();
     assertEquals(2, client.count(new Query("foo:bar"), new String[] { indexName }));
-    s2.close();
-    Thread.sleep(2000);
+    node2.close();
     assertEquals(2, client.count(new Query("foo:bar"), new String[] { indexName }));
 
     // add count Shards to Node Object... and check why no reasignment
@@ -134,9 +126,9 @@ public class FailTest extends AbstractKattaTest {
 
     // things should be good distributed again.
     client.close();
-    katta.close();
-    master.shutdown();
-    s3.close();
+    deployClient.disconnect();
+    node3.close();
+    masterThread.shutdown();
   }
 
   private class DummyNode {

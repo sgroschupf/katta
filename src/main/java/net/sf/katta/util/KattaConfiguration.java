@@ -37,7 +37,7 @@ public class KattaConfiguration {
   }
 
   public boolean containsProperty(final String key) {
-    return _properties.contains(key);
+    return _properties.containsKey(key);
   }
 
   public String getProperty(final String key) {

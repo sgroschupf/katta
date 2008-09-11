@@ -47,17 +47,24 @@ public class MasterTest extends AbstractKattaTest {
 
   public void testNodes() throws Exception {
     MasterStartThread masterStartThread = startMaster();
-    masterStartThread.join();
     final ZKClient zkClientMaster = masterStartThread.getZkClient();
+    ZKClient zkClient = new ZKClient(_conf);
+    zkClient.start(5000);
     Master master = masterStartThread.getMaster();
 
     String node1 = "node1";
     String node2 = "node2";
-    zkClientMaster.createEphemeral(ZkPathes.getNodePath(node1), new NodeMetaData(node1, NodeState.IN_SERVICE));
-    zkClientMaster.create(ZkPathes.getNode2ShardRootPath(node1));
-    zkClientMaster.createEphemeral(ZkPathes.getNodePath(node2), new NodeMetaData(node2, NodeState.IN_SERVICE));
-    zkClientMaster.create(ZkPathes.getNode2ShardRootPath(node2));
+    try {
+      zkClient.createEphemeral(ZkPathes.getNodePath(node1), new NodeMetaData(node1, NodeState.IN_SERVICE));
+    } catch (Exception e) {
+      System.out.println(zkClientMaster.getZookeeperState());
+      throw e;
+    }
+    zkClient.create(ZkPathes.getNode2ShardRootPath(node1));
+    zkClient.createEphemeral(ZkPathes.getNodePath(node2), new NodeMetaData(node2, NodeState.IN_SERVICE));
+    zkClient.create(ZkPathes.getNode2ShardRootPath(node2));
 
+    masterStartThread.join();
     waitForChilds(zkClientMaster, ZkPathes.NODES, 2);
     assertEquals(2, master.readNodes().size());
     zkClientMaster.getEventLock().lock();
@@ -66,37 +73,41 @@ public class MasterTest extends AbstractKattaTest {
     zkClientMaster.getEventLock().unlock();
 
     assertEquals(1, master.readNodes().size());
+    zkClient.close();
     masterStartThread.shutdown();
   }
 
   public void testNodesReconnect() throws Exception {
     MasterStartThread masterStartThread = startMaster();
-    masterStartThread.join();
-    final ZKClient zkClientMaster = masterStartThread.getZkClient();
+    final ZKClient zkClient = new ZKClient(_conf);
+    zkClient.start(5000);
     Master master = masterStartThread.getMaster();
+    ZKClient masterZkClient = masterStartThread.getZkClient();
 
     String nodePath = ZkPathes.getNodePath("node1");
-    zkClientMaster.create(ZkPathes.getNode2ShardRootPath("node1"));
-    zkClientMaster.create(nodePath, new NodeMetaData("node1", NodeState.IN_SERVICE));
+    zkClient.create(ZkPathes.getNode2ShardRootPath("node1"));
+    zkClient.create(nodePath, new NodeMetaData("node1", NodeState.IN_SERVICE));
 
-    waitForChilds(zkClientMaster, ZkPathes.NODES, 1);
+    masterStartThread.join();
+    waitForChilds(zkClient, ZkPathes.NODES, 1);
     assertEquals(1, master.readNodes().size());
 
     // disconnect
-    zkClientMaster.getEventLock().lock();
-    assertTrue(zkClientMaster.delete(nodePath));
-    zkClientMaster.getEventLock().getDataChangedCondition().await();
-    zkClientMaster.getEventLock().unlock();
+    masterZkClient.getEventLock().lock();
+    assertTrue(zkClient.delete(nodePath));
+    masterZkClient.getEventLock().getDataChangedCondition().await();
+    masterZkClient.getEventLock().unlock();
     assertEquals(0, master.readNodes().size());
 
     // reconnect
-    zkClientMaster.getEventLock().lock();
-    zkClientMaster.create(nodePath, new NodeMetaData("node1", NodeState.IN_SERVICE));
-    zkClientMaster.getEventLock().getDataChangedCondition().await();
-    zkClientMaster.getEventLock().unlock();
+    masterZkClient.getEventLock().lock();
+    zkClient.create(nodePath, new NodeMetaData("node1", NodeState.IN_SERVICE));
+    masterZkClient.getEventLock().getDataChangedCondition().await();
+    masterZkClient.getEventLock().unlock();
 
     assertEquals(1, master.readNodes().size());
-    master.shutdown();
+    zkClient.close();
+    masterStartThread.shutdown();
   }
 
   public void testDeployAndRemoveIndex() throws Exception {

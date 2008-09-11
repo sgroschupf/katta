@@ -21,7 +21,8 @@ package net.sf.katta.util;
 
 public class MasterConfiguration extends KattaConfiguration {
 
-  private final static String DEPLOY_POLICY = "master.deploy.policy";
+  public final static String DEPLOY_POLICY = "master.deploy.policy";
+  public final static String SAFE_MODE_MAX_TIME = "safemode.maxTime";
 
   public MasterConfiguration() {
     super("/katta.master.properties");

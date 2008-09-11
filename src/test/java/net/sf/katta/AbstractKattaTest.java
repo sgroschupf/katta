@@ -132,19 +132,6 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
     return nodeStartThread;
   }
 
-  protected Thread createStartMasterThread(final Master master) {
-    Thread thread = new Thread(new Runnable() {
-      public void run() {
-        try {
-          master.start();
-        } catch (KattaException e) {
-          e.printStackTrace();
-        }
-      }
-    });
-    return thread;
-  }
-
   protected void waitForStatus(ZKClient client, ZooKeeper.States state) throws Exception {
     waitForStatus(client, state, _conf.getZKTimeOut());
   }
@@ -212,7 +199,8 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
     public void run() {
       try {
         _master.start();
-      } catch (KattaException e) {
+        _master.joinLeaveSafeMode();
+      } catch (Exception e) {
         e.printStackTrace();
       }
     }

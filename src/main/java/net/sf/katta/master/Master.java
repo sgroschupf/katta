@@ -56,7 +56,17 @@ public class Master {
     } catch (final Exception e) {
       throw new KattaException("Unable to instantiate deploy policy", e);
     }
-    _manageShardThread = new DistributeShardsThread(_zkClient, deployPolicy);
+
+    int safeModeMaxTime;
+    if (!masterConfiguration.containsProperty(MasterConfiguration.SAFE_MODE_MAX_TIME)) {
+      LOG.warn(MasterConfiguration.SAFE_MODE_MAX_TIME + " not configured in master configuration");
+      safeModeMaxTime = 10000;
+      // TODO jz: remove that check once we can assume all config files has been
+      // updated
+    } else {
+      safeModeMaxTime = masterConfiguration.getInt(MasterConfiguration.SAFE_MODE_MAX_TIME);
+    }
+    _manageShardThread = new DistributeShardsThread(_zkClient, deployPolicy, safeModeMaxTime);
   }
 
   public void start() throws KattaException {
@@ -81,6 +91,11 @@ public class Master {
     try {
       _zkClient.getEventLock().lock();
       _manageShardThread.interrupt();
+      try {
+        _manageShardThread.join();
+      } catch (InterruptedException e1) {
+        // proceed
+      }
       try {
         _zkClient.unsubscribeAll();
         _zkClient.delete(ZkPathes.MASTER);
@@ -118,6 +133,10 @@ public class Master {
         _zkClient.delete(ZkPathes.MASTER);
       }
     }
+  }
+
+  public void joinLeaveSafeMode() throws InterruptedException {
+    _manageShardThread.joinLeaveSafeMode();
   }
 
   private void startIndexManagement() throws KattaException {

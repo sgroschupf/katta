@@ -317,7 +317,7 @@ public class Node implements ISearch, IZkReconnectListener {
           _zkClient.deleteIfExists(shard2ErrorPath);
         }
       } catch (Exception e) {
-        LOG.warn("could'nt cleanup zk ephemeral pathes:" + e.getMessage());
+        LOG.warn("could'nt cleanup zk ephemeral pathes: " + e.getMessage());
       }
       _timer.cancel();
       _zkClient.unsubscribeAll();

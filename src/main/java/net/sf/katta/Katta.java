@@ -182,6 +182,12 @@ public class Katta {
     final ZKClient client = new ZKClient(conf);
     final Master master = new Master(client);
     master.start();
+    Runtime.getRuntime().addShutdownHook(new Thread() {
+      @Override
+      public void run() {
+        master.shutdown();
+      }
+    });
     zkServer.join();
   }
 
@@ -190,6 +196,12 @@ public class Katta {
     final ZKClient client = new ZKClient(configuration);
     final Node node = new Node(client);
     node.start();
+    Runtime.getRuntime().addShutdownHook(new Thread() {
+      @Override
+      public void run() {
+        node.shutdown();
+      }
+    });
     node.join();
   }
 
