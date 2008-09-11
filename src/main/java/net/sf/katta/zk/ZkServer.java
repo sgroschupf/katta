@@ -31,8 +31,8 @@ import net.sf.katta.util.ZkConfiguration;
 
 import org.apache.log4j.Logger;
 
+import com.yahoo.zookeeper.server.NIOServerCnxn;
 import com.yahoo.zookeeper.server.ServerStats;
-import com.yahoo.zookeeper.server.ZkNioFactory;
 import com.yahoo.zookeeper.server.ZooKeeperServer;
 import com.yahoo.zookeeper.server.NIOServerCnxn.Factory;
 import com.yahoo.zookeeper.server.quorum.QuorumPeer;
@@ -115,8 +115,8 @@ public class ZkServer {
     try {
       ServerStats.registerAsConcrete();
       _zk = new ZooKeeperServer(dataDir, dataLogDir, tickTime);
-      // _nioFactory = new NIOServerCnxn.Factory(port);
-      _nioFactory = new ZkNioFactory(port);
+      _nioFactory = new NIOServerCnxn.Factory(port);
+      // _nioFactory = new ZkNioFactory(port);
       _nioFactory.startup(_zk);
     } catch (final IOException e) {
       throw new RuntimeException("Unable to start single ZooKeeper server.", e);
