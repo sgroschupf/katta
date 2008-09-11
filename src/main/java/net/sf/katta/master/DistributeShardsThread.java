@@ -82,6 +82,14 @@ public class DistributeShardsThread extends Thread {
     _updateLock.unlock();
   }
 
+  public Set<String> getLiveNodes() {
+    return _liveNodes;
+  }
+
+  public Set<String> getLiveIndexes() {
+    return _liveIndexes;
+  }
+
   @Override
   public void run() {
     try {

@@ -40,7 +40,6 @@ public class Master {
   protected DistributeShardsThread _manageShardThread;
   protected ZKClient _zkClient;
 
-  // TODO jz: remove these variables, takte from shard thread
   protected List<String> _nodes = new ArrayList<String>();
   protected List<String> _indexes = new ArrayList<String>();
 
