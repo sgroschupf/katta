@@ -43,6 +43,7 @@ import net.sf.katta.node.NodeMetaData;
 import net.sf.katta.node.Query;
 import net.sf.katta.node.Node.NodeState;
 import net.sf.katta.util.KattaException;
+import net.sf.katta.util.VersionInfo;
 import net.sf.katta.util.ZkConfiguration;
 import net.sf.katta.zk.ZKClient;
 import net.sf.katta.zk.ZkPathes;
@@ -68,6 +69,8 @@ public class Katta {
       startNode();
     } else if (command.endsWith("startMaster")) {
       startMaster();
+    } else if (command.endsWith("version")) {
+      showVersion();
     } else {
       // non static methods
       Katta katta = null;
@@ -174,6 +177,12 @@ public class Katta {
         }
       }
     }
+  }
+
+  private static void showVersion() {
+    System.out.println("Katta '" + VersionInfo.VERSION + "'");
+    System.out.println("Subversion '" + VersionInfo.SVN_URL + "'");
+    System.out.println("Compiled by '" + VersionInfo.COMPILED_BY + "' on '" + VersionInfo.COMPILE_TIME + "'");
   }
 
   public static void startMaster() throws KattaException {
@@ -379,19 +388,21 @@ public class Katta {
 
   private static void printUsageAndExit() {
     System.err.println("Usage: ");
-    System.err
-        .println("\tsearch <index name>[,<index name>,...] \"<query>\" [count]\tSearch in supplied indexes. The query should be in \". If you supply a result count hit details will be printed. To search in all indices write \"*\"");
-    System.err.println("\tlistIndexes\tLists all indexes.");
-    System.err.println("\tlistNodes\tLists all nodes.");
-    System.err.println("\tstartMaster\tStarts a local master.");
-    System.err.println("\tstartNode\tStarts a local node.");
-    System.err.println("\tshowStructure\tShows the structure of a Katta installation.");
-    System.err.println("\tcheck\tAnalyze index/shard/node status.");
+    System.err.println("\tlistIndexes\t\tLists all indexes.");
+    System.err.println("\tlistNodes\t\tLists all nodes.");
+    System.err.println("\tstartMaster\t\tStarts a local master.");
+    System.err.println("\tstartNode\t\tStarts a local node.");
+    System.err.println("\tshowStructure\t\tShows the structure of a Katta installation.");
+    System.err.println("\tcheck\t\t\tAnalyze index/shard/node status.");
+    System.err.println("\tversion\t\t\tPrint the version.");
     System.err
         .println("\taddIndex <index name> <path to index> <lucene analyzer class> [<replication level>]\tAdd a index to a Katta installation.");
     System.err.println("\tremoveIndex <index name>\tRemove a index from a Katta installation.");
     System.err.println("\tredeployIndex <index name>\tTries to deploy an index.");
-    System.err.println("\tlistErrors <index name>\tLists all deploy errors for a specified index.");
+    System.err.println("\tlistErrors <index name>\t\tLists all deploy errors for a specified index.");
+    System.err
+        .println("\tsearch <index name>[,<index name>,...] \"<query>\" [count]\tSearch in supplied indexes. The query should be in \". If you supply a result count hit details will be printed. To search in all indices write \"*\"");
+    System.err.println();
     System.exit(1);
   }
 

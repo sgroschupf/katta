@@ -1,3 +1,5 @@
 addFlatDirResolver('buildLib', new File(rootDir, 'src/build/resources/lib'))
 dependencies(":jsch:0.1.39")
 dependencies(":ant-jsch:1.7.0")
+dependencies(":svnkit:1.1.6")
+dependencies(":svnkit-javahl:1.1.6")
