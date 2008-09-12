@@ -190,7 +190,7 @@ uploadLibs.doLast {
   ant.scp(file: metadataFile, toDir: "$kattaSshUser@$kattaSshHost:$uploadFolder", password: "$kattaSshPassword");
 }
 
-//dists task
+//build a distribution
 dists {
   String zipRoot = "$archivesBaseName-$distributionNumber"
   zip() {
@@ -200,12 +200,16 @@ dists {
   }
 }
 
+//build a release
 createTask('release', dependsOn:'dists') {
   String zipRoot = "$archivesBaseName-$version"
   ant.zip(destfile: new File(buildDir, zipRoot+".zip")) {
     zipFileSet(dir: file('bin'), prefix: "$zipRoot/bin", fileMode: '775')
     zipFileSet(dir: file('conf'), prefix: "$zipRoot/conf")
     zipFileSet(dir: runtimeLibsDir, prefix: "$zipRoot/lib")
+    zipFileSet(file: file('README.txt'), prefix: "$zipRoot")
+    zipFileSet(file: file('LICENSE.txt'), prefix: "$zipRoot")
+    zipFileSet(file: file('CHANGES.txt'), prefix: "$zipRoot")
   }
 }
 

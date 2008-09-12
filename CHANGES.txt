@@ -1,0 +1,6 @@
+Katta Change Log
+
+Release 0.1.0 - 2008-10-xx
+
+ 1. The first release of Katta.
+
