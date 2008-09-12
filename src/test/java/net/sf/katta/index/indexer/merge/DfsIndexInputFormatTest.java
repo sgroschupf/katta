@@ -40,7 +40,8 @@ public class DfsIndexInputFormatTest extends TestCase {
   private File _file = new File(System.getProperty("java.io.tmpdir"), DfsIndexInputFormatTest.class.getName());
 
   protected void setUp() throws Exception {
-    assertTrue(_file.mkdir());
+    _file.mkdir();
+    assertTrue(_file.isDirectory());
   }
 
   protected void tearDown() throws Exception {

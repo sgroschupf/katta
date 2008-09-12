@@ -24,6 +24,8 @@ import java.util.List;
 
 import net.sf.katta.AbstractKattaTest;
 import net.sf.katta.Katta;
+import net.sf.katta.client.DeployClient;
+import net.sf.katta.client.IIndexDeployFuture;
 import net.sf.katta.index.IndexMetaData;
 import net.sf.katta.index.IndexMetaData.IndexState;
 import net.sf.katta.node.Node;
@@ -54,12 +56,7 @@ public class MasterTest extends AbstractKattaTest {
 
     String node1 = "node1";
     String node2 = "node2";
-    try {
-      zkClient.createEphemeral(ZkPathes.getNodePath(node1), new NodeMetaData(node1, NodeState.IN_SERVICE));
-    } catch (Exception e) {
-      System.out.println(zkClientMaster.getZookeeperState());
-      throw e;
-    }
+    zkClient.createEphemeral(ZkPathes.getNodePath(node1), new NodeMetaData(node1, NodeState.IN_SERVICE));
     zkClient.create(ZkPathes.getNode2ShardRootPath(node1));
     zkClient.createEphemeral(ZkPathes.getNodePath(node2), new NodeMetaData(node2, NodeState.IN_SERVICE));
     zkClient.create(ZkPathes.getNode2ShardRootPath(node2));
@@ -263,6 +260,49 @@ public class MasterTest extends AbstractKattaTest {
     assertEquals(1, masterStartThread.getMaster().getIndexes().size());
 
     nodeStartThread.shutdown();
+    masterStartThread.shutdown();
+  }
+
+  public void testReplicateUnderreplicatedIndexesAfterNodeAdding() throws Exception {
+    MasterStartThread masterStartThread = startMaster();
+    final ZKClient zkClientMaster = masterStartThread.getZkClient();
+    ZKClient zkClient = new ZKClient(_conf);
+    zkClient.start(5000);
+    Master master = masterStartThread.getMaster();
+
+    // start one node
+    NodeStartThread nodeStartThread1 = startNode();
+    masterStartThread.join();
+    assertEquals(1, master.readNodes().size());
+
+    // add index with replication level of 2
+    final File indexFile = TestResources.INDEX1;
+    String index = "indexA";
+    DeployClient deployClient = new DeployClient(zkClient);
+    IIndexDeployFuture deployFuture = deployClient.addIndex(index, "file://" + indexFile.getAbsolutePath(),
+        StandardAnalyzer.class.getName(), 2);
+    deployFuture.joinDeployment();
+    assertEquals(1, deployClient.getIndexes(IndexState.DEPLOYED).size());
+    List<String> shards = zkClient.getChildren(ZkPathes.getIndexPath(index));
+    for (String shard : shards) {
+      assertEquals(1, zkClient.countChildren(ZkPathes.getShard2NodeRootPath(shard)));
+    }
+
+    // start node2
+    zkClientMaster.getEventLock().lock();
+    NodeStartThread nodeStartThread2 = startNode(SECOND_SHARD_FOLDER);
+    zkClientMaster.getEventLock().getDataChangedCondition().await();
+    zkClientMaster.getEventLock().unlock();
+    assertEquals(2, master.readNodes().size());
+
+    // replication should now take place
+    for (String shard : shards) {
+      waitForChilds(zkClient, ZkPathes.getShard2NodeRootPath(shard), 2);
+    }
+
+    deployClient.disconnect();
+    nodeStartThread1.shutdown();
+    nodeStartThread2.shutdown();
     masterStartThread.shutdown();
   }
 }

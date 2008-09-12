@@ -149,6 +149,9 @@ public class Master {
   private void startNodeManagement() throws KattaException {
     LOG.info("start managing nodes...");
     _nodes = _zkClient.subscribeChildChanges(ZkPathes.NODES, new NodeListener());
+    if (!_nodes.isEmpty()) {
+      LOG.info("found following nodes connected: " + _nodes);
+    }
     _manageShardThread.updateNodes(_nodes);
   }
 
