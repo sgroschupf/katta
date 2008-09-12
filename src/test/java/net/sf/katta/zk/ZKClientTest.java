@@ -19,14 +19,23 @@
  */
 package net.sf.katta.zk;
 
+import java.util.ArrayList;
+import java.util.ConcurrentModificationException;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import net.sf.katta.AbstractKattaTest;
 import net.sf.katta.index.IndexMetaData;
 import net.sf.katta.util.KattaException;
 
+import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
+import org.jmock.Expectations;
+import org.jmock.Mockery;
+
+import com.yahoo.zookeeper.Watcher.Event;
+import com.yahoo.zookeeper.proto.WatcherEvent;
 
 public class ZKClientTest extends AbstractKattaTest {
 
@@ -117,6 +126,65 @@ public class ZKClientTest extends AbstractKattaTest {
     client.close();
   }
 
+  public void testWatchProcessThreadSafeness() throws Exception {
+    final ZKClient zkClient = new ZKClient(_conf);
+    zkClient.start(5000);
+    final String path = "/";
+    final int listenerCount = 20;
+    final int threadCount = 10;
+    final int watchEventsPerThread = 100;
+    Mockery mockery = new Mockery();
+    final List<IZkChildListener> childListeners = new ArrayList<IZkChildListener>();
+    for (int i = 0; i < listenerCount; i++) {
+      childListeners.add(mockery.mock(IZkChildListener.class, "cl" + i));
+    }
+    mockery.checking(new Expectations() {
+      {
+        for (IZkChildListener childListener : childListeners) {
+          atLeast(1).of(childListener).handleChildChange(with(equal(path)), with(aNonNull(List.class)));
+        }
+      }
+    });
+
+    final AtomicInteger concurrentModificationExceptions = new AtomicInteger();
+    final AtomicInteger unknownExceptions = new AtomicInteger();
+    Runnable fireWatchEventsRunnable = new Runnable() {
+      public void run() {
+        try {
+          for (int i = 0; i < watchEventsPerThread; i++) {
+            zkClient.process(new WatcherEvent(Event.EventNodeChildrenChanged, Event.KeeperStateUnknown, path));
+            for (IZkChildListener childListener : childListeners) {
+              zkClient.unsubscribeChildChanges(path, childListener);
+              zkClient.subscribeChildChanges(path, childListener);
+            }
+          }
+        } catch (ConcurrentModificationException e) {
+          concurrentModificationExceptions.incrementAndGet();
+          e.printStackTrace();
+        } catch (Exception e) {
+          unknownExceptions.incrementAndGet();
+          e.printStackTrace();
+        }
+      }
+    };
+    Thread[] threads = new Thread[threadCount];
+    for (int i = 0; i < threads.length; i++) {
+      threads[i] = new Thread(fireWatchEventsRunnable);
+      threads[i].start();
+    }
+    for (Thread thread : threads) {
+      thread.join();
+    }
+    if (concurrentModificationExceptions.get() > 0) {
+      fail(concurrentModificationExceptions.get() + " ConcurrentModificationException exceptions was thrown");
+    }
+    if (unknownExceptions.get() > 0) {
+      fail(concurrentModificationExceptions.get() + " unknown exceptions was thrown");
+    }
+    zkClient.close();
+    mockery.assertIsSatisfied();
+  }
+
   protected class MyListener implements IZkChildListener, IZkDataListener {
 
     public int _counter = 0;
@@ -138,7 +206,7 @@ public class ZKClientTest extends AbstractKattaTest {
     }
 
     public Writable createWritable() {
-      return new IndexMetaData();
+      return new IntWritable();
     }
 
     private void handleEvent() {

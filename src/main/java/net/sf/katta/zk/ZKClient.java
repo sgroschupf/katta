@@ -223,42 +223,46 @@ public class ZKClient implements Watcher {
 
   private void removeDataListener(final String path, final IZkDataListener listener) {
     ensureZkRunning();
+    getEventLock().lock();
     final HashSet<IZkDataListener> hashSet = _dataListener.get(path);
     if (hashSet != null) {
       hashSet.remove(listener);
     }
+    getEventLock().unlock();
   }
 
   private void removeChildListener(final String path, final IZkChildListener listener) {
     ensureZkRunning();
+    getEventLock().lock();
     final HashSet<IZkChildListener> hashSet = _childListener.get(path);
     if (hashSet != null) {
       hashSet.remove(listener);
     }
+    getEventLock().unlock();
   }
 
   private void addChildListener(final String path, final IZkChildListener listener) {
     ensureZkRunning();
-    if (listener != null) {
-      HashSet<IZkChildListener> set = _childListener.get(path);
-      if (set == null) {
-        set = new HashSet<IZkChildListener>();
-        _childListener.put(path, set);
-      }
-      set.add(listener);
+    getEventLock().lock();
+    HashSet<IZkChildListener> set = _childListener.get(path);
+    if (set == null) {
+      set = new HashSet<IZkChildListener>();
+      _childListener.put(path, set);
     }
+    set.add(listener);
+    getEventLock().unlock();
   }
 
   private void addDataListener(final String path, final IZkDataListener listener) {
     ensureZkRunning();
-    if (listener != null) {
-      HashSet<IZkDataListener> set = _dataListener.get(path);
-      if (set == null) {
-        set = new HashSet<IZkDataListener>();
-        _dataListener.put(path, set);
-      }
-      set.add(listener);
+    getEventLock().lock();
+    HashSet<IZkDataListener> set = _dataListener.get(path);
+    if (set == null) {
+      set = new HashSet<IZkDataListener>();
+      _dataListener.put(path, set);
     }
+    set.add(listener);
+    getEventLock().unlock();
   }
 
   /**
@@ -545,9 +549,7 @@ public class ZKClient implements Watcher {
     } catch (final Exception e) {
       LOG.fatal("re-subscription for child changes on path '" + path + "' failed. removing listeners", e);
       children = Collections.EMPTY_LIST;
-      for (final IZkChildListener listener : childListeners) {
-        removeChildListener(path, listener);
-      }
+      childListeners.clear();
     }
     return children;
   }
