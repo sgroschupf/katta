@@ -8,7 +8,7 @@ import org.tigris.subversion.javahl.Info
 
 archivesBaseName = 'katta'
 group = 'net.sf.katta'
-version = '1.0-SNAPSHOT'
+version = '0.1-SNAPSHOT'
 snapShotVersion = version
 String timestamp = ""
 int buildNumber = 1;
@@ -112,6 +112,10 @@ createTask('collectRuntimeLibs') {
 
 //lib tasks (build the jars)
 libs() {
+  SimpleDateFormat simpleDateFormat = new SimpleDateFormat("EEE, d MMM yyyy HH:mm:ss.SSS z");
+  simpleDateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+  def date=simpleDateFormat.format(new Date());
+  
   //get svn info's
   DAVRepositoryFactory.setup();
   SVNClientInterface svnClient = SVNClientImpl.newInstance();
@@ -120,7 +124,7 @@ libs() {
   manifest.mainAttributes([ 
     'Implementation-Title': 'Katta', 
     'Implementation-Version': version, 
-    'Compile-Time': new java.util.Date().toString(),
+    'Compile-Time': date,
     'Compiled-By': System.getProperty("user.name"),
     'SVN-Revision': svnInfo.getRevision()+"",
     'SVN-URL': svnInfo.getUrl() +" -r "+svnInfo.getRevision()
@@ -190,6 +194,15 @@ uploadLibs.doLast {
 dists {
   String zipRoot = "$archivesBaseName-$distributionNumber"
   zip() {
+    zipFileSet(dir: file('bin'), prefix: "$zipRoot/bin", fileMode: '775')
+    zipFileSet(dir: file('conf'), prefix: "$zipRoot/conf")
+    zipFileSet(dir: runtimeLibsDir, prefix: "$zipRoot/lib")
+  }
+}
+
+createTask('release', dependsOn:'dists') {
+  String zipRoot = "$archivesBaseName-$version"
+  ant.zip(destfile: new File(buildDir, zipRoot+".zip")) {
     zipFileSet(dir: file('bin'), prefix: "$zipRoot/bin", fileMode: '775')
     zipFileSet(dir: file('conf'), prefix: "$zipRoot/conf")
     zipFileSet(dir: runtimeLibsDir, prefix: "$zipRoot/lib")

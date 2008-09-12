@@ -25,16 +25,7 @@ public class VersionInfo {
   public static final String COMPILED_BY;
   public static final String COMPILE_TIME;
 
-  public static void main(String[] args) {
-    System.out.println(VersionInfo.VERSION);
-    System.out.println(VersionInfo.SVN_URL);
-    System.out.println(VersionInfo.SVN_REVISION);
-    System.out.println(VersionInfo.COMPILED_BY);
-    System.out.println(VersionInfo.COMPILE_TIME);
-  }
-
   static {
-    // try {
     String jar = findContainingJar(VersionInfo.class);
     if (jar != null) {
       LOG.debug("load version info from '" + jar + "'");
