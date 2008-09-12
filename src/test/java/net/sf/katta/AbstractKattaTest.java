@@ -106,6 +106,18 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
   protected void stopZkServer() {
     if (_zkServer != null) {
       _zkServer.shutdown();
+      int waitingTimes = 0;
+      try {
+        while (!NetworkUtil.isPortFree(ZkServer.DEFAULT_PORT)) {
+          if (waitingTimes > 4) {
+            throw new IllegalStateException("zk server did not freed it port");
+          }
+          Thread.sleep(500);
+          waitingTimes++;
+        }
+      } catch (InterruptedException e) {
+        // proceed
+      }
       _zkServer = null;
     }
   }
