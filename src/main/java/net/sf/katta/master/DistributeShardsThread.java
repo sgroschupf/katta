@@ -55,6 +55,7 @@ public class DistributeShardsThread extends Thread {
     _zkClient = zkClient;
     _maxSafeModeTime = maxSafeMaxTime;
     setDaemon(true);
+    setName(getClass().getSimpleName());
   }
 
   public void reportStartup() {
@@ -162,7 +163,7 @@ public class DistributeShardsThread extends Thread {
     return "indexes: " + updatedIndexes + " | nodes: " + updatedNodes + " | startup: " + startupReported;
   }
 
-  private void handleStartup() throws KattaException {
+  private void handleStartup() throws KattaException, InterruptedException {
     LOG.info("do integrity check of indexes");
     handleAddedOrUnderreplicatedIndexes(getUnderreplicatedIndexes());
     // TODO jz: check namespace structure ??
@@ -220,7 +221,7 @@ public class DistributeShardsThread extends Thread {
     }
   }
 
-  private void handleRemovedNodes(Set<String> removedNodes) throws KattaException {
+  private void handleRemovedNodes(Set<String> removedNodes) throws KattaException, InterruptedException {
     if (removedNodes.isEmpty()) {
       return;
     }
@@ -239,7 +240,8 @@ public class DistributeShardsThread extends Thread {
     distributeShards(affectedIndexes, IndexState.REPLICATING);
   }
 
-  private void handleAddedOrUnderreplicatedIndexes(Set<String> addedIndexes) throws KattaException {
+  private void handleAddedOrUnderreplicatedIndexes(Set<String> addedIndexes) throws KattaException,
+      InterruptedException {
     if (addedIndexes.isEmpty()) {
       return;
     }
@@ -247,7 +249,7 @@ public class DistributeShardsThread extends Thread {
     distributeShards(addedIndexes, IndexState.DEPLOYING);
   }
 
-  private void handleAddedNodes(Set<String> addedNodes) throws KattaException {
+  private void handleAddedNodes(Set<String> addedNodes) throws KattaException, InterruptedException {
     if (addedNodes.isEmpty()) {
       return;
     }
@@ -257,7 +259,8 @@ public class DistributeShardsThread extends Thread {
     // TODO jz: rebalance nodes load ?
   }
 
-  private void distributeShards(Set<String> affectedIndexes, IndexState state) throws KattaException {
+  private void distributeShards(Set<String> affectedIndexes, IndexState state) throws KattaException,
+      InterruptedException {
     for (String index : affectedIndexes) {
       final String indexZkPath = ZkPathes.getIndexPath(index);
       final IndexMetaData indexMetaData = new IndexMetaData();
@@ -273,6 +276,9 @@ public class DistributeShardsThread extends Thread {
         _zkClient.writeData(indexZkPath, indexMetaData);
         distributeShards(index, indexZkPath, indexMetaData, indexShards, shard2AssignedShardMap);
       } catch (Exception e) {
+        if (e.getCause() instanceof InterruptedException) {
+          throw (InterruptedException) e.getCause();
+        }
         LOG.error("could not deploy index '" + index + "'", e);
         _zkClient.readData(indexZkPath, indexMetaData);
         indexMetaData.setState(IndexState.ERROR, e.getMessage());
