@@ -290,16 +290,21 @@ public class Katta {
     int inServiceNodeCount = 0;
     final Table table = new Table();
     for (final String node : nodes) {
-      final String path = ZkPathes.getNodePath(node);
+      final String nodePath = ZkPathes.getNodePath(node);
       final NodeMetaData nodeMetaData = new NodeMetaData();
-      _zkClient.readData(path, nodeMetaData);
-      NodeState nodeState = nodeMetaData.getState();
-      if (nodeState == NodeState.IN_SERVICE) {
-        inServiceNodeCount++;
+      if (_zkClient.exists(nodePath)) {
+        _zkClient.readData(nodePath, nodeMetaData);
+        NodeState nodeState = nodeMetaData.getState();
+        if (nodeState == NodeState.IN_SERVICE) {
+          inServiceNodeCount++;
+        }
+        table.addRow(nodeMetaData.getName(), nodeMetaData.getStartTimeAsDate(), nodeState.name());
+      } else {
+        // we clean a known but outdated node
+        _zkClient.delete(ZkPathes.getNode2ShardRootPath(node));
       }
-      table.addRow(nodeMetaData.getName(), nodeMetaData.getStartTimeAsDate(), nodeState.name());
     }
-    table.setHeader("Name (" + inServiceNodeCount + "/" + nodes.size() + " nodes connected)", "Start time", "State");
+    table.setHeader("Name (" + inServiceNodeCount + "/" + table.rowSize() + " nodes connected)", "Start time", "State");
     System.out.println(table.toString());
   }
 
@@ -424,6 +429,10 @@ public class Katta {
 
     public void addRow(final String... row) {
       _rows.add(row);
+    }
+
+    public int rowSize() {
+      return _rows.size();
     }
 
     @Override
