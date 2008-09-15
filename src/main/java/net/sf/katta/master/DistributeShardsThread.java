@@ -165,14 +165,32 @@ public class DistributeShardsThread extends Thread {
 
   private void handleStartup() throws KattaException, InterruptedException {
     LOG.info("do integrity check of indexes");
-    handleAddedOrUnderreplicatedIndexes(getUnderreplicatedIndexes());
+    Set<String> underreplicatedIndexes = getUnderreplicatedIndexes();
+    LOG.info("found following underreplicated indexes: " + underreplicatedIndexes);
+    Set<String> annoucedIndexes = getAnnouncedButUndeployedIndexes();
+    LOG.info("found following indexes in announced state: " + annoucedIndexes);
+
+    //now redeploy/replicate
+    underreplicatedIndexes.addAll(annoucedIndexes);
+    handleAddedOrUnderreplicatedIndexes(underreplicatedIndexes);
     // TODO jz: check namespace structure ??
   }
 
+  private Set<String> getAnnouncedButUndeployedIndexes() throws KattaException {
+    Set<String> announcedIndexes = new HashSet<String>();
+    for (String index : _zkClient.getChildren(ZkPathes.INDEXES)) {
+      IndexMetaData indexMetaData = new IndexMetaData();
+      _zkClient.readData(ZkPathes.getIndexPath(index), indexMetaData);
+      if (indexMetaData.getState() == IndexState.ANNOUNCED) {
+        announcedIndexes.add(index);
+      }
+    }
+    return announcedIndexes;
+  }
+
   private Set<String> getUnderreplicatedIndexes() throws KattaException {
-    List<String> indexes = _zkClient.getChildren(ZkPathes.INDEXES);
     Set<String> underreplicatedIndexes = new HashSet<String>();
-    for (String index : indexes) {
+    for (String index : _zkClient.getChildren(ZkPathes.INDEXES)) {
       String indexZkPath = ZkPathes.getIndexPath(index);
       IndexMetaData indexMetaData = new IndexMetaData();
       _zkClient.readData(indexZkPath, indexMetaData);

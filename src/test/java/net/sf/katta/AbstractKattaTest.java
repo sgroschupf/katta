@@ -250,7 +250,6 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
 
     public void shutdown() {
       _node.shutdown();
-      _node.shutdown();
       try {
         int tryCount = 0;
         int maxTries = 100;

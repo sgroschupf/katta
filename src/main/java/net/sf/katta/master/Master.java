@@ -89,13 +89,13 @@ public class Master {
 
   public void shutdown() {
     try {
-      _zkClient.getEventLock().lock();
       _manageShardThread.interrupt();
       try {
         _manageShardThread.join();
       } catch (InterruptedException e1) {
         // proceed
       }
+      _zkClient.getEventLock().lock();
       try {
         _zkClient.unsubscribeAll();
         _zkClient.delete(ZkPathes.MASTER);
