@@ -218,8 +218,7 @@ dists {
 }
 
 //build a release
-createTask('release', dependsOn:['checkHeader','dists']) {
-  tar()
+createTask('release', dependsOn:['clean', 'dists']) {
   String zipRoot = "$archivesBaseName-$version"
   ant.zip(destfile: new File(buildDir, zipRoot+".zip")) {
     zipFileSet(dir: file('bin'), prefix: "$zipRoot/bin", fileMode: '775')
@@ -228,6 +227,16 @@ createTask('release', dependsOn:['checkHeader','dists']) {
     zipFileSet(file: file('README.txt'), prefix: "$zipRoot")
     zipFileSet(file: file('LICENSE.txt'), prefix: "$zipRoot")
     zipFileSet(file: file('CHANGES.txt'), prefix: "$zipRoot")
+  }
+  
+  String tarRoot = "$archivesBaseName-$version"
+  ant.tar(destfile: new File(buildDir, tarRoot+".tar.gz")) {
+    tarFileSet(dir: file('bin'), prefix: "$tarRoot/bin", fileMode: '775')
+    tarFileSet(dir: file('conf'), prefix: "$tarRoot/conf")
+    tarFileSet(dir: runtimeLibsDir, prefix: "$tarRoot/lib")
+    tarFileSet(file: file('README.txt'), prefix: "$tarRoot")
+    tarFileSet(file: file('LICENSE.txt'), prefix: "$tarRoot")
+    tarFileSet(file: file('CHANGES.txt'), prefix: "$tarRoot")
   }
 }
 
