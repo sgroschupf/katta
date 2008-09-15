@@ -1,3 +1,19 @@
+/**
+ * Copyright 2008 the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+ 
 import java.text.DateFormat
 import java.text.SimpleDateFormat
 import org.gradle.api.tasks.StopExecutionException
@@ -47,6 +63,7 @@ public class JarFilter implements FileFilter {
 }
 
 test {
+  dependsOn 'checkHeader'
   include '**/*Test.class'
   exclude '**/Abstract*Test.class'
 }
@@ -201,7 +218,8 @@ dists {
 }
 
 //build a release
-createTask('release', dependsOn:'dists') {
+createTask('release', dependsOn:['checkHeader','dists']) {
+  tar()
   String zipRoot = "$archivesBaseName-$version"
   ant.zip(destfile: new File(buildDir, zipRoot+".zip")) {
     zipFileSet(dir: file('bin'), prefix: "$zipRoot/bin", fileMode: '775')
@@ -245,4 +263,44 @@ uploadDists {
     resolver.setPublishPermissions("0644");
     uploadResolvers.add(resolver);
   }
+  
+createTask('checkHeader') {
+  println "checking missing or wrong license headers..."
+  scanRoot = projectDir
+  def scanner = ant.fileScanner {
+    fileset (dir: scanRoot) {
+        include(name: "build.gradle")
+        include(name: "**/*.java")
+        exclude(name: "**/target/**")
+        exclude(name: "**/build/**")
+        exclude(name: "**/build-resolver/**")
+    }
+  }
+
+  int corruptHeaderCount=0;
+  def licenseLineLine2 = "Copyright 2008 the original author or authors."
+  def licenseLineLine4 = "Licensed under the Apache License, Version 2.0 (the \"License\");"
+  println("files with missing/wrong license header:")
+  scanner.each { file ->
+    file.withReader { reader ->
+      def line2 = null
+      def line4 = null
+      2.times { line2 = reader.readLine() }
+      2.times { line4 = reader.readLine()}
+
+      if (line2==null || !line2.endsWith(licenseLineLine2) || !line4.endsWith(licenseLineLine4)) {
+    	println(" $file")
+    	corruptHeaderCount++;
+        retValue = false
+      }
+      reader.close()
+	}
+  }
+  println ""
+  println "$corruptHeaderCount files with corrupt license headers..."
+  if(corruptHeaderCount>0) {
+    throw new RuntimeException("There are files with missing or corrupt license headers")
+  }
+}
+  
 }

@@ -1,6 +1,22 @@
+/**
+ * Copyright 2008 the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package net.sf.katta.index.indexer;
 
 import net.sf.katta.index.indexer.merge.DfsIndexDirectory;
+
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.HelpFormatter;
@@ -26,7 +42,8 @@ public class IndexDocumentPrinter {
     CommandLineParser parser = new PosixParser();
     CommandLine cmd = parser.parse(options, args);
 
-    if (!cmd.hasOption("hadoopConf") || !cmd.hasOption("shard") || !cmd.hasOption("workingPath") || !cmd.hasOption("indexField")) {
+    if (!cmd.hasOption("hadoopConf") || !cmd.hasOption("shard") || !cmd.hasOption("workingPath")
+        || !cmd.hasOption("indexField")) {
       HelpFormatter formatter = new HelpFormatter();
       formatter.printHelp(IndexDocumentPrinter.class.getName(), options);
       return;
@@ -38,7 +55,6 @@ public class IndexDocumentPrinter {
 
     String indexField = cmd.getOptionValue("indexField");
 
-
     JobConf jobConf = new JobConf(hadoopConf);
     FileSystem fileSystem = FileSystem.get(jobConf);
     fileSystem.mkdirs(workingPath);
@@ -46,7 +62,7 @@ public class IndexDocumentPrinter {
     DfsIndexDirectory directory = new DfsIndexDirectory(fileSystem, zipFile, workingPath);
     IndexReader reader = IndexReader.open(directory);
     int maxDoc = reader.maxDoc();
-    MapFieldSelector selector = new MapFieldSelector(new String[]{indexField});
+    MapFieldSelector selector = new MapFieldSelector(new String[] { indexField });
     for (int i = 0; i < maxDoc; i++) {
       Document document = reader.document(i, selector);
       String indexValue = document.get(indexField);

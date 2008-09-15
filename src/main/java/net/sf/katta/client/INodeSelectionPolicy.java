@@ -1,15 +1,11 @@
 /**
- * Copyright 2008 The Apache Software Foundation
+ * Copyright 2008 the original author or authors.
  *
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -31,9 +27,9 @@ import net.sf.katta.node.IQuery;
  * Since shards can be replicated over different nodes and nodes can be
  * distributed in different network sections (same switch or rack, same data
  * center etc.) we allow custom selection policies to implement the logic to
- * make the smartest possible choice of nodes the client has to query. The
- * node selection policy is also the place where an load balancing schema need
- * to be implemented.
+ * make the smartest possible choice of nodes the client has to query. The node
+ * selection policy is also the place where an load balancing schema need to be
+ * implemented.
  */
 public interface INodeSelectionPolicy {
 
@@ -50,8 +46,8 @@ public interface INodeSelectionPolicy {
 
   /**
    * Returns a map where as key the nodeName is used and as value a list shards
-   * served by node we need to query. Ideally this method returns nodes with
-   * low latency to the client and alternate between nodes to load balance high
+   * served by node we need to query. Ideally this method returns nodes with low
+   * latency to the client and alternate between nodes to load balance high
    * traffic.
    * 
    * @param queries

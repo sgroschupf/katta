@@ -1,15 +1,11 @@
 /**
- * Copyright 2008 The Apache Software Foundation
+ * Copyright 2008 the original author or authors.
  *
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -35,7 +31,7 @@ public interface ISearch extends VersionedProtocol {
    * @param query
    * @param freqs
    * @param shardNames
-   *            A array of shard names to search in.
+   *          A array of shard names to search in.
    * @return
    * @throws ParseException
    * @throws IOException
@@ -47,7 +43,7 @@ public interface ISearch extends VersionedProtocol {
    * @param freqs
    * @param shardNames
    * @param count
-   *            the top n high score hits
+   *          the top n high score hits
    * @return
    * @throws ParseException
    * @throws IOException
@@ -58,8 +54,9 @@ public interface ISearch extends VersionedProtocol {
   /**
    * Returns the number of documents a term occurs in. In a distributed search
    * environment, we need to get this first and then query all nodes again with
-   * this information to ensure we compute TF IDF correctly. See
-   * {@link http://lucene.apache.org/java/2_3_0/api/org/apache/lucene/search/Similarity.html}
+   * this information to ensure we compute TF IDF correctly. See {@link http
+   * ://lucene
+   * .apache.org/java/2_3_0/api/org/apache/lucene/search/Similarity.html}
    * 
    * @param input
    * @param shards
