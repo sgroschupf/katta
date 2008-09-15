@@ -300,8 +300,7 @@ public class Katta {
         }
         table.addRow(nodeMetaData.getName(), nodeMetaData.getStartTimeAsDate(), nodeState.name());
       } else {
-        // we clean a known but outdated node
-        _zkClient.delete(ZkPathes.getNode2ShardRootPath(node));
+        // known but outdated node (master cleans this up)
       }
     }
     table.setHeader("Name (" + inServiceNodeCount + "/" + table.rowSize() + " nodes connected)", "Start time", "State");
