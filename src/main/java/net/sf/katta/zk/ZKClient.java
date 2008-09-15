@@ -480,13 +480,14 @@ public class ZKClient implements Watcher {
     ZkEventType eventType = ZkEventType.getMappedType(event.getType());
     final String path = event.getPath();
     if (eventType == ZkEventType.NODE_CHILDREN_CHANGED) {
-      final HashSet<IZkChildListener> childListeners = _childListener.get(path);
+      HashSet<IZkChildListener> childListeners = _childListener.get(path);
       if (childListeners != null && !childListeners.isEmpty()) {
-        List<String> children;
+        // avoid ConcurrentModificationException
+        childListeners = (HashSet<IZkChildListener>) childListeners.clone();
         // first we re-subscribe to path since zk subscriptions are
         // one-timers. Also it is not guaranteed that with this
         // re-subscription we do not miss an event for that path.
-        children = resubscribeChildPath(event, path, childListeners);
+        List<String> children = resubscribeChildPath(event, path, childListeners);
 
         for (final IZkChildListener listener : childListeners) {
           try {
@@ -497,8 +498,10 @@ public class ZKClient implements Watcher {
         }
       }
     } else {
-      final HashSet<IZkDataListener> listeners = _dataListener.get(path);
+      HashSet<IZkDataListener> listeners = _dataListener.get(path);
       if (listeners != null && !listeners.isEmpty()) {
+        // avoid ConcurrentModificationException
+        listeners = (HashSet<IZkDataListener>) listeners.clone();
         // first we re-subscribe to path since zk subscriptions are
         // one-timers. Also it is not guaranteed that with this
         // re-subscription we do not miss an event for that path.
