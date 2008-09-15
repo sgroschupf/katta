@@ -24,7 +24,7 @@ import org.tigris.subversion.javahl.Info
 
 archivesBaseName = 'katta'
 group = 'net.sf.katta'
-version = '0.1-SNAPSHOT'
+version = '0.1.0'
 snapShotVersion = version
 String timestamp = ""
 int buildNumber = 1;
