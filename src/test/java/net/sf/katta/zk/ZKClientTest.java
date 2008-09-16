@@ -92,9 +92,12 @@ public class ZKClientTest extends AbstractKattaTest {
     client.subscribeChildChanges(file, listener);
     for (int i = 0; i < 10; i++) {
       client.getEventLock().lock();
-      client.create(file + "/" + i);
-      client.getEventLock().getDataChangedCondition().await();
-      client.getEventLock().unlock();
+      try {
+        client.create(file + "/" + i);
+        client.getEventLock().getDataChangedCondition().await();
+      } finally {
+        client.getEventLock().unlock();
+      }
     }
     assertEquals(10, listener._counter);
     client.close();
@@ -112,11 +115,14 @@ public class ZKClientTest extends AbstractKattaTest {
     client.subscribeDataChanges(katta, listener);
     for (int i = 0; i < 10; i++) {
       client.getEventLock().lock();
-      final IndexMetaData indexMetaData = new IndexMetaData("path", "someAnalyzr" + i, 3,
-          IndexMetaData.IndexState.ANNOUNCED);
-      client.writeData(katta, indexMetaData);
-      client.getEventLock().getDataChangedCondition().await();
-      client.getEventLock().unlock();
+      try{
+        final IndexMetaData indexMetaData = new IndexMetaData("path", "someAnalyzr" + i, 3,
+            IndexMetaData.IndexState.ANNOUNCED);
+        client.writeData(katta, indexMetaData);
+        client.getEventLock().getDataChangedCondition().await();
+      } finally {
+        client.getEventLock().unlock();
+      }
     }
     assertEquals(10, listener._counter);
     client.close();
@@ -129,14 +135,14 @@ public class ZKClientTest extends AbstractKattaTest {
     final int listenerCount = 20;
     final int threadCount = 10;
     final int watchEventsPerThread = 100;
-    Mockery mockery = new Mockery();
+    final Mockery mockery = new Mockery();
     final List<IZkChildListener> childListeners = new ArrayList<IZkChildListener>();
     for (int i = 0; i < listenerCount; i++) {
       childListeners.add(mockery.mock(IZkChildListener.class, "cl" + i));
     }
     mockery.checking(new Expectations() {
       {
-        for (IZkChildListener childListener : childListeners) {
+        for (final IZkChildListener childListener : childListeners) {
           atLeast(1).of(childListener).handleChildChange(with(equal(path)), with(aNonNull(List.class)));
         }
       }
@@ -144,31 +150,31 @@ public class ZKClientTest extends AbstractKattaTest {
 
     final AtomicInteger concurrentModificationExceptions = new AtomicInteger();
     final AtomicInteger unknownExceptions = new AtomicInteger();
-    Runnable fireWatchEventsRunnable = new Runnable() {
+    final Runnable fireWatchEventsRunnable = new Runnable() {
       public void run() {
         try {
           for (int i = 0; i < watchEventsPerThread; i++) {
             zkClient.process(new WatcherEvent(Event.EventNodeChildrenChanged, Event.KeeperStateUnknown, path));
-            for (IZkChildListener childListener : childListeners) {
+            for (final IZkChildListener childListener : childListeners) {
               zkClient.unsubscribeChildChanges(path, childListener);
               zkClient.subscribeChildChanges(path, childListener);
             }
           }
-        } catch (ConcurrentModificationException e) {
+        } catch (final ConcurrentModificationException e) {
           concurrentModificationExceptions.incrementAndGet();
           e.printStackTrace();
-        } catch (Exception e) {
+        } catch (final Exception e) {
           unknownExceptions.incrementAndGet();
           e.printStackTrace();
         }
       }
     };
-    Thread[] threads = new Thread[threadCount];
+    final Thread[] threads = new Thread[threadCount];
     for (int i = 0; i < threads.length; i++) {
       threads[i] = new Thread(fireWatchEventsRunnable);
       threads[i].start();
     }
-    for (Thread thread : threads) {
+    for (final Thread thread : threads) {
       thread.join();
     }
     if (concurrentModificationExceptions.get() > 0) {
@@ -185,19 +191,19 @@ public class ZKClientTest extends AbstractKattaTest {
 
     public int _counter = 0;
 
-    public void handleChildChange(String parentPath, List<String> currentChilds) throws KattaException {
+    public void handleChildChange(final String parentPath, final List<String> currentChilds) throws KattaException {
       handleEvent();
     }
 
-    public void handleDataAdded(String dataPath, Writable data) throws KattaException {
+    public void handleDataAdded(final String dataPath, final Writable data) throws KattaException {
       handleEvent();
     }
 
-    public void handleDataChange(String dataPath, Writable data) throws KattaException {
+    public void handleDataChange(final String dataPath, final Writable data) throws KattaException {
       handleEvent();
     }
 
-    public void handleDataDeleted(String dataPath) throws KattaException {
+    public void handleDataDeleted(final String dataPath) throws KattaException {
       handleEvent();
     }
 
