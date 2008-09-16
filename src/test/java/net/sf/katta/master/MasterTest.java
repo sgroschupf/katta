@@ -269,7 +269,7 @@ public class MasterTest extends AbstractKattaTest {
     // start one node
     NodeStartThread nodeStartThread1 = startNode();
     masterStartThread.join();
-    assertEquals(1, master.readNodes().size());
+    waitOnNodes(masterStartThread, 1);
 
     // add index with replication level of 2
     final File indexFile = TestResources.INDEX1;
