@@ -26,6 +26,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -165,13 +166,6 @@ public class DistributeShardsThread extends Thread {
     handleAddedOrUnderreplicatedIndexes(underreplicatedIndexes);
 
     // TODO jz: check namespace structure ??
-    final List<String> nodes = _zkClient.getKnownNodes();
-    for (final String node : nodes) {
-      if (!_zkClient.exists(ZkPathes.getNodePath(node))) {
-        LOG.info("clean up node without metadata " + node);
-        _zkClient.deleteRecursive(ZkPathes.getNode2ShardRootPath(node));
-      }
-    }
   }
 
   private Set<String> getAnnouncedButUndeployedIndexes() throws KattaException {
@@ -506,8 +500,8 @@ public class DistributeShardsThread extends Thread {
 
     private final Set<String> _shards;
     private final ZKClient _zkClient;
-    private final Map<String, Integer> _shardToReplicaCount = new HashMap<String, Integer>();
-    private final Map<String, Integer> _shardToErrorCount = new HashMap<String, Integer>();
+    private final Map<String, Integer> _shardToReplicaCount = new ConcurrentHashMap<String, Integer>();
+    private final Map<String, Integer> _shardToErrorCount = new ConcurrentHashMap<String, Integer>();
     private final String _index;
     private final IndexMetaData _indexMetaData;
     private int _replicationLevel;
