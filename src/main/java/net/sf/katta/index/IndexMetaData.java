@@ -87,7 +87,9 @@ public class IndexMetaData implements Writable {
 
   public void setState(final IndexState state, String errorMsg) {
     _state = state;
-    _errorMessage.set(errorMsg);
+    if (errorMsg != null) {
+      _errorMessage.set(errorMsg);
+    }
   }
 
   public String getErrorMessage() {

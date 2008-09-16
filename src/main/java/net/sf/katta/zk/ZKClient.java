@@ -17,11 +17,11 @@ package net.sf.katta.zk;
 
 import java.io.IOException;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
@@ -53,9 +53,9 @@ public class ZKClient implements Watcher {
   private ZooKeeper _zk = null;
   private final ZkLock _zkEventLock = new ZkLock();
 
-  private final Map<String, HashSet<IZkChildListener>> _childListener = new ConcurrentHashMap<String, HashSet<IZkChildListener>>();
-  private final Map<String, HashSet<IZkDataListener>> _dataListener = new ConcurrentHashMap<String, HashSet<IZkDataListener>>();
-  private final Set<IZkReconnectListener> _reconnectListener = new HashSet<IZkReconnectListener>();
+  private final Map<String, Set<IZkChildListener>> _childListener = new ConcurrentHashMap<String, Set<IZkChildListener>>();
+  private final Map<String, Set<IZkDataListener>> _dataListener = new ConcurrentHashMap<String, Set<IZkDataListener>>();
+  private final Set<IZkReconnectListener> _reconnectListener = new CopyOnWriteArraySet<IZkReconnectListener>();
 
   private final String _servers;
   private final int _port;
@@ -221,9 +221,9 @@ public class ZKClient implements Watcher {
     ensureZkRunning();
     try {
       getEventLock().lock();
-      final HashSet<IZkDataListener> hashSet = _dataListener.get(path);
-      if (hashSet != null) {
-        hashSet.remove(listener);
+      final Set<IZkDataListener> listeners = _dataListener.get(path);
+      if (listeners != null) {
+        listeners.remove(listener);
       }
     } finally {
       getEventLock().unlock();
@@ -234,9 +234,9 @@ public class ZKClient implements Watcher {
     ensureZkRunning();
     try {
       getEventLock().lock();
-      final HashSet<IZkChildListener> hashSet = _childListener.get(path);
-      if (hashSet != null) {
-        hashSet.remove(listener);
+      final Set<IZkChildListener> listeners = _childListener.get(path);
+      if (listeners != null) {
+        listeners.remove(listener);
       }
     } finally {
       getEventLock().unlock();
@@ -247,12 +247,12 @@ public class ZKClient implements Watcher {
     ensureZkRunning();
     try {
       getEventLock().lock();
-      HashSet<IZkChildListener> set = _childListener.get(path);
-      if (set == null) {
-        set = new HashSet<IZkChildListener>();
-        _childListener.put(path, set);
+      Set<IZkChildListener> listeners = _childListener.get(path);
+      if (listeners == null) {
+        listeners = new CopyOnWriteArraySet<IZkChildListener>();
+        _childListener.put(path, listeners);
       }
-      set.add(listener);
+      listeners.add(listener);
     } finally {
       getEventLock().unlock();
     }
@@ -262,12 +262,12 @@ public class ZKClient implements Watcher {
     ensureZkRunning();
     try {
       getEventLock().lock();
-      HashSet<IZkDataListener> set = _dataListener.get(path);
-      if (set == null) {
-        set = new HashSet<IZkDataListener>();
-        _dataListener.put(path, set);
+      Set<IZkDataListener> listeners = _dataListener.get(path);
+      if (listeners == null) {
+        listeners = new CopyOnWriteArraySet<IZkDataListener>();
+        _dataListener.put(path, listeners);
       }
-      set.add(listener);
+      listeners.add(listener);
     } finally {
       getEventLock().unlock();
     }
@@ -434,8 +434,8 @@ public class ZKClient implements Watcher {
   public List<String> getChildren(final String path) throws KattaException {
     ensureZkRunning();
     boolean watch = false;
-    final HashSet<IZkChildListener> set = _childListener.get(path);
-    if (set != null && set.size() > 0) {
+    final Set<IZkChildListener> listeners = _childListener.get(path);
+    if (listeners != null && listeners.size() > 0) {
       watch = true;
     }
     try {
@@ -489,10 +489,8 @@ public class ZKClient implements Watcher {
     ZkEventType eventType = ZkEventType.getMappedType(event.getType());
     final String path = event.getPath();
     if (eventType == ZkEventType.NODE_CHILDREN_CHANGED) {
-      HashSet<IZkChildListener> childListeners = _childListener.get(path);
+      Set<IZkChildListener> childListeners = _childListener.get(path);
       if (childListeners != null && !childListeners.isEmpty()) {
-        // avoid ConcurrentModificationException
-        childListeners = (HashSet<IZkChildListener>) childListeners.clone();
         // first we re-subscribe to path since zk subscriptions are
         // one-timers. Also it is not guaranteed that with this
         // re-subscription we do not miss an event for that path.
@@ -507,10 +505,8 @@ public class ZKClient implements Watcher {
         }
       }
     } else {
-      HashSet<IZkDataListener> listeners = _dataListener.get(path);
+      Set<IZkDataListener> listeners = _dataListener.get(path);
       if (listeners != null && !listeners.isEmpty()) {
-        // avoid ConcurrentModificationException
-        listeners = (HashSet<IZkDataListener>) listeners.clone();
         // first we re-subscribe to path since zk subscriptions are
         // one-timers. Also it is not guaranteed that with this
         // re-subscription we do not miss an event for that path.
@@ -540,7 +536,7 @@ public class ZKClient implements Watcher {
     }
   }
 
-  private byte[] resubscribeDataPath(WatcherEvent event, final String path, final HashSet<IZkDataListener> listeners) {
+  private byte[] resubscribeDataPath(WatcherEvent event, final String path, final Set<IZkDataListener> listeners) {
     byte[] data = null;
     try {
       data = _zk.getData(event.getPath(), true, null);
@@ -554,7 +550,7 @@ public class ZKClient implements Watcher {
   }
 
   private List<String> resubscribeChildPath(WatcherEvent event, final String path,
-      final HashSet<IZkChildListener> childListeners) {
+      final Set<IZkChildListener> childListeners) {
     List<String> children;
     try {
       children = _zk.getChildren(event.getPath(), true);
