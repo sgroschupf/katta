@@ -41,6 +41,8 @@ public class Master {
 
   protected boolean _isMaster;
 
+  private int _safeModeMaxTime;
+
   public Master(final ZKClient zkClient) throws KattaException {
     _zkClient = zkClient;
     final MasterConfiguration masterConfiguration = new MasterConfiguration();
@@ -53,16 +55,15 @@ public class Master {
       throw new KattaException("Unable to instantiate deploy policy", e);
     }
 
-    int safeModeMaxTime;
     if (!masterConfiguration.containsProperty(MasterConfiguration.SAFE_MODE_MAX_TIME)) {
       LOG.warn(MasterConfiguration.SAFE_MODE_MAX_TIME + " not configured in master configuration");
-      safeModeMaxTime = 10000;
+      _safeModeMaxTime = 10000;
       // TODO jz: remove that check once we can assume all config files has been
       // updated
     } else {
-      safeModeMaxTime = masterConfiguration.getInt(MasterConfiguration.SAFE_MODE_MAX_TIME);
+      _safeModeMaxTime = masterConfiguration.getInt(MasterConfiguration.SAFE_MODE_MAX_TIME);
     }
-    _manageShardThread = new DistributeShardsThread(_zkClient, deployPolicy, safeModeMaxTime);
+    _manageShardThread = new DistributeShardsThread(_zkClient, deployPolicy);
   }
 
   public void start() throws KattaException {
@@ -76,11 +77,23 @@ public class Master {
       if (_isMaster) {
         startNodeManagement();
         startIndexManagement();
+        processSafeMode();
         _manageShardThread.start();
       }
     } finally {
       _zkClient.getEventLock().unlock();
     }
+  }
+
+  public void processSafeMode() throws KattaException {
+    LOG.info("entering safe mode (maximum " + _safeModeMaxTime + " ms)");
+    try {
+      // wait maximum safe mode time for new nodes
+      Thread.sleep(_safeModeMaxTime);
+    } catch (InterruptedException e) {
+      throw new KattaException("interrupted safe mode", e);
+    }
+    LOG.info("leaving safe mode with " + _nodes.size() + " connected nodes");
   }
 
   public void shutdown() {
@@ -129,10 +142,6 @@ public class Master {
         _zkClient.delete(ZkPathes.MASTER);
       }
     }
-  }
-
-  public void joinLeaveSafeMode() throws InterruptedException {
-    _manageShardThread.joinLeaveSafeMode();
   }
 
   private void startIndexManagement() throws KattaException {

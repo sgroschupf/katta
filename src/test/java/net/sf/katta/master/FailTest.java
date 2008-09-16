@@ -47,12 +47,10 @@ public class FailTest extends AbstractKattaTest {
     secMaster.start();
 
     nodeThread.join();
-    master.joinLeaveSafeMode();
     waitForPath(masterClient, ZkPathes.MASTER);
     waitForChilds(masterClient, ZkPathes.NODES, 1);
 
     // kill master
-    master.joinLeaveSafeMode();
     secMasterClient.getEventLock().lock();
     masterClient.close();
     secMasterClient.getEventLock().getDataChangedCondition().await(30, TimeUnit.SECONDS);
