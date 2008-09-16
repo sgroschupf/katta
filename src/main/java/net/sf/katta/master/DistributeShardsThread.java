@@ -65,13 +65,6 @@ public class DistributeShardsThread extends Thread {
     setName(getClass().getSimpleName());
   }
 
-  public void reportStartup() {
-    _updateLock.lock();
-    _statusUpdate.setStartupReported(true);
-    _updateLock.getUpdatedCondition().signal();
-    _updateLock.unlock();
-  }
-
   public void updateIndexes(Collection<String> indexes) {
     _updateLock.lock();
     _statusUpdate.updateIndexes(indexes);
@@ -98,6 +91,7 @@ public class DistributeShardsThread extends Thread {
   public void run() {
     try {
       LOG.info("starting...");
+      boolean startup = true;
       while (true) {
         _updateLock.lock();
         if (!_statusUpdate.hasChanges(_liveIndexes, _liveNodes)) {
@@ -106,7 +100,6 @@ public class DistributeShardsThread extends Thread {
         }
         LOG.info("processing of update started...");
 
-        boolean startupReported = _statusUpdate.isStartupReported();
         Set<String> updatedIndexes = _statusUpdate.getIndexes();
         Set<String> updatedNodes = _statusUpdate.getNodes();
         if (updatedNodes.isEmpty()) {
@@ -117,15 +110,15 @@ public class DistributeShardsThread extends Thread {
           _updateLock.unlock();
           continue;
         }
-        _statusUpdate.reset();
         _updateLock.unlock();
 
         try {
           // now do the work
-          if (startupReported) {
+          if (startup) {
             _liveIndexes = updatedIndexes;
             _liveNodes = updatedNodes;
             handleStartup();
+            startup = false;
           } else {
             Set<String> addedIndexes = CollectionUtil.getSetOfAdded(_liveIndexes, updatedIndexes);
             Set<String> removedIndexes = CollectionUtil.getSetOfRemoved(_liveIndexes, updatedIndexes);
@@ -143,8 +136,7 @@ public class DistributeShardsThread extends Thread {
           if (e.getCause() instanceof InterruptedException) {
             throw (InterruptedException) e.getCause();
           }
-          LOG.error("Failed to execute shard update to {" + toString(updatedIndexes, updatedNodes, startupReported)
-              + "}", e);
+          LOG.error("Failed to execute shard update to {" + toString(updatedIndexes, updatedNodes, startup) + "}", e);
         }
         LOG.info("processing of update finsihed!");
       }
@@ -484,18 +476,8 @@ public class DistributeShardsThread extends Thread {
 
   protected static class StatusUpdate {
 
-    private boolean _startupReported;
-
     private Set<String> _indexes = new HashSet<String>();
     private Set<String> _nodes = new HashSet<String>();
-
-    public boolean isStartupReported() {
-      return _startupReported;
-    }
-
-    public void setStartupReported(boolean startupReported) {
-      _startupReported = startupReported;
-    }
 
     public void updateIndexes(Collection<String> indexes) {
       _indexes.clear();
@@ -522,12 +504,9 @@ public class DistributeShardsThread extends Thread {
     }
 
     public boolean hasChanges(Set<String> oldIndexes, Set<String> oldNodes) {
-      return _startupReported || !_indexes.equals(oldIndexes) || !_nodes.equals(oldNodes);
+      return !_indexes.equals(oldIndexes) || !_nodes.equals(oldNodes);
     }
 
-    public void reset() {
-      _startupReported = false;
-    }
   }
 
   private static class IndexStateListener implements IZkChildListener {

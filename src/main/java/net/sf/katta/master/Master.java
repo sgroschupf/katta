@@ -148,7 +148,6 @@ public class Master {
     LOG.debug("Loading indexes...");
     _indexes = _zkClient.subscribeChildChanges(ZkPathes.INDEXES, new IndexListener());
     _manageShardThread.updateIndexes(_indexes);
-    _manageShardThread.reportStartup();
   }
 
   private void startNodeManagement() throws KattaException {
