@@ -92,25 +92,26 @@ public class DistributeShardsThread extends Thread {
     try {
       LOG.info("starting...");
       boolean startup = true;
+      Set<String> updatedIndexes;
+      Set<String> updatedNodes;
       while (true) {
         _updateLock.lock();
-        if (!_statusUpdate.hasChanges(_liveIndexes, _liveNodes)) {
-          _updateLock.getUpdatedCondition().await();
-          // TODO jz: wait x ms and if nothing happens rebalance
-        }
-        LOG.info("processing of update started...");
-
-        Set<String> updatedIndexes = _statusUpdate.getIndexes();
-        Set<String> updatedNodes = _statusUpdate.getNodes();
-        if (updatedNodes.isEmpty()) {
-          // jz: if connected nodes in under a certain threshold go in
-          // safe-mode?
-          LOG.warn("no nodes connected - delaying update");
-          _updateLock.getUpdatedCondition().await();
+        try {
+          while (!_statusUpdate.hasChanges(_liveIndexes, _liveNodes) || _statusUpdate.getNodes().isEmpty()) {
+            if (_statusUpdate.getNodes().isEmpty()) {
+              LOG.warn("no nodes connected - delaying update");
+              // jz: if connected nodes in under a certain threshold go in
+              // safe-mode?
+            }
+            _updateLock.getUpdatedCondition().await();
+            // TODO jz: wait x ms and if nothing happens rebalance ??
+          }
+          LOG.info("processing of update started...");
+          updatedIndexes = new HashSet<String>(_statusUpdate.getIndexes());
+          updatedNodes = new HashSet<String>(_statusUpdate.getNodes());
+        } finally {
           _updateLock.unlock();
-          continue;
         }
-        _updateLock.unlock();
 
         try {
           // now do the work
@@ -142,11 +143,6 @@ public class DistributeShardsThread extends Thread {
       }
     } catch (InterruptedException e) {
       LOG.info("manage shard thread stopped");
-      try {
-        _updateLock.unlock();
-      } catch (Exception e2) {
-        // ignore
-      }
     }
   }
 
@@ -377,8 +373,11 @@ public class DistributeShardsThread extends Thread {
     IndexStateListener indexStateListener = new IndexStateListener(_zkClient, index, indexMD, indexShards, _liveNodes
         .size());
     _zkClient.getEventLock().lock();
-    indexStateListener.subscribeShardEvents();
-    _zkClient.getEventLock().unlock();
+    try {
+      indexStateListener.subscribeShardEvents();
+    } finally {
+      _zkClient.getEventLock().unlock();
+    }
   }
 
   private static Map<String, List<String>> readShard2NodesMapFromZk(ZKClient zkClient, Set<String> indexShards)
@@ -490,17 +489,11 @@ public class DistributeShardsThread extends Thread {
     }
 
     public Set<String> getIndexes() {
-      if (_indexes.isEmpty()) {
-        return Collections.EMPTY_SET;
-      }
-      return new HashSet<String>(_indexes);
+      return _indexes;
     }
 
     public Set<String> getNodes() {
-      if (_nodes.isEmpty()) {
-        return Collections.EMPTY_SET;
-      }
-      return new HashSet<String>(_nodes);
+      return _nodes;
     }
 
     public boolean hasChanges(Set<String> oldIndexes, Set<String> oldNodes) {

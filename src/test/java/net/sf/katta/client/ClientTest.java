@@ -26,7 +26,6 @@ import net.sf.katta.node.Node;
 import net.sf.katta.node.Query;
 import net.sf.katta.testutil.TestResources;
 import net.sf.katta.util.KattaException;
-import net.sf.katta.zk.ZkPathes;
 
 import org.apache.hadoop.io.MapWritable;
 import org.apache.hadoop.io.Text;
@@ -67,7 +66,7 @@ public class ClientTest extends AbstractKattaTest {
     masterStartThread.join();
     nodeStartThread1.join();
     nodeStartThread2.join();
-    waitForChilds(masterStartThread.getZkClient(), ZkPathes.NODES, 2);
+    waitOnNodes(masterStartThread, 2);
 
     _deployClient = new DeployClient(_conf);
     _deployClient.addIndex(INDEX1, TestResources.INDEX1.getAbsolutePath(), StandardAnalyzer.class.getName(), 1)
