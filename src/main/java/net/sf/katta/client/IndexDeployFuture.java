@@ -35,9 +35,12 @@ public class IndexDeployFuture implements IIndexDeployFuture, IZkDataListener<In
 
     // subscribe index
     _zkClient.getEventLock().lock();
-    _zkClient.subscribeDataChanges(_indexZkPath, this);
-    _zkClient.readData(_indexZkPath, indexMetaData);
-    _zkClient.getEventLock().unlock();
+    try {
+      _zkClient.subscribeDataChanges(_indexZkPath, this);
+      _zkClient.readData(_indexZkPath, indexMetaData);
+    } finally {
+      _zkClient.getEventLock().unlock();
+    }
   }
 
   public synchronized IndexState getState() {
