@@ -17,10 +17,6 @@
 import java.text.DateFormat
 import java.text.SimpleDateFormat
 import org.gradle.api.tasks.StopExecutionException
-import org.tigris.subversion.javahl.SVNClientInterface
-import org.tmatesoft.svn.core.internal.io.dav.DAVRepositoryFactory
-import org.tmatesoft.svn.core.javahl.SVNClientImpl
-import org.tigris.subversion.javahl.Info
 
 archivesBaseName = 'katta'
 group = 'net.sf.katta'
@@ -41,7 +37,7 @@ targetCompatibility = 1.5
 
 createTask('wrapper', type: Wrapper).configure {
   urlRoot = 'http://dist.codehaus.org/gradle/'
-  gradleVersion = '0.3'
+  gradleVersion = '0.4'
   jarPath = 'src/build/resources/lib'
 }
 
@@ -133,19 +129,30 @@ libs() {
   simpleDateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
   def date=simpleDateFormat.format(new Date());
   
-  //get svn info's
-  DAVRepositoryFactory.setup();
-  SVNClientInterface svnClient = SVNClientImpl.newInstance();
-  Info svnInfo=svnClient.info('.');
+   //get svn info's
+    def revision = "unknown"
+    def svnUrl = "unknown"
+
+    def proc = """svn info . --xml""".execute()
+    proc.waitFor()
+
+    if (proc.exitValue() != 0) {
+        println "Warning: Problem to run svn info command. Make sure you have svn installed "
+    } else {
+        def xml = proc.in.text + ""
+        def svnInfo = new XmlParser().parseText(xml)
+        revision = svnInfo.entry.'@revision'.text()
+        svnUrl = svnInfo.entry.url.text()
+    }
   
   manifest.mainAttributes([ 
     'Implementation-Title': 'Katta', 
     'Implementation-Version': version, 
     'Compile-Time': date,
     'Compiled-By': System.getProperty("user.name"),
-    'SVN-Revision': svnInfo.getRevision()+"",
-    'SVN-URL': svnInfo.getUrl() +" -r "+svnInfo.getRevision()
-    ]) 
+    'SVN-Revision': revision+"",
+    'SVN-URL': svnUrl +" -r "+revision
+    ])
  
   //create a hadoop job jar
   jar(baseName: "archive_job") {
@@ -218,7 +225,7 @@ dists {
 }
 
 //build a release
-createTask('release', dependsOn:['clean', 'dists']) {
+createTask('release', dependsOn:['clean', 'dists', 'javadoc']) {
   String zipRoot = "$archivesBaseName-$version"
   ant.zip(destfile: new File(buildDir, zipRoot+".zip")) {
     zipFileSet(dir: file('bin'), prefix: "$zipRoot/bin", fileMode: '775')
@@ -227,6 +234,8 @@ createTask('release', dependsOn:['clean', 'dists']) {
     zipFileSet(file: file('README.txt'), prefix: "$zipRoot")
     zipFileSet(file: file('LICENSE.txt'), prefix: "$zipRoot")
     zipFileSet(file: file('CHANGES.txt'), prefix: "$zipRoot")
+    zipFileSet(dir: new File(buildDir, "docs"), prefix: "$zipRoot/docs")
+    zipFileSet(dir: new File(project.projectDir, "src"), prefix: "$zipRoot/src")
   }
   
   String tarRoot = "$archivesBaseName-$version"
@@ -237,6 +246,8 @@ createTask('release', dependsOn:['clean', 'dists']) {
     tarFileSet(file: file('README.txt'), prefix: "$tarRoot")
     tarFileSet(file: file('LICENSE.txt'), prefix: "$tarRoot")
     tarFileSet(file: file('CHANGES.txt'), prefix: "$tarRoot")
+    tarFileSet(dir: new File(buildDir, "docs"), prefix: "$zipRoot/docs")
+    tarFileSet(dir: new File(project.projectDir, "src"), prefix: "$zipRoot/src")
   }
 }
 
