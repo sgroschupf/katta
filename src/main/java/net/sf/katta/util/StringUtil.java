@@ -17,6 +17,11 @@ package net.sf.katta.util;
 
 public class StringUtil {
 
+  /**
+   * Usage:<br>
+   * String callingMethod =
+   * StringUtil.getCallingMethod(Thread.currentThread().getStackTrace());
+   */
   public static String getCallingMethod(StackTraceElement[] stackTrace) {
     int indexOfCallingMethod = 2;
     if (stackTrace[0].toString().endsWith("(Native Method)")) {

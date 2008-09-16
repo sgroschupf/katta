@@ -26,9 +26,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 import net.sf.katta.index.AssignedShard;
@@ -53,22 +51,16 @@ public class DistributeShardsThread extends Thread {
 
   private final ZKClient _zkClient;
   private final IDeployPolicy _deployPolicy;
-  private final long _maxSafeModeTime;
 
   private Set<String> _liveNodes = new HashSet<String>();
   private Set<String> _liveIndexes = new HashSet<String>();
-  private boolean _safeMode = true;
-
-  private Lock _updateLock = new ReentrantLock();
-  private Condition _updatedCondition = _updateLock.newCondition();
-  private Condition _safeModeLeftCondition = _updateLock.newCondition();
 
   private StatusUpdate _statusUpdate = new StatusUpdate();
+  private UpdateLock _updateLock = new UpdateLock();
 
-  public DistributeShardsThread(ZKClient zkClient, IDeployPolicy deployPolicy, long maxSafeMaxTime) {
+  public DistributeShardsThread(ZKClient zkClient, IDeployPolicy deployPolicy) {
     _deployPolicy = deployPolicy;
     _zkClient = zkClient;
-    _maxSafeModeTime = maxSafeMaxTime;
     setDaemon(true);
     setName(getClass().getSimpleName());
   }
@@ -76,21 +68,21 @@ public class DistributeShardsThread extends Thread {
   public void reportStartup() {
     _updateLock.lock();
     _statusUpdate.setStartupReported(true);
-    _updatedCondition.signal();
+    _updateLock.getUpdatedCondition().signal();
     _updateLock.unlock();
   }
 
   public void updateIndexes(Collection<String> indexes) {
     _updateLock.lock();
     _statusUpdate.updateIndexes(indexes);
-    _updatedCondition.signal();
+    _updateLock.getUpdatedCondition().signal();
     _updateLock.unlock();
   }
 
   public void updateNodes(Collection<String> nodes) {
     _updateLock.lock();
     _statusUpdate.updateNodes(nodes);
-    _updatedCondition.signal();
+    _updateLock.getUpdatedCondition().signal();
     _updateLock.unlock();
   }
 
@@ -102,23 +94,14 @@ public class DistributeShardsThread extends Thread {
     return _liveIndexes;
   }
 
-  public void joinLeaveSafeMode() throws InterruptedException {
-    _updateLock.lock();
-    if (_safeMode) {
-      _safeModeLeftCondition.await();
-    }
-    _updateLock.unlock();
-  }
-
   @Override
   public void run() {
     try {
       LOG.info("starting...");
-      processSafeMode();
       while (true) {
         _updateLock.lock();
         if (!_statusUpdate.hasChanges(_liveIndexes, _liveNodes)) {
-          _updatedCondition.await();
+          _updateLock.getUpdatedCondition().await();
           // TODO jz: wait x ms and if nothing happens rebalance
         }
         LOG.info("processing of update started...");
@@ -130,7 +113,8 @@ public class DistributeShardsThread extends Thread {
           // jz: if connected nodes in under a certain threshold go in
           // safe-mode?
           LOG.warn("no nodes connected - delaying update");
-          _updatedCondition.await();
+          _updateLock.getUpdatedCondition().await();
+          _updateLock.unlock();
           continue;
         }
         _statusUpdate.reset();
@@ -400,7 +384,9 @@ public class DistributeShardsThread extends Thread {
 
     IndexStateListener indexStateListener = new IndexStateListener(_zkClient, index, indexMD, indexShards, _liveNodes
         .size());
+    _zkClient.getEventLock().lock();
     indexStateListener.subscribeShardEvents();
+    _zkClient.getEventLock().unlock();
   }
 
   private static Map<String, List<String>> readShard2NodesMapFromZk(ZKClient zkClient, Set<String> indexShards)
@@ -429,44 +415,6 @@ public class DistributeShardsThread extends Thread {
       }
     }
     return node2ShardNames;
-  }
-
-  private void processSafeMode() throws InterruptedException {
-    _updateLock.lock();
-    try {
-      int knownNodes = _zkClient.getKnownNodes().size();
-      int aliveNodes = _statusUpdate.getNodes().size();
-      LOG.info("entering safe mode (maximum " + _maxSafeModeTime + " ms)");
-      _safeMode = true;
-
-      // wait maximum safe mode time for new nodes
-      long startTime = System.currentTimeMillis();
-      do {
-        // we don't simply sleep to unlock the update lock
-        long maxWaitTime = startTime + _maxSafeModeTime - System.currentTimeMillis();
-        _updatedCondition.await(maxWaitTime, TimeUnit.MILLISECONDS);
-      } while ((startTime + _maxSafeModeTime) > System.currentTimeMillis());
-
-      // but we stay longer if absolutely no nodes are connected
-      aliveNodes = _statusUpdate.getNodes().size();
-      while (aliveNodes == 0) {
-        LOG.warn("still no connected nodes - staying in safe mode");
-        _updatedCondition.await();
-        aliveNodes = _statusUpdate.getNodes().size();
-      }
-
-      LOG.info("leaving safe mode with " + _statusUpdate.getNodes().size() + " connected nodes of formerly "
-          + knownNodes + " known nodes");
-    } catch (KattaException e) {
-      if (e.getCause() instanceof InterruptedException) {
-        throw (InterruptedException) e.getCause();
-      }
-      throw new RuntimeException(e);
-    } finally {
-      _safeMode = false;
-      _safeModeLeftCondition.signalAll();
-      _updateLock.unlock();
-    }
   }
 
   private void writeShardDistributionMapToZK(final Map<String, List<String>> distributionMap,
@@ -639,6 +587,9 @@ public class DistributeShardsThread extends Thread {
     }
 
     private synchronized void checkForIndexStateSwitch() throws KattaException {
+      if (_indexMetaData.getState() == IndexState.DEPLOYED || _indexMetaData.getState() == IndexState.ERROR) {
+        return;
+      }
       int notDeployed = 0;
       int underReplicated = 0;
       int failed = 0;
@@ -710,6 +661,20 @@ public class DistributeShardsThread extends Thread {
 
     public IndexInvalidException(String message, Throwable cause) {
       super(message, cause);
+    }
+  }
+
+  protected static class UpdateLock extends ReentrantLock {
+
+    private static final long serialVersionUID = 1L;
+    private Condition _updatedCondition = newCondition();
+
+    /**
+     * This condition will be signaled if a {@link StatusUpdate} has been
+     * modified.
+     */
+    public Condition getUpdatedCondition() {
+      return _updatedCondition;
     }
 
   }

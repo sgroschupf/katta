@@ -50,7 +50,7 @@ public class NodeMasterReconnectTest extends AbstractKattaTest {
     assertTrue(zkNodeClient.getZookeeperState().equals(ZooKeeper.States.CONNECTED));
 
     // check node-master link
-    assertEquals("wrong node count:" + master.getNodes(), 1, master.getNodes().size());
+    waitOnNodes(masterStartThread, 1);
     assertTrue(master.getNodes().contains(node.getName()));
 
     // now break the node connection
@@ -72,4 +72,5 @@ public class NodeMasterReconnectTest extends AbstractKattaTest {
     masterStartThread.shutdown();
     gateway.interruptAndJoin();
   }
+
 }

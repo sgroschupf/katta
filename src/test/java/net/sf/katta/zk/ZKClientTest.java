@@ -175,7 +175,7 @@ public class ZKClientTest extends AbstractKattaTest {
       fail(concurrentModificationExceptions.get() + " ConcurrentModificationException exceptions was thrown");
     }
     if (unknownExceptions.get() > 0) {
-      fail(concurrentModificationExceptions.get() + " unknown exceptions was thrown");
+      fail(unknownExceptions.get() + " unknown exceptions was thrown");
     }
     zkClient.close();
     mockery.assertIsSatisfied();

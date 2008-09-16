@@ -219,46 +219,58 @@ public class ZKClient implements Watcher {
 
   private void removeDataListener(final String path, final IZkDataListener listener) {
     ensureZkRunning();
-    getEventLock().lock();
-    final HashSet<IZkDataListener> hashSet = _dataListener.get(path);
-    if (hashSet != null) {
-      hashSet.remove(listener);
+    try {
+      getEventLock().lock();
+      final HashSet<IZkDataListener> hashSet = _dataListener.get(path);
+      if (hashSet != null) {
+        hashSet.remove(listener);
+      }
+    } finally {
+      getEventLock().unlock();
     }
-    getEventLock().unlock();
   }
 
   private void removeChildListener(final String path, final IZkChildListener listener) {
     ensureZkRunning();
-    getEventLock().lock();
-    final HashSet<IZkChildListener> hashSet = _childListener.get(path);
-    if (hashSet != null) {
-      hashSet.remove(listener);
+    try {
+      getEventLock().lock();
+      final HashSet<IZkChildListener> hashSet = _childListener.get(path);
+      if (hashSet != null) {
+        hashSet.remove(listener);
+      }
+    } finally {
+      getEventLock().unlock();
     }
-    getEventLock().unlock();
   }
 
   private void addChildListener(final String path, final IZkChildListener listener) {
     ensureZkRunning();
-    getEventLock().lock();
-    HashSet<IZkChildListener> set = _childListener.get(path);
-    if (set == null) {
-      set = new HashSet<IZkChildListener>();
-      _childListener.put(path, set);
+    try {
+      getEventLock().lock();
+      HashSet<IZkChildListener> set = _childListener.get(path);
+      if (set == null) {
+        set = new HashSet<IZkChildListener>();
+        _childListener.put(path, set);
+      }
+      set.add(listener);
+    } finally {
+      getEventLock().unlock();
     }
-    set.add(listener);
-    getEventLock().unlock();
   }
 
   private void addDataListener(final String path, final IZkDataListener listener) {
     ensureZkRunning();
-    getEventLock().lock();
-    HashSet<IZkDataListener> set = _dataListener.get(path);
-    if (set == null) {
-      set = new HashSet<IZkDataListener>();
-      _dataListener.put(path, set);
+    try {
+      getEventLock().lock();
+      HashSet<IZkDataListener> set = _dataListener.get(path);
+      if (set == null) {
+        set = new HashSet<IZkDataListener>();
+        _dataListener.put(path, set);
+      }
+      set.add(listener);
+    } finally {
+      getEventLock().unlock();
     }
-    set.add(listener);
-    getEventLock().unlock();
   }
 
   /**
@@ -445,6 +457,7 @@ public class ZKClient implements Watcher {
   public void process(final WatcherEvent event) {
     if (null == event.getPath()) {
       // prohibit nullpointer (See ZOOKEEPER-77)
+
       event.setPath("null");
     }
     boolean stateChanged = event.getState() != Watcher.Event.KeeperStateUnknown;
@@ -760,6 +773,7 @@ public class ZKClient implements Watcher {
     public Condition getStateChangedCondition() {
       return _stateChangedCondition;
     }
+
   }
 
 }

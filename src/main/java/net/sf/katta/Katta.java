@@ -339,7 +339,7 @@ public class Katta {
           System.out.println("deployed index " + name);
           break;
         } else if (deployFuture.getState() == IndexMetaData.IndexState.ERROR) {
-          System.err.println("not deployed index" + name);
+          System.err.println("not deployed index " + name);
           break;
         }
         System.out.print(".");

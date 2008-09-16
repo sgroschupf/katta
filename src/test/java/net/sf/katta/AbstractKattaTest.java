@@ -226,7 +226,6 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
     public void run() {
       try {
         _master.start();
-        _master.joinLeaveSafeMode();
       } catch (Exception e) {
         e.printStackTrace();
       }
