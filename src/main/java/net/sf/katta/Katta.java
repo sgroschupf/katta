@@ -45,6 +45,9 @@ import net.sf.katta.zk.ZKClient;
 import net.sf.katta.zk.ZkPathes;
 import net.sf.katta.zk.ZkServer;
 
+/**
+ * Provides command line access to a Katta cluster.
+ */
 public class Katta {
 
   private final ZKClient _zkClient;
