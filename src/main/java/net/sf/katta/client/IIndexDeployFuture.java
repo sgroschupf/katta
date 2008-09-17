@@ -39,12 +39,6 @@ public interface IIndexDeployFuture {
    */
   IndexState joinDeployment(long maxWaitMillis) throws InterruptedException;
 
-  /**
-   * This method blocks until the each shard of the index has been successfully
-   * deployed one time and the index deployment enters the state of replicating.
-   */
-  IndexState joinReplication() throws InterruptedException;
-
   IndexState getState();
 
 }

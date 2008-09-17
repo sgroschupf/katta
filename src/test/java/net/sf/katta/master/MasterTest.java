@@ -174,9 +174,11 @@ public class MasterTest extends AbstractKattaTest {
     waitForChilds(zkClientMaster, ZkPathes.NODES, 2);
 
     final File indexFile = TestResources.INDEX1;
-    final Katta katta = new Katta();
+    DeployClient deployClient = new DeployClient(_conf);
     final String index = "indexA";
-    katta.addIndex(index, "file://" + indexFile.getAbsolutePath(), StandardAnalyzer.class.getName(), 1);
+    IIndexDeployFuture deployFuture = deployClient.addIndex(index, "file://" + indexFile.getAbsolutePath(),
+        StandardAnalyzer.class.getName(), 1);
+    deployFuture.joinDeployment();
 
     final int shardCount = indexFile.list(FileUtil.VISIBLE_FILES_FILTER).length;
     assertEquals(shardCount, zkClientMaster.countChildren(ZkPathes.getIndexPath(index)));
@@ -205,6 +207,7 @@ public class MasterTest extends AbstractKattaTest {
       }
     } while (indexState != IndexState.DEPLOYED || masterStartThread.getMaster().getNodes().size() > 1);
 
+    deployClient.disconnect();
     nodeStartThread1.shutdown();
     masterStartThread.shutdown();
   }

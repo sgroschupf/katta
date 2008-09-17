@@ -83,6 +83,10 @@ public class Master {
     }
   }
 
+  public boolean isInSafeMode() {
+    return _manageShardThread.isInSafeMode();
+  }
+
   public void shutdown() {
     try {
       _manageShardThread.interrupt();

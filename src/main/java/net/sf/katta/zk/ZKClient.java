@@ -53,8 +53,8 @@ public class ZKClient implements Watcher {
   private ZooKeeper _zk = null;
   private final ZkLock _zkEventLock = new ZkLock();
 
-  private final Map<String, Set<IZkChildListener>> _childListener = new ConcurrentHashMap<String, Set<IZkChildListener>>();
-  private final Map<String, Set<IZkDataListener>> _dataListener = new ConcurrentHashMap<String, Set<IZkDataListener>>();
+  private final Map<String, Set<IZkChildListener>> _path2ChildListenersMap = new ConcurrentHashMap<String, Set<IZkChildListener>>();
+  private final Map<String, Set<IZkDataListener>> _path2DataListenersMap = new ConcurrentHashMap<String, Set<IZkDataListener>>();
   private final Set<IZkReconnectListener> _reconnectListener = new CopyOnWriteArraySet<IZkReconnectListener>();
 
   private final String _servers;
@@ -140,6 +140,9 @@ public class ZKClient implements Watcher {
   }
 
   private void ensureZkRunning() {
+    if (_shutdownTriggered) {
+      throw new IllegalStateException("zk client is already closing");
+    }
     if (_zk == null) {
       throw new IllegalStateException("zk client has not been started yet");
     }
@@ -212,65 +215,51 @@ public class ZKClient implements Watcher {
    * Unsubscribe all listeners from zk events.
    */
   public void unsubscribeAll() {
-    _childListener.clear();
-    _dataListener.clear();
+    _path2ChildListenersMap.clear();
+    _path2DataListenersMap.clear();
     _reconnectListener.clear();
   }
 
   private void removeDataListener(final String path, final IZkDataListener listener) {
     ensureZkRunning();
-    try {
-      getEventLock().lock();
-      final Set<IZkDataListener> listeners = _dataListener.get(path);
-      if (listeners != null) {
-        listeners.remove(listener);
-      }
-    } finally {
-      getEventLock().unlock();
+    final Set<IZkDataListener> listeners = _path2DataListenersMap.get(path);
+    if (listeners != null) {
+      listeners.remove(listener);
     }
   }
 
   private void removeChildListener(final String path, final IZkChildListener listener) {
     ensureZkRunning();
-    try {
-      getEventLock().lock();
-      final Set<IZkChildListener> listeners = _childListener.get(path);
-      if (listeners != null) {
-        listeners.remove(listener);
-      }
-    } finally {
-      getEventLock().unlock();
+    final Set<IZkChildListener> listeners = _path2ChildListenersMap.get(path);
+    if (listeners != null) {
+      listeners.remove(listener);
     }
   }
 
   private void addChildListener(final String path, final IZkChildListener listener) {
     ensureZkRunning();
-    try {
-      getEventLock().lock();
-      Set<IZkChildListener> listeners = _childListener.get(path);
+    Set<IZkChildListener> listeners;
+    synchronized (_path2ChildListenersMap) {
+      listeners = _path2ChildListenersMap.get(path);
       if (listeners == null) {
         listeners = new CopyOnWriteArraySet<IZkChildListener>();
-        _childListener.put(path, listeners);
+        _path2ChildListenersMap.put(path, listeners);
       }
-      listeners.add(listener);
-    } finally {
-      getEventLock().unlock();
     }
+    listeners.add(listener);
   }
 
   private void addDataListener(final String path, final IZkDataListener listener) {
     ensureZkRunning();
-    try {
-      getEventLock().lock();
-      Set<IZkDataListener> listeners = _dataListener.get(path);
+    Set<IZkDataListener> listeners;
+    synchronized (_path2DataListenersMap) {
+      listeners = _path2DataListenersMap.get(path);
       if (listeners == null) {
         listeners = new CopyOnWriteArraySet<IZkDataListener>();
-        _dataListener.put(path, listeners);
+        _path2DataListenersMap.put(path, listeners);
       }
-      listeners.add(listener);
-    } finally {
-      getEventLock().unlock();
     }
+    listeners.add(listener);
   }
 
   /**
@@ -398,7 +387,6 @@ public class ZKClient implements Watcher {
     try {
       _zk.delete(path, -1);
     } catch (final KeeperException e) {
-      e.printStackTrace();
       if (e.getCode() != KeeperException.Code.NoNode) {
         throw new KattaException("unable to delete:" + path, e);
       }
@@ -434,7 +422,7 @@ public class ZKClient implements Watcher {
   public List<String> getChildren(final String path) throws KattaException {
     ensureZkRunning();
     boolean watch = false;
-    final Set<IZkChildListener> listeners = _childListener.get(path);
+    final Set<IZkChildListener> listeners = _path2ChildListenersMap.get(path);
     if (listeners != null && listeners.size() > 0) {
       watch = true;
     }
@@ -457,11 +445,10 @@ public class ZKClient implements Watcher {
   public void process(final WatcherEvent event) {
     if (null == event.getPath()) {
       // prohibit nullpointer (See ZOOKEEPER-77)
-
       event.setPath("null");
     }
     boolean stateChanged = event.getState() != Watcher.Event.KeeperStateUnknown;
-    boolean eventHappened = event.getType() != Watcher.Event.EventNone;
+    boolean dataChanged = event.getType() != Watcher.Event.EventNone;
     try {
       getEventLock().lock();
       if (_shutdownTriggered) {
@@ -471,25 +458,39 @@ public class ZKClient implements Watcher {
       if (stateChanged) {
         processStateChange(event);
       }
-      if (eventHappened) {
-        processEvent(event);
+      if (dataChanged) {
+        processDataOrChildChange(event);
       }
     } finally {
       if (stateChanged) {
         getEventLock().getStateChangedCondition().signalAll();
       }
-      if (eventHappened) {
+      if (dataChanged) {
         getEventLock().getDataChangedCondition().signalAll();
       }
       getEventLock().unlock();
     }
   }
 
-  private void processEvent(WatcherEvent event) {
+  private void processStateChange(WatcherEvent event) {
+    if (event.getState() == Event.KeeperStateExpired) {
+      // we do a reconnect
+      LOG.warn("disconnected from zookeeper (" + event.getState() + ")");
+      if (_shutdownTriggered) {
+        // already closing
+      } else {
+        reconnect();
+      }
+    } else if (event.getState() == Event.KeeperStateDisconnected) {
+      LOG.debug("Received an disconnect event: " + event.toString());
+    }
+  }
+
+  private void processDataOrChildChange(WatcherEvent event) {
     ZkEventType eventType = ZkEventType.getMappedType(event.getType());
     final String path = event.getPath();
     if (eventType == ZkEventType.NODE_CHILDREN_CHANGED) {
-      Set<IZkChildListener> childListeners = _childListener.get(path);
+      Set<IZkChildListener> childListeners = _path2ChildListenersMap.get(path);
       if (childListeners != null && !childListeners.isEmpty()) {
         // first we re-subscribe to path since zk subscriptions are
         // one-timers. Also it is not guaranteed that with this
@@ -505,7 +506,7 @@ public class ZKClient implements Watcher {
         }
       }
     } else {
-      Set<IZkDataListener> listeners = _dataListener.get(path);
+      Set<IZkDataListener> listeners = _path2DataListenersMap.get(path);
       if (listeners != null && !listeners.isEmpty()) {
         // first we re-subscribe to path since zk subscriptions are
         // one-timers. Also it is not guaranteed that with this
@@ -532,7 +533,6 @@ public class ZKClient implements Watcher {
           }
         }
       }
-
     }
   }
 
@@ -562,21 +562,6 @@ public class ZKClient implements Watcher {
     return children;
   }
 
-  private void processStateChange(WatcherEvent event) {
-    if (event.getState() == Watcher.Event.KeeperStateExpired) {
-      // we do a reconnect
-      LOG.warn("disconnected from zookeeper (" + event.getState() + ")");
-      if (_shutdownTriggered) {
-        // already closing
-      } else {
-        reconnect();
-      }
-    } else if ((event.getType() == Watcher.Event.EventNone)
-        && (event.getState() == Watcher.Event.KeeperStateDisconnected)) {
-      LOG.debug("Received an unkown event: " + event.toString());
-    }
-  }
-
   private void reconnect() {
     try {
       close();
@@ -602,7 +587,7 @@ public class ZKClient implements Watcher {
     ensureZkRunning();
     byte[] data;
     boolean watch = false;
-    final Set<IZkDataListener> set = _dataListener.get(path);
+    final Set<IZkDataListener> set = _path2DataListenersMap.get(path);
     if (set != null && set.size() > 0) {
       watch = true;
     }

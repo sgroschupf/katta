@@ -190,6 +190,16 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
     assertEquals(childCount, client.getChildren(path).size());
   }
 
+  protected void waitOnLeaveSafeMode(Master master) {
+    long startWait = System.currentTimeMillis();
+    while (master.isInSafeMode()) {
+      if (System.currentTimeMillis() - startWait > 1000 * 60) {
+        break;
+      }
+    }
+    assertEquals(false, master.isInSafeMode());
+  }
+
   protected void waitOnNodes(MasterStartThread masterThread, int nodeCount) throws InterruptedException {
     long startWait = System.currentTimeMillis();
     ZKClient zkClient = masterThread.getZkClient();
@@ -226,6 +236,7 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
     public void run() {
       try {
         _master.start();
+        waitOnLeaveSafeMode(_master);
       } catch (Exception e) {
         e.printStackTrace();
       }

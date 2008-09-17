@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
@@ -49,25 +50,18 @@ import org.apache.log4j.Logger;
 
 public class DistributeShardsThread extends Thread {
 
-  /*
-   * sg: why do all this methods throw a interrupt exception?
-   */
-
-
   protected final static Logger LOG = Logger.getLogger(DistributeShardsThread.class);
 
-  private final ZKClient _zkClient;
+  protected final ZKClient _zkClient;
   private final IDeployPolicy _deployPolicy;
-
-  private Set<String> _liveNodes = new HashSet<String>();
-  private Set<String> _liveIndexes = new HashSet<String>();
-
-  private final StatusUpdate _statusUpdate = new StatusUpdate();
-  private final UpdateLock _updateLock = new UpdateLock();
-
   private final long _safeModeMaxTime;
 
-  private final List<IndexStateListener> _indexStateListeners = new ArrayList<IndexStateListener>();
+  private final StatusUpdate _statusUpdate = new StatusUpdate();
+  protected final UpdateLock _updateLock = new UpdateLock();
+
+  private boolean _safeMode;
+
+  protected final List<IndexStateListener> _indexStateListeners = new CopyOnWriteArrayList<IndexStateListener>();
 
   public DistributeShardsThread(final ZKClient zkClient, final IDeployPolicy deployPolicy, final long safeModeMaxTime) {
     _deployPolicy = deployPolicy;
@@ -91,76 +85,80 @@ public class DistributeShardsThread extends Thread {
     _updateLock.unlock();
   }
 
-  public Set<String> getLiveNodes() {
-    return _liveNodes;
-  }
-
-  public Set<String> getLiveIndexes() {
-    return _liveIndexes;
+  public boolean isInSafeMode() {
+    return _safeMode;
   }
 
   @Override
   public void run() {
     try {
       LOG.info("starting...");
-      _updateLock.lock();
+
+      Set<String> liveNodes = new HashSet<String>();
+      Set<String> liveIndexes = new HashSet<String>();
+      runInSafeMode(liveNodes, liveIndexes);
+
       try {
-        while (_statusUpdate.lastChangeTimeStamp() + _safeModeMaxTime > System.currentTimeMillis()
-            || _statusUpdate.getNodes().isEmpty()) {
-          LOG.info("SAFE MODE: No nodes available or state unstable within the last " + _safeModeMaxTime + " ms.");
-          _updateLock.getUpdatedCondition().await(_safeModeMaxTime, TimeUnit.MILLISECONDS);
+        doStartupCheck(liveNodes);
+      } catch (final Exception e) {
+        if (e.getCause() instanceof InterruptedException) {
+          throw (InterruptedException) e.getCause();
         }
-      } finally {
-        _updateLock.unlock();
+        LOG.error("Failed to execute startup check {" + toString(liveIndexes, liveNodes) + "}", e);
       }
 
-      boolean startup = true;
-      Set<String> updatedIndexes;
-      Set<String> updatedNodes;
       while (true) {
         _updateLock.lock();
+        Set<String> updatedNodes = null;
+        Set<String> updatedIndexes = null;
         try {
-          while (!_statusUpdate.hasChanges(_liveIndexes, _liveNodes) || _statusUpdate.getNodes().isEmpty()) {
-            if (_statusUpdate.getNodes().isEmpty()) {
-              LOG.warn("no nodes connected - delaying update");
-              // jz: if connected nodes in under a certain threshold go in
-              // safe-mode?
+          Set<String> unbalancedIndexes = getUnbalancedIndexes();
+          try {
+            while (!(_statusUpdate.hasChanges(liveIndexes, liveNodes) || !unbalancedIndexes.isEmpty())
+                || _statusUpdate.getNodes().isEmpty()) {
+              if (_statusUpdate.getNodes().isEmpty()) {
+                LOG.warn("no nodes connected - delaying update");
+                // jz: if connected nodes in under a certain threshold go in
+                // safe-mode?
+              }
+              _updateLock.getUpdatedCondition().await();
+              unbalancedIndexes = getUnbalancedIndexes();
+              // TODO jz: wait x ms and if nothing happens rebalance ??
             }
-            _updateLock.getUpdatedCondition().await();
-            // TODO jz: wait x ms and if nothing happens rebalance ??
+            LOG.info("processing of update started...");
+            updatedIndexes = new HashSet<String>(_statusUpdate.getIndexes());
+            updatedNodes = new HashSet<String>(_statusUpdate.getNodes());
+          } finally {
+            _updateLock.unlock();
           }
-          LOG.info("processing of update started...");
-          updatedIndexes = new HashSet<String>(_statusUpdate.getIndexes());
-          updatedNodes = new HashSet<String>(_statusUpdate.getNodes());
-        } finally {
-          _updateLock.unlock();
-        }
 
-        try {
-          // now do the work
-          if (startup) {
-            _liveIndexes = updatedIndexes;
-            _liveNodes = updatedNodes;
-            handleStartup();
-            startup = false;
-          } else {
-            final Set<String> addedIndexes = CollectionUtil.getSetOfAdded(_liveIndexes, updatedIndexes);
-            final Set<String> removedIndexes = CollectionUtil.getSetOfRemoved(_liveIndexes, updatedIndexes);
-            final Set<String> addedNodes = CollectionUtil.getSetOfAdded(_liveNodes, updatedNodes);
-            final Set<String> removedNodes = CollectionUtil.getSetOfRemoved(_liveNodes, updatedNodes);
-
-            _liveIndexes = updatedIndexes;
-            _liveNodes = updatedNodes;
-            handleRemovedIndexes(removedIndexes);// first free up space
-            handleRemovedNodes(removedNodes);// "save" existing indexes
-            handleAddedOrUnderreplicatedIndexes(addedIndexes);// do the work
-            handleAddedNodes(addedNodes);// maybe rebalance
+          // get deltas
+          final Set<String> addedIndexes = CollectionUtil.getSetOfAdded(liveIndexes, updatedIndexes);
+          final Set<String> removedIndexes = CollectionUtil.getSetOfRemoved(liveIndexes, updatedIndexes);
+          final Set<String> addedNodes = CollectionUtil.getSetOfAdded(liveNodes, updatedNodes);
+          if (liveNodes.size() > updatedNodes.size()) {
+            LOG.info("following nodes disconnected: " + CollectionUtil.getSetOfRemoved(liveNodes, updatedNodes));
+            // jz: we don't need to handle removed nodes explicitly since we
+            // already handle unbalanced indexes
           }
-        } catch (final KattaException e) {
+          liveIndexes = updatedIndexes;
+          liveNodes = updatedNodes;
+
+          // first free up space
+          handleRemovedIndexes(removedIndexes);
+          // "save" existing indexes
+          distributeIndexes(unbalancedIndexes, IndexState.REPLICATING, liveNodes);
+          // add new indexes
+          distributeIndexes(addedIndexes, IndexState.DEPLOYING, liveNodes);
+          // maybe rebalance
+          handleAddedNodes(addedNodes);
+        } catch (final InterruptedException e) {
+          throw e;
+        } catch (final Exception e) {
           if (e.getCause() instanceof InterruptedException) {
             throw (InterruptedException) e.getCause();
           }
-          LOG.error("Failed to execute shard update to {" + toString(updatedIndexes, updatedNodes, startup) + "}", e);
+          LOG.error("Failed to execute shard update to {" + toString(updatedIndexes, updatedNodes) + "}", e);
         }
         LOG.info("processing of update finsihed!");
       }
@@ -175,26 +173,35 @@ public class DistributeShardsThread extends Thread {
     }
   }
 
-  private String toString(final Set<String> updatedIndexes, final Set<String> updatedNodes,
-      final boolean startupReported) {
-    return "indexes: " + updatedIndexes + " | nodes: " + updatedNodes + " | startup: " + startupReported;
+  private void runInSafeMode(Set<String> liveNodes, Set<String> liveIndexes) throws InterruptedException {
+    _updateLock.lock();
+    _safeMode = true;
+    try {
+      while (_statusUpdate.lastChangeTimeStamp() + _safeModeMaxTime > System.currentTimeMillis()
+          || _statusUpdate.getNodes().isEmpty()) {
+        LOG.info("SAFE MODE: No nodes available or state unstable within the last " + _safeModeMaxTime + " ms.");
+        _updateLock.getUpdatedCondition().await(_safeModeMaxTime, TimeUnit.MILLISECONDS);
+      }
+      liveNodes.addAll(_statusUpdate.getNodes());
+      liveIndexes.addAll(_statusUpdate.getIndexes());
+      LOG.info("SAFE MODE: leaving safe mode with " + liveNodes.size() + " connected nodes");
+    } finally {
+      _safeMode = false;
+      _updateLock.unlock();
+    }
   }
 
-  private void handleStartup() throws KattaException {
-    LOG.info("do integrity check of indexes");
-    final Set<String> underreplicatedIndexes = getUnderreplicatedIndexes();
-    LOG.info("found following underreplicated indexes: " + underreplicatedIndexes);
-    final Set<String> overreplicatedIndexes = getOverreplicatedIndexes();
-    LOG.info("found following overreplicated indexes: " + overreplicatedIndexes);
-    final Set<String> annoucedIndexes = getAnnouncedButUndeployedIndexes();
-    LOG.info("found following indexes in announced state: " + annoucedIndexes);
+  private String toString(final Set<String> updatedIndexes, final Set<String> updatedNodes) {
+    return "indexes: " + updatedIndexes + " | nodes: " + updatedNodes;
+  }
 
-    // now redeploy/replicate
-    underreplicatedIndexes.addAll(overreplicatedIndexes);
-    underreplicatedIndexes.addAll(annoucedIndexes);
-    handleAddedOrUnderreplicatedIndexes(underreplicatedIndexes);
+  private void doStartupCheck(Set<String> liveNodes) throws KattaException {
+    LOG.info("do startup check...");
+    distributeIndexes(getUnbalancedIndexes(), IndexState.REPLICATING, liveNodes);
+    distributeIndexes(getAnnouncedButUndeployedIndexes(), IndexState.DEPLOYING, liveNodes);
 
     // TODO jz: check namespace structure ??
+    LOG.info("startup check done");
   }
 
   private Set<String> getAnnouncedButUndeployedIndexes() throws KattaException {
@@ -206,7 +213,26 @@ public class DistributeShardsThread extends Thread {
         announcedIndexes.add(index);
       }
     }
+    if (!announcedIndexes.isEmpty()) {
+      LOG.info("found following indexes in announced state: " + announcedIndexes);
+    }
     return announcedIndexes;
+  }
+
+  private Set<String> getUnbalancedIndexes() throws KattaException {
+    final Set<String> unbalancedIndexes = new HashSet<String>();
+    final Set<String> underreplicatedIndexes = getUnderreplicatedIndexes();
+    final Set<String> overreplicatedIndexes = getOverreplicatedIndexes();
+    if (!underreplicatedIndexes.isEmpty()) {
+      LOG.info("found following underreplicated indexes: " + underreplicatedIndexes);
+    }
+    if (!overreplicatedIndexes.isEmpty()) {
+      LOG.info("found following overreplicated indexes: " + overreplicatedIndexes);
+    }
+
+    unbalancedIndexes.addAll(overreplicatedIndexes);
+    unbalancedIndexes.addAll(underreplicatedIndexes);
+    return unbalancedIndexes;
   }
 
   private Set<String> getUnderreplicatedIndexes() throws KattaException {
@@ -215,7 +241,8 @@ public class DistributeShardsThread extends Thread {
       final String indexZkPath = ZkPathes.getIndexPath(index);
       final IndexMetaData indexMetaData = new IndexMetaData();
       _zkClient.readData(indexZkPath, indexMetaData);
-      if (indexMetaData.getState() != IndexState.ERROR) {
+      if (indexMetaData.getState() != IndexState.ERROR && indexMetaData.getState() != IndexState.DEPLOYING
+          && indexMetaData.getState() != IndexState.REPLICATING) {
         if (isUnderReplicated(indexZkPath, indexMetaData)) {
           underreplicatedIndexes.add(index);
         }
@@ -230,7 +257,8 @@ public class DistributeShardsThread extends Thread {
       final String indexZkPath = ZkPathes.getIndexPath(index);
       final IndexMetaData indexMetaData = new IndexMetaData();
       _zkClient.readData(indexZkPath, indexMetaData);
-      if (indexMetaData.getState() != IndexState.ERROR) {
+      if (indexMetaData.getState() != IndexState.ERROR && indexMetaData.getState() != IndexState.DEPLOYING
+          && indexMetaData.getState() != IndexState.REPLICATING) {
         if (isOverReplicated(indexZkPath, indexMetaData)) {
           overreplicatedIndexes.add(index);
         }
@@ -289,52 +317,24 @@ public class DistributeShardsThread extends Thread {
     }
   }
 
-  private void handleRemovedNodes(final Set<String> removedNodes) throws KattaException {
-    if (removedNodes.isEmpty()) {
-      return;
-    }
-    LOG.info("remove nodes: " + removedNodes);
-
-    final Set<String> affectedIndexes = new HashSet<String>();
-    for (final String node : removedNodes) {
-      final String node2ShardRootPath = ZkPathes.getNode2ShardRootPath(node);
-      final List<String> shards = _zkClient.getChildren(node2ShardRootPath);
-      for (final String shard : shards) {
-        final AssignedShard assignedShard = new AssignedShard();
-        _zkClient.readData(ZkPathes.getNode2ShardPath(node, shard), assignedShard);
-        affectedIndexes.add(assignedShard.getIndexName());
-      }
-    }
-    distributeShards(affectedIndexes, IndexState.REPLICATING);
-  }
-
-  private void handleAddedOrUnderreplicatedIndexes(final Set<String> addedIndexes) throws KattaException {
-    if (addedIndexes.isEmpty()) {
-      return;
-    }
-    LOG.info("distribute/replicate indexes: " + addedIndexes);
-    distributeShards(addedIndexes, IndexState.DEPLOYING);
-  }
-
-  private void handleAddedNodes(final Set<String> addedNodes) throws KattaException {
+  private void handleAddedNodes(final Set<String> addedNodes) {
     if (addedNodes.isEmpty()) {
       return;
     }
     LOG.info("add nodes: " + addedNodes);
 
-    // most likely when a node comes back again we have over replication
-    final Set<String> overreplicatedIndexes = getOverreplicatedIndexes();
-    distributeShards(overreplicatedIndexes, IndexState.REPLICATING);
+    // regulate over- or underreplicated indexes is already done
 
-    // in case there wasn't enough nodes before to fit the replication level..
-    final Set<String> underreplicatedIndexes = getUnderreplicatedIndexes();
-    distributeShards(underreplicatedIndexes, IndexState.REPLICATING);
-
-    // sg: handleAddedOrUnderreplicatedIndexes(getUnderreplicatedIndexes());
     // TODO jz: rebalance nodes load ?
   }
 
-  private void distributeShards(final Set<String> affectedIndexes, final IndexState state) throws KattaException {
+  private void distributeIndexes(final Set<String> affectedIndexes, final IndexState state, Set<String> liveNodes)
+      throws KattaException {
+    if (affectedIndexes.isEmpty()) {
+      return;
+    }
+
+    LOG.info(state.name().toLowerCase() + " following indexes:  " + affectedIndexes);
     for (final String index : affectedIndexes) {
       final String indexZkPath = ZkPathes.getIndexPath(index);
       final IndexMetaData indexMetaData = new IndexMetaData();
@@ -348,7 +348,7 @@ public class DistributeShardsThread extends Thread {
 
         indexMetaData.setState(state);
         _zkClient.writeData(indexZkPath, indexMetaData);
-        distributeShards(index, indexZkPath, indexMetaData, indexShards, shard2AssignedShardMap);
+        distributeIndexShards(index, indexMetaData, indexShards, shard2AssignedShardMap, liveNodes);
       } catch (final Exception e) {
         if (e.getCause() instanceof InterruptedException) {
           throw new KattaException("Distribution of shards was interrupted", e.getCause());
@@ -361,9 +361,8 @@ public class DistributeShardsThread extends Thread {
     }
   }
 
-  private void distributeShards(final String index, final String indexZkPath, final IndexMetaData indexMD,
-      final Set<String> indexShards, final Map<String, AssignedShard> shard2AssignedShardMap) throws KattaException {
-
+  private void distributeIndexShards(final String index, final IndexMetaData indexMD, final Set<String> indexShards,
+      final Map<String, AssignedShard> shard2AssignedShardMap, Collection liveNodes) throws KattaException {
     // cleanup/undeploy failed shards
     for (final String shard : indexShards) {
       final String shard2ErrorRootPath = ZkPathes.getShard2ErrorRootPath(shard);
@@ -396,25 +395,12 @@ public class DistributeShardsThread extends Thread {
     final Map<String, List<String>> currentShard2NodesMap = readShard2NodesMapFromZk(_zkClient, indexShards);
     final Map<String, List<String>> currentNodeToShardsMap = readNode2ShardsMapFromZk(_zkClient);
     final Map<String, List<String>> distributionMap = _deployPolicy.createDistributionPlan(currentShard2NodesMap,
-        currentNodeToShardsMap, new ArrayList<String>(_liveNodes), indexMD.getReplicationLevel());
+        currentNodeToShardsMap, new ArrayList<String>(liveNodes), indexMD.getReplicationLevel());
     writeShardDistributionMapToZK(distributionMap, shard2AssignedShardMap);
-    // sg: we just wrote the index stage to something different like replication
-    // and don't want to change it now to deploying.
 
-    // indexMD.setState(IndexState.DEPLOYING);
-    // _zkClient.writeData(indexZkPath, indexMD);
-
-    final IndexStateListener indexStateListener = new IndexStateListener(_zkClient, index, indexMD, indexShards,
-        _liveNodes.size());
-    // sg: hold the listener so we can cleanly disconnect in case of a thread
-    // shutdown
+    final IndexStateListener indexStateListener = new IndexStateListener(index, indexMD, indexShards, liveNodes.size());
     _indexStateListeners.add(indexStateListener);
-    _zkClient.getEventLock().lock();
-    try {
-      indexStateListener.subscribeShardEvents();
-    } finally {
-      _zkClient.getEventLock().unlock();
-    }
+    indexStateListener.subscribeShardEvents();
   }
 
   private static Map<String, List<String>> readShard2NodesMapFromZk(final ZKClient zkClient,
@@ -466,7 +452,7 @@ public class DistributeShardsThread extends Thread {
   }
 
   private Map<String, AssignedShard> readShardsFromFs(final String index, final IndexMetaData indexMetaData)
-  throws IndexInvalidException {
+      throws IndexInvalidException {
     final String indexPathString = indexMetaData.getPath();
     // get shard folders from source
     URI uri;
@@ -554,37 +540,40 @@ public class DistributeShardsThread extends Thread {
   protected class IndexStateListener implements IZkChildListener {
 
     private final Set<String> _shards;
-    private final ZKClient _zkClient;
     private final Map<String, Integer> _shardToReplicaCount = new ConcurrentHashMap<String, Integer>();
     private final Map<String, Integer> _shardToErrorCount = new ConcurrentHashMap<String, Integer>();
     private final String _index;
     private final IndexMetaData _indexMetaData;
     private final int _replicationLevel;
 
-    public IndexStateListener(final ZKClient zkClient, final String index, final IndexMetaData indexMetaData,
-        final Set<String> shards, final int nodeCount) {
+    public IndexStateListener(final String index, final IndexMetaData indexMetaData, final Set<String> shards,
+        final int nodeCount) {
       _index = index;
       _indexMetaData = indexMetaData;
       _shards = shards;
-      _zkClient = zkClient;
 
       // TODO jz: this should be part of the distributionPlan
       _replicationLevel = Math.min(_indexMetaData.getReplicationLevel(), nodeCount);
     }
 
     public void subscribeShardEvents() throws KattaException {
-      LOG.info("start watching index '" + _index + "' (" + _indexMetaData.getState() + ")");
-      final Set<String> shards = _shards;
-      for (final String shard : shards) {
-        final String shard2NodeRootPath = ZkPathes.getShard2NodeRootPath(shard);
-        final String shard2ErrorPath = ZkPathes.getShard2ErrorRootPath(shard);
-        _shardToReplicaCount.put(shard, _zkClient.subscribeChildChanges(shard2NodeRootPath, this).size());
-        _shardToErrorCount.put(shard, _zkClient.subscribeChildChanges(shard2ErrorPath, this).size());
+      _zkClient.getEventLock().lock();
+      try {
+        LOG.info("start watching index '" + _index + "' (" + _indexMetaData.getState() + ")");
+        final Set<String> shards = _shards;
+        for (final String shard : shards) {
+          final String shard2NodeRootPath = ZkPathes.getShard2NodeRootPath(shard);
+          final String shard2ErrorPath = ZkPathes.getShard2ErrorRootPath(shard);
+          _shardToReplicaCount.put(shard, _zkClient.subscribeChildChanges(shard2NodeRootPath, this).size());
+          _shardToErrorCount.put(shard, _zkClient.subscribeChildChanges(shard2ErrorPath, this).size());
+        }
+        checkForIndexStateSwitch();
+      } finally {
+        _zkClient.getEventLock().unlock();
       }
-      checkForIndexStateSwitch();
     }
 
-    private void unsubscribeShardEvents() {
+    public void unsubscribeShardEvents() {
       LOG.info("stop watching index '" + _index + "' (" + _indexMetaData.getState() + ")");
       final Set<String> shards = _shards;
       for (final String shard : shards) {
@@ -610,9 +599,11 @@ public class DistributeShardsThread extends Thread {
 
     private synchronized void checkForIndexStateSwitch() throws KattaException {
       if (_indexMetaData.getState() == IndexState.DEPLOYED || _indexMetaData.getState() == IndexState.ERROR) {
-        // sg: should'nt we unsubribe here too?
-        unsubscribeShardEvents();
         return;
+      }
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("check with following deployments:" + _shardToReplicaCount);
+        LOG.debug("check with following errors:" + _shardToErrorCount);
       }
       int notDeployed = 0;
       int underReplicated = 0;
@@ -652,18 +643,20 @@ public class DistributeShardsThread extends Thread {
         switchIndexState(IndexState.DEPLOYED);
         unsubscribeShardEvents();
 
-        // TODO jz: reschedule replication (but how avoid an endless loop)?
-        // sg: if a shard is corrupted it would fail to deploy on all nodes. So
-        // in case a shard just failed once on one specific node, than we can
-        // assume that with the next distribution map it will be deployed on a
-        // different node. In order to allow distribution policies to handle
-        // such cases we should pass in node-shard-error map as well
-
-        // TODO: sg: can we do this more elegant, for example have a thread that
-        // checks for under and over replication?
-        final HashSet<String> indexes = new HashSet<String>();
-        indexes.add(_index);
-        distributeShards(indexes, IndexState.REPLICATING);
+        try {
+          _updateLock.lock();
+          // we wakeup the manager thread since part of this index needs to be
+          // redeployed
+          _updateLock.getUpdatedCondition().signalAll();
+          // TODO sg: if a shard is corrupted it would fail to deploy on all
+          // nodes. So in case a shard just failed once on one specific node,
+          // than we can assume that with the next distribution map it will be
+          // deployed on a different node. In order to allow distribution
+          // policies to handle such cases we should pass in node-shard-error
+          // map as well
+        } finally {
+          _updateLock.unlock();
+        }
       }
 
     }
@@ -674,8 +667,8 @@ public class DistributeShardsThread extends Thread {
       }
 
       LOG
-      .info("switching index '" + _index + "' from state " + _indexMetaData.getState() + " into state "
-          + indexState);
+          .info("switching index '" + _index + "' from state " + _indexMetaData.getState() + " into state "
+              + indexState);
       final String indexZkPath = ZkPathes.getIndexPath(_index);
       _zkClient.readData(indexZkPath, _indexMetaData);
       if (indexState == IndexState.ERROR) {
