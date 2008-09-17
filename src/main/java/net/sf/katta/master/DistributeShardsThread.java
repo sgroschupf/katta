@@ -49,6 +49,11 @@ import org.apache.log4j.Logger;
 
 public class DistributeShardsThread extends Thread {
 
+  /*
+   * sg: why do all this methods throw a interrupt exception?
+   */
+
+
   protected final static Logger LOG = Logger.getLogger(DistributeShardsThread.class);
 
   private final ZKClient _zkClient;
@@ -175,7 +180,7 @@ public class DistributeShardsThread extends Thread {
     return "indexes: " + updatedIndexes + " | nodes: " + updatedNodes + " | startup: " + startupReported;
   }
 
-  private void handleStartup() throws KattaException, InterruptedException {
+  private void handleStartup() throws KattaException {
     LOG.info("do integrity check of indexes");
     final Set<String> underreplicatedIndexes = getUnderreplicatedIndexes();
     LOG.info("found following underreplicated indexes: " + underreplicatedIndexes);
@@ -284,7 +289,7 @@ public class DistributeShardsThread extends Thread {
     }
   }
 
-  private void handleRemovedNodes(final Set<String> removedNodes) throws KattaException, InterruptedException {
+  private void handleRemovedNodes(final Set<String> removedNodes) throws KattaException {
     if (removedNodes.isEmpty()) {
       return;
     }
@@ -303,8 +308,7 @@ public class DistributeShardsThread extends Thread {
     distributeShards(affectedIndexes, IndexState.REPLICATING);
   }
 
-  private void handleAddedOrUnderreplicatedIndexes(final Set<String> addedIndexes) throws KattaException,
-  InterruptedException {
+  private void handleAddedOrUnderreplicatedIndexes(final Set<String> addedIndexes) throws KattaException {
     if (addedIndexes.isEmpty()) {
       return;
     }
@@ -312,7 +316,7 @@ public class DistributeShardsThread extends Thread {
     distributeShards(addedIndexes, IndexState.DEPLOYING);
   }
 
-  private void handleAddedNodes(final Set<String> addedNodes) throws KattaException, InterruptedException {
+  private void handleAddedNodes(final Set<String> addedNodes) throws KattaException {
     if (addedNodes.isEmpty()) {
       return;
     }
@@ -326,12 +330,11 @@ public class DistributeShardsThread extends Thread {
     final Set<String> underreplicatedIndexes = getUnderreplicatedIndexes();
     distributeShards(underreplicatedIndexes, IndexState.REPLICATING);
 
-    // handleAddedOrUnderreplicatedIndexes(getUnderreplicatedIndexes());
+    // sg: handleAddedOrUnderreplicatedIndexes(getUnderreplicatedIndexes());
     // TODO jz: rebalance nodes load ?
   }
 
-  private void distributeShards(final Set<String> affectedIndexes, final IndexState state) throws KattaException,
-  InterruptedException {
+  private void distributeShards(final Set<String> affectedIndexes, final IndexState state) throws KattaException {
     for (final String index : affectedIndexes) {
       final String indexZkPath = ZkPathes.getIndexPath(index);
       final IndexMetaData indexMetaData = new IndexMetaData();
@@ -348,7 +351,7 @@ public class DistributeShardsThread extends Thread {
         distributeShards(index, indexZkPath, indexMetaData, indexShards, shard2AssignedShardMap);
       } catch (final Exception e) {
         if (e.getCause() instanceof InterruptedException) {
-          throw (InterruptedException) e.getCause();
+          throw new KattaException("Distribution of shards was interrupted", e.getCause());
         }
         LOG.error("could not deploy index '" + index + "'", e);
         _zkClient.readData(indexZkPath, indexMetaData);
@@ -647,8 +650,20 @@ public class DistributeShardsThread extends Thread {
       } else if (notDeployed == 0 && underReplicated - failed == 0) {
         LOG.info("index '" + _index + "' deployed with errors");
         switchIndexState(IndexState.DEPLOYED);
-        // TODO jz: reschedule replication (but how avoid an endless loop)?
         unsubscribeShardEvents();
+
+        // TODO jz: reschedule replication (but how avoid an endless loop)?
+        // sg: if a shard is corrupted it would fail to deploy on all nodes. So
+        // in case a shard just failed once on one specific node, than we can
+        // assume that with the next distribution map it will be deployed on a
+        // different node. In order to allow distribution policies to handle
+        // such cases we should pass in node-shard-error map as well
+
+        // TODO: sg: can we do this more elegant, for example have a thread that
+        // checks for under and over replication?
+        final HashSet<String> indexes = new HashSet<String>();
+        indexes.add(_index);
+        distributeShards(indexes, IndexState.REPLICATING);
       }
 
     }
