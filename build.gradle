@@ -20,7 +20,7 @@ import org.gradle.api.tasks.StopExecutionException
 
 archivesBaseName = 'katta'
 group = 'net.sf.katta'
-version = '0.2-SNAPSHOT'
+version = '0.1-SNAPSHOT'
 snapShotVersion = version
 String timestamp = ""
 int buildNumber = 1;
