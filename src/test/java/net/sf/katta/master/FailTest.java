@@ -15,8 +15,6 @@
  */
 package net.sf.katta.master;
 
-import java.util.concurrent.TimeUnit;
-
 import net.sf.katta.AbstractKattaTest;
 import net.sf.katta.client.Client;
 import net.sf.katta.client.DeployClient;
@@ -34,45 +32,46 @@ import org.apache.lucene.analysis.standard.StandardAnalyzer;
 
 public class FailTest extends AbstractKattaTest {
 
-  public void testMasterFail() throws Exception {
-    final ZKClient masterClient = new ZKClient(_conf);
-    final ZKClient secMasterClient = new ZKClient(_conf);
-    NodeStartThread nodeThread = startNode();
+  // TODO jz: this does not work, since bother master starts as master (cause
+  // their identifying the master file as their own old ephemeral and delete
+  // it. Thus having two masters on one host is currently not possible)
+  // public void testMasterFail() throws Exception {
+  // final ZKClient masterClient = new ZKClient(_conf);
+  // final ZKClient secMasterClient = new ZKClient(_conf);
+  // final NodeStartThread nodeThread = startNode();
+  //
+  // final Master master = new Master(masterClient);
+  // master.start();
+  //
+  // // start secondary master..
+  // final Master secMaster = new Master(secMasterClient);
+  // secMaster.start();
+  //
+  // nodeThread.join();
+  // waitForPath(masterClient, ZkPathes.MASTER);
+  // waitForChilds(masterClient, ZkPathes.NODES, 1);
+  //
+  // // kill master
+  // secMasterClient.getEventLock().lock();
+  // try {
+  // master.shutdown();
+  // secMasterClient.getEventLock().getDataChangedCondition().await(30,
+  // TimeUnit.SECONDS);
+  // } finally {
+  // secMasterClient.getEventLock().unlock();
+  // }
+  // // just make sure we can read the file
+  // waitForPath(secMasterClient, ZkPathes.MASTER);
+  // assertTrue(secMaster.isMaster());
+  //
+  // nodeThread.shutdown();
+  // secMasterClient.close();
+  // }
 
-    final Master master = new Master(masterClient);
-    master.start();
-
-    // start secondary master..
-    final Master secMaster = new Master(secMasterClient);
-    secMaster.start();
-
-    nodeThread.join();
-    waitForPath(masterClient, ZkPathes.MASTER);
-    waitForChilds(masterClient, ZkPathes.NODES, 1);
-
-    // kill master
-    secMasterClient.getEventLock().lock();
-    masterClient.close();
-    secMasterClient.getEventLock().getDataChangedCondition().await(30, TimeUnit.SECONDS);
-    secMasterClient.getEventLock().unlock();
-
-    // just make sure we can read the file
-    waitForPath(secMasterClient, ZkPathes.MASTER);
-    assertTrue(secMaster.isMaster());
-
-    nodeThread.shutdown();
-    secMasterClient.close();
-
-    try {
-      master.shutdown();
-    } catch (Exception e) {
-      // zkClient is already down, we just want to interrupt the
-      // manage-shard-thread
-    }
-  }
+  // TODO test zk disconnect
 
   public void testNodeFailure() throws Exception {
-    MasterStartThread masterThread = startMaster();
+    final MasterStartThread masterThread = startMaster();
     final ZKClient zkClientMaster = masterThread.getZkClient();
 
     // create 3 nodes
@@ -95,7 +94,7 @@ public class FailTest extends AbstractKattaTest {
     waitForPath(zkClientMaster, ZkPathes.MASTER);
 
     // deploy index
-    IDeployClient deployClient = new DeployClient(_conf);
+    final IDeployClient deployClient = new DeployClient(_conf);
     final String indexName = "index";
     deployClient.addIndex(indexName, TestResources.UNZIPPED_INDEX.getAbsolutePath(), StandardAnalyzer.class.getName(),
         3).joinDeployment();

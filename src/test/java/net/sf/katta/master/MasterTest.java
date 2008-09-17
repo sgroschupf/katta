@@ -44,14 +44,14 @@ public class MasterTest extends AbstractKattaTest {
   }
 
   public void testNodes() throws Exception {
-    MasterStartThread masterStartThread = startMaster();
+    final MasterStartThread masterStartThread = startMaster();
     final ZKClient zkClientMaster = masterStartThread.getZkClient();
-    ZKClient zkClient = new ZKClient(_conf);
+    final ZKClient zkClient = new ZKClient(_conf);
     zkClient.start(5000);
-    Master master = masterStartThread.getMaster();
+    final Master master = masterStartThread.getMaster();
 
-    String node1 = "node1";
-    String node2 = "node2";
+    final String node1 = "node1";
+    final String node2 = "node2";
     zkClient.createEphemeral(ZkPathes.getNodePath(node1), new NodeMetaData(node1, NodeState.IN_SERVICE));
     zkClient.create(ZkPathes.getNode2ShardRootPath(node1));
     zkClient.createEphemeral(ZkPathes.getNodePath(node2), new NodeMetaData(node2, NodeState.IN_SERVICE));
@@ -61,23 +61,25 @@ public class MasterTest extends AbstractKattaTest {
     waitForChilds(zkClientMaster, ZkPathes.NODES, 2);
     assertEquals(2, master.readNodes().size());
     zkClientMaster.getEventLock().lock();
-    assertTrue(zkClientMaster.delete("/katta/nodes/node1"));
-    zkClientMaster.getEventLock().getDataChangedCondition().await();
-    zkClientMaster.getEventLock().unlock();
-
+    try {
+      assertTrue(zkClientMaster.delete("/katta/nodes/node1"));
+      zkClientMaster.getEventLock().getDataChangedCondition().await();
+    } finally {
+      zkClientMaster.getEventLock().unlock();
+    }
     assertEquals(1, master.readNodes().size());
     zkClient.close();
     masterStartThread.shutdown();
   }
 
   public void testNodesReconnect() throws Exception {
-    MasterStartThread masterStartThread = startMaster();
+    final MasterStartThread masterStartThread = startMaster();
     final ZKClient zkClient = new ZKClient(_conf);
     zkClient.start(5000);
-    Master master = masterStartThread.getMaster();
-    ZKClient masterZkClient = masterStartThread.getZkClient();
+    final Master master = masterStartThread.getMaster();
+    final ZKClient masterZkClient = masterStartThread.getZkClient();
 
-    String nodePath = ZkPathes.getNodePath("node1");
+    final String nodePath = ZkPathes.getNodePath("node1");
     zkClient.create(ZkPathes.getNode2ShardRootPath("node1"));
     zkClient.create(nodePath, new NodeMetaData("node1", NodeState.IN_SERVICE));
 
@@ -87,9 +89,12 @@ public class MasterTest extends AbstractKattaTest {
 
     // disconnect
     masterZkClient.getEventLock().lock();
-    assertTrue(zkClient.delete(nodePath));
-    masterZkClient.getEventLock().getDataChangedCondition().await();
-    masterZkClient.getEventLock().unlock();
+    try {
+      assertTrue(zkClient.delete(nodePath));
+      masterZkClient.getEventLock().getDataChangedCondition().await();
+    } finally {
+      masterZkClient.getEventLock().unlock();
+    }
     assertEquals(0, master.readNodes().size());
 
     // reconnect
@@ -104,13 +109,13 @@ public class MasterTest extends AbstractKattaTest {
   }
 
   public void testDeployAndRemoveIndex() throws Exception {
-    MasterStartThread masterStartThread = startMaster();
+    final MasterStartThread masterStartThread = startMaster();
     final ZKClient zkClientMaster = masterStartThread.getZkClient();
 
-    NodeStartThread nodeStartThread1 = startNode();
-    NodeStartThread nodeStartThread2 = startNode(SECOND_SHARD_FOLDER);
-    Node node1 = nodeStartThread1.getNode();
-    Node node2 = nodeStartThread2.getNode();
+    final NodeStartThread nodeStartThread1 = startNode();
+    final NodeStartThread nodeStartThread2 = startNode(SECOND_SHARD_FOLDER);
+    final Node node1 = nodeStartThread1.getNode();
+    final Node node2 = nodeStartThread2.getNode();
     masterStartThread.join();
     nodeStartThread1.join();
     nodeStartThread2.join();
@@ -120,17 +125,17 @@ public class MasterTest extends AbstractKattaTest {
 
     final File indexFile = TestResources.INDEX1;
     final Katta katta = new Katta();
-    String index = "indexA";
+    final String index = "indexA";
     katta.addIndex(index, "file://" + indexFile.getAbsolutePath(), StandardAnalyzer.class.getName(), 2);
 
-    int shardCount = indexFile.list(FileUtil.VISIBLE_FILES_FILTER).length;
+    final int shardCount = indexFile.list(FileUtil.VISIBLE_FILES_FILTER).length;
     assertEquals(shardCount, zkClientMaster.countChildren(ZkPathes.getIndexPath(index)));
     assertEquals(shardCount, zkClientMaster.countChildren(ZkPathes.getNode2ShardRootPath(node1.getName())));
     assertEquals(shardCount, zkClientMaster.countChildren(ZkPathes.getNode2ShardRootPath(node2.getName())));
 
-    List<String> shards = zkClientMaster.getChildren(ZkPathes.SHARD_TO_NODE);
+    final List<String> shards = zkClientMaster.getChildren(ZkPathes.SHARD_TO_NODE);
     assertEquals(shardCount, shards.size());
-    for (String shard : shards) {
+    for (final String shard : shards) {
       // each shard should be on both nodes
       assertEquals(2, zkClientMaster.getChildren(ZkPathes.getShard2NodeRootPath(shard)).size());
     }
@@ -155,13 +160,13 @@ public class MasterTest extends AbstractKattaTest {
   }
 
   public void testRebalanceIndexAfterNodeCrash() throws Exception {
-    MasterStartThread masterStartThread = startMaster();
+    final MasterStartThread masterStartThread = startMaster();
     final ZKClient zkClientMaster = masterStartThread.getZkClient();
 
-    NodeStartThread nodeStartThread1 = startNode();
-    NodeStartThread nodeStartThread2 = startNode(SECOND_SHARD_FOLDER);
-    Node node1 = nodeStartThread1.getNode();
-    Node node2 = nodeStartThread2.getNode();
+    final NodeStartThread nodeStartThread1 = startNode();
+    final NodeStartThread nodeStartThread2 = startNode(SECOND_SHARD_FOLDER);
+    final Node node1 = nodeStartThread1.getNode();
+    final Node node2 = nodeStartThread2.getNode();
     masterStartThread.join();
     nodeStartThread1.join();
     nodeStartThread2.join();
@@ -169,18 +174,20 @@ public class MasterTest extends AbstractKattaTest {
     waitForChilds(zkClientMaster, ZkPathes.NODES, 2);
 
     final File indexFile = TestResources.INDEX1;
-    final Katta katta = new Katta();
-    String index = "indexA";
-    katta.addIndex(index, "file://" + indexFile.getAbsolutePath(), StandardAnalyzer.class.getName(), 1);
+    DeployClient deployClient = new DeployClient(_conf);
+    final String index = "indexA";
+    IIndexDeployFuture deployFuture = deployClient.addIndex(index, "file://" + indexFile.getAbsolutePath(),
+        StandardAnalyzer.class.getName(), 1);
+    deployFuture.joinDeployment();
 
-    int shardCount = indexFile.list(FileUtil.VISIBLE_FILES_FILTER).length;
+    final int shardCount = indexFile.list(FileUtil.VISIBLE_FILES_FILTER).length;
     assertEquals(shardCount, zkClientMaster.countChildren(ZkPathes.getIndexPath(index)));
     assertEquals(shardCount / 2, zkClientMaster.countChildren(ZkPathes.getNode2ShardRootPath(node1.getName())));
     assertEquals(shardCount / 2, zkClientMaster.countChildren(ZkPathes.getNode2ShardRootPath(node2.getName())));
 
-    List<String> shards = zkClientMaster.getChildren(ZkPathes.SHARD_TO_NODE);
+    final List<String> shards = zkClientMaster.getChildren(ZkPathes.SHARD_TO_NODE);
     assertEquals(shardCount, shards.size());
-    for (String shard : shards) {
+    for (final String shard : shards) {
       // each shard should be on one nodes
       assertEquals(1, zkClientMaster.getChildren(ZkPathes.getShard2NodeRootPath(shard)).size());
     }
@@ -190,7 +197,7 @@ public class MasterTest extends AbstractKattaTest {
     assertEquals(IndexMetaData.IndexState.DEPLOYED, metaData.getState());
     node2.shutdown();
 
-    long time = System.currentTimeMillis();
+    final long time = System.currentTimeMillis();
     IndexState indexState;
     do {
       zkClientMaster.readData(ZkPathes.getIndexPath(index), metaData);
@@ -200,16 +207,17 @@ public class MasterTest extends AbstractKattaTest {
       }
     } while (indexState != IndexState.DEPLOYED || masterStartThread.getMaster().getNodes().size() > 1);
 
+    deployClient.disconnect();
     nodeStartThread1.shutdown();
     masterStartThread.shutdown();
   }
 
   public void testDeployError() throws Exception {
-    MasterStartThread masterStartThread = startMaster();
+    final MasterStartThread masterStartThread = startMaster();
     final ZKClient zkClientMaster = masterStartThread.getZkClient();
 
-    NodeStartThread nodeStartThread1 = startNode();
-    NodeStartThread nodeStartThread2 = startNode(SECOND_SHARD_FOLDER);
+    final NodeStartThread nodeStartThread1 = startNode();
+    final NodeStartThread nodeStartThread2 = startNode(SECOND_SHARD_FOLDER);
     masterStartThread.join();
     nodeStartThread1.join();
     nodeStartThread2.join();
@@ -218,7 +226,7 @@ public class MasterTest extends AbstractKattaTest {
 
     final File indexFile = TestResources.INVALID_INDEX;
     final Katta katta = new Katta();
-    String index = "indexA";
+    final String index = "indexA";
     katta.addIndex(index, "file://" + indexFile.getAbsolutePath(), StandardAnalyzer.class.getName(), 2);
 
     final IndexMetaData metaData = new IndexMetaData();
@@ -234,7 +242,7 @@ public class MasterTest extends AbstractKattaTest {
     MasterStartThread masterStartThread = startMaster();
     final ZKClient zkClientMaster = masterStartThread.getZkClient();
 
-    NodeStartThread nodeStartThread = startNode();
+    final NodeStartThread nodeStartThread = startNode();
     masterStartThread.join();
     nodeStartThread.join();
     waitForPath(zkClientMaster, ZkPathes.MASTER);
@@ -242,10 +250,10 @@ public class MasterTest extends AbstractKattaTest {
 
     // add index
     final File indexFile = TestResources.INDEX1;
-    int shardCount = indexFile.list(FileUtil.VISIBLE_FILES_FILTER).length;
+    final int shardCount = indexFile.list(FileUtil.VISIBLE_FILES_FILTER).length;
 
     final Katta katta = new Katta();
-    String index = "indexA";
+    final String index = "indexA";
     katta.addIndex(index, "file://" + indexFile.getAbsolutePath(), StandardAnalyzer.class.getName(), 2);
     assertEquals(shardCount, zkClientMaster.countChildren(ZkPathes.getIndexPath(index)));
 
@@ -260,39 +268,43 @@ public class MasterTest extends AbstractKattaTest {
   }
 
   public void testReplicateUnderreplicatedIndexesAfterNodeAdding() throws Exception {
-    MasterStartThread masterStartThread = startMaster();
+    final MasterStartThread masterStartThread = startMaster();
     final ZKClient zkClientMaster = masterStartThread.getZkClient();
-    ZKClient zkClient = new ZKClient(_conf);
+    final ZKClient zkClient = new ZKClient(_conf);
     zkClient.start(5000);
-    Master master = masterStartThread.getMaster();
+    final Master master = masterStartThread.getMaster();
 
     // start one node
-    NodeStartThread nodeStartThread1 = startNode();
+    final NodeStartThread nodeStartThread1 = startNode();
     masterStartThread.join();
     waitOnNodes(masterStartThread, 1);
 
     // add index with replication level of 2
     final File indexFile = TestResources.INDEX1;
-    String index = "indexA";
-    DeployClient deployClient = new DeployClient(zkClient);
-    IIndexDeployFuture deployFuture = deployClient.addIndex(index, "file://" + indexFile.getAbsolutePath(),
+    final String index = "indexA";
+    final DeployClient deployClient = new DeployClient(zkClient);
+    final IIndexDeployFuture deployFuture = deployClient.addIndex(index, "file://" + indexFile.getAbsolutePath(),
         StandardAnalyzer.class.getName(), 2);
     deployFuture.joinDeployment();
     assertEquals(1, deployClient.getIndexes(IndexState.DEPLOYED).size());
-    List<String> shards = zkClient.getChildren(ZkPathes.getIndexPath(index));
-    for (String shard : shards) {
+    final List<String> shards = zkClient.getChildren(ZkPathes.getIndexPath(index));
+    for (final String shard : shards) {
       assertEquals(1, zkClient.countChildren(ZkPathes.getShard2NodeRootPath(shard)));
     }
 
     // start node2
     zkClientMaster.getEventLock().lock();
-    NodeStartThread nodeStartThread2 = startNode(SECOND_SHARD_FOLDER);
-    zkClientMaster.getEventLock().getDataChangedCondition().await();
-    zkClientMaster.getEventLock().unlock();
+    NodeStartThread nodeStartThread2;
+    try {
+      nodeStartThread2 = startNode(SECOND_SHARD_FOLDER);
+      zkClientMaster.getEventLock().getDataChangedCondition().await();
+    } finally {
+      zkClientMaster.getEventLock().unlock();
+    }
     assertEquals(2, master.readNodes().size());
 
     // replication should now take place
-    for (String shard : shards) {
+    for (final String shard : shards) {
       waitForChilds(zkClient, ZkPathes.getShard2NodeRootPath(shard), 2);
     }
 

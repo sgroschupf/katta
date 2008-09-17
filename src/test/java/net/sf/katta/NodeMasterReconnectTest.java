@@ -31,20 +31,20 @@ public class NodeMasterReconnectTest extends AbstractKattaTest {
   int ZK_SERVER_PORT = 2181;
 
   public void testReconnectNode() throws Exception {
-    ZkConfiguration gatewayConf = new ZkConfiguration();
+    final ZkConfiguration gatewayConf = new ZkConfiguration();
     gatewayConf.setZKServers("localhost:" + GATEWAY_PORT);
 
     // startup the system
     Gateway gateway = new Gateway(GATEWAY_PORT, ZK_SERVER_PORT);
     gateway.start();
 
-    MasterStartThread masterStartThread = startMaster();
-    Master master = masterStartThread.getMaster();
-    ZKClient zkNodeClient = new ZKClient(gatewayConf);
-    Node node = new Node(zkNodeClient);
+    final MasterStartThread masterStartThread = startMaster();
+    final Master master = masterStartThread.getMaster();
+    final ZKClient zkNodeClient = new ZKClient(gatewayConf);
+    final Node node = new Node(zkNodeClient);
     node.start();
     masterStartThread.join();
-    ZKClient zkMasterClient = masterStartThread.getZkClient();
+    final ZKClient zkMasterClient = masterStartThread.getZkClient();
 
     assertTrue(zkMasterClient.getZookeeperState().equals(ZooKeeper.States.CONNECTED));
     assertTrue(zkNodeClient.getZookeeperState().equals(ZooKeeper.States.CONNECTED));
@@ -55,9 +55,12 @@ public class NodeMasterReconnectTest extends AbstractKattaTest {
 
     // now break the node connection
     zkMasterClient.getEventLock().lock();
-    gateway.interruptAndJoin();
-    zkMasterClient.getEventLock().getDataChangedCondition().await(20, TimeUnit.SECONDS);
-    zkMasterClient.getEventLock().unlock();
+    try {
+      gateway.interruptAndJoin();
+      zkMasterClient.getEventLock().getDataChangedCondition().await(20, TimeUnit.SECONDS);
+    } finally {
+      zkMasterClient.getEventLock().unlock();
+    }
     assertEquals(0, master.getNodes().size());
 
     // now fix the node connection

@@ -37,7 +37,7 @@ public class IndexDeployFuture implements IIndexDeployFuture, IZkDataListener<In
     _zkClient.getEventLock().lock();
     try {
       _zkClient.subscribeDataChanges(_indexZkPath, this);
-      _zkClient.readData(_indexZkPath, indexMetaData);
+      _zkClient.readData(_indexZkPath, _indexMetaData);
     } finally {
       _zkClient.getEventLock().unlock();
     }
@@ -68,14 +68,6 @@ public class IndexDeployFuture implements IIndexDeployFuture, IZkDataListener<In
 
   private boolean isDeploymentRunning() {
     return _indexMetaData.getState() != IndexState.DEPLOYED && _indexMetaData.getState() != IndexState.ERROR;
-  }
-
-  public synchronized IndexState joinReplication() throws InterruptedException {
-    while (_indexMetaData.getState() != IndexState.REPLICATING || _indexMetaData.getState() != IndexState.DEPLOYED
-        || _indexMetaData.getState() != IndexState.ERROR) {
-      this.wait();
-    }
-    return getState();
   }
 
   public synchronized void handleDataAdded(String dataPath, IndexMetaData data) throws KattaException {

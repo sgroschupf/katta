@@ -181,7 +181,7 @@ public class Node implements ISearch, IZkReconnectListener {
       _zkClient.create(nodeToShardPath);
     }
     _zkClient.createEphemeral(nodePath, metaData);
-    LOG.info("announced node " + _nodeName);
+    LOG.info("node '" + _nodeName + "' announced");
   }
 
   private void startShardServing(boolean restart) throws KattaException {
@@ -305,8 +305,7 @@ public class Node implements ISearch, IZkReconnectListener {
         // we deleting the ephemeral's since this is the fastest and the safest
         // way, but if this does not work, it shouldn't be too bad
         _zkClient.delete(ZkPathes.getNodePath(_nodeName));
-        Set<String> deployedShards = _deployedShards;
-        for (String shard : deployedShards) {
+        for (String shard : _deployedShards) {
           String shard2NodePath = ZkPathes.getShard2NodePath(shard, _nodeName);
           String shard2ErrorPath = ZkPathes.getShard2ErrorPath(shard, _nodeName);
           _zkClient.deleteIfExists(shard2NodePath);
@@ -355,8 +354,8 @@ public class Node implements ISearch, IZkReconnectListener {
     int tryCount = 10000;
     while (_rpcServer == null) {
       try {
-        LOG.info("starting RPC server on : " + hostName);
         _rpcServer = RPC.getServer(this, "0.0.0.0", serverPort, new Configuration());
+        LOG.info("search server started on : " + hostName + ":" + serverPort);
         _searchServerPort = serverPort;
       } catch (final BindException e) {
         if (configuration.getStartPort() - serverPort < tryCount) {

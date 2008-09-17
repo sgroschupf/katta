@@ -156,7 +156,8 @@ public class Client implements IClient {
     final String indexPath = ZkPathes.getIndexPath(indexName);
     final IndexMetaData indexMetaData = new IndexMetaData();
     _zkClient.readData(indexPath, indexMetaData);
-    if (indexMetaData.getState() == IndexMetaData.IndexState.DEPLOYED) {
+    if (indexMetaData.getState() == IndexMetaData.IndexState.DEPLOYED
+        || indexMetaData.getState() == IndexMetaData.IndexState.REPLICATING) {
       final List<String> indexShards = _zkClient.getChildren(indexPath);
       _indexToShards.put(indexName, indexShards);
       for (final String shardName : indexShards) {

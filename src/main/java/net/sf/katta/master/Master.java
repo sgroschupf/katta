@@ -41,8 +41,6 @@ public class Master {
 
   protected boolean _isMaster;
 
-  private int _safeModeMaxTime;
-
   public Master(final ZKClient zkClient) throws KattaException {
     _zkClient = zkClient;
     final MasterConfiguration masterConfiguration = new MasterConfiguration();
@@ -55,15 +53,16 @@ public class Master {
       throw new KattaException("Unable to instantiate deploy policy", e);
     }
 
+    long safeModeMaxTime = 10000;
+
     if (!masterConfiguration.containsProperty(MasterConfiguration.SAFE_MODE_MAX_TIME)) {
       LOG.warn(MasterConfiguration.SAFE_MODE_MAX_TIME + " not configured in master configuration");
-      _safeModeMaxTime = 10000;
       // TODO jz: remove that check once we can assume all config files has been
       // updated
     } else {
-      _safeModeMaxTime = masterConfiguration.getInt(MasterConfiguration.SAFE_MODE_MAX_TIME);
+      safeModeMaxTime = masterConfiguration.getInt(MasterConfiguration.SAFE_MODE_MAX_TIME);
     }
-    _manageShardThread = new DistributeShardsThread(_zkClient, deployPolicy);
+    _manageShardThread = new DistributeShardsThread(_zkClient, deployPolicy, safeModeMaxTime);
   }
 
   public void start() throws KattaException {
@@ -77,7 +76,6 @@ public class Master {
       if (_isMaster) {
         startNodeManagement();
         startIndexManagement();
-        processSafeMode();
         _manageShardThread.start();
       }
     } finally {
@@ -85,15 +83,8 @@ public class Master {
     }
   }
 
-  public void processSafeMode() throws KattaException {
-    LOG.info("entering safe mode (maximum " + _safeModeMaxTime + " ms)");
-    try {
-      // wait maximum safe mode time for new nodes
-      Thread.sleep(_safeModeMaxTime);
-    } catch (InterruptedException e) {
-      throw new KattaException("interrupted safe mode", e);
-    }
-    LOG.info("leaving safe mode with " + _nodes.size() + " connected nodes");
+  public boolean isInSafeMode() {
+    return _manageShardThread.isInSafeMode();
   }
 
   public void shutdown() {
@@ -101,14 +92,14 @@ public class Master {
       _manageShardThread.interrupt();
       try {
         _manageShardThread.join();
-      } catch (InterruptedException e1) {
+      } catch (final InterruptedException e1) {
         // proceed
       }
       _zkClient.getEventLock().lock();
       try {
         _zkClient.unsubscribeAll();
         _zkClient.delete(ZkPathes.MASTER);
-      } catch (KattaException e) {
+      } catch (final KattaException e) {
         LOG.error("could bot delete the master data from zk");
       }
       _zkClient.close();
@@ -161,7 +152,7 @@ public class Master {
 
   protected class NodeListener implements IZkChildListener {
 
-    public void handleChildChange(String parentPath, List<String> currentNodes) throws KattaException {
+    public void handleChildChange(final String parentPath, final List<String> currentNodes) throws KattaException {
       LOG.info("got node event: " + currentNodes);
       _manageShardThread.updateNodes(currentNodes);
       _nodes = currentNodes;
@@ -170,7 +161,7 @@ public class Master {
 
   protected class IndexListener implements IZkChildListener {
 
-    public void handleChildChange(String parentPath, List<String> currentIndexes) throws KattaException {
+    public void handleChildChange(final String parentPath, final List<String> currentIndexes) throws KattaException {
       LOG.info("got index event: " + currentIndexes);
       _manageShardThread.updateIndexes(currentIndexes);
       _indexes = currentIndexes;
@@ -179,15 +170,15 @@ public class Master {
 
   protected class MasterListener implements IZkDataListener<MasterMetaData> {
 
-    public void handleDataAdded(String dataPath, MasterMetaData data) throws KattaException {
+    public void handleDataAdded(final String dataPath, final MasterMetaData data) throws KattaException {
       // nothing todo
     }
 
-    public void handleDataChange(String dataPath, MasterMetaData data) throws KattaException {
+    public void handleDataChange(final String dataPath, final MasterMetaData data) throws KattaException {
       // nothing todo
     }
 
-    public void handleDataDeleted(String dataPath) throws KattaException {
+    public void handleDataDeleted(final String dataPath) throws KattaException {
       if (!_isMaster) {
         // start from scratch again...
         LOG.info("An master failure was detected...");
