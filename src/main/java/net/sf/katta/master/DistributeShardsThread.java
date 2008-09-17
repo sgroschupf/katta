@@ -62,6 +62,8 @@ public class DistributeShardsThread extends Thread {
 
   private final long _safeModeMaxTime;
 
+  private final List<IndexStateListener> _indexStateListeners = new ArrayList<IndexStateListener>();
+
   public DistributeShardsThread(final ZKClient zkClient, final IDeployPolicy deployPolicy, final long safeModeMaxTime) {
     _deployPolicy = deployPolicy;
     _zkClient = zkClient;
@@ -158,6 +160,12 @@ public class DistributeShardsThread extends Thread {
         LOG.info("processing of update finsihed!");
       }
     } catch (final InterruptedException e) {
+      // sg: in case we shutdown this thread we need to make sure all index
+      // listener unsubscribe zookeeper notification to make sure zookeeper is
+      // able to shutdown cleanly
+      for (final IndexStateListener listener : _indexStateListeners) {
+        listener.unsubscribeShardEvents();
+      }
       LOG.info("manage shard thread stopped");
     }
   }
@@ -309,8 +317,16 @@ public class DistributeShardsThread extends Thread {
       return;
     }
     LOG.info("add nodes: " + addedNodes);
-    // TODO SG
-    handleAddedOrUnderreplicatedIndexes(getUnderreplicatedIndexes());
+
+    // most likely when a node comes back again we have over replication
+    final Set<String> overreplicatedIndexes = getOverreplicatedIndexes();
+    distributeShards(overreplicatedIndexes, IndexState.REPLICATING);
+
+    // in case there wasn't enough nodes before to fit the replication level..
+    final Set<String> underreplicatedIndexes = getUnderreplicatedIndexes();
+    distributeShards(underreplicatedIndexes, IndexState.REPLICATING);
+
+    // handleAddedOrUnderreplicatedIndexes(getUnderreplicatedIndexes());
     // TODO jz: rebalance nodes load ?
   }
 
@@ -387,6 +403,9 @@ public class DistributeShardsThread extends Thread {
 
     final IndexStateListener indexStateListener = new IndexStateListener(_zkClient, index, indexMD, indexShards,
         _liveNodes.size());
+    // sg: hold the listener so we can cleanly disconnect in case of a thread
+    // shutdown
+    _indexStateListeners.add(indexStateListener);
     _zkClient.getEventLock().lock();
     try {
       indexStateListener.subscribeShardEvents();
@@ -529,7 +548,7 @@ public class DistributeShardsThread extends Thread {
 
   }
 
-  private static class IndexStateListener implements IZkChildListener {
+  protected class IndexStateListener implements IZkChildListener {
 
     private final Set<String> _shards;
     private final ZKClient _zkClient;
@@ -571,6 +590,7 @@ public class DistributeShardsThread extends Thread {
         _zkClient.unsubscribeChildChanges(shard2NodeRootPath, this);
         _zkClient.unsubscribeChildChanges(shard2ErrorPath, this);
       }
+      _indexStateListeners.remove(this);
     }
 
     public void handleChildChange(final String parentPath, final List<String> currentChilds) throws KattaException {
@@ -587,6 +607,8 @@ public class DistributeShardsThread extends Thread {
 
     private synchronized void checkForIndexStateSwitch() throws KattaException {
       if (_indexMetaData.getState() == IndexState.DEPLOYED || _indexMetaData.getState() == IndexState.ERROR) {
+        // sg: should'nt we unsubribe here too?
+        unsubscribeShardEvents();
         return;
       }
       int notDeployed = 0;
