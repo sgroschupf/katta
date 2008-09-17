@@ -309,7 +309,7 @@ public class DistributeShardsThread extends Thread {
       return;
     }
     LOG.info("add nodes: " + addedNodes);
-
+    // TODO SG
     handleAddedOrUnderreplicatedIndexes(getUnderreplicatedIndexes());
     // TODO jz: rebalance nodes load ?
   }
@@ -379,8 +379,11 @@ public class DistributeShardsThread extends Thread {
     final Map<String, List<String>> distributionMap = _deployPolicy.createDistributionPlan(currentShard2NodesMap,
         currentNodeToShardsMap, new ArrayList<String>(_liveNodes), indexMD.getReplicationLevel());
     writeShardDistributionMapToZK(distributionMap, shard2AssignedShardMap);
-    indexMD.setState(IndexState.DEPLOYING);
-    _zkClient.writeData(indexZkPath, indexMD);
+    // sg: we just wrote the index stage to something different like replication
+    // and don't want to change it now to deploying.
+
+    // indexMD.setState(IndexState.DEPLOYING);
+    // _zkClient.writeData(indexZkPath, indexMD);
 
     final IndexStateListener indexStateListener = new IndexStateListener(_zkClient, index, indexMD, indexShards,
         _liveNodes.size());
