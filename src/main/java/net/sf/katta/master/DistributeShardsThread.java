@@ -112,7 +112,7 @@ public class DistributeShardsThread extends Thread {
         Set<String> updatedNodes = null;
         Set<String> updatedIndexes = null;
         try {
-          Set<String> unbalancedIndexes = getUnbalancedIndexes();
+          Set<String> unbalancedIndexes = getUnbalancedIndexes(liveNodes.size());
           try {
             while (!(_statusUpdate.hasChanges(liveIndexes, liveNodes) || !unbalancedIndexes.isEmpty())
                 || _statusUpdate.getNodes().isEmpty()) {
@@ -122,7 +122,7 @@ public class DistributeShardsThread extends Thread {
                 // safe-mode?
               }
               _updateLock.getUpdatedCondition().await();
-              unbalancedIndexes = getUnbalancedIndexes();
+              unbalancedIndexes = getUnbalancedIndexes(liveNodes.size());
               // TODO jz: wait x ms and if nothing happens rebalance ??
             }
             LOG.info("processing of update started...");
@@ -197,7 +197,7 @@ public class DistributeShardsThread extends Thread {
 
   private void doStartupCheck(Set<String> liveNodes) throws KattaException {
     LOG.info("do startup check...");
-    distributeIndexes(getUnbalancedIndexes(), IndexState.REPLICATING, liveNodes);
+    distributeIndexes(getUnbalancedIndexes(liveNodes.size()), IndexState.REPLICATING, liveNodes);
     distributeIndexes(getAnnouncedButUndeployedIndexes(), IndexState.DEPLOYING, liveNodes);
 
     // TODO jz: check namespace structure ??
@@ -219,9 +219,9 @@ public class DistributeShardsThread extends Thread {
     return announcedIndexes;
   }
 
-  private Set<String> getUnbalancedIndexes() throws KattaException {
+  private Set<String> getUnbalancedIndexes(int nodeCount) throws KattaException {
     final Set<String> unbalancedIndexes = new HashSet<String>();
-    final Set<String> underreplicatedIndexes = getUnderreplicatedIndexes();
+    final Set<String> underreplicatedIndexes = getUnderreplicatedIndexes(nodeCount);
     final Set<String> overreplicatedIndexes = getOverreplicatedIndexes();
     if (!underreplicatedIndexes.isEmpty()) {
       LOG.info("found following underreplicated indexes: " + underreplicatedIndexes);
@@ -235,7 +235,7 @@ public class DistributeShardsThread extends Thread {
     return unbalancedIndexes;
   }
 
-  private Set<String> getUnderreplicatedIndexes() throws KattaException {
+  private Set<String> getUnderreplicatedIndexes(int nodeCount) throws KattaException {
     final Set<String> underreplicatedIndexes = new HashSet<String>();
     for (final String index : _zkClient.getChildren(ZkPathes.INDEXES)) {
       final String indexZkPath = ZkPathes.getIndexPath(index);
@@ -243,8 +243,15 @@ public class DistributeShardsThread extends Thread {
       _zkClient.readData(indexZkPath, indexMetaData);
       if (indexMetaData.getState() != IndexState.ERROR && indexMetaData.getState() != IndexState.DEPLOYING
           && indexMetaData.getState() != IndexState.REPLICATING) {
-        if (isUnderReplicated(indexZkPath, indexMetaData)) {
-          underreplicatedIndexes.add(index);
+        int desiredReplicationCount = indexMetaData.getReplicationLevel();
+        int minimalReplicationCount = getMinimalReplicationCount(indexZkPath, desiredReplicationCount);
+        if (minimalReplicationCount < desiredReplicationCount) {
+          if (minimalReplicationCount <= nodeCount) {
+            LOG.warn("found index '" + index
+                + "' underreplicated but skip replicating since not enough nodes connected");
+          } else {
+            underreplicatedIndexes.add(index);
+          }
         }
       }
     }
@@ -267,17 +274,17 @@ public class DistributeShardsThread extends Thread {
     return overreplicatedIndexes;
   }
 
-  private boolean isUnderReplicated(final String indexZkPath, final IndexMetaData indexMetaData) throws KattaException {
+  private int getMinimalReplicationCount(final String indexZkPath, int desiredReplicationCount) throws KattaException {
+    int minimalReplicationCount = desiredReplicationCount;
     final List<String> shards = _zkClient.getChildren(indexZkPath);
-    final Map<String, List<String>> currentShard2NodesMap = readShard2NodesMapFromZk(_zkClient, new HashSet<String>(
-        shards));
+    final Map<String, List<String>> shard2NodesMap = readShard2NodesMapFromZk(_zkClient, new HashSet<String>(shards));
     for (final String shard : shards) {
-      final int servingNodes = currentShard2NodesMap.get(shard).size();
-      if (servingNodes < indexMetaData.getReplicationLevel()) {
-        return true;
+      final int servingNodes = shard2NodesMap.get(shard).size();
+      if (servingNodes < minimalReplicationCount) {
+        minimalReplicationCount = servingNodes;
       }
     }
-    return false;
+    return minimalReplicationCount;
   }
 
   private boolean isOverReplicated(final String indexZkPath, final IndexMetaData indexMetaData) throws KattaException {
