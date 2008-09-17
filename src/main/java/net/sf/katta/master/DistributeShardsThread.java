@@ -112,7 +112,7 @@ public class DistributeShardsThread extends Thread {
         Set<String> updatedNodes = null;
         Set<String> updatedIndexes = null;
         try {
-          Set<String> unbalancedIndexes = getUnbalancedIndexes(liveNodes.size());
+          Set<String> unbalancedIndexes = getUnbalancedIndexes(_statusUpdate.getNodes().size());
           try {
             while (!(_statusUpdate.hasChanges(liveIndexes, liveNodes) || !unbalancedIndexes.isEmpty())
                 || _statusUpdate.getNodes().isEmpty()) {
@@ -122,7 +122,7 @@ public class DistributeShardsThread extends Thread {
                 // safe-mode?
               }
               _updateLock.getUpdatedCondition().await();
-              unbalancedIndexes = getUnbalancedIndexes(liveNodes.size());
+              unbalancedIndexes = getUnbalancedIndexes(_statusUpdate.getNodes().size());
               // TODO jz: wait x ms and if nothing happens rebalance ??
             }
             LOG.info("processing of update started...");
@@ -246,7 +246,7 @@ public class DistributeShardsThread extends Thread {
         int desiredReplicationCount = indexMetaData.getReplicationLevel();
         int minimalReplicationCount = getMinimalReplicationCount(indexZkPath, desiredReplicationCount);
         if (minimalReplicationCount < desiredReplicationCount) {
-          if (minimalReplicationCount <= nodeCount) {
+          if (minimalReplicationCount >= nodeCount) {
             LOG.warn("found index '" + index
                 + "' underreplicated but skip replicating since not enough nodes connected");
           } else {
