@@ -1,6 +1,11 @@
 Katta Change Log
 
-Release 0.1.0 - 2008-10-xx
+Release 0.2.0 - 2006-xx-xx
+  
+ upgrade zookeeper version from 2.2.0 to 2.2.1
+
+
+Release 0.1.0 - 2008-10-17
 
  1. The first release of Katta.
 

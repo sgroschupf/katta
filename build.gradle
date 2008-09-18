@@ -76,7 +76,7 @@ dependencies {
   compile ":jets3t:0.5.0"
   compile ":xmlenc:0.52"
   compile ":commons-httpclient:3.0.1"
-  compile ":zookeeper:2.2.0"
+  compile ":zookeeper:2.2.1"
   compile ":commons-logging:1.0.4"
   compile ":commons-logging-api:1.0.4"
   compile ":log4j:1.2.13"
