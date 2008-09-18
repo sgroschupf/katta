@@ -19,8 +19,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 
-import junit.framework.TestCase;
-import net.sf.katta.testutil.TestUtil;
+import net.sf.katta.testutil.ExtendedTestCase;
 
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapred.FileSplit;
@@ -31,18 +30,9 @@ import org.apache.hadoop.mapred.Reporter;
 import org.jmock.Expectations;
 import org.jmock.Mockery;
 
-public class DfsIndexInputFormatTest extends TestCase {
+public class DfsIndexInputFormatTest extends ExtendedTestCase {
 
-  private File _file = new File(System.getProperty("java.io.tmpdir"), DfsIndexInputFormatTest.class.getName());
-
-  protected void setUp() throws Exception {
-    _file.mkdir();
-    assertTrue(_file.isDirectory());
-  }
-
-  protected void tearDown() throws Exception {
-    assertTrue(TestUtil.deleteDirectory(_file));
-  }
+  private File _file = createFile(getClass().getSimpleName());
 
   public void testInputFormat() throws IOException {
     DfsIndexInputFormat indexInputFormat = new DfsIndexInputFormat();

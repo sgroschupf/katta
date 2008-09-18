@@ -18,9 +18,8 @@ package net.sf.katta.index.indexer.merge;
 import java.io.File;
 import java.io.IOException;
 
-import junit.framework.TestCase;
+import net.sf.katta.testutil.ExtendedTestCase;
 import net.sf.katta.testutil.TestResources;
-import net.sf.katta.testutil.TestUtil;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -29,17 +28,9 @@ import org.apache.lucene.document.Document;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.store.Directory;
 
-public class DfsIndexInputTest extends TestCase {
+public class DfsIndexInputTest extends ExtendedTestCase {
 
-  private File _file = new File(System.getProperty("java.io.tmpdir"), DfsIndexInputTest.class.getName());
-
-  protected void setUp() throws Exception {
-    assertTrue(_file.mkdir());
-  }
-
-  protected void tearDown() throws Exception {
-    assertTrue(TestUtil.deleteDirectory(_file));
-  }
+  private File _file = createFile(getClass().getSimpleName());
 
   public void testReadIndex() throws IOException {
     Configuration configuration = new Configuration();

@@ -20,8 +20,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 
-import junit.framework.TestCase;
-import net.sf.katta.testutil.TestUtil;
+import net.sf.katta.testutil.ExtendedTestCase;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -33,18 +32,9 @@ import org.apache.lucene.document.Document;
 import org.jmock.Expectations;
 import org.jmock.Mockery;
 
-public class DfsIndexRecordReaderTest extends TestCase {
+public class DfsIndexRecordReaderTest extends ExtendedTestCase {
 
-  private File _file = new File(System.getProperty("java.io.tmpdir"), DfsIndexRecordReaderTest.class.getName()
-      + File.separator + "_temporary" + File.separator + "jobId");
-
-  protected void setUp() throws Exception {
-    assertTrue(_file.mkdirs());
-  }
-
-  protected void tearDown() throws Exception {
-    assertTrue(TestUtil.deleteDirectory(_file));
-  }
+  private File _file = createFile("_temporary/jobId");
 
   public void testNext() throws IOException, URISyntaxException {
     JobConf jobConf = new JobConf();

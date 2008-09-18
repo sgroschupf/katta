@@ -20,32 +20,23 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
-import junit.framework.TestCase;
+import net.sf.katta.testutil.ExtendedTestCase;
 import net.sf.katta.testutil.TestResources;
-import net.sf.katta.testutil.TestUtil;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.lucene.store.Directory;
 
-public class DfsIndexDirectoryTest extends TestCase {
+public class DfsIndexDirectoryTest extends ExtendedTestCase {
 
-  private File _file = new File(System.getProperty("java.io.tmpdir"), DfsIndexDirectory.class.getName());
-
-  protected void setUp() throws Exception {
-    assertTrue(_file.mkdir());
-  }
-
-  protected void tearDown() throws Exception {
-    assertTrue(TestUtil.deleteDirectory(_file));
-  }
+  private File _workFolder = createFile(getClass().getSimpleName());
 
   public void testFileExists() throws IOException {
     Configuration configuration = new Configuration();
     FileSystem fileSystem = FileSystem.get(configuration);
     Directory directory = new DfsIndexDirectory(fileSystem, new Path(TestResources.SHARD1.getAbsolutePath()), new Path(
-        _file.getAbsolutePath()));
+        _workFolder.getAbsolutePath()));
     assertTrue(directory.fileExists("segments.gen"));
   }
 
@@ -53,7 +44,7 @@ public class DfsIndexDirectoryTest extends TestCase {
     Configuration configuration = new Configuration();
     FileSystem fileSystem = FileSystem.get(configuration);
     Directory directory = new DfsIndexDirectory(fileSystem, new Path(TestResources.SHARD1.getAbsolutePath()), new Path(
-        _file.getAbsolutePath()));
+        _workFolder.getAbsolutePath()));
     String[] strings = directory.list();
     List<String> list = Arrays.asList(strings);
     assertEquals(3, list.size());

@@ -223,6 +223,7 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
     public MasterStartThread(Master master, ZKClient zkMasterClient) {
       _master = master;
       _zkMasterClient = zkMasterClient;
+      setName(getClass().getSimpleName());
     }
 
     public Master getMaster() {
@@ -255,6 +256,7 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
     public NodeStartThread(Node node, ZKClient client) {
       _node = node;
       _client = client;
+      setName(getClass().getSimpleName());
     }
 
     public Node getNode() {

@@ -17,31 +17,30 @@ package net.sf.katta.index.indexer.merge;
 
 import java.io.File;
 
-import junit.framework.TestCase;
+import net.sf.katta.testutil.ExtendedTestCase;
 import net.sf.katta.testutil.TestResources;
-import net.sf.katta.testutil.TestUtil;
 import net.sf.katta.util.FileUtil;
 import net.sf.katta.util.IndexConfiguration;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 
-public class IndexMergeJobTest extends TestCase {
+public class IndexMergeJobTest extends ExtendedTestCase {
 
   private IndexConfiguration _indexConfiguration = new IndexConfiguration();
 
   @Override
-  protected void setUp() throws Exception {
-    TestUtil.deleteDirectory(_indexConfiguration.getFile(IndexConfiguration.INDEX_TMP_DIRECTORY));
-    TestUtil.deleteDirectory(_indexConfiguration.getFile(IndexConfiguration.MAPRED_OUTPUT_PATH));
+  protected void onSetUp() throws Exception {
+    FileUtil.deleteFolder(_indexConfiguration.getFile(IndexConfiguration.INDEX_TMP_DIRECTORY));
+    FileUtil.deleteFolder(_indexConfiguration.getFile(IndexConfiguration.MAPRED_OUTPUT_PATH));
   }
 
   public void testMerging() throws Exception {
     Path[] indexesToMerge = new Path[] { new Path(TestResources.INDEX1.getAbsolutePath()),
         new Path(TestResources.INDEX2.getAbsolutePath()) };
-    Path mergedIndexPath = TestUtil.newTestFolder("mergedIndex");
+    Path mergedIndexPath = createPath("mergedIndex");
     File mergedIndexFile = new File(mergedIndexPath.toString());
-    TestUtil.deleteDirectory(mergedIndexFile);
+    FileUtil.deleteFolder(mergedIndexFile);
 
     IndexMergeJob indexMergeJob = new IndexMergeJob();
     Configuration configuration = new Configuration();
