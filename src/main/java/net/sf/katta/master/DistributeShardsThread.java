@@ -197,26 +197,28 @@ public class DistributeShardsThread extends Thread {
 
   private void doStartupCheck(Set<String> liveNodes) throws KattaException {
     LOG.info("do startup check...");
+    distributeIndexes(getIndexesInState(IndexState.DEPLOYING), IndexState.DEPLOYING, liveNodes);
+    distributeIndexes(getIndexesInState(IndexState.REPLICATING), IndexState.REPLICATING, liveNodes);
+    distributeIndexes(getIndexesInState(IndexState.ANNOUNCED), IndexState.DEPLOYING, liveNodes);
     distributeIndexes(getUnbalancedIndexes(liveNodes.size()), IndexState.REPLICATING, liveNodes);
-    distributeIndexes(getAnnouncedButUndeployedIndexes(), IndexState.DEPLOYING, liveNodes);
 
     // TODO jz: check namespace structure ??
     LOG.info("startup check done");
   }
 
-  private Set<String> getAnnouncedButUndeployedIndexes() throws KattaException {
-    final Set<String> announcedIndexes = new HashSet<String>();
+  private Set<String> getIndexesInState(IndexState indexState) throws KattaException {
+    final Set<String> indexes = new HashSet<String>();
     for (final String index : _zkClient.getChildren(ZkPathes.INDEXES)) {
       final IndexMetaData indexMetaData = new IndexMetaData();
       _zkClient.readData(ZkPathes.getIndexPath(index), indexMetaData);
-      if (indexMetaData.getState() == IndexState.ANNOUNCED) {
-        announcedIndexes.add(index);
+      if (indexMetaData.getState() == indexState) {
+        indexes.add(index);
       }
     }
-    if (!announcedIndexes.isEmpty()) {
-      LOG.info("found following indexes in announced state: " + announcedIndexes);
+    if (!indexes.isEmpty()) {
+      LOG.info("found following indexes in state '" + indexState + "': " + indexes);
     }
-    return announcedIndexes;
+    return indexes;
   }
 
   private Set<String> getUnbalancedIndexes(int nodeCount) throws KattaException {
