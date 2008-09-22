@@ -209,7 +209,13 @@ public class Node implements ISearch, IZkReconnectListener {
       } catch (Exception e) {
         LOG.error(_nodeName + ": could not deploy shard '" + shard + "'", e);
         ShardError shardError = new ShardError(e.getMessage());
-        _zkClient.createEphemeral(ZkPathes.getShard2ErrorPath(shard, _nodeName), shardError);
+        String shard2ErrorPath = ZkPathes.getShard2ErrorPath(shard, _nodeName);
+        if (_zkClient.exists(shard2ErrorPath)) {
+          LOG.warn("detected old shard-to-error entry - deleting it..");
+          // must be an old ephemeral
+          _zkClient.delete(shard2ErrorPath);
+        }
+        _zkClient.createEphemeral(shard2ErrorPath, shardError);
         FileUtil.deleteFolder(localShardFolder);
       }
     }
