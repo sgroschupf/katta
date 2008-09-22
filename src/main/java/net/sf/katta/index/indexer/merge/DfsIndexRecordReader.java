@@ -21,6 +21,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.MD5Hash;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapred.FileOutputFormat;
 import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.JobConf;
@@ -57,11 +58,11 @@ public class DfsIndexRecordReader implements RecordReader<Text, DocumentInformat
     // we use md5 for uncompressed folder, because some shards can have the same
     // name
     String md5 = MD5Hash.digest(indexPath.toString()).toString();
-    Path workingFolder = new Path(jobConf.getOutputPath(), ".indexes/" + indexPath.getName() + "-" + md5
+    Path workingFolder = new Path(FileOutputFormat.getOutputPath(jobConf), ".indexes/" + indexPath.getName() + "-" + md5
         + "-uncompress");
     // the outputpath is modified by hadoop and will be extend with
     // "_temporary/jobId"
-    _indexPath = new Path(jobConf.getOutputPath().getParent().getParent(), ".indexes/" + indexPath.getName() + "-"
+    _indexPath = new Path(FileOutputFormat.getOutputPath(jobConf).getParent().getParent(), ".indexes/" + indexPath.getName() + "-"
         + md5 + "-uncompress");
     try {
       _indexReader = IndexReader.open(new DfsIndexDirectory(fileSystem, indexPath, workingFolder));

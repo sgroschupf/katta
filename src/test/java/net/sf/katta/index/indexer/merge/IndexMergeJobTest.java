@@ -48,6 +48,7 @@ public class IndexMergeJobTest extends ExtendedTestCase {
     _indexConfiguration.enrichJobConf(configuration, IndexConfiguration.MAPRED_OUTPUT_PATH);
     _indexConfiguration.enrichJobConf(configuration, IndexConfiguration.INDEX_SHARD_KEY_GENERATOR_CLASS);
     _indexConfiguration.enrichJobConf(configuration, IndexConfiguration.INDEX_SHARD_KEY_GENERATOR_CLASS);
+    configuration.setInt("io.sort.mb", 20);
     indexMergeJob.setConf(configuration);
     indexMergeJob.merge(indexesToMerge, mergedIndexPath);
 

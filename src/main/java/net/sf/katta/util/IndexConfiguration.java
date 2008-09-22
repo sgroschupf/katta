@@ -19,11 +19,12 @@ import java.util.Set;
 
 import net.sf.katta.index.indexer.Indexer;
 import net.sf.katta.index.indexer.ShardSelectionMapper;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapred.FileInputFormat;
+import org.apache.hadoop.mapred.FileOutputFormat;
 import org.apache.hadoop.mapred.InputFormat;
 import org.apache.hadoop.mapred.JobConf;
 
@@ -90,9 +91,9 @@ public class IndexConfiguration extends KattaConfiguration {
     for (final Object key : keySet) {
       final String value = getProperty((String) key);
       if (key.equals(MAPRED_INPUT_PATH)) {
-        jobConf.setInputPath(new Path(value));
+        FileInputFormat.setInputPaths(jobConf, new Path(value));
       } else if (key.equals(MAPRED_OUTPUT_PATH)) {
-        jobConf.setOutputPath(new Path(value));
+        FileOutputFormat.setOutputPath(jobConf, new Path(value));
       } else if (key.equals(INPUT_FORMAT_CLASS)) {
         jobConf.setInputFormat((Class<? extends InputFormat>) getClass(key.toString()));
       } else {

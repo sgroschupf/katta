@@ -17,12 +17,13 @@ package net.sf.katta.index.indexer.merge;
 
 import net.sf.katta.index.indexer.ShardSelectionMapper;
 import net.sf.katta.util.IndexConfiguration;
-
 import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapred.FileInputFormat;
+import org.apache.hadoop.mapred.FileOutputFormat;
 import org.apache.hadoop.mapred.JobClient;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.SequenceFileInputFormat;
@@ -48,7 +49,7 @@ public class SequenceFileToIndexJob implements Configurable {
     // overwrite the settet input path which is set via IndexJobConf.create
     jobConf.set("mapred.input.dir", "");
     LOG.info("read document informations from sequence file: " + sequenceFilePath);
-    jobConf.addInputPath(sequenceFilePath);
+    FileInputFormat.setInputPaths(jobConf, sequenceFilePath);
 
     // configure the mapper
     jobConf.setMapOutputKeyClass(Text.class);
@@ -61,7 +62,7 @@ public class SequenceFileToIndexJob implements Configurable {
 
     Path newOutputPath = new Path(jobConf.get(IndexConfiguration.MAPRED_OUTPUT_PATH), outputFolder.getName());
     LOG.info("set mapred folder to: " + newOutputPath);
-    jobConf.setOutputPath(newOutputPath);
+    FileOutputFormat.setOutputPath(jobConf, newOutputPath);
 
     LOG.info("set index upload folder: '" + outputFolder + "'");
     jobConf.set(IndexConfiguration.INDEX_UPLOAD_PATH, outputFolder.toString());
