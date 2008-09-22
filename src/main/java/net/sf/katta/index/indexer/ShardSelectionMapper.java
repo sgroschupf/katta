@@ -18,6 +18,7 @@ package net.sf.katta.index.indexer;
 import java.io.IOException;
 
 import net.sf.katta.util.IndexConfiguration;
+
 import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.DataOutputBuffer;
 import org.apache.hadoop.io.Text;
@@ -29,7 +30,7 @@ import org.apache.hadoop.mapred.OutputCollector;
 import org.apache.hadoop.mapred.Reporter;
 import org.apache.log4j.Logger;
 
-public class ShardSelectionMapper implements Mapper<WritableComparable, Writable, OutputCollector, Reporter> {
+public class ShardSelectionMapper implements Mapper {
 
   private final static Logger LOG = Logger.getLogger(ShardSelectionMapper.class);
 

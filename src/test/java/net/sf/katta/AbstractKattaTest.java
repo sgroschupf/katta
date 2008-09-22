@@ -18,8 +18,6 @@ package net.sf.katta;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
-import com.yahoo.zookeeper.ZooKeeper;
-import com.yahoo.zookeeper.ZooKeeper.States;
 import net.sf.katta.master.Master;
 import net.sf.katta.node.Node;
 import net.sf.katta.testutil.ExtendedTestCase;
@@ -28,10 +26,15 @@ import net.sf.katta.util.NetworkUtil;
 import net.sf.katta.util.NodeConfiguration;
 import net.sf.katta.util.ZkConfiguration;
 import net.sf.katta.zk.ZKClient;
-import net.sf.katta.zk.ZKClient.ZkLock;
 import net.sf.katta.zk.ZkPathes;
 import net.sf.katta.zk.ZkServer;
+import net.sf.katta.zk.ZKClient.ZkLock;
+
 import org.apache.hadoop.fs.FileUtil;
+import org.apache.hadoop.ipc.RPC;
+
+import com.yahoo.zookeeper.ZooKeeper;
+import com.yahoo.zookeeper.ZooKeeper.States;
 
 /**
  * Basic katta test which provides some methods for starting master and nodes.
@@ -65,8 +68,7 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
     onAfterClass();
     stopZkServer();
     cleanZookeeperData(_conf);
-      //TODO fix calling missing method from 0.16.3 api
-      //RPC.stopClient();
+    RPC.stopClient();
   }
 
   @Override

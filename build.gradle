@@ -69,7 +69,7 @@ dependencies {
   addFlatDirResolver('lib', new File(rootDir, 'lib'))
 
   // todo create clientModule for hadoop etc.
-  compile ":hadoop-core:0.17.2.1", ":lucene-core:2.3.2"
+  compile ":hadoop-core:0.16.3", ":lucene-core:2.3.2"
   compile ":zookeeper:2.2.0"
   compile ":commons-cli:2.0-SNAPSHOT"
   compile ":commons-codec:1.3"
