@@ -35,6 +35,8 @@ import java.util.concurrent.locks.ReentrantLock;
 import net.sf.katta.index.AssignedShard;
 import net.sf.katta.index.IndexMetaData;
 import net.sf.katta.index.IndexMetaData.IndexState;
+import net.sf.katta.node.NodeMetaData;
+import net.sf.katta.node.Node.NodeState;
 import net.sf.katta.util.CollectionUtil;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.zk.IZkChildListener;
@@ -178,7 +180,7 @@ public class DistributeShardsThread extends Thread {
     _safeMode = true;
     try {
       while (_statusUpdate.lastChangeTimeStamp() + _safeModeMaxTime > System.currentTimeMillis()
-          || _statusUpdate.getNodes().isEmpty()) {
+          || _statusUpdate.getNodes().isEmpty() || areNodesConnecting(_statusUpdate.getNodes())) {
         LOG.info("SAFE MODE: No nodes available or state unstable within the last " + _safeModeMaxTime + " ms.");
         _updateLock.getUpdatedCondition().await(_safeModeMaxTime, TimeUnit.MILLISECONDS);
       }
@@ -189,6 +191,23 @@ public class DistributeShardsThread extends Thread {
       _safeMode = false;
       _updateLock.unlock();
     }
+  }
+
+  private boolean areNodesConnecting(Set<String> nodes) {
+    for (String node : nodes) {
+      NodeMetaData nodeMetaData = new NodeMetaData();
+      try {
+        _zkClient.readData(ZkPathes.getNodePath(node), nodeMetaData);
+        if (nodeMetaData.getState() == NodeState.STARTING || nodeMetaData.getState() == NodeState.RECONNECTING) {
+          return true;
+        }
+      } catch (KattaException e) {
+        // on startup there could be some node data removals and addings since
+        // the "old" ephemerals have to be cleared
+        LOG.warn("failed to load node data");
+      }
+    }
+    return false;
   }
 
   private String toString(final Set<String> updatedIndexes, final Set<String> updatedNodes) {

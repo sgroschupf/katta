@@ -2,6 +2,7 @@ Katta Change Log
 
 Release 0.2.0 - 2006-xx-xx
  
+ respect node status 'STARTING' in SAFE_MODE 
  fix bug where node jvm exits on startup on an deployment error
  check for indexes in deploying and replicating state on master startup 
  upgrade zookeeper version from 2.2.0 to 2.2.1
