@@ -20,15 +20,12 @@ import org.gradle.api.tasks.StopExecutionException
 
 archivesBaseName = 'katta'
 group = 'net.sf.katta'
-version = '0.2-SNAPSHOT'
-snapShotVersion = version
-String timestamp = ""
-int buildNumber = 1;
-String distributionNumber = version;
+maven2Group = 'net/sf/katta'
+timestamp = new SimpleDateFormat("yyyyMMdd.hhmmss").format(new Date());
+buildNumber = 0
 
-String maven2Group = group.toString().replaceAll('\\.', '/');
-File uploadFolder = buildDir
-
+version = "0.2-SNAPSHOT"
+mavenArtifactVersion = version
 
 usePlugin('java')
 
@@ -41,21 +38,12 @@ createTask('wrapper', type: Wrapper).configure {
   jarPath = 'src/build/resources/lib'
 }
 
-
-Map requiredProperties = [
-  kattaDevelopRepositoryUri: hasProperty('kattaDevelopRepositoryUri'),
-  kattaDistributionRepositoryUri: hasProperty('kattaDistributionRepositoryUri'),
-  kattaSshUser: hasProperty('kattaSshUser'),
-  kattaSshPassword: hasProperty('kattaSshPassword'),
-  kattaSshHost: hasProperty('kattaSshHost'),
-]
-
-public class JarFilter implements FileFilter {
-
-  public boolean accept(File file) {
-    return file.getName().endsWith(".jar");
+uploadProperties = ['kattaSshUser', 'kattaSshPassword', 'kattaSshHost', 'kattaSshUri']
+boolean uploadable = true
+uploadProperties.each{listItem ->
+  if(!hasProperty(listItem)){
+    uploadable = false;
   }
-
 }
 
 test {
@@ -89,33 +77,27 @@ dependencies {
   testCompile HAMCREST, ":junit:3.8.1"
 }
 
-//configure snapShot version
-init {
-  if (requiredProperties.kattaDevelopRepositoryUri && requiredProperties.kattaSshUser && requiredProperties.kattaSshPassword && requiredProperties.kattaSshHost) {
-    buildDir.mkdir();
-    ant.sshexec(host: "$kattaSshHost", username: "$kattaSshUser", password: "$kattaSshPassword", command: "ls $kattaDevelopRepositoryUri/$maven2Group/$archivesBaseName/$version/*.jar | wc -l", output: "$buildDir/version.txt");
-
-    BufferedReader reader = new BufferedReader(new FileReader(new File(buildDir, "version.txt")))
-    String line = reader.readLine();
-    reader.close();
-    line = line.trim();
-    uploadFolder = new File(kattaDevelopRepositoryUri + "/$maven2Group/$archivesBaseName/$version");
-    try {
-      buildNumber = Integer.parseInt(line) + 1;
-    } catch (NumberFormatException e) {
-      //nothing todo
+init.doFirst() { 
+    if(version.endsWith("SNAPSHOT") && uploadable) {
+        buildDir.mkdirs()
+        ant.sshexec(host: "$kattaSshHost", username: "$kattaSshUser", password: "$kattaSshPassword", command: "ls $kattaSshUri/$maven2Group/$archivesBaseName/$version/*.jar | wc -l", output: "$buildDir/version.txt");
+        BufferedReader reader = new BufferedReader(new FileReader(new File(buildDir, "version.txt")))
+        String line = reader.readLine();
+        reader.close();
+        line = line.trim();
+        try {
+          buildNumber = Integer.parseInt(line) + 1;
+        } catch (NumberFormatException e) {
+          //nothing todo
+        }
+        mavenArtifactVersion = version.replaceAll("-SNAPSHOT", "") + '.' + timestamp + '-' + buildNumber  
     }
-  }
-  String pattern = "yyyyMMdd.hhmmss";
-  DateFormat dateFormat = new SimpleDateFormat(pattern);
-  timestamp = dateFormat.format(new Date());
-  snapShotVersion = version.replaceAll("SNAPSHOT", "") + timestamp + "-" + buildNumber;
-  distributionNumber = version.replaceAll("-SNAPSHOT", "") + "." + buildNumber;
 }
+
 
 //collect runtime libs for the distribution
 File runtimeLibsDir = new File(buildDir, 'runtimeLibs')
-createTask('collectRuntimeLibs') {
+createTask('collectRuntimeLibs', dependsOn:'archive_jar') {
   runtimeLibsDir.mkdirs()
   dependencies.resolve('runtime').each {File file ->
     ant.copy(file: file, todir: runtimeLibsDir)
@@ -123,7 +105,8 @@ createTask('collectRuntimeLibs') {
   ant.copy(file: archive_jar.archivePath, toDir: runtimeLibsDir)
 }
 
-//lib tasks (build the jars)
+
+
 libs() {
   SimpleDateFormat simpleDateFormat = new SimpleDateFormat("EEE, d MMM yyyy HH:mm:ss.SSS z");
   simpleDateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
@@ -147,7 +130,6 @@ libs() {
   
   manifest.mainAttributes([ 
     'Implementation-Title': 'Katta', 
-    'Implementation-Version': version, 
     'Compile-Time': date,
     'Compiled-By': System.getProperty("user.name"),
     'SVN-Revision': revision+"",
@@ -156,134 +138,116 @@ libs() {
  
   //create a hadoop job jar
   jar(baseName: "archive_job") {
-    extension = "job"
-    mergeGroup(runtimeLibsDir)
-    merge(archive_jar.archivePath)
-    publish = false
+      extension = "job"
+      mergeGroup(runtimeLibsDir)
+      merge(archive_jar.archivePath)
+      publish = false
   }
   archive_job_jar.dependsOn('archive_jar', 'collectRuntimeLibs')
 }
 
-
-uploadLibs.doFirst {
-  if (!requiredProperties.kattaDevelopRepositoryUri || !requiredProperties.kattaSshUser || !requiredProperties.kattaSshPassword || !requiredProperties.kattaSshHost) {
-    throw new StopExecutionException("Please define a 'kattaDevelopRepositoryUri' in $gradleUserHome/gradle.properties");
-  }
+archive_jar.doFirst() {
+  archive_jar.manifest.mainAttributes('Implementation-Version': mavenArtifactVersion)
 }
 
-// we only support the upload via scp
-uploadLibs {
-  if (requiredProperties.kattaDevelopRepositoryUri && requiredProperties.kattaSshUser && requiredProperties.kattaSshPassword && requiredProperties.kattaSshHost) {
-    org.apache.ivy.plugins.resolver.SshResolver resolver = new org.apache.ivy.plugins.resolver.SshResolver()
-    resolver.name = 'Katta Develop Repository'
-    resolver.userPassword = kattaSshPassword
-    resolver.setArtifactPatterns(['ssh://' + kattaSshUser + '@' + kattaSshHost + ':' + kattaDevelopRepositoryUri + '/[organisation]/[artifact]/[revision]/[artifact]-' + snapShotVersion + '.[ext]'])
-    resolver.m2compatible = true
-    resolver.setPublishPermissions("0644");
-    uploadResolvers.add(resolver)
+uploadLibs.doFirst() {
+  if (!uploadable) {
+    throw new StopExecutionException("Please define a 'kattaDevelopRepositoryUri' in $gradleUserHome/gradle.properties");
   }
+  org.apache.ivy.plugins.resolver.SshResolver resolver = new org.apache.ivy.plugins.resolver.SshResolver()
+  resolver.name = 'Katta Develop Repository'
+  resolver.userPassword = kattaSshPassword
+  resolver.setArtifactPatterns(['ssh://' + kattaSshUser + '@' + kattaSshHost + ':' + kattaSshUri + '/[organisation]/[artifact]/[revision]/[artifact]-' + mavenArtifactVersion + '.[ext]'])
+  resolver.m2compatible = true
+  resolver.setPublishPermissions("0644");
+  uploadLibs.uploadResolvers.add(resolver)
 }
 
-uploadLibs.doLast {
-  if (!requiredProperties.kattaDevelopRepositoryUri) {
-    throw new StopExecutionException("Please define a 'kattaDevelopRepositoryUri' in $gradleUserHome/gradle.properties");
+
+uploadLibs.doLast() {
+  if (!uploadable) {
+    throw new StopExecutionException("Please define '"+uploadProperties+"' in $gradleUserHome/gradle.properties");
   }
 
   //upload maven pom.xml
-  File pom = new File(buildDir, "/$archivesBaseName-$snapShotVersion" + ".pom");
+  File pom = new File(buildDir, "/$archivesBaseName-$mavenArtifactVersion" + ".pom");
   ant.copy(file: 'src/build/resources/pom.xml', toFile: pom);
-  ant.scp(file: pom, toDir: "$kattaSshUser@$kattaSshHost:$uploadFolder", password: "$kattaSshPassword");
+  ant.scp(file: pom, toDir: "$kattaSshUser@$kattaSshHost:$kattaSshUri/$maven2Group/$archivesBaseName/$version", password: "$kattaSshPassword");
 
   //upload maven - metadata.xml
   File metadataFile = new File(buildDir, "maven-metadata.xml")
   BufferedReader reader = new BufferedReader(new FileReader("src/build/resources/maven-metadata.xml"))
   BufferedWriter writer = new BufferedWriter(new FileWriter(metadataFile));
   String line = null;
-  while ((line = reader.readLine()) != null) {
-    if (line.contains("timestamp")) {
-      line = "<timestamp>" + timestamp + "</timestamp>"
-    } else if (line.contains("buildNumber")) {
-      line = "<buildNumber>" + buildNumber + "</buildNumber>";
-    } else if (line.contains("lastUpdated")) {
-      line = "<lastUpdated>" + timestamp.replace('.', '') + "</lastUpdated>";
+
+  if (version.endsWith("SNAPSHOT")) {
+    while ((line = reader.readLine()) != null) {
+      if (line.contains("timestamp")) {
+        line = "<timestamp>" + timestamp + "</timestamp>"
+      } else if (line.contains("buildNumber")) {
+        line = "<buildNumber>" + buildNumber + "</buildNumber>";
+      } else if (line.contains("lastUpdated")) {
+        line = "<lastUpdated>" + timestamp.replace('.', '') + "</lastUpdated>";
+      }
+      writer.writeLine(line);
     }
-    writer.writeLine(line);
+    reader.close();
+    writer.close();
+    ant.scp(file: metadataFile, toDir: "$kattaSshUser@$kattaSshHost:$kattaSshUri/$maven2Group/$archivesBaseName/$version", password: "$kattaSshPassword");
   }
-  reader.close();
-  writer.close();
-  ant.scp(file: metadataFile, toDir: "$kattaSshUser@$kattaSshHost:$uploadFolder", password: "$kattaSshPassword");
 }
+
 
 //build a distribution
 dists {
-  String zipRoot = "$archivesBaseName-$distributionNumber"
-  zip() {
-    zipFileSet(dir: file('bin'), prefix: "$zipRoot/bin", fileMode: '775')
-    zipFileSet(dir: file('conf'), prefix: "$zipRoot/conf")
-    zipFileSet(dir: runtimeLibsDir, prefix: "$zipRoot/lib")
-  }
-}
-
-//build a release
-createTask('release', dependsOn:['clean', 'dists', 'javadoc']) {
-  String zipRoot = "$archivesBaseName-$version"
-  ant.zip(destfile: new File(buildDir, zipRoot+".zip")) {
-    zipFileSet(dir: file('bin'), prefix: "$zipRoot/bin", fileMode: '775')
-    zipFileSet(dir: file('conf'), prefix: "$zipRoot/conf")
-    zipFileSet(dir: runtimeLibsDir, prefix: "$zipRoot/lib")
-    zipFileSet(file: file('README.txt'), prefix: "$zipRoot")
-    zipFileSet(file: file('LICENSE.txt'), prefix: "$zipRoot")
-    zipFileSet(file: file('CHANGES.txt'), prefix: "$zipRoot")
-    zipFileSet(dir: new File(buildDir, "docs"), prefix: "$zipRoot/docs")
-    zipFileSet(dir: new File(project.projectDir, "src"), prefix: "$zipRoot/src")
-  }
-  
-  String tarRoot = "$archivesBaseName-$version"
-  ant.tar(destfile: new File(buildDir, tarRoot+".tar.gz")) {
-    tarFileSet(dir: file('bin'), prefix: "$tarRoot/bin", fileMode: '775')
-    tarFileSet(dir: file('conf'), prefix: "$tarRoot/conf")
-    tarFileSet(dir: runtimeLibsDir, prefix: "$tarRoot/lib")
-    tarFileSet(file: file('README.txt'), prefix: "$tarRoot")
-    tarFileSet(file: file('LICENSE.txt'), prefix: "$tarRoot")
-    tarFileSet(file: file('CHANGES.txt'), prefix: "$tarRoot")
-    tarFileSet(dir: new File(buildDir, "docs"), prefix: "$zipRoot/docs")
-    tarFileSet(dir: new File(project.projectDir, "src"), prefix: "$zipRoot/src")
-  }
-}
-
-archive_zip.doFirst {
-  distsDir.mkdirs()
-}
-
-archive_zip.doLast {
-  ant {
-    exec(executable: 'unzip') {
-      arg(value: '-q')
-      arg(value: '-d')
-      arg(value: distsDir)
-      arg(value: archive_zip.archivePath)
+  zip().doFirst() { Task zipTask ->
+    zipTask.configure {
+      String zipRoot = "$archivesBaseName-$mavenArtifactVersion"
+      zipFileSet(dir: file('bin'), prefix: "$zipRoot/bin")
+      zipFileSet(dir: file('conf'), prefix: "$zipRoot/conf")
+      zipFileSet(dir: runtimeLibsDir, prefix: "$zipRoot/libs")
+      zipFileSet(dir: new File(buildDir, "docs"), prefix: "$zipRoot/docs")
+      zipFileSet(dir: new File(project.projectDir, "src"), prefix: "$zipRoot/src")
+      zipFileSet(dir: project.projectDir, prefix: "$zipRoot") {
+        include('*.txt')
+      }
     }
   }
+    
+  tarGz().doFirst() { Task tarTask ->
+    tarTask.configure {
+      String tarRoot = "$archivesBaseName-$mavenArtifactVersion"
+      tarFileSet(dir: file('bin'), prefix: "$tarRoot/bin")
+      tarFileSet(dir: file('conf'), prefix: "$tarRoot/conf")
+      tarFileSet(dir: runtimeLibsDir, prefix: "$tarRoot/libs")
+      tarFileSet(dir: new File(buildDir, "docs"), prefix: "$tarRoot/docs")
+      tarFileSet(dir: new File(project.projectDir, "src"), prefix: "$tarRoot/src")
+      tarFileSet(dir: project.projectDir, prefix: "$tarRoot") {
+        include('*.txt')
+      }
+    }
+  }
+    
 }
+
+archive_zip.dependsOn('collectRuntimeLibs')
+
+
 
 uploadDists.doFirst {
-  if (!requiredProperties.kattaDistributionRepositoryUri || !requiredProperties.kattaSshUser || !requiredProperties.kattaSshPassword || !requiredProperties.kattaSshHost) {
-    throw new StopExecutionException("Please define a 'kattaDistributionRepositoryUri' in $gradleUserHome/gradle.properties");
+  if (!uploadable) {
+    throw new StopExecutionException("Please define a '"+uploadProperties+"' in $gradleUserHome/gradle.properties");
   }
+  org.apache.ivy.plugins.resolver.SshResolver resolver = new org.apache.ivy.plugins.resolver.SshResolver()
+  resolver.name = 'Katta Distribution Repository'
+  resolver.userPassword = kattaSshPassword
+  resolver.m2compatible = true
+  resolver.setArtifactPatterns(['ssh://' + kattaSshUser + '@' + kattaSshHost + ':' + kattaSshUri + '/[organisation]/[artifact]/[revision]/[artifact]-' + mavenArtifactVersion + '.[ext]'])
+  resolver.setPublishPermissions("0644");
+  uploadDists.uploadResolvers.add(resolver);
 }
 
-// we only support the upload via scp
-uploadDists {
-  if (requiredProperties.kattaDistributionRepositoryUri && requiredProperties.kattaSshUser && requiredProperties.kattaSshPassword && requiredProperties.kattaSshHost) {
-    org.apache.ivy.plugins.resolver.SshResolver resolver = new org.apache.ivy.plugins.resolver.SshResolver()
-    resolver.name = 'Katta Distribution Repository'
-    resolver.userPassword = kattaSshPassword
-
-    resolver.setArtifactPatterns(['ssh://' + kattaSshUser + '@' + kattaSshHost + ':' + kattaDistributionRepositoryUri + '/[artifact]-' + distributionNumber + '.[ext]'])
-    resolver.setPublishPermissions("0644");
-    uploadResolvers.add(resolver);
-  }
-  
+ 
 createTask('checkHeader') {
   println "checking missing or wrong license headers..."
   scanRoot = projectDir
@@ -323,4 +287,3 @@ createTask('checkHeader') {
   }
 }
   
-}
