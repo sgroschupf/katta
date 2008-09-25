@@ -90,7 +90,7 @@ init.doFirst() {
         } catch (NumberFormatException e) {
           //nothing todo
         }
-        mavenArtifactVersion = version.replaceAll("-SNAPSHOT", "") + '.' + timestamp + '-' + buildNumber  
+        mavenArtifactVersion = version.replaceAll("\\-SNAPSHOT", "\\.") + timestamp + '-' + buildNumber  
     }
 }
 
