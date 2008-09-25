@@ -24,7 +24,7 @@ maven2Group = 'net/sf/katta'
 timestamp = new SimpleDateFormat("yyyyMMdd.hhmmss").format(new Date());
 buildNumber = 0
 
-version = "0.2"
+version = "0.2-SNAPSHOT"
 mavenArtifactVersion = version
 
 usePlugin('java')
