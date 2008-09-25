@@ -230,7 +230,8 @@ dists {
     
 }
 
-archive_zip.dependsOn('collectRuntimeLibs')
+archive_zip.dependsOn('collectRuntimeLibs', 'javadoc')
+task('archive_tar.gz').dependsOn('collectRuntimeLibs', 'javadoc')
 
 
 
