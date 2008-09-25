@@ -205,7 +205,7 @@ dists {
       String zipRoot = "$archivesBaseName-$mavenArtifactVersion"
       zipFileSet(dir: file('bin'), prefix: "$zipRoot/bin")
       zipFileSet(dir: file('conf'), prefix: "$zipRoot/conf")
-      zipFileSet(dir: runtimeLibsDir, prefix: "$zipRoot/libs")
+      zipFileSet(dir: runtimeLibsDir, prefix: "$zipRoot/lib")
       zipFileSet(dir: new File(buildDir, "docs"), prefix: "$zipRoot/docs")
       zipFileSet(dir: new File(project.projectDir, "src"), prefix: "$zipRoot/src")
       zipFileSet(dir: project.projectDir, prefix: "$zipRoot") {
@@ -219,7 +219,7 @@ dists {
       String tarRoot = "$archivesBaseName-$mavenArtifactVersion"
       tarFileSet(dir: file('bin'), prefix: "$tarRoot/bin")
       tarFileSet(dir: file('conf'), prefix: "$tarRoot/conf")
-      tarFileSet(dir: runtimeLibsDir, prefix: "$tarRoot/libs")
+      tarFileSet(dir: runtimeLibsDir, prefix: "$tarRoot/lib")
       tarFileSet(dir: new File(buildDir, "docs"), prefix: "$tarRoot/docs")
       tarFileSet(dir: new File(project.projectDir, "src"), prefix: "$tarRoot/src")
       tarFileSet(dir: project.projectDir, prefix: "$tarRoot") {
