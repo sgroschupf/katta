@@ -22,7 +22,7 @@ archivesBaseName = 'katta'
 group = 'net.sf.katta'
 maven2Group = 'net/sf/katta'
 timestamp = new SimpleDateFormat("yyyyMMdd.hhmmss").format(new Date());
-buildNumber = 0
+buildNumber = 1
 
 version = "0.3-SNAPSHOT"
 mavenArtifactVersion = version
