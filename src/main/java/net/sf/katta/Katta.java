@@ -84,6 +84,9 @@ public class Katta {
         }
       } else if (command.endsWith("addIndex")) {
         int replication = 3;
+        if (args.length < 4) {
+          printUsageAndExit();
+        }
         if (args.length == 5) {
           replication = Integer.parseInt(args[4]);
         }
