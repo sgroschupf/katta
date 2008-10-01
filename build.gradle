@@ -171,9 +171,14 @@ uploadLibs.doLast() {
 
   //upload maven pom.xml
   File pom = new File(buildDir, "/$archivesBaseName-$mavenArtifactVersion" + ".pom");
+  File pomMd5 = new File(buildDir, "/$archivesBaseName-$mavenArtifactVersion" + ".pom.md5");
   ant.copy(file: 'src/build/resources/pom.xml', toFile: pom);
   ant.scp(file: pom, toDir: "$kattaSshUser@$kattaSshHost:$kattaSshUri/$maven2Group/$archivesBaseName/$version", password: "$kattaSshPassword");
 
+  //upload pom md5
+  Md5.md5(pom, pomMd5);
+  ant.scp(file: pomMd5, toDir: "$kattaSshUser@$kattaSshHost:$kattaSshUri/$maven2Group/$archivesBaseName/$version", password: "$kattaSshPassword");
+  
   //upload maven - metadata.xml
   File metadataFile = new File(buildDir, "maven-metadata.xml")
   BufferedReader reader = new BufferedReader(new FileReader("src/build/resources/maven-metadata.xml"))
@@ -194,7 +199,17 @@ uploadLibs.doLast() {
     reader.close();
     writer.close();
     ant.scp(file: metadataFile, toDir: "$kattaSshUser@$kattaSshHost:$kattaSshUri/$maven2Group/$archivesBaseName/$version", password: "$kattaSshPassword");
+
+    //upload metadata md5
+    File metadataFileMd5 = new File(buildDir, "maven-metadata.xml.md5");
+    Md5.md5(metadataFile, metadataFileMd5);
+    ant.scp(file: metadataFileMd5, toDir: "$kattaSshUser@$kattaSshHost:$kattaSshUri/$maven2Group/$archivesBaseName/$version", password: "$kattaSshPassword");
   }
+  
+  //upload md5 from archive_jar
+  File archiveMd5 = new File(buildDir, "$archivesBaseName-$mavenArtifactVersion"+".jar"+".md5");
+  Md5.md5(archive_jar.archivePath, archiveMd5)
+  ant.scp(file: archiveMd5, toDir: "$kattaSshUser@$kattaSshHost:$kattaSshUri/$maven2Group/$archivesBaseName/$version", password: "$kattaSshPassword");
 }
 
 
