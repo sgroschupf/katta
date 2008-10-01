@@ -33,10 +33,7 @@ class Md5 {
       algorithm.update(buffer, 0, read);
     }
     byte[] digest = algorithm.digest();
-    StringBuffer hexString = new StringBuffer();
-    for (int i = 0; i < digest.length; i++) {
-      hexString.append(Integer.toHexString(0xFF & digest[i]));
-    }
+    String hexString = new BigInteger(1, digest).toString(16);
     fileInputStream.close();
     FileOutputStream fileOutputStream = new FileOutputStream(outFile);
     fileOutputStream.write(hexString.toString().getBytes());
