@@ -30,4 +30,26 @@ public class StringUtil {
     }
     return stackTrace[indexOfCallingMethod].toString();
   }
+
+  public static String formatTimeDuration(long timeDuration) {
+    StringBuilder builder = new StringBuilder();
+    long hours = timeDuration / (60 * 60 * 1000);
+    long rem = (timeDuration % (60 * 60 * 1000));
+    long minutes = rem / (60 * 1000);
+    rem = rem % (60 * 1000);
+    long seconds = rem / 1000;
+
+    if (hours != 0) {
+      builder.append(hours);
+      builder.append(" hrs, ");
+    }
+    if (minutes != 0) {
+      builder.append(minutes);
+      builder.append(" mins, ");
+    }
+    // return "0sec if no difference
+    builder.append(seconds);
+    builder.append(" sec");
+    return builder.toString();
+  }
 }

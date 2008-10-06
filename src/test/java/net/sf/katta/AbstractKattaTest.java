@@ -15,12 +15,13 @@
  */
 package net.sf.katta;
 
-import java.io.IOException;
+import java.io.File;
 import java.util.concurrent.TimeUnit;
 
 import net.sf.katta.master.Master;
 import net.sf.katta.node.Node;
 import net.sf.katta.testutil.ExtendedTestCase;
+import net.sf.katta.util.FileUtil;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.NetworkUtil;
 import net.sf.katta.util.NodeConfiguration;
@@ -30,7 +31,6 @@ import net.sf.katta.zk.ZkPathes;
 import net.sf.katta.zk.ZkServer;
 import net.sf.katta.zk.ZKClient.ZkLock;
 
-import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.ipc.RPC;
 
 import com.yahoo.zookeeper.ZooKeeper;
@@ -101,10 +101,16 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
     // subclasses may override
   }
 
-  protected static void cleanZookeeperData(final ZkConfiguration configuration) throws IOException {
-    FileUtil.fullyDelete(configuration.getZKDataDir());
-    FileUtil.fullyDelete(configuration.getZKDataLogDir());
-    FileUtil.fullyDelete(new NodeConfiguration().getShardFolder());
+  protected static void cleanZookeeperData(final ZkConfiguration configuration) {
+    File dataDir = configuration.getZKDataDir();
+    File dataLogDir = configuration.getZKDataLogDir();
+    File shardFolder = new NodeConfiguration().getShardFolder();
+    FileUtil.deleteFolder(dataDir);
+    FileUtil.deleteFolder(dataLogDir);
+    FileUtil.deleteFolder(shardFolder);
+    assertFalse(dataDir.exists());
+    assertFalse(dataLogDir.exists());
+    assertFalse(shardFolder.exists());
   }
 
   protected void startZkServer() throws KattaException {

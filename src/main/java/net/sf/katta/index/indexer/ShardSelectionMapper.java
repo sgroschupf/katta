@@ -46,8 +46,7 @@ public class ShardSelectionMapper implements Mapper {
     _buffer.reset();
     key.write(_buffer);
     value.write(_buffer);
-    final byte[] bytes = _buffer.getData();
-    _bytesWritable.set(bytes, 0, bytes.length);
+    _bytesWritable.set(_buffer.getData(), 0, _buffer.getLength());
     out.collect(new Text(shardKey), _bytesWritable);
   }
 
@@ -65,7 +64,6 @@ public class ShardSelectionMapper implements Mapper {
 
   public void close() throws IOException {
     // nothing to do here...
-
   }
 
 }

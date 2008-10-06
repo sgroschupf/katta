@@ -23,13 +23,20 @@ import org.apache.hadoop.fs.Path;
 public class KattaConfiguration {
 
   protected Properties _properties;
+  private final String _resourcePath;
 
   public KattaConfiguration(final String path) {
     _properties = PropertyUtil.loadProperties(path);
+    _resourcePath = PropertyUtil.getPropertiesFilePath(path);
   }
 
   public KattaConfiguration(File file) {
     _properties = PropertyUtil.loadProperties(file);
+    _resourcePath = file.getAbsolutePath();
+  }
+
+  public String getResourcePath() {
+    return _resourcePath;
   }
 
   public boolean containsProperty(final String key) {
