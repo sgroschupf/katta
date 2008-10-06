@@ -28,6 +28,7 @@ version = "0.3-SNAPSHOT"
 mavenArtifactVersion = version
 
 usePlugin('java')
+testSrcDirNames.add("test/integration")
 
 sourceCompatibility = 1.5
 targetCompatibility = 1.5
@@ -48,7 +49,17 @@ uploadProperties.each{listItem ->
 
 test {
   dependsOn 'checkHeader'
-  include '**/*Test.class'
+  
+  boolean integrationTests = System.getProperty("integrationTests") != null;
+  boolean integrationTestsOnly = System.getProperty("integrationTestsOnly") != null;
+  if (integrationTestsOnly) {
+    include '**/integrationTest/**/*Test.class'
+  } else {
+	include '**/*Test.class'  
+    if (!integrationTests) {
+      exclude '**/integrationTest/**/*Test.class'
+    } 
+  }
   exclude '**/Abstract*Test.class'
 }
 
@@ -303,3 +314,18 @@ createTask('checkHeader') {
   }
 }
   
+createTask ('help') {
+  println ""
+  println "available goals:"
+  println "  clean \t\tcleans the build folder"
+  println "  test \t\t\truns the test suite (can run with -DintegrationTests or -DintegrationTestsOnly)"
+  println "  dists \t\tcreates a distribution"
+  println "  release \t\tcreates a release"
+  println "  eclipse \t\tcreates eclipse project files"
+  println "  checkHeader \t\tchecks license header of all java files"
+  println ""
+  println "useful flags :"
+  println "  -Dskip.test \t\t\tskip execution of tests"
+  println "  -DintegrationTests \t\trun the integration tests additional to the unit tests"
+  println "  -DintegrationTestsOnly \trun only the integration tests"
+}
