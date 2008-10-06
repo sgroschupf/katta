@@ -25,6 +25,6 @@ public class DefaultShardKeyGenerator implements IShardKeyGenerator {
 
   public String getShardKey(final WritableComparable key, final Writable value, final Reporter reporter,
       final int ofShards) {
-    return "" + (_counter++) % ofShards;
+    return Long.toString((_counter++) % ofShards);
   }
 }

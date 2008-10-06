@@ -169,7 +169,7 @@ public class Indexer implements Reducer<WritableComparable, Writable, WritableCo
             sleep(1000);
           }
         } catch (final InterruptedException e) {
-          LOG.info("status thread is stopped: " + status);
+          LOG.debug("status thread is stopped: " + status);
         }
       }
     };

@@ -40,6 +40,7 @@ public class IndexUploader implements IIndexPublisher {
   }
 
   public void publish(final String pathToIndex) throws IOException {
+    // TODO jz: couldn't we move to increase efficeny ?
     LOG.debug("copy '" + pathToIndex + "' to '" + _ouputPath + "'");
     _fileSystem.copyFromLocalFile(true, new Path(pathToIndex), _ouputPath);
   }

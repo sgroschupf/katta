@@ -18,6 +18,7 @@ package net.sf.katta.index.indexer;
 import java.io.IOException;
 
 import net.sf.katta.util.IndexConfiguration;
+
 import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.DataOutputBuffer;
 import org.apache.hadoop.io.Text;
@@ -45,8 +46,7 @@ public class ShardSelectionMapper implements Mapper<WritableComparable, Writable
     _buffer.reset();
     key.write(_buffer);
     value.write(_buffer);
-    final byte[] bytes = _buffer.getData();
-    _bytesWritable.set(bytes, 0, bytes.length);
+    _bytesWritable.set(_buffer.getData(), 0, _buffer.getLength());
     out.collect(new Text(shardKey), _bytesWritable);
   }
 
@@ -64,7 +64,6 @@ public class ShardSelectionMapper implements Mapper<WritableComparable, Writable
 
   public void close() throws IOException {
     // nothing to do here...
-
   }
 
 }
