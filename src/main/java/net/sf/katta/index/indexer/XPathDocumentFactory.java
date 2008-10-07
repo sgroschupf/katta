@@ -50,6 +50,10 @@ public class XPathDocumentFactory implements IDocumentFactory<Text, Text> {
 
   public Document convert(final Text key, final Text value) {
     final Document document = new Document();
+    // TODO jz: we should re-use the Field instances (see
+    // http://wiki.apache.org/lucene-java/ImproveIndexingSpeed)
+
+    // TODO jz: use value.getBytes() instead ??
     final Field content = new Field("content", value.toString(), Store.YES, Index.NO);
     document.add(content);
     try {
