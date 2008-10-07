@@ -15,7 +15,15 @@
  */
 package net.sf.katta.integrationTest;
 
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.NetworkInterface;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Enumeration;
 import java.util.List;
 
 import junit.framework.TestCase;
@@ -29,6 +37,7 @@ import net.sf.katta.util.NodeConfiguration;
 import net.sf.katta.util.StringUtil;
 import net.sf.katta.util.ZkConfiguration;
 
+import org.apache.hadoop.net.DNS;
 import org.apache.log4j.Logger;
 import org.apache.lucene.analysis.KeywordAnalyzer;
 
@@ -72,6 +81,33 @@ public class SearchIntegrationTest extends TestCase {
     assertEquals("unexpected hit count", 0, searchThread.getUnexpectedResultCount());
     assertEquals("exceptions on search", 0, searchThread.getThrownExceptions().size());
     // TODO jz: add assertions
+  }
+
+  public static void main(String[] args) throws IOException {
+    System.out.println(Integer.MAX_VALUE);
+    System.out.println(Arrays.asList(DNS.getHosts("default")));
+
+    ServerSocket serverSocket = new ServerSocket(0);
+    Socket socket = new Socket();
+    socket.setSoTimeout(2000);
+    socket.connect(new InetSocketAddress(InetAddress.getLocalHost().getHostName(), serverSocket.getLocalPort()));
+    System.out.println(InetAddress.getLocalHost().getHostName());
+    System.out.println(InetAddress.getLocalHost());
+    System.out.println(socket.getInetAddress());
+    Socket accept = serverSocket.accept();
+    System.out.println(accept.getRemoteSocketAddress());
+
+    System.out.println();
+    final Enumeration<NetworkInterface> networkInterfaces = NetworkInterface.getNetworkInterfaces();
+    for (final Enumeration ifaces = networkInterfaces; ifaces.hasMoreElements();) {
+      final NetworkInterface iface = (NetworkInterface) ifaces.nextElement();
+      System.out.println(iface.getDisplayName());
+      for (final Enumeration ips = iface.getInetAddresses(); ips.hasMoreElements();) {
+        InetAddress ia = (InetAddress) ips.nextElement();
+        System.out.println(ia.getCanonicalHostName());
+        System.out.println(InetAddress.getByAddress(ia.getAddress()));
+      }
+    }
   }
 
   protected static class SearchThread extends Thread {

@@ -104,6 +104,13 @@ public class IndexConfiguration extends KattaConfiguration {
     jobConf.setMapOutputValueClass(BytesWritable.class);
     jobConf.setMapperClass(ShardSelectionMapper.class);
     jobConf.setReducerClass(Indexer.class);
+
+    // we don't need more reducers then shards
+    jobConf.setNumReduceTasks(getInt(INDEX_SHARD_COUNT));
+
+    // TODO jz: to discuss: on large index jobs all work was done twice
+    jobConf.setReduceSpeculativeExecution(false);
+
     return jobConf;
   }
 

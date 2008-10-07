@@ -44,37 +44,36 @@ public class Indexer implements Reducer<WritableComparable, Writable, WritableCo
   }
 
   private IDocumentFactory<WritableComparable, Writable> _factory;
+  private IZipService _zipService;
+  private IIndexPublisher _indexPublisher;
 
   private String _tmpIndexDirectory;
 
-  private IIndexPublisher _indexPublisher;
-
   private int _indexFlushThreshold;
-
   private int _indexerMaxMerge;
-
   private int _indexerMergeFactor;
-
   private int _termIndexIntervall;
-
   private int _maxFieldLength;
-
   private int _maxBufferedDocs;
 
-  private IZipService _zipService;
-
   private WritableComparable _inputKey;
-
   private Writable _inputValue;
-
   final DataInputBuffer _inputBuffer = new DataInputBuffer();
 
   public void configure(final JobConf jobConf) {
     _factory = getDocumentFactory(jobConf);
     _indexPublisher = getPublisher(jobConf);
     _zipService = getZipper(jobConf);
+
     _tmpIndexDirectory = jobConf.get(IndexConfiguration.INDEX_TMP_DIRECTORY, (System.getProperty("java.io.tmpdir")))
         + File.separator + System.currentTimeMillis();
+    // TODO jz: replace _tmpIndexDirectory with Tasks' Side-Effect Files
+    // _localIndexRootDirectory = jobConf.get("mapred.work.output.dir");
+    // if (_localIndexRootDirectory == null) {
+    // throw new
+    // IllegalStateException("mapred.work.output.dir (Tasks Side-Effect Files directory) is not set");
+    // }
+
     _indexFlushThreshold = jobConf.getInt(IndexConfiguration.FLUSH_THRESHOLD, 10);
     _indexerMaxMerge = jobConf.getInt(IndexConfiguration.INDEXER_MAX_MERGE, 10);
     _indexerMergeFactor = jobConf.getInt(IndexConfiguration.INDEXER_MERGE_FACTOR, 10);
@@ -90,21 +89,26 @@ public class Indexer implements Reducer<WritableComparable, Writable, WritableCo
       throw new RuntimeException("can not instantiate input key '" + inputKeyClass.getName() + "' and input value '"
           + inputValueClass.getName() + "'class: ", e);
     }
-
   }
 
   public void reduce(final WritableComparable key, final Iterator<Writable> values,
       final OutputCollector<WritableComparable, Writable> collector, final Reporter reporter) throws IOException {
     final File indexDirectory = new File(_tmpIndexDirectory, key.toString());
+    LOG.info("writing index to " + indexDirectory.getAbsolutePath());
     final FSDirectory directory = FSDirectory.getDirectory(indexDirectory);
-    final IndexWriter indexWriter = new IndexWriter(directory, _factory.getIndexAnalyzer());
+    final IndexWriter indexWriter = new IndexWriter(directory, false, _factory.getIndexAnalyzer());
     indexWriter.setMaxMergeDocs(_indexerMaxMerge);
     indexWriter.setMergeFactor(_indexerMergeFactor);
     indexWriter.setTermIndexInterval(_termIndexIntervall);
-    indexWriter.setMaxBufferedDocs(_maxBufferedDocs);
     indexWriter.setMaxFieldLength(_maxFieldLength);
 
+    // TODO jz: we should add the possibility to flush by ram (see
+    // http://wiki.apache.org/lucene-java/ImproveIndexingSpeed)
+    indexWriter.setMaxBufferedDocs(_maxBufferedDocs);
+
     reporter.setStatus("indexing documents...");
+    // TODO jz: use multiple threads ? (see
+    // http://wiki.apache.org/lucene-java/ImproveIndexingSpeed)
 
     int counter = 0;
     while (values.hasNext()) {
@@ -126,7 +130,10 @@ public class Indexer implements Reducer<WritableComparable, Writable, WritableCo
       }
       reporter.incrCounter(DocumentCounter.DOCUMENT_COUNT, 1);
       if (counter % _indexFlushThreshold == 0) {
+        // TODO jz: why do we need to flush ? isn't that be handled by
+        // maxMergeDocs or flushByRam ?
         indexWriter.flush();
+        reporter.setStatus("indexing documents (" + counter + " done)...");
       }
     }
     LOG.info(counter + " documents are added to index.");
