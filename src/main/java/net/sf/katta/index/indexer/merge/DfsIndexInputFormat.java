@@ -49,6 +49,7 @@ public class DfsIndexInputFormat extends FileInputFormat<Text, DocumentInformati
     } catch (Exception e) {
       throw new RuntimeException("could not instantiate " + IDocumentDuplicateInformation.class.getName(), e);
     }
+    duplicateInformation.setConf(jobConf);
     reporter.setStatus(((FileSplit) inputSplit).getPath().toString());
     return new DfsIndexRecordReader(jobConf, inputSplit, duplicateInformation);
   }

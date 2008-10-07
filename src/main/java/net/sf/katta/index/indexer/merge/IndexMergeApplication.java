@@ -16,12 +16,14 @@
 
 package net.sf.katta.index.indexer.merge;
 
-import java.io.IOException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import net.sf.katta.client.DeployClient;
 import net.sf.katta.client.IDeployClient;
@@ -29,14 +31,11 @@ import net.sf.katta.client.IIndexDeployFuture;
 import net.sf.katta.index.IndexMetaData;
 import net.sf.katta.index.IndexMetaData.IndexState;
 import net.sf.katta.util.IndexConfiguration;
+import net.sf.katta.util.KattaException;
 import net.sf.katta.util.ZkConfiguration;
+import net.sf.katta.zk.ZKClient;
+import net.sf.katta.zk.ZkPathes;
 
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.HelpFormatter;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.PosixParser;
-import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapred.JobConf;
@@ -48,30 +47,58 @@ public class IndexMergeApplication {
 
   private static final DateFormat DATE_FORMAT = new SimpleDateFormat("yyyyMMdd.hhmmss");
 
-  public void mergeDeployedIndices(JobConf jobConf) throws Exception {
-    IDeployClient deployClient = new DeployClient(new ZkConfiguration());
-    List<IndexMetaData> deployedIndexes = deployClient.getIndexes(IndexState.DEPLOYED);
-    List<String> deployedIndexNames = deployClient.getIndexNames(IndexState.DEPLOYED);
+  private final JobConf _jobConf;
 
-    List<Path> indexPathes = new ArrayList<Path>();
+  private final ZKClient _zkClient;
+
+  // public IndexMergeApplication(String hadoopJobtracker, String jobJar) {
+  public IndexMergeApplication(ZKClient zkcClient) {
+    _zkClient = zkcClient;
+    _jobConf = new JobConf();
+    _jobConf.setJarByClass(IndexMergeJob.class);
+    // jobConf.set("mapred.job.tracker", hadoopJobtracker);
+    // jobConf.set("mapred.job.tracker", hadoopJobtracker);
+    IndexMergeJob.enrichJobConf(_jobConf, new IndexConfiguration());
+  }
+
+  public void merge(String[] indexesToMerge) throws Exception {
+    mergeIndices(new DeployClient(_zkClient), Arrays.asList(indexesToMerge));
+  }
+
+  public void mergeDeployedIndices() throws Exception {
+    IDeployClient deployClient = new DeployClient(new ZkConfiguration());
+    List<String> deployedIndexNames = deployClient.getIndexNames(IndexState.DEPLOYED);
+    mergeIndices(deployClient, deployedIndexNames);
+  }
+
+  private void mergeIndices(IDeployClient deployClient, List<String> indexNames) throws Exception {
+    List<IndexMetaData> deployedIndexes = new ArrayList<IndexMetaData>();
+    for (String indexName : indexNames) {
+      IndexMetaData indexMetaData = new IndexMetaData();
+      _zkClient.readData(ZkPathes.getIndexPath(indexName), indexMetaData);
+      deployedIndexes.add(indexMetaData);
+    }
+
+    Set<Path> indexPathes = new HashSet<Path>();
     for (IndexMetaData indexMetaData : deployedIndexes) {
       indexPathes.add(new Path(indexMetaData.getPath()));
     }
     LOG.info("found following indexes for potential merge: " + indexPathes);
 
     IndexConfiguration indexConfiguration = new IndexConfiguration();
-    indexConfiguration.enrichJobConf(jobConf, DfsIndexInputFormat.DOCUMENT_INFORMATION);
-    indexConfiguration.enrichJobConf(jobConf, IndexConfiguration.MAPRED_OUTPUT_PATH);
+    indexConfiguration.enrichJobConf(_jobConf, DfsIndexInputFormat.DOCUMENT_INFORMATION);
+    indexConfiguration.enrichJobConf(_jobConf, IndexConfiguration.MAPRED_OUTPUT_PATH);
 
     IndexMergeJob indexMergeJob = new IndexMergeJob();
-    indexMergeJob.setConf(jobConf);
+    indexMergeJob.setConf(_jobConf);
 
     Path uploadPath = indexConfiguration.getPath(IndexConfiguration.INDEX_UPLOAD_PATH);
     Path mergedIndex = new Path(uploadPath, "mergedIndex-" + DATE_FORMAT.format(new Date()));
 
     int optimalShardCount = indexConfiguration.getInt(IndexConfiguration.INDEX_SHARD_COUNT);
-    int currentShardCount = countShards(jobConf, uploadPath);
+    int currentShardCount = countShards(indexNames);
 
+    LOG.info("found " + currentShardCount + " shards");
     if (currentShardCount == 0) {
       LOG.warn("no shard under '" + uploadPath + "' found");
       return;
@@ -82,7 +109,7 @@ public class IndexMergeApplication {
       return;
     }
 
-    FileSystem fileSystem = FileSystem.get(jobConf);
+    FileSystem fileSystem = FileSystem.get(_jobConf);
     LOG.debug("using file system: " + fileSystem.getUri());
     try {
       indexMergeJob.merge(indexPathes.toArray(new Path[indexPathes.size()]), mergedIndex);
@@ -101,12 +128,12 @@ public class IndexMergeApplication {
       // TODO jz: appending / indexes is suboptimal
       IndexState indexState = deployFuture.joinDeployment();
       if (indexState == IndexState.ERROR) {
-        throw new IllegalStateException("could not deploy index '" + mergedIndex.getName() + "'");
+        throw new IllegalStateException("could not deploy merged index '" + mergedIndex.getName() + "'");
       }
 
       // now undeploy the old indices
-      LOG.info("undeploying old merged indices: " + deployedIndexNames);
-      for (String indexName : deployedIndexNames) {
+      LOG.info("undeploying old merged indices: " + indexNames);
+      for (String indexName : indexNames) {
         deployClient.removeIndex(indexName);
       }
 
@@ -116,12 +143,11 @@ public class IndexMergeApplication {
           + "-originals");
       fileSystem.mkdirs(archiveRootPath);
       LOG.info("moving old merged indices to archive: " + archiveRootPath);
-      for (IndexMetaData indexMetaData : deployedIndexes) {
-        Path indexPath = new Path(indexMetaData.getPath().substring(0,
-            indexMetaData.getPath().length() - "/indexes".length()));
-        Path indexArchivePath = new Path(archiveRootPath, indexPath.getName());
-        LOG.debug("moving " + indexPath + " to " + indexArchivePath);
-        fileSystem.rename(indexPath, indexArchivePath);
+      for (Path indexPath : indexPathes) {
+        Path parentPath = indexPath.getParent();// parent of /indexes
+        Path indexArchivePath = new Path(archiveRootPath, parentPath.getName());
+        LOG.debug("moving " + parentPath + " to " + indexArchivePath);
+        fileSystem.rename(parentPath, indexArchivePath);
       }
     } catch (Exception e) {
       fileSystem.delete(mergedIndex, true);
@@ -129,41 +155,18 @@ public class IndexMergeApplication {
     }
   }
 
-  private int countShards(JobConf jobConf, Path uploadPath) throws IOException {
-    FileSystem fileSystem = FileSystem.get(jobConf);
-    if (!fileSystem.exists(uploadPath)) {
-      return 0;
+  private int countShards(List<String> indexNames) throws KattaException {
+    int shardCount = 0;
+    for (String index : indexNames) {
+      shardCount += _zkClient.countChildren(ZkPathes.getIndexPath(index));
     }
-    FileStatus[] globStatus = fileSystem.globStatus(new Path(uploadPath + "/*/*/*/*/*.zip"));
-    return globStatus.length;
+    return shardCount;
   }
 
   public static void main(String[] args) throws Exception {
-    // TODO fileSystemPath is not needed because we get indices from katta
-    // client
-    // TODO extend jobConf to get a DistributedFileSystem instead a
-    // LocalFileSystem
-    Options options = new Options();
-    options.addOption("jobTrackerHost", true, "Hostname where the Jobtracker is running");
-    options.addOption("fileSystemPath", true, "Path to the indices");
-    options.addOption("jobJar", true, "Path to the job jar file");
-    
-    CommandLineParser parser = new PosixParser();
-    CommandLine commandLine = parser.parse(options, args);
-
-    if (!commandLine.hasOption("jobTrackerHost") || !commandLine.hasOption("fileSystemPath")
-        || !commandLine.hasOption("jobJar")) {
-      HelpFormatter formatter = new HelpFormatter();
-      formatter.printHelp("merge", options);
-      return;
-    }
-    
-    JobConf jobConf = new JobConf();
-    jobConf.setJar(commandLine.getOptionValue("jobJar"));
-    jobConf.setJobName("merge indices");
-    
-    IndexMergeApplication application = new IndexMergeApplication();
-    application.mergeDeployedIndices(jobConf);
+    ZKClient zkcClient = new ZKClient(new ZkConfiguration());
+    zkcClient.start(3000);
+    new IndexMergeApplication(zkcClient).mergeDeployedIndices();
   }
 
 }

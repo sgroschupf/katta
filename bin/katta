@@ -121,33 +121,7 @@ fi
 # restore ordinary behaviour
 # unset IFS
 
-# if no args specified, show usage
-if [ $# = 0 ]; then
-  echo "Usage: katta COMMAND"
-  echo "where COMMAND is one of:"
-  echo "  katta administrate the katta system"
-  echo "  merge	merge indices"
-  echo " or"
-  echo "  CLASSNAME	run the class named CLASSNAME"
-  echo "Most commands print help when invoked w/o parameters."
-  exit 1
-fi
-
-# get arguments
-COMMAND=$1
-shift
-
-
-
-# figure out which class to run
-if [ "$COMMAND" = "katta" ] ; then
-  CLASS='net.sf.katta.Katta'
-elif [ "$COMMAND" = "merge" ] ; then
-  CLASS='net.sf.katta.index.indexer.merge.IndexMergeApplication'
-else
-  CLASS=$COMMAND
-fi
-
+CLASS='net.sf.katta.Katta'
 
 KATTA_OPTS="$KATTA_OPTS -Dkatta.log.dir=$KATTA_LOG_DIR"
 KATTA_OPTS="$KATTA_OPTS -Dkatta.log.file=$KATTA_LOGFILE"

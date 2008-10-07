@@ -45,6 +45,9 @@ public class IndexMergeJobTest extends ExtendedTestCase {
     IndexMergeJob indexMergeJob = new IndexMergeJob();
     Configuration configuration = new Configuration();
     _indexConfiguration.enrichJobConf(configuration, DfsIndexInputFormat.DOCUMENT_INFORMATION);
+    _indexConfiguration.enrichJobConf(configuration, ConfigurableDocumentDuplicateInformation.CONF_KEY_DOCUMENT_FIELDS);
+    _indexConfiguration.enrichJobConf(configuration, ConfigurableDocumentDuplicateInformation.CONF_KEY_KEY_FIELD);
+    _indexConfiguration.enrichJobConf(configuration, ConfigurableDocumentDuplicateInformation.CONF_KEY_SORT_FIELD);
     _indexConfiguration.enrichJobConf(configuration, IndexConfiguration.MAPRED_OUTPUT_PATH);
     _indexConfiguration.enrichJobConf(configuration, IndexConfiguration.INDEX_SHARD_KEY_GENERATOR_CLASS);
     _indexConfiguration.enrichJobConf(configuration, IndexConfiguration.INDEX_SHARD_KEY_GENERATOR_CLASS);

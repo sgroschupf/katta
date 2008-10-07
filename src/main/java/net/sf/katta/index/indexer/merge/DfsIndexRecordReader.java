@@ -58,15 +58,15 @@ public class DfsIndexRecordReader implements RecordReader<Text, DocumentInformat
     // we use md5 for uncompressed folder, because some shards can have the same
     // name
     String md5 = MD5Hash.digest(indexPath.toString()).toString();
-    Path workingFolder = new Path(FileOutputFormat.getOutputPath(jobConf), ".indexes/" + indexPath.getName() + "-" + md5
-        + "-uncompress");
+    Path workingFolder = new Path(FileOutputFormat.getOutputPath(jobConf), ".indexes/" + indexPath.getName() + "-"
+        + md5 + "-uncompress");
     // info: hadoop version 16: the outputpath is modified by hadoop and will be
     // extend with "_temporary/jobId",
     // FileOutputFormat.getOutputPath(jobConf).getParent().getParent()
     // but hadoop version 0.17 does not need to change to te parent.parent
     // folder
-    _indexPath = new Path(FileOutputFormat.getOutputPath(jobConf), ".indexes/" + indexPath.getName() + "-"
-        + md5 + "-uncompress");
+    _indexPath = new Path(FileOutputFormat.getOutputPath(jobConf), ".indexes/" + indexPath.getName() + "-" + md5
+        + "-uncompress");
     try {
       _indexReader = IndexReader.open(new DfsIndexDirectory(fileSystem, indexPath, workingFolder));
       _maxDoc = _indexReader.maxDoc();
@@ -83,6 +83,9 @@ public class DfsIndexRecordReader implements RecordReader<Text, DocumentInformat
       String sortValue = null;
 
       try {
+        // TODO jz: check if we can avoid selector and so
+        // getSupportedFieldNames(). The reason for that was that otherwise the
+        // hadoop job got stuck.
         MapFieldSelector selector = new MapFieldSelector(_duplicateInformation.getSupportedFieldNames());
         Document document = _indexReader.document(_doc, selector);
         keyInfo = _duplicateInformation.getKey(document);
