@@ -60,9 +60,12 @@ public class DfsIndexRecordReader implements RecordReader<Text, DocumentInformat
     String md5 = MD5Hash.digest(indexPath.toString()).toString();
     Path workingFolder = new Path(FileOutputFormat.getOutputPath(jobConf), ".indexes/" + indexPath.getName() + "-" + md5
         + "-uncompress");
-    // the outputpath is modified by hadoop and will be extend with
-    // "_temporary/jobId"
-    _indexPath = new Path(FileOutputFormat.getOutputPath(jobConf).getParent().getParent(), ".indexes/" + indexPath.getName() + "-"
+    // info: hadoop version 16: the outputpath is modified by hadoop and will be
+    // extend with "_temporary/jobId",
+    // FileOutputFormat.getOutputPath(jobConf).getParent().getParent()
+    // but hadoop version 0.17 does not need to change to te parent.parent
+    // folder
+    _indexPath = new Path(FileOutputFormat.getOutputPath(jobConf), ".indexes/" + indexPath.getName() + "-"
         + md5 + "-uncompress");
     try {
       _indexReader = IndexReader.open(new DfsIndexDirectory(fileSystem, indexPath, workingFolder));

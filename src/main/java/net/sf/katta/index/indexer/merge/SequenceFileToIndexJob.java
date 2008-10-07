@@ -17,6 +17,7 @@ package net.sf.katta.index.indexer.merge;
 
 import net.sf.katta.index.indexer.ShardSelectionMapper;
 import net.sf.katta.util.IndexConfiguration;
+
 import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -60,7 +61,7 @@ public class SequenceFileToIndexJob implements Configurable {
     jobConf.set("index.input.key.class", Text.class.getName());
     jobConf.set("index.input.value.class", DocumentInformation.class.getName());
 
-    Path newOutputPath = new Path(jobConf.get(IndexConfiguration.MAPRED_OUTPUT_PATH), outputFolder.getName());
+    Path newOutputPath = new Path(FileOutputFormat.getOutputPath(jobConf), outputFolder.getName());
     LOG.info("set mapred folder to: " + newOutputPath);
     FileOutputFormat.setOutputPath(jobConf, newOutputPath);
 
