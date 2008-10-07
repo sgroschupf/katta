@@ -59,7 +59,7 @@ public class SequenceFileToIndexJob implements Configurable {
     jobConf.set("index.input.key.class", Text.class.getName());
     jobConf.set("index.input.value.class", DocumentInformation.class.getName());
 
-    Path newOutputPath = new Path(jobConf.get(IndexConfiguration.MAPRED_OUTPUT_PATH), outputFolder.getName());
+    Path newOutputPath = new Path(jobConf.getOutputPath(), outputFolder.getName());
     LOG.info("set mapred folder to: " + newOutputPath);
     jobConf.setOutputPath(newOutputPath);
 
