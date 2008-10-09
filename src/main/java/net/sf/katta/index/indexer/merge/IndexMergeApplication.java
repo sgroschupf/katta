@@ -87,7 +87,6 @@ public class IndexMergeApplication {
 
     IndexConfiguration indexConfiguration = new IndexConfiguration();
     indexConfiguration.enrichJobConf(_jobConf, DfsIndexInputFormat.DOCUMENT_INFORMATION);
-    indexConfiguration.enrichJobConf(_jobConf, IndexConfiguration.MAPRED_OUTPUT_PATH);
 
     IndexMergeJob indexMergeJob = new IndexMergeJob();
     indexMergeJob.setConf(_jobConf);

@@ -20,6 +20,7 @@ import net.sf.katta.util.IndexConfiguration;
 
 import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.Text;
@@ -61,9 +62,10 @@ public class SequenceFileToIndexJob implements Configurable {
     jobConf.set("index.input.key.class", Text.class.getName());
     jobConf.set("index.input.value.class", DocumentInformation.class.getName());
 
-    Path newOutputPath = new Path(FileOutputFormat.getOutputPath(jobConf), outputFolder.getName());
-    LOG.info("set mapred folder to: " + newOutputPath);
-    FileOutputFormat.setOutputPath(jobConf, newOutputPath);
+    // indexes will be written locally
+    Path dummyOutputPath = new Path("/tmp/dummy");
+    FileSystem.get(jobConf).delete(dummyOutputPath, true);
+    FileOutputFormat.setOutputPath(jobConf, dummyOutputPath);
 
     LOG.info("set index upload folder: '" + outputFolder + "'");
     jobConf.set(IndexConfiguration.INDEX_UPLOAD_PATH, outputFolder.toString());

@@ -45,7 +45,7 @@ public class IndexMergeJobTest extends ExtendedTestCase {
   @Override
   protected void onSetUp() throws Exception {
     FileUtil.deleteFolder(_indexConfiguration.getFile(IndexConfiguration.INDEX_TMP_DIRECTORY));
-    FileUtil.deleteFolder(_indexConfiguration.getFile(IndexConfiguration.MAPRED_OUTPUT_PATH));
+    // FileUtil.deleteFolder(_indexConfiguration.getFile(IndexConfiguration.MAPRED_OUTPUT_PATH));
   }
 
   public void testMerging() throws Exception {
