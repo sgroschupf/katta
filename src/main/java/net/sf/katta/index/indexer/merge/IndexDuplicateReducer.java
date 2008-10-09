@@ -37,15 +37,17 @@ public class IndexDuplicateReducer implements Reducer<Text, DocumentInformation,
       return;
     }
 
-    DocumentInformation newestInformation = null;
-    Text sortValue = new Text("" + Integer.MIN_VALUE);
+    DocumentInformation newestInformation = new DocumentInformation();
+    Text sortValue = new Text();
     while (iterator.hasNext()) {
       DocumentInformation documentInformation = iterator.next();
       Text tmpSortValue = documentInformation.getSortValue();
-      int i = tmpSortValue.compareTo(sortValue);
-      if (i > 0) {
-        sortValue = tmpSortValue;
-        newestInformation = documentInformation;
+      System.out.println(tmpSortValue);
+      if (sortValue.getLength() == 0 || tmpSortValue.compareTo(sortValue) > 0) {
+        sortValue.set(tmpSortValue.getBytes());
+        newestInformation.setDocId(documentInformation.getDocId().get());
+        newestInformation.setIndexPath(documentInformation.getIndexPath().toString());
+        newestInformation.setSortValue(documentInformation.getSortValue().toString());
       }
     }
     outputCollector.collect(text, newestInformation);

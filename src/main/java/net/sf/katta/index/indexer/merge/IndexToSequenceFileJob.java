@@ -45,7 +45,7 @@ public class IndexToSequenceFileJob implements Configurable {
 
     // input and output path
     for (Path indexPath : indexPathes) {
-      LOG.info("read all shards from folder: " + indexPath);
+      LOG.info("add index: " + indexPath);
       jobConf.addInputPath(indexPath);
     }
     LOG.info("write sequence file to: " + outputPath);

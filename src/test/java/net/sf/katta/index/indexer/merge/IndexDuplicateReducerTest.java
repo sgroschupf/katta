@@ -15,6 +15,8 @@
  */
 package net.sf.katta.index.indexer.merge;
 
+import static org.hamcrest.Matchers.hasProperty;
+
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;
@@ -40,6 +42,7 @@ public class IndexDuplicateReducerTest extends TestCase {
     for (int i = 0; i < 10; i++) {
       DocumentInformation information = new DocumentInformation();
       information.setDocId(i);
+      information.setSortValue("1");
       if (i == 5) {
         information = collectedInformation;
       }
@@ -52,7 +55,8 @@ public class IndexDuplicateReducerTest extends TestCase {
 
     mockery.checking(new Expectations() {
       {
-        one(outputCollector).collect(key, collectedInformation);
+        one(outputCollector).collect(with(equal(key)),
+            with(hasProperty("sortValue", equal(collectedInformation.getSortValue()))));
       }
     });
 

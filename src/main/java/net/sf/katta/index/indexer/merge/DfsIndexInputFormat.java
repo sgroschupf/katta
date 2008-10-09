@@ -17,6 +17,7 @@ package net.sf.katta.index.indexer.merge;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import org.apache.hadoop.fs.FileStatus;
@@ -65,13 +66,16 @@ public class DfsIndexInputFormat extends FileInputFormat<Text, DocumentInformati
   }
 
   private Path[] getZipIndices(JobConf jobConf, FileSystem fileSystem) throws IOException {
-    Path[] inputPaths = jobConf.getInputPaths();
-    List<Path> list = new ArrayList<Path>();
+    Path[] inputPaths = getInputPaths(jobConf);
+    List<Path> zippedShards = new ArrayList<Path>();
     for (int i = 0; i < inputPaths.length; i++) {
       Path inputPath = inputPaths[i];
-      getChilds(fileSystem, list, inputPath);
+      getChilds(fileSystem, zippedShards, inputPath);
     }
-    return list.toArray(new Path[list.size()]);
+    if (zippedShards.isEmpty()) {
+      throw new IllegalStateException("could not find any zipped shard in: " + Arrays.asList(inputPaths));
+    }
+    return zippedShards.toArray(new Path[zippedShards.size()]);
   }
 
   private void getChilds(final FileSystem fileSystem, List<Path> list, Path inputPath) throws IOException {

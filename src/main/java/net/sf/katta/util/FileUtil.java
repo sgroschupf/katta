@@ -24,6 +24,7 @@ import java.io.FilenameFilter;
 import java.io.IOException;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
+import java.util.zip.ZipOutputStream;
 
 import org.apache.log4j.Logger;
 
@@ -83,6 +84,39 @@ public class FileUtil {
       zis.close();
     } catch (final Exception e) {
       throw new RuntimeException("unable to expand upgrade files", e);
+    }
+  }
+
+  public static void zip(final File inputFolder, final File outputFile) throws IOException {
+    final FileOutputStream fileWriter = new FileOutputStream(outputFile);
+    final ZipOutputStream zip = new ZipOutputStream(fileWriter);
+    addFolderToZip("", inputFolder, zip);
+    zip.flush();
+    zip.close();
+  }
+
+  private static void addFolderToZip(final String path, final File folder, final ZipOutputStream zip)
+      throws IOException {
+    final String zipEnry = path + (path.equals("") ? "" : File.separator) + folder.getName();
+    final File[] listFiles = folder.listFiles();
+    for (final File file : listFiles) {
+      if (file.isDirectory()) {
+        addFolderToZip(zipEnry, file, zip);
+      } else {
+        addFileToZip(zipEnry, file, zip);
+      }
+    }
+  }
+
+  private static void addFileToZip(final String path, final File file, final ZipOutputStream zip) throws IOException {
+    final byte[] buffer = new byte[1024];
+    int read = -1;
+    final FileInputStream in = new FileInputStream(file);
+    final String zipEntry = path + File.separator + file.getName();
+    LOG.debug("add zip entry: " + zipEntry);
+    zip.putNextEntry(new ZipEntry(zipEntry));
+    while ((read = in.read(buffer)) > -1) {
+      zip.write(buffer, 0, read);
     }
   }
 }
