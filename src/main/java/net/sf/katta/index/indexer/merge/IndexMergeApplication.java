@@ -13,9 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package net.sf.katta.index.indexer.merge;
 
+import java.io.File;
+import java.io.FilenameFilter;
+import java.net.URI;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -30,6 +32,7 @@ import net.sf.katta.client.IDeployClient;
 import net.sf.katta.client.IIndexDeployFuture;
 import net.sf.katta.index.IndexMetaData;
 import net.sf.katta.index.IndexMetaData.IndexState;
+import net.sf.katta.util.IHadoopConstants;
 import net.sf.katta.util.IndexConfiguration;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.ZkConfiguration;
@@ -48,16 +51,14 @@ public class IndexMergeApplication {
   private static final DateFormat DATE_FORMAT = new SimpleDateFormat("yyyyMMdd.hhmmss");
 
   private final JobConf _jobConf;
-
   private final ZKClient _zkClient;
 
-  // public IndexMergeApplication(String hadoopJobtracker, String jobJar) {
-  public IndexMergeApplication(ZKClient zkcClient) {
-    _zkClient = zkcClient;
+  public IndexMergeApplication(ZKClient zkClient) {
+    _zkClient = zkClient;
     _jobConf = new JobConf();
-    _jobConf.setJarByClass(IndexMergeJob.class);
-    // jobConf.set("mapred.job.tracker", hadoopJobtracker);
-    // jobConf.set("mapred.job.tracker", hadoopJobtracker);
+    if (!_jobConf.get(IHadoopConstants.JOBTRACKER).equals("local")) {
+      _jobConf.setJar(findJobJar());
+    }
     IndexMergeJob.enrichJobConf(_jobConf, new IndexConfiguration());
   }
 
@@ -81,7 +82,8 @@ public class IndexMergeApplication {
 
     Set<Path> indexPathes = new HashSet<Path>();
     for (IndexMetaData indexMetaData : deployedIndexes) {
-      indexPathes.add(new Path(indexMetaData.getPath()));
+      Path indexPath = new Path(indexMetaData.getPath());
+      indexPathes.add(indexPath);
     }
     LOG.info("found following indexes for potential merge: " + indexPathes);
 
@@ -162,10 +164,29 @@ public class IndexMergeApplication {
     return shardCount;
   }
 
+  private String findJobJar() {
+    String kattaHome = System.getenv("KATTA_HOME");
+    if (kattaHome == null) {
+      kattaHome = new File("").getAbsolutePath();
+      LOG.warn("no KATTA_HOME is set. Using current dir: " + kattaHome);
+    }
+    File[] jobJarFiles = new File(kattaHome).listFiles(new FilenameFilter() {
+      public boolean accept(File dir, String name) {
+        return name.startsWith("katta") && name.endsWith(".job");
+      }
+    });
+    if (jobJarFiles.length == 0) {
+      throw new IllegalStateException("no job jar found in '" + kattaHome + "'");
+    }
+    if (jobJarFiles.length > 1) {
+      throw new IllegalStateException("more than one job jar found in :'" + Arrays.asList(jobJarFiles) + "'");
+    }
+    return jobJarFiles[0].getAbsolutePath();
+  }
+
   public static void main(String[] args) throws Exception {
     ZKClient zkcClient = new ZKClient(new ZkConfiguration());
     zkcClient.start(3000);
     new IndexMergeApplication(zkcClient).mergeDeployedIndices();
   }
-
 }

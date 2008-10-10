@@ -33,6 +33,8 @@ testSrcDirNames.add("test/integration")
 sourceCompatibility = 1.5
 targetCompatibility = 1.5
 
+defaultTasks "help"
+
 createTask('wrapper', type: Wrapper).configure {
   urlRoot = 'http://dist.codehaus.org/gradle/'
   gradleVersion = '0.4'
@@ -232,10 +234,13 @@ dists {
       zipFileSet(dir: file('bin'), prefix: "$zipRoot/bin")
       zipFileSet(dir: file('conf'), prefix: "$zipRoot/conf")
       zipFileSet(dir: runtimeLibsDir, prefix: "$zipRoot/lib")
-      zipFileSet(dir: new File(buildDir, "docs"), prefix: "$zipRoot/docs")
-      zipFileSet(dir: new File(project.projectDir, "src"), prefix: "$zipRoot/src")
-      zipFileSet(dir: project.projectDir, prefix: "$zipRoot") {
+      zipFileSet(dir: docsDir, prefix: "$zipRoot/docs")
+      zipFileSet(dir: srcRoot, prefix: "$zipRoot/src")
+      zipFileSet(dir: projectDir, prefix: "$zipRoot") {
         include('*.txt')
+      }
+      zipFileSet(dir: buildDir, prefix: "$zipRoot") {
+        include('katta-*.job')
       }
     }
   }
@@ -246,10 +251,13 @@ dists {
       tarFileSet(dir: file('bin'), prefix: "$tarRoot/bin")
       tarFileSet(dir: file('conf'), prefix: "$tarRoot/conf")
       tarFileSet(dir: runtimeLibsDir, prefix: "$tarRoot/lib")
-      tarFileSet(dir: new File(buildDir, "docs"), prefix: "$tarRoot/docs")
-      tarFileSet(dir: new File(project.projectDir, "src"), prefix: "$tarRoot/src")
-      tarFileSet(dir: project.projectDir, prefix: "$tarRoot") {
+      tarFileSet(dir: docsDir, prefix: "$tarRoot/docs")
+      tarFileSet(dir: srcRoot, prefix: "$tarRoot/src")
+      tarFileSet(dir: projectDir, prefix: "$tarRoot") {
         include('*.txt')
+      }
+      tarFileSet(dir: buildDir, prefix: "$tarRoot") {
+        include('katta-*.job')
       }
     }
   }
@@ -320,7 +328,6 @@ createTask ('help') {
   println "  clean \t\tcleans the build folder"
   println "  test \t\t\truns the test suite (can run with -DintegrationTests or -DintegrationTestsOnly)"
   println "  dists \t\tcreates a distribution"
-  println "  release \t\tcreates a release"
   println "  eclipse \t\tcreates eclipse project files"
   println "  checkHeader \t\tchecks license header of all java files"
   println ""
