@@ -20,6 +20,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import net.sf.katta.util.ReportStatusThread;
+
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -51,8 +53,12 @@ public class DfsIndexInputFormat extends FileInputFormat<Text, DocumentInformati
       throw new RuntimeException("could not instantiate " + IDocumentDuplicateInformation.class.getName(), e);
     }
     duplicateInformation.setConf(jobConf);
+    ReportStatusThread reportThread = ReportStatusThread.startStatusThread(reporter,
+        "initializing dfs index record reader...", 5000);
+    DfsIndexRecordReader dfsIndexRecordReader = new DfsIndexRecordReader(jobConf, inputSplit, duplicateInformation);
+    reportThread.interrupt();
     reporter.setStatus(((FileSplit) inputSplit).getPath().toString());
-    return new DfsIndexRecordReader(jobConf, inputSplit, duplicateInformation);
+    return dfsIndexRecordReader;
   }
 
   public InputSplit[] getSplits(JobConf jobConf, int numSplits) throws IOException {
@@ -60,7 +66,7 @@ public class DfsIndexInputFormat extends FileInputFormat<Text, DocumentInformati
     Path[] indices = getZipIndices(jobConf, fileSystem);
     InputSplit[] splits = new InputSplit[indices.length];
     for (int i = 0; i < splits.length; i++) {
-      splits[i] = new FileSplit(indices[i], 0, Integer.MAX_VALUE, jobConf);
+      splits[i] = new FileSplit(indices[i], 0, Integer.MAX_VALUE, (String[]) null);
     }
     return splits;
   }

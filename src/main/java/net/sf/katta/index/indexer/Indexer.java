@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.util.Iterator;
 
 import net.sf.katta.util.IndexConfiguration;
+import net.sf.katta.util.ReportStatusThread;
 
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.io.BytesWritable;
@@ -139,22 +140,22 @@ public class Indexer implements Reducer<WritableComparable, Writable, WritableCo
     LOG.info(counter + " documents are added to index.");
 
     // optimize
-    Thread thread = createStatusThread(reporter, "Optimize Index...");
+    Thread reportThread = ReportStatusThread.startStatusThread(reporter, "Optimize Index...", 5000);
     indexWriter.optimize();
     indexWriter.close();
-    thread.interrupt();
+    reportThread.interrupt();
 
     // zip
-    thread = createStatusThread(reporter, "Zip Index...");
+    reportThread = ReportStatusThread.startStatusThread(reporter, "Zip Index...", 5000);
     final boolean success = _zipService.zipFolder(indexDirectory, new File(indexDirectory + ".zip"));
-    thread.interrupt();
+    reportThread.interrupt();
 
     if (success) {
       // upload
-      thread = createStatusThread(reporter, "Publish Index...");
+      reportThread = ReportStatusThread.startStatusThread(reporter, "Publish Index...", 5000);
       _indexPublisher.publish(indexDirectory.getAbsolutePath() + ".zip");
       FileUtil.fullyDelete(new File(indexDirectory + ".zip"));
-      thread.interrupt();
+      reportThread.interrupt();
     }
     FileUtil.fullyDelete(indexDirectory.getParentFile());
 
@@ -164,25 +165,6 @@ public class Indexer implements Reducer<WritableComparable, Writable, WritableCo
 
   public void close() throws IOException {
     // nothing to do
-  }
-
-  private Thread createStatusThread(final Reporter reporter, final String status) {
-    final Thread thread = new Thread() {
-      @Override
-      public void run() {
-        try {
-          while (true) {
-            reporter.setStatus(status);
-            sleep(1000);
-          }
-        } catch (final InterruptedException e) {
-          LOG.debug("status thread is stopped: " + status);
-        }
-      }
-    };
-    thread.setDaemon(true);
-    thread.start();
-    return thread;
   }
 
   private IZipService getZipper(final JobConf jobConf) {
