@@ -29,7 +29,6 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.FileOutputFormat;
 import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.mapred.JobConf;
-import org.apache.lucene.document.Document;
 import org.jmock.Expectations;
 import org.jmock.Mockery;
 
@@ -53,11 +52,10 @@ public class DfsIndexRecordReaderTest extends ExtendedTestCase {
 
     mockery.checking(new Expectations() {
       {
-        one(duplicateInformation).getSupportedFieldNames();
-        one(duplicateInformation).getKey(with(any(Document.class)));
+        atLeast(1).of(duplicateInformation).getKeyField();
         will(returnValue("foo"));
-        one(duplicateInformation).getSortValue(with(any(Document.class)));
-        will(returnValue("1"));
+        atLeast(1).of(duplicateInformation).getSortField();
+        will(returnValue("foo"));
       }
     });
 
@@ -65,11 +63,11 @@ public class DfsIndexRecordReaderTest extends ExtendedTestCase {
     DocumentInformation information = reader.createValue();
     reader.next(text, information);
 
-    assertEquals("foo", text.toString());
+    assertEquals("bar", text.toString());
+    assertEquals("bar", information.getSortValue().toString());
     assertEquals(0, information.getDocId().get());
     assertEquals(new File(out.toString(), ".indexes/" + path.getName() + "-" + MD5Hash.digest(path.toString())
         + "-uncompress").getAbsolutePath(), new File(new URI(information.getIndexPath().toString())).getAbsolutePath());
-    assertEquals("1", information.getSortValue().toString());
 
     mockery.assertIsSatisfied();
   }

@@ -17,6 +17,9 @@ package net.sf.katta.index.indexer.merge;
 
 import java.io.IOException;
 
+import net.sf.katta.util.FileUtil;
+import net.sf.katta.util.IHadoopConstants;
+
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.MD5Hash;
@@ -34,20 +37,16 @@ import org.apache.lucene.index.IndexReader;
 public class DfsIndexRecordReader implements RecordReader<Text, DocumentInformation> {
 
   private final static Logger LOG = Logger.getLogger(DfsIndexRecordReader.class);
-
-  private IDocumentDuplicateInformation _duplicateInformation;
-
-  private IndexReader _indexReader;
-
-  private int _maxDoc;
-
-  private int _doc;
-
-  private Path _indexPath;
-
   public static final String INVALID = "INVALID";
 
   private FileSplit _fileSplit;
+
+  private IndexReader _indexReader;
+  private Path _uncompressedIndexPath;
+  private int _maxDoc;
+  private int _doc;
+
+  private IDocumentDuplicateInformation _duplicateInformation;
 
   public DfsIndexRecordReader(JobConf jobConf, InputSplit inputSplit, IDocumentDuplicateInformation duplicateInformation)
       throws IOException {
@@ -55,20 +54,21 @@ public class DfsIndexRecordReader implements RecordReader<Text, DocumentInformat
     FileSystem fileSystem = FileSystem.get(jobConf);
     _fileSplit = (FileSplit) inputSplit;
     Path indexPath = _fileSplit.getPath();
+
     // we use md5 for uncompressed folder, because some shards can have the same
     // name
     String md5 = MD5Hash.digest(indexPath.toString()).toString();
-    Path workingFolder = new Path(FileOutputFormat.getOutputPath(jobConf), ".indexes/" + indexPath.getName() + "-"
-        + md5 + "-uncompress");
     // info: hadoop version 16: the outputpath is modified by hadoop and will be
     // extend with "_temporary/jobId",
     // FileOutputFormat.getOutputPath(jobConf).getParent().getParent()
     // but hadoop version 0.17 does not need to change to te parent.parent
     // folder
-    _indexPath = new Path(FileOutputFormat.getOutputPath(jobConf), ".indexes/" + indexPath.getName() + "-" + md5
-        + "-uncompress");
+    _uncompressedIndexPath = new Path(FileOutputFormat.getOutputPath(jobConf), ".indexes/" + indexPath.getName() + "-"
+        + md5 + "-uncompress");
+    FileUtil.unzipInDfs(fileSystem, indexPath, _uncompressedIndexPath);
     try {
-      _indexReader = IndexReader.open(new DfsIndexDirectory(fileSystem, indexPath, workingFolder));
+      int bufferSize = jobConf.getInt(IHadoopConstants.IO_FILE_BUFFER_SIZE, 4096);
+      _indexReader = IndexReader.open(new DfsDirectory(fileSystem, _uncompressedIndexPath, bufferSize));
       _maxDoc = _indexReader.maxDoc();
     } catch (Exception e) {
       LOG.warn("can not open index '" + indexPath + "', ignore this index.", e);
@@ -83,13 +83,11 @@ public class DfsIndexRecordReader implements RecordReader<Text, DocumentInformat
       String sortValue = null;
 
       try {
-        // TODO jz: check if we can avoid selector and so
-        // getSupportedFieldNames(). The reason for that was that otherwise the
-        // hadoop job got stuck.
-        MapFieldSelector selector = new MapFieldSelector(_duplicateInformation.getSupportedFieldNames());
+        MapFieldSelector selector = new MapFieldSelector(new String[] { _duplicateInformation.getKeyField(),
+            _duplicateInformation.getSortField() });
         Document document = _indexReader.document(_doc, selector);
-        keyInfo = _duplicateInformation.getKey(document);
-        sortValue = _duplicateInformation.getSortValue(document);
+        keyInfo = document.get(_duplicateInformation.getKeyField());
+        sortValue = document.get(_duplicateInformation.getSortField());
       } catch (Exception e) {
         LOG.warn("can not read document '" + _doc + "' from split '" + _fileSplit.getPath() + "'", e);
       }
@@ -105,7 +103,7 @@ public class DfsIndexRecordReader implements RecordReader<Text, DocumentInformat
       key.set(keyInfo);
       value.setDocId(_doc);
       value.setSortValue(sortValue);
-      value.setIndexPath(_indexPath.toString());
+      value.setIndexPath(_uncompressedIndexPath.toString());
       _doc++;
     }
 

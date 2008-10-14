@@ -22,31 +22,58 @@ import java.util.List;
 
 import net.sf.katta.testutil.ExtendedTestCase;
 import net.sf.katta.testutil.TestResources;
+import net.sf.katta.util.FileUtil;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.lucene.document.Document;
+import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.store.Directory;
 
-public class DfsIndexDirectoryTest extends ExtendedTestCase {
+public class DfsDirectoryTest extends ExtendedTestCase {
 
   private File _workFolder = createFile(getClass().getSimpleName());
 
   public void testFileExists() throws IOException {
     Configuration configuration = new Configuration();
     FileSystem fileSystem = FileSystem.get(configuration);
-    Directory directory = new DfsIndexDirectory(fileSystem, new Path(TestResources.SHARD1.getAbsolutePath()), new Path(
-        _workFolder.getAbsolutePath()));
+    Path zippedShard = new Path(TestResources.SHARD1.getAbsolutePath());
+    Path unzippedShard = new Path(_workFolder.getAbsolutePath());
+
+    FileUtil.unzipInDfs(fileSystem, zippedShard, unzippedShard);
+    Directory directory = new DfsDirectory(fileSystem, unzippedShard, 4096);
     assertTrue(directory.fileExists("segments.gen"));
   }
 
   public void testListFiles() throws IOException {
     Configuration configuration = new Configuration();
     FileSystem fileSystem = FileSystem.get(configuration);
-    Directory directory = new DfsIndexDirectory(fileSystem, new Path(TestResources.SHARD1.getAbsolutePath()), new Path(
-        _workFolder.getAbsolutePath()));
+    Path zippedShard = new Path(TestResources.SHARD1.getAbsolutePath());
+    Path unzippedShard = new Path(_workFolder.getAbsolutePath());
+
+    FileUtil.unzipInDfs(fileSystem, zippedShard, unzippedShard);
+    Directory directory = new DfsDirectory(fileSystem, unzippedShard, 4096);
     String[] strings = directory.list();
     List<String> list = Arrays.asList(strings);
     assertEquals(3, list.size());
+  }
+
+  public void testReadIndex() throws IOException {
+    Configuration configuration = new Configuration();
+    FileSystem fileSystem = FileSystem.get(configuration);
+    Path zippedShard = new Path(TestResources.SHARD1.getAbsolutePath());
+    Path unzippedShard = new Path(_workFolder.getAbsolutePath());
+
+    FileUtil.unzipInDfs(fileSystem, zippedShard, unzippedShard);
+    Directory directory = new DfsDirectory(fileSystem, unzippedShard, 4096);
+    IndexReader reader = IndexReader.open(directory);
+    int maxDocs = reader.maxDoc();
+    assertEquals(2, maxDocs);
+    for (int i = 0; i < maxDocs; i++) {
+      Document document = reader.document(i);
+      assertNotNull(document.getField("foo"));
+      assertTrue(document.get("foo").startsWith("bar"));
+    }
   }
 }

@@ -16,6 +16,7 @@
 package net.sf.katta.index.indexer.merge;
 
 import java.io.IOException;
+import java.util.Arrays;
 
 import net.sf.katta.util.IndexConfiguration;
 
@@ -23,8 +24,10 @@ import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapred.Counters;
 import org.apache.hadoop.mapred.JobClient;
 import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapred.RunningJob;
 import org.apache.hadoop.mapred.SequenceFileOutputFormat;
 import org.apache.hadoop.mapred.lib.IdentityMapper;
 import org.apache.log4j.Logger;
@@ -60,7 +63,17 @@ public class IndexToSequenceFileJob implements Configurable {
     jobConf.setReducerClass(IndexDuplicateReducer.class);
 
     // run the job
-    JobClient.runJob(jobConf);
+    RunningJob runJob = JobClient.runJob(jobConf);
+    Counters counters = runJob.getCounters();
+    LOG.info("==============================================");
+    LOG.info("detect duplicate results of: " + Arrays.asList(indexPathes));
+    LOG.info(" " + counters.getCounter(IndexDuplicateReducer.DuplicateCounter.INVALID_DOCUMENTS)
+        + "\tinvalid documents");
+    LOG.info(" " + counters.getCounter(IndexDuplicateReducer.DuplicateCounter.DUPLICATE_DOCUMENTS)
+        + "\tduplicate documents");
+    LOG.info(" " + counters.getCounter(IndexDuplicateReducer.DuplicateCounter.REMOVED_DOCUMENTS)
+        + "\tremoved documents");
+    LOG.info("==============================================");
   }
 
   public void setConf(Configuration configuration) {

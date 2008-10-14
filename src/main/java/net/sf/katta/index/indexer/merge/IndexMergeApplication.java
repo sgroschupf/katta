@@ -17,7 +17,6 @@ package net.sf.katta.index.indexer.merge;
 
 import java.io.File;
 import java.io.FilenameFilter;
-import java.net.URI;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;

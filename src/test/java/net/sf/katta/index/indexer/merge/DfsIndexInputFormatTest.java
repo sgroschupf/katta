@@ -58,7 +58,6 @@ public class DfsIndexInputFormatTest extends ExtendedTestCase {
     DfsIndexInputFormat indexInputFormat = new DfsIndexInputFormat();
     JobConf jobConf = new JobConf();
     jobConf.set(DfsIndexInputFormat.DOCUMENT_INFORMATION, ConfigurableDocumentDuplicateInformation.class.getName());
-    jobConf.set(ConfigurableDocumentDuplicateInformation.CONF_KEY_DOCUMENT_FIELDS, "foo");
     jobConf.set(ConfigurableDocumentDuplicateInformation.CONF_KEY_KEY_FIELD, "foo");
     jobConf.set(ConfigurableDocumentDuplicateInformation.CONF_KEY_SORT_FIELD, "foo");
 

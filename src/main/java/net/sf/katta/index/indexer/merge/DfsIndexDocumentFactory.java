@@ -20,6 +20,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import net.sf.katta.index.indexer.IDocumentFactory;
+import net.sf.katta.util.IHadoopConstants;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -34,26 +35,27 @@ import org.apache.lucene.index.IndexReader;
 
 public class DfsIndexDocumentFactory implements IDocumentFactory<Text, DocumentInformation> {
 
-  private final static Logger LOG = Logger.getLogger(DfsIndexDirectory.class);
+  private final static Logger LOG = Logger.getLogger(DfsIndexDocumentFactory.class);
 
   private FileSystem _fileSystem;
 
   private Map<Text, IndexReader> _readerMap = new HashMap<Text, IndexReader>();
+
+  private int _bufferSize;
 
   public Document convert(Text key, DocumentInformation value) {
     Document document = null;
     IntWritable docId = value.getDocId();
     Text text = value.getIndexPath();
     try {
-
       if (!_readerMap.containsKey(text)) {
-        IndexReader reader = IndexReader.open(new DfsIndexDirectory(_fileSystem, null, new Path(text.toString())));
+        IndexReader reader = IndexReader.open(new DfsDirectory(_fileSystem, new Path(text.toString()), _bufferSize));
         _readerMap.put(text, reader);
       }
       IndexReader reader = _readerMap.get(text);
       document = reader.document(docId.get());
     } catch (Exception e) {
-      LOG.warn("can not read document '" + docId + "'from index '" + text + "'", e);
+      LOG.warn("can not read document '" + docId + "' from index '" + text + "'", e);
     }
     return document;
   }
@@ -64,5 +66,6 @@ public class DfsIndexDocumentFactory implements IDocumentFactory<Text, DocumentI
 
   public void configure(JobConf jobConf) throws IOException {
     _fileSystem = FileSystem.get(jobConf);
+    _bufferSize = jobConf.getInt(IHadoopConstants.IO_FILE_BUFFER_SIZE, 4096);
   }
 }

@@ -62,7 +62,6 @@ public class IndexMergeJobTest extends ExtendedTestCase {
     configuration.setInt("io.sort.mb", 20);
     configuration.set(DfsIndexInputFormat.DOCUMENT_INFORMATION, ConfigurableDocumentDuplicateInformation.class
         .getName());
-    configuration.set(ConfigurableDocumentDuplicateInformation.CONF_KEY_DOCUMENT_FIELDS, KEY_FIELD + "," + SORT_FIELD);
     configuration.set(ConfigurableDocumentDuplicateInformation.CONF_KEY_KEY_FIELD, KEY_FIELD);
     configuration.set(ConfigurableDocumentDuplicateInformation.CONF_KEY_SORT_FIELD, SORT_FIELD);
     _indexConfiguration.enrichJobConf(configuration, IndexConfiguration.INDEX_SHARD_KEY_GENERATOR_CLASS);

@@ -26,6 +26,10 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
+import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.apache.log4j.Logger;
 
 public class FileUtil {
@@ -118,5 +122,42 @@ public class FileUtil {
     while ((read = in.read(buffer)) > -1) {
       zip.write(buffer, 0, read);
     }
+  }
+
+  public static void unzipInDfs(FileSystem fileSystem, final Path source, final Path target) {
+    try {
+      FSDataInputStream dfsInputStream = fileSystem.open(source);
+      fileSystem.mkdirs(target);
+      final ZipInputStream zipInputStream = new ZipInputStream(dfsInputStream);
+      ZipEntry entry;
+
+      while ((entry = zipInputStream.getNextEntry()) != null) {
+        final String entryPath = entry.getName();
+        final int indexOf = entryPath.indexOf("/");
+        final String cleanUpPath = entryPath.substring(indexOf + 1, entryPath.length());
+        Path path = target;
+        if (!cleanUpPath.equals("")) {
+          path = new Path(target, cleanUpPath);
+        }
+        LOG.info("Extracting: " + entry + " to " + path);
+        if (entry.isDirectory()) {
+          fileSystem.mkdirs(path);
+        } else {
+          int count;
+          final byte data[] = new byte[4096];
+          FSDataOutputStream fsDataOutputStream = fileSystem.create(path);
+          while ((count = zipInputStream.read(data, 0, 4096)) != -1) {
+            fsDataOutputStream.write(data, 0, count);
+          }
+          fsDataOutputStream.flush();
+          fsDataOutputStream.close();
+        }
+      }
+      zipInputStream.close();
+    } catch (final Exception e) {
+      LOG.error("can not open zip file", e);
+      throw new RuntimeException("unable to expand upgrade files", e);
+    }
+
   }
 }

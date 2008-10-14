@@ -73,23 +73,9 @@ public class IndexMergeJob implements Configurable {
     return _configuration;
   }
 
-  public static void main(String[] args) throws Exception {
-    Path kattaIndices = new Path(args[0]);
-    Path out = new Path(args[1]);
-
-    JobConf jobConf = new JobConf();
-    IndexMergeJob job = new IndexMergeJob();
-    jobConf.setJarByClass(IndexMergeJob.class);
-    enrichJobConf(jobConf, new IndexConfiguration());
-
-    job.setConf(jobConf);
-    job.merge(kattaIndices, out);
-  }
-
   public static void enrichJobConf(JobConf jobConf, IndexConfiguration indexConfiguration) {
     // TODO jz: we should get rid of all these single enrichments
     indexConfiguration.enrichJobConf(jobConf, DfsIndexInputFormat.DOCUMENT_INFORMATION);
-    indexConfiguration.enrichJobConf(jobConf, ConfigurableDocumentDuplicateInformation.CONF_KEY_DOCUMENT_FIELDS);
     indexConfiguration.enrichJobConf(jobConf, ConfigurableDocumentDuplicateInformation.CONF_KEY_KEY_FIELD);
     indexConfiguration.enrichJobConf(jobConf, ConfigurableDocumentDuplicateInformation.CONF_KEY_SORT_FIELD);
     indexConfiguration.enrichJobConf(jobConf, IndexConfiguration.INDEX_SHARD_KEY_GENERATOR_CLASS);

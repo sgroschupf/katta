@@ -21,20 +21,22 @@ package net.sf.katta.util;
  */
 public interface IHadoopConstants {
 
-  static final String NAMENODE = "fs.default.name";
-  static final String JOBTRACKER = "mapred.job.tracker";
+  String NAMENODE = "fs.default.name";
+  String JOBTRACKER = "mapred.job.tracker";
 
-  public static final String TMP_DIR = "hadoop.tmp.dir";
+  String TMP_DIR = "hadoop.tmp.dir";
 
-  public static final String NATIVE_LIB = "hadoop.native.lib";
+  String NATIVE_LIB = "hadoop.native.lib";
 
-  public static final String NUMBER_OF_MAP_TASKS_PER_JOB = "mapred.map.tasks";
-  public static final String NUMBER_OF_REDUCE_TASKS_PER_JOB = "mapred.reduce.tasks";
-  public static final String NUMBER_OF_MAP_TASKS_PER_TASKTRACKER = "mapred.tasktracker.map.tasks.maximum";
-  public static final String NUMBER_OF_REDUCE_TASKS_PER_TASKTRACKER = "mapred.tasktracker.reduce.tasks.maximum";
-  public static final String CHILD_JVM_OPTS = "mapred.child.java.opts";
+  String NUMBER_OF_MAP_TASKS_PER_JOB = "mapred.map.tasks";
+  String NUMBER_OF_REDUCE_TASKS_PER_JOB = "mapred.reduce.tasks";
+  String NUMBER_OF_MAP_TASKS_PER_TASKTRACKER = "mapred.tasktracker.map.tasks.maximum";
+  String NUMBER_OF_REDUCE_TASKS_PER_TASKTRACKER = "mapred.tasktracker.reduce.tasks.maximum";
+  String CHILD_JVM_OPTS = "mapred.child.java.opts";
 
-  public static final String MAPRED_LOCAL_DIR = "mapred.local.dir";
-  public static final String MAPRED_SYSTEM_DIR = "mapred.system.dir";
-  public static final String MAPRED_TEMP_DIR = "mapred.temp.dir";
+  String MAPRED_LOCAL_DIR = "mapred.local.dir";
+  String MAPRED_SYSTEM_DIR = "mapred.system.dir";
+  String MAPRED_TEMP_DIR = "mapred.temp.dir";
+
+  String IO_FILE_BUFFER_SIZE = "io.file.buffer.size";
 }

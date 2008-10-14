@@ -16,12 +16,9 @@
 package net.sf.katta.index.indexer.merge;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.lucene.document.Document;
 
 public class ConfigurableDocumentDuplicateInformation implements IDocumentDuplicateInformation {
 
-  public static final String CONF_KEY_DOCUMENT_FIELDS = ConfigurableDocumentDuplicateInformation.class.getName()
-      + ".documentFields";
   public static final String CONF_KEY_KEY_FIELD = ConfigurableDocumentDuplicateInformation.class.getName()
       + ".keyField";
   public static final String CONF_KEY_SORT_FIELD = ConfigurableDocumentDuplicateInformation.class.getName()
@@ -29,20 +26,15 @@ public class ConfigurableDocumentDuplicateInformation implements IDocumentDuplic
 
   private Configuration _conf;
 
-  private String[] _documentFields;
   private String _sortField;
   private String _keyField;
 
-  public String getKey(Document document) {
-    return document.get(_keyField);
+  public String getKeyField() {
+    return _keyField;
   }
 
-  public String getSortValue(Document document) {
-    return document.get(_sortField);
-  }
-
-  public String[] getSupportedFieldNames() {
-    return _documentFields;
+  public String getSortField() {
+    return _sortField;
   }
 
   public Configuration getConf() {
@@ -51,7 +43,6 @@ public class ConfigurableDocumentDuplicateInformation implements IDocumentDuplic
 
   public void setConf(Configuration conf) {
     _conf = conf;
-    _documentFields = get(conf, CONF_KEY_DOCUMENT_FIELDS).split(",");
     _keyField = get(conf, CONF_KEY_KEY_FIELD);
     _sortField = get(conf, CONF_KEY_SORT_FIELD);
   }
