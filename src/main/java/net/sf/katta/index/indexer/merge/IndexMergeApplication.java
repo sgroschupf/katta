@@ -59,7 +59,7 @@ public class IndexMergeApplication {
   public IndexMergeApplication(ZKClient zkClient, JobConf jobConf) {
     _zkClient = zkClient;
     _jobConf = jobConf;
-    if (!_jobConf.get(IHadoopConstants.JOBTRACKER).equals("local")) {
+    if (_jobConf.getJar() == null && !_jobConf.get(IHadoopConstants.JOBTRACKER).equals("local")) {
       _jobConf.setJar(findJobJar());
     }
     IndexMergeJob.enrichJobConf(_jobConf, new IndexConfiguration());
