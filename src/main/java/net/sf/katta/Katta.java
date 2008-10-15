@@ -52,7 +52,6 @@ import net.sf.katta.zk.ZkPathes;
 import net.sf.katta.zk.ZkServer;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
@@ -371,9 +370,7 @@ public class Katta {
     if (!fileSystem.exists(indexPath)) {
       return 0;
     }
-    FileStatus statuse[] = fileSystem.globStatus(indexPath);
-    FileStatus status = fileSystem.getFileStatus(indexPath);
-    return status.getLen();
+    return fileSystem.getContentSummary(indexPath).getLength();
   }
 
   private int calculateDocCount(List<String> shards) throws KattaException {
@@ -458,8 +455,7 @@ public class Katta {
     int index = 0;
     final Table table = new Table(new String[] { "Hit", "Node", "Shard", "DocId", "Score" });
     for (final Hit hit : hits.getHits()) {
-      table
-          .addRow(new String[] { "" + index, hit.getNode(), hit.getShard(), "" + hit.getDocId(), "" + hit.getScore() });
+      table.addRow(index, hit.getNode(), hit.getShard(), hit.getDocId(), hit.getScore());
       index++;
     }
     System.out.println(table.toString());
