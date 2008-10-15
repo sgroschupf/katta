@@ -53,8 +53,12 @@ public class IndexMergeApplication {
   private final ZKClient _zkClient;
 
   public IndexMergeApplication(ZKClient zkClient) {
+    this(zkClient, new JobConf());
+  }
+
+  public IndexMergeApplication(ZKClient zkClient, JobConf jobConf) {
     _zkClient = zkClient;
-    _jobConf = new JobConf();
+    _jobConf = jobConf;
     if (!_jobConf.get(IHadoopConstants.JOBTRACKER).equals("local")) {
       _jobConf.setJar(findJobJar());
     }
@@ -66,7 +70,7 @@ public class IndexMergeApplication {
   }
 
   public void mergeDeployedIndices() throws Exception {
-    IDeployClient deployClient = new DeployClient(new ZkConfiguration());
+    IDeployClient deployClient = new DeployClient(_zkClient);
     List<String> deployedIndexNames = deployClient.getIndexNames(IndexState.DEPLOYED);
     mergeIndices(deployClient, deployedIndexNames);
   }

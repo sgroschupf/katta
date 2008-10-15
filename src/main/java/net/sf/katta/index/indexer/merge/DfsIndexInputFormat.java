@@ -62,8 +62,7 @@ public class DfsIndexInputFormat extends FileInputFormat<Text, DocumentInformati
   }
 
   public InputSplit[] getSplits(JobConf jobConf, int numSplits) throws IOException {
-    FileSystem fileSystem = FileSystem.get(jobConf);
-    Path[] indices = getZipIndices(jobConf, fileSystem);
+    Path[] indices = getZipIndices(jobConf);
     InputSplit[] splits = new InputSplit[indices.length];
     for (int i = 0; i < splits.length; i++) {
       splits[i] = new FileSplit(indices[i], 0, Integer.MAX_VALUE, (String[]) null);
@@ -71,11 +70,11 @@ public class DfsIndexInputFormat extends FileInputFormat<Text, DocumentInformati
     return splits;
   }
 
-  private Path[] getZipIndices(JobConf jobConf, FileSystem fileSystem) throws IOException {
+  private Path[] getZipIndices(JobConf jobConf) throws IOException {
     Path[] inputPaths = getInputPaths(jobConf);
     List<Path> zippedShards = new ArrayList<Path>();
-    for (int i = 0; i < inputPaths.length; i++) {
-      Path inputPath = inputPaths[i];
+    for (Path inputPath : inputPaths) {
+      FileSystem fileSystem = FileSystem.get(inputPath.toUri(), jobConf);
       getChilds(fileSystem, zippedShards, inputPath);
     }
     if (zippedShards.isEmpty()) {
