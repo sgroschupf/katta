@@ -16,6 +16,8 @@
 package net.sf.katta;
 
 import java.io.File;
+import java.io.IOException;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -28,6 +30,7 @@ import net.sf.katta.client.DeployClient;
 import net.sf.katta.client.IClient;
 import net.sf.katta.client.IDeployClient;
 import net.sf.katta.client.IIndexDeployFuture;
+import net.sf.katta.index.DeployedShard;
 import net.sf.katta.index.IndexMetaData;
 import net.sf.katta.index.ShardError;
 import net.sf.katta.index.IndexMetaData.IndexState;
@@ -47,6 +50,11 @@ import net.sf.katta.util.ZkConfiguration;
 import net.sf.katta.zk.ZKClient;
 import net.sf.katta.zk.ZkPathes;
 import net.sf.katta.zk.ZkServer;
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 
 /**
  * Provides command line access to a Katta cluster.
@@ -102,8 +110,14 @@ public class Katta {
         katta = new Katta();
         katta.mergeIndexes(args);
       } else if (command.endsWith("listIndexes")) {
+        boolean detailedView = false;
+        for (String arg : args) {
+          if (arg.equals("-d")) {
+            detailedView = true;
+          }
+        }
         katta = new Katta();
-        katta.listIndex();
+        katta.listIndex(detailedView);
       } else if (command.endsWith("listNodes")) {
         katta = new Katta();
         katta.listNodes();
@@ -251,7 +265,7 @@ public class Katta {
     Table tableIndexStates = new Table(new String[] { "index state", "count" });
     Set<IndexState> keySet = indexStateCounterMap.keySet();
     for (IndexState indexState : keySet) {
-      tableIndexStates.addRow(new String[] { indexState.toString(), indexStateCounterMap.getCount(indexState) + "" });
+      tableIndexStates.addRow(indexState, indexStateCounterMap.getCount(indexState));
     }
     System.out.println(tableIndexStates.toString());
     System.out.println(indexes.size() + " indexes announced");
@@ -317,20 +331,62 @@ public class Katta {
     System.out.println(table.toString());
   }
 
-  public void listIndex() throws KattaException {
-    final Table t = new Table(new String[] { "Name", "Deployed", "Analyzer", "Path" });
+  public void listIndex(boolean detailedView) throws KattaException, IOException {
+    final Table table;
+    if (!detailedView) {
+      table = new Table(new String[] { "Name", "Status", "Path", "Shards", "Documents", "Size" });
+    } else {
+      table = new Table(new String[] { "Name", "Status", "Path", "Shards", "Documents", "Size", "Analyzer",
+          "Replication" });
+    }
 
     final List<String> indexes = _zkClient.getChildren(ZkPathes.INDEXES);
     for (final String index : indexes) {
+      String indexZkPath = ZkPathes.getIndexPath(index);
       final IndexMetaData metaData = new IndexMetaData();
-      _zkClient.readData(ZkPathes.getIndexPath(index), metaData);
-      t.addRow(new String[] { index, metaData.getState().toString(), metaData.getAnalyzerClassName(),
-          metaData.getPath() });
-      // maybe show shards
-      // maybe show serving nodes..
-      // maybe show replication level...
+      _zkClient.readData(indexZkPath, metaData);
+
+      String state = metaData.getState().toString();
+      List<String> shards = _zkClient.getChildren(indexZkPath);
+      int docCount = calculateDocCount(shards);
+      long indexSize = calculateIndexSize(metaData.getPath());
+      if (!detailedView) {
+        table.addRow(index, state, metaData.getPath(), shards.size(), docCount, indexSize);
+      } else {
+        table.addRow(index, state, metaData.getPath(), shards.size(), docCount, indexSize, metaData
+            .getAnalyzerClassName(), metaData.getReplicationLevel());
+      }
     }
-    System.out.println(t.toString());
+    if (table.rowSize() > 0) {
+      System.out.println(table.toString());
+    }
+    System.out.println(indexes.size() + " registered indexes");
+    System.out.println();
+  }
+
+  private long calculateIndexSize(String index) throws IOException {
+    Path indexPath = new Path(index);
+    URI indexUri = indexPath.toUri();
+    FileSystem fileSystem = FileSystem.get(indexUri, new Configuration());
+    if (!fileSystem.exists(indexPath)) {
+      return 0;
+    }
+    FileStatus statuse[] = fileSystem.globStatus(indexPath);
+    FileStatus status = fileSystem.getFileStatus(indexPath);
+    return status.getLen();
+  }
+
+  private int calculateDocCount(List<String> shards) throws KattaException {
+    int docCount = 0;
+    for (String shard : shards) {
+      List<String> deployedShards = _zkClient.getChildren(ZkPathes.getShard2NodeRootPath(shard));
+      if (!deployedShards.isEmpty()) {
+        DeployedShard deployedShard = new DeployedShard();
+        _zkClient.readData(ZkPathes.getShard2NodePath(shard, deployedShards.get(0)), deployedShard);
+        docCount += deployedShard.getNumOfDocs();
+      }
+    }
+    return docCount;
   }
 
   public void addIndex(final String name, final String path, final String analyzerClass, final int replicationLevel)
@@ -430,7 +486,7 @@ public class Katta {
 
   private static void printUsageAndExit() {
     System.err.println("Usage: ");
-    System.err.println("\tlistIndexes\t\tLists all indexes.");
+    System.err.println("\tlistIndexes [-d]\tLists all indexes. -d for detailed view.");
     System.err.println("\tlistNodes\t\tLists all nodes.");
     System.err.println("\tstartMaster\t\tStarts a local master.");
     System.err.println("\tstartNode\t\tStarts a local node.");
@@ -452,7 +508,7 @@ public class Katta {
 
   private static class Table {
     private String[] _header;
-    private final List<String[]> _rows = new ArrayList<String[]>();
+    private final List<Object[]> _rows = new ArrayList<Object[]>();
 
     public Table(final String... header) {
       _header = header;
@@ -466,7 +522,7 @@ public class Katta {
       _header = header;
     }
 
-    public void addRow(final String... row) {
+    public void addRow(final Object... row) {
       _rows.add(row);
     }
 
@@ -492,10 +548,10 @@ public class Katta {
       builder.append("\n=");
       builder.append(getChar(rowWidth + columnSizes.length, "=") + "\n");
 
-      for (final String[] row : _rows) {
+      for (final Object[] row : _rows) {
         builder.append("| ");
         for (int i = 0; i < row.length; i++) {
-          builder.append(row[i] + getChar(columnSizes[i] - row[i].length(), " ") + " | ");
+          builder.append(row[i] + getChar(columnSizes[i] - row[i].toString().length(), " ") + " | ");
         }
         builder.append("\n-");
         builder.append(getChar(rowWidth + columnSizes.length, "-") + "\n");
@@ -512,13 +568,14 @@ public class Katta {
       return spaces;
     }
 
-    private int[] getColumnSizes(final String[] header, final List<String[]> rows) {
+    private int[] getColumnSizes(final String[] header, final List<Object[]> rows) {
       final int[] sizes = new int[header.length];
       for (int i = 0; i < sizes.length; i++) {
         int min = header[i].length();
-        for (final String[] row : rows) {
-          if (row[i].length() > min) {
-            min = row[i].length();
+        for (final Object[] row : rows) {
+          int rowLength = row[i].toString().length();
+          if (rowLength > min) {
+            min = rowLength;
           }
         }
         sizes[i] = min;
