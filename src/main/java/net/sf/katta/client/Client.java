@@ -22,6 +22,7 @@ import java.net.SocketTimeoutException;
 import java.nio.channels.ClosedChannelException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -111,7 +112,7 @@ public class Client implements IClient {
           _node2SearchProxyMap.put(node, createNodeProxy(node));
         } catch (Exception e) {
           connectedNodes.remove(node);
-          LOG.warn("could not create proxy for node " + node);
+          LOG.warn("could not create proxy for node '" + node + "' - " + e.getClass().getSimpleName());
         }
       }
     }
@@ -240,6 +241,10 @@ public class Client implements IClient {
   public void close() {
     if (_zkClient != null) {
       _zkClient.close();
+      Collection<ISearch> proxies = _node2SearchProxyMap.values();
+      for (ISearch search : proxies) {
+        RPC.stopProxy(search);
+      }
     }
   }
 

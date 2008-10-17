@@ -41,273 +41,252 @@ import com.yahoo.zookeeper.ZooKeeper.States;
  */
 public abstract class AbstractKattaTest extends ExtendedTestCase {
 
-	private static ZkServer _zkServer;
-	protected final ZkConfiguration _conf = new ZkConfiguration();
-	private final boolean _resetZkNamespaceBetweenTests;
+  private static ZkServer _zkServer;
+  protected final ZkConfiguration _conf = new ZkConfiguration();
+  private final boolean _resetZkNamespaceBetweenTests;
 
-	public AbstractKattaTest() {
-		this(true);
-	}
+  public AbstractKattaTest() {
+    this(true);
+  }
 
-	public AbstractKattaTest(boolean resetZkNamespaceBetweenTests) {
-		_resetZkNamespaceBetweenTests = resetZkNamespaceBetweenTests;
-	}
+  public AbstractKattaTest(boolean resetZkNamespaceBetweenTests) {
+    _resetZkNamespaceBetweenTests = resetZkNamespaceBetweenTests;
+  }
 
-	@Override
-	protected final void beforeClass() throws Exception {
-		cleanZookeeperData(_conf);
-		startZkServer();
-		resetZkNamespace();
-		onBeforeClass();
-	}
+  @Override
+  protected final void beforeClass() throws Exception {
+    cleanZookeeperData(_conf);
+    startZkServer();
+    resetZkNamespace();
+    onBeforeClass();
+  }
 
-	@Override
-	protected final void afterClass() throws Exception {
-		onAfterClass();
-		stopZkServer();
-		cleanZookeeperData(_conf);
-		// TODO fix calling missing method from 0.16.3 api
-		// RPC.stopClient();
-	}
+  @Override
+  protected final void afterClass() throws Exception {
+    onAfterClass();
+    stopZkServer();
+    cleanZookeeperData(_conf);
+    // TODO fix calling missing method from 0.16.3 api
+    // RPC.stopClient();
+  }
 
-	@Override
-	protected final void onSetUp() throws Exception {
-		if (_resetZkNamespaceBetweenTests) {
-			resetZkNamespace();
-		}
-		onSetUp2();
-	}
+  @Override
+  protected final void onSetUp() throws Exception {
+    if (_resetZkNamespaceBetweenTests) {
+      resetZkNamespace();
+    }
+    onSetUp2();
+  }
 
-	private void resetZkNamespace() throws KattaException {
-		ZKClient zkClient = new ZKClient(_conf);
-		zkClient.start(10000);
-		if (zkClient.exists(ZkPathes.ROOT_PATH)) {
-			zkClient.deleteRecursive(ZkPathes.ROOT_PATH);
-		}
-		zkClient.createDefaultNameSpace();
-		zkClient.close();
-	}
+  private void resetZkNamespace() throws KattaException {
+    ZKClient zkClient = new ZKClient(_conf);
+    zkClient.start(10000);
+    if (zkClient.exists(ZkPathes.ROOT_PATH)) {
+      zkClient.deleteRecursive(ZkPathes.ROOT_PATH);
+    }
+    zkClient.createDefaultNameSpace();
+    zkClient.close();
+  }
 
-	protected void onBeforeClass() throws Exception {
-		// subclasses may override
-	}
+  protected void onBeforeClass() throws Exception {
+    // subclasses may override
+  }
 
-	protected void onAfterClass() throws Exception {
-		// subclasses may override
-	}
+  protected void onAfterClass() throws Exception {
+    // subclasses may override
+  }
 
-	protected void onSetUp2() throws Exception {
-		// subclasses may override
-	}
+  protected void onSetUp2() throws Exception {
+    // subclasses may override
+  }
 
-	protected static void cleanZookeeperData(final ZkConfiguration configuration) {
-		File dataDir = configuration.getZKDataDir();
-		File dataLogDir = configuration.getZKDataLogDir();
-		File shardFolder = new NodeConfiguration().getShardFolder();
-		FileUtil.deleteFolder(dataDir);
-		FileUtil.deleteFolder(dataLogDir);
-		FileUtil.deleteFolder(shardFolder);
-		assertFalse(dataDir.exists());
-		assertFalse(dataLogDir.exists());
-		assertFalse(shardFolder.exists());
-	}
+  protected static void cleanZookeeperData(final ZkConfiguration configuration) {
+    File dataDir = configuration.getZKDataDir();
+    File dataLogDir = configuration.getZKDataLogDir();
+    File shardFolder = new NodeConfiguration().getShardFolder();
+    FileUtil.deleteFolder(dataDir);
+    FileUtil.deleteFolder(dataLogDir);
+    FileUtil.deleteFolder(shardFolder);
+    assertFalse(dataDir.exists());
+    assertFalse(dataLogDir.exists());
+    assertFalse(shardFolder.exists());
+  }
 
-	protected void startZkServer() throws KattaException {
-		if (_zkServer != null) {
-			throw new IllegalStateException("zk server already running");
-		}
-		if (!NetworkUtil.isPortFree(ZkServer.DEFAULT_PORT)) {
-			throw new IllegalStateException("port " + ZkServer.DEFAULT_PORT
-					+ " blocked. Probably other zk server is running.");
-		}
-		_zkServer = new ZkServer(_conf);
-	}
+  protected void startZkServer() throws KattaException {
+    if (_zkServer != null) {
+      throw new IllegalStateException("zk server already running");
+    }
+    if (!NetworkUtil.isPortFree(ZkServer.DEFAULT_PORT)) {
+      throw new IllegalStateException("port " + ZkServer.DEFAULT_PORT
+          + " blocked. Probably other zk server is running.");
+    }
+    _zkServer = new ZkServer(_conf);
+  }
 
-	protected void stopZkServer() {
-		if (_zkServer != null) {
-			_zkServer.shutdown();
-			int waitingTimes = 0;
-			try {
-				while (!NetworkUtil.isPortFree(ZkServer.DEFAULT_PORT)) {
-					if (waitingTimes > 4) {
-						throw new IllegalStateException(
-								"zk server did not freed it port");
-					}
-					Thread.sleep(500);
-					waitingTimes++;
-				}
-			} catch (InterruptedException e) {
-				// proceed
-			}
-			_zkServer = null;
-		}
-	}
+  protected void stopZkServer() {
+    if (_zkServer != null) {
+      _zkServer.shutdown();
+      _zkServer = null;
+      waitUntilPortFree(ZkServer.DEFAULT_PORT, 5000);
+    }
+  }
 
-	protected MasterStartThread startMaster() throws KattaException {
-		ZKClient zkMasterClient = new ZKClient(_conf);
-		Master master = new Master(zkMasterClient);
-		MasterStartThread masterStartThread = new MasterStartThread(master,
-				zkMasterClient);
-		masterStartThread.start();
-		return masterStartThread;
-	}
+  protected void waitUntilPortFree(int port, long maxWaitTime) {
+    long startWait = System.currentTimeMillis();
+    try {
+      while (!NetworkUtil.isPortFree(port)) {
+        if (System.currentTimeMillis() - startWait > maxWaitTime) {
+          throw new IllegalStateException("port " + port + " blocked");
+        }
+        Thread.sleep(500);
+      }
+    } catch (InterruptedException e) {
+      // proceed
+    }
+  }
 
-	protected NodeStartThread startNode() {
-		return startNode(new NodeConfiguration().getShardFolder()
-				.getAbsolutePath());
-	}
+  protected MasterStartThread startMaster() throws KattaException {
+    ZKClient zkMasterClient = new ZKClient(_conf);
+    Master master = new Master(zkMasterClient);
+    MasterStartThread masterStartThread = new MasterStartThread(master, zkMasterClient);
+    masterStartThread.start();
+    return masterStartThread;
+  }
 
-	protected NodeStartThread startNode(String shardFolder) {
-		ZKClient zkNodeClient = new ZKClient(_conf);
-		NodeConfiguration nodeConf = new NodeConfiguration();
-		nodeConf.setShardFolder(shardFolder);
-		Node node = new Node(zkNodeClient, nodeConf);
-		NodeStartThread nodeStartThread = new NodeStartThread(node,
-				zkNodeClient);
-		nodeStartThread.start();
-		return nodeStartThread;
-	}
+  protected NodeStartThread startNode() {
+    return startNode(new NodeConfiguration().getShardFolder().getAbsolutePath());
+  }
 
-	protected void waitForStatus(ZKClient client, ZooKeeper.States state)
-			throws Exception {
-		waitForStatus(client, state, _conf.getZKTimeOut());
-	}
+  protected NodeStartThread startNode(String shardFolder) {
+    ZKClient zkNodeClient = new ZKClient(_conf);
+    NodeConfiguration nodeConf = new NodeConfiguration();
+    nodeConf.setShardFolder(shardFolder);
+    Node node = new Node(zkNodeClient, nodeConf);
+    NodeStartThread nodeStartThread = new NodeStartThread(node, zkNodeClient);
+    nodeStartThread.start();
+    return nodeStartThread;
+  }
 
-	protected void waitForStatus(ZKClient client, States state, long timeout)
-			throws Exception {
-		long maxWait = System.currentTimeMillis() + timeout;
-		while ((maxWait > System.currentTimeMillis())
-				&& (client.getZookeeperState() == null || client
-						.getZookeeperState() != state)) {
-			Thread.sleep(500);
-		}
-		assertEquals(state, client.getZookeeperState());
+  protected void waitForStatus(ZKClient client, ZooKeeper.States state) throws Exception {
+    waitForStatus(client, state, _conf.getZKTimeOut());
+  }
 
-	}
+  protected void waitForStatus(ZKClient client, States state, long timeout) throws Exception {
+    long maxWait = System.currentTimeMillis() + timeout;
+    while ((maxWait > System.currentTimeMillis())
+        && (client.getZookeeperState() == null || client.getZookeeperState() != state)) {
+      Thread.sleep(500);
+    }
+    assertEquals(state, client.getZookeeperState());
 
-	public static void waitForPath(final ZKClient client, final String path)
-			throws KattaException, InterruptedException {
-		int tryCount = 0;
-		while (!client.exists(path) && tryCount++ < 100) {
-			Thread.sleep(500);
-		}
-		assertTrue("path '" + path + "' does not exists", client.exists(path));
-	}
+  }
 
-	public static void waitForChilds(final ZKClient client, final String path,
-			final int childCount) throws InterruptedException, KattaException {
-		int tryCount = 0;
-		while (client.getChildren(path).size() != childCount
-				&& tryCount++ < 100) {
-			Thread.sleep(500);
-		}
-		assertEquals(childCount, client.getChildren(path).size());
-	}
+  public static void waitForPath(final ZKClient client, final String path) throws KattaException, InterruptedException {
+    int tryCount = 0;
+    while (!client.exists(path) && tryCount++ < 100) {
+      Thread.sleep(500);
+    }
+    assertTrue("path '" + path + "' does not exists", client.exists(path));
+  }
 
-	protected void waitOnLeaveSafeMode(Master master) {
-		long startWait = System.currentTimeMillis();
-		while (master.isInSafeMode()) {
-			if (System.currentTimeMillis() - startWait > 1000 * 60) {
-				break;
-			}
-		}
-		assertEquals(false, master.isInSafeMode());
-	}
+  public static void waitForChilds(final ZKClient client, final String path, final int childCount)
+      throws InterruptedException, KattaException {
+    int tryCount = 0;
+    while (client.getChildren(path).size() != childCount && tryCount++ < 100) {
+      Thread.sleep(500);
+    }
+    assertEquals(childCount, client.getChildren(path).size());
+  }
 
-	protected void waitOnNodes(MasterStartThread masterThread, int nodeCount)
-			throws InterruptedException {
-		long startWait = System.currentTimeMillis();
-		ZKClient zkClient = masterThread.getZkClient();
-		ZkLock eventLock = zkClient.getEventLock();
-		eventLock.lock();
-		while (masterThread.getMaster().getNodes().size() != nodeCount) {
-			if (System.currentTimeMillis() - startWait > 1000 * 60) {
-				break;
-			}
-			eventLock.getDataChangedCondition().await(10, TimeUnit.SECONDS);
-		}
-		eventLock.unlock();
-		assertEquals(nodeCount, masterThread.getMaster().getNodes().size());
-	}
+  protected void waitOnLeaveSafeMode(Master master) {
+    long startWait = System.currentTimeMillis();
+    while (master.isInSafeMode()) {
+      if (System.currentTimeMillis() - startWait > 1000 * 60) {
+        break;
+      }
+    }
+    assertEquals(false, master.isInSafeMode());
+  }
 
-	protected class MasterStartThread extends Thread {
+  protected void waitOnNodes(MasterStartThread masterThread, int nodeCount) throws InterruptedException {
+    long startWait = System.currentTimeMillis();
+    ZKClient zkClient = masterThread.getZkClient();
+    ZkLock eventLock = zkClient.getEventLock();
+    eventLock.lock();
+    while (masterThread.getMaster().getNodes().size() != nodeCount) {
+      if (System.currentTimeMillis() - startWait > 1000 * 60) {
+        break;
+      }
+      eventLock.getDataChangedCondition().await(10, TimeUnit.SECONDS);
+    }
+    eventLock.unlock();
+    assertEquals(nodeCount, masterThread.getMaster().getNodes().size());
+  }
 
-		private final Master _master;
-		private final ZKClient _zkMasterClient;
+  protected class MasterStartThread extends Thread {
 
-		public MasterStartThread(Master master, ZKClient zkMasterClient) {
-			_master = master;
-			_zkMasterClient = zkMasterClient;
-			setName(getClass().getSimpleName());
-		}
+    private final Master _master;
+    private final ZKClient _zkMasterClient;
 
-		public Master getMaster() {
-			return _master;
-		}
+    public MasterStartThread(Master master, ZKClient zkMasterClient) {
+      _master = master;
+      _zkMasterClient = zkMasterClient;
+      setName(getClass().getSimpleName());
+    }
 
-		public ZKClient getZkClient() {
-			return _zkMasterClient;
-		}
+    public Master getMaster() {
+      return _master;
+    }
 
-		public void run() {
-			try {
-				_master.start();
-				waitOnLeaveSafeMode(_master);
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
-		}
+    public ZKClient getZkClient() {
+      return _zkMasterClient;
+    }
 
-		public void shutdown() {
-			_master.shutdown();
-		}
-	}
+    public void run() {
+      try {
+        _master.start();
+        waitOnLeaveSafeMode(_master);
+      } catch (Exception e) {
+        e.printStackTrace();
+      }
+    }
 
-	protected class NodeStartThread extends Thread {
+    public void shutdown() {
+      _master.shutdown();
+    }
+  }
 
-		private final Node _node;
-		private final ZKClient _client;
+  protected class NodeStartThread extends Thread {
 
-		public NodeStartThread(Node node, ZKClient client) {
-			_node = node;
-			_client = client;
-			setName(getClass().getSimpleName());
-		}
+    private final Node _node;
+    private final ZKClient _client;
 
-		public Node getNode() {
-			return _node;
-		}
+    public NodeStartThread(Node node, ZKClient client) {
+      _node = node;
+      _client = client;
+      setName(getClass().getSimpleName());
+    }
 
-		public ZKClient getZkClient() {
-			return _client;
-		}
+    public Node getNode() {
+      return _node;
+    }
 
-		public void run() {
-			try {
-				_node.start();
-			} catch (KattaException e) {
-				e.printStackTrace();
-			}
-		}
+    public ZKClient getZkClient() {
+      return _client;
+    }
 
-		public void shutdown() {
-			_node.shutdown();
-			try {
-				int tryCount = 0;
-				int maxTries = 100;
-				while (!NetworkUtil.isPortFree(_node.getSearchServerPort())) {
-					Thread.sleep(100);
-					tryCount++;
-					if (tryCount >= maxTries) {
-						fail("node shutdown but port "
-								+ _node.getSearchServerPort()
-								+ " is still blocked");
-					}
-				}
-			} catch (InterruptedException e) {
-				// proceed
-			}
-		}
+    public void run() {
+      try {
+        _node.start();
+      } catch (KattaException e) {
+        e.printStackTrace();
+      }
+    }
 
-	}
+    public void shutdown() {
+      _node.shutdown();
+      waitUntilPortFree(_node.getSearchServerPort(), 5000);
+    }
+
+  }
 }
