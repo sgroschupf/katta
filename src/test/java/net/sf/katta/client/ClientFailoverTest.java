@@ -163,9 +163,9 @@ public class ClientFailoverTest extends AbstractKattaTest {
     assertSearchResults(10, searchClient.search(query, new String[] { index }, 10));
 
     // flip node1/node2 alive status
-    nodeThread1.shutdown();
     nodeThread2 = startNode("/tmp/kattaShards2");
     nodeThread2.join();
+    nodeThread1.shutdown();
     waitOnNodes(masterThread, 1);
 
     // search again
