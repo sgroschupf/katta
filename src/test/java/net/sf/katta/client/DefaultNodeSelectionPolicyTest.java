@@ -23,7 +23,6 @@ import java.util.Map;
 import java.util.Set;
 
 import junit.framework.TestCase;
-import net.sf.katta.node.Query;
 
 public class DefaultNodeSelectionPolicyTest extends TestCase {
 
@@ -37,14 +36,11 @@ public class DefaultNodeSelectionPolicyTest extends TestCase {
     final Map<String, List<String>> indexToShards = new HashMap<String, List<String>>();
     addIndex(indexToShards, "indexB", "shardB1", "shardB2");
 
-    final Map<String, List<String>> shardsToNode = new HashMap<String, List<String>>();
-    addNodes(shardsToNode, "shardB1", "node1");
-    addNodes(shardsToNode, "shardB2", "node2");
-
-    policy.setShardsAndNodes(indexToShards, shardsToNode);
+    addNodes(policy, "shardB1", "node1");
+    addNodes(policy, "shardB2", "node2");
 
     // now check results
-    Map<String, List<String>> nodeShardsMap = policy.getNodeShardsMap(new Query(), new String[] { "indexB" });
+    Map<String, List<String>> nodeShardsMap = policy.createNode2ShardsMap(indexToShards.get("indexB"));
     assertEquals(2, nodeShardsMap.size());
 
     assertEquals(2, extractFoundShards(nodeShardsMap).size());
@@ -58,15 +54,15 @@ public class DefaultNodeSelectionPolicyTest extends TestCase {
     addIndex(indexToShards, "indexA", "shardA1");
     addIndex(indexToShards, "indexB", "shardB1", "shardB2");
 
-    final Map<String, List<String>> shardsToNode = new HashMap<String, List<String>>();
-    addNodes(shardsToNode, "shardA1", "node1", "node2");
-    addNodes(shardsToNode, "shardB1", "node1");
-    addNodes(shardsToNode, "shardB2", "node2");
-
-    policy.setShardsAndNodes(indexToShards, shardsToNode);
+    addNodes(policy, "shardA1", "node1", "node2");
+    addNodes(policy, "shardB1", "node1");
+    addNodes(policy, "shardB2", "node2");
 
     // now check results
-    Map<String, List<String>> nodeShardsMap = policy.getNodeShardsMap(new Query(), new String[] { "indexA", "indexB" });
+    List<String> shards = new ArrayList<String>();
+    shards.addAll(indexToShards.get("indexA"));
+    shards.addAll(indexToShards.get("indexB"));
+    Map<String, List<String>> nodeShardsMap = policy.createNode2ShardsMap(shards);
     assertEquals(2, nodeShardsMap.size());
     assertEquals(3, extractFoundShards(nodeShardsMap).size());
   }
@@ -76,15 +72,14 @@ public class DefaultNodeSelectionPolicyTest extends TestCase {
     final Map<String, List<String>> indexToShards = new HashMap<String, List<String>>();
     addIndex(indexToShards, "indexA", "shardA", "shardB");
 
-    final Map<String, List<String>> shardsToNode = new HashMap<String, List<String>>();
-    addNodes(shardsToNode, "shardA", "node1", "node2");
-    addNodes(shardsToNode, "shardB", "node1", "node2");
+    addNodes(policy, "shardA", "node1", "node2");
+    addNodes(policy, "shardB", "node1", "node2");
 
-    policy.setShardsAndNodes(indexToShards, shardsToNode);
-    Map<String, List<String>> nodeShardsMap = policy.getNodeShardsMap(new Query(), new String[] { "indexA" });
-    System.out.println(nodeShardsMap);
-    nodeShardsMap = policy.getNodeShardsMap(new Query(), new String[] { "indexA" });
-    System.out.println(nodeShardsMap);
+    Map<String, List<String>> nodeShardsMap1 = policy.createNode2ShardsMap(indexToShards.get("indexA"));
+    Map<String, List<String>> nodeShardsMap2 = policy.createNode2ShardsMap(indexToShards.get("indexA"));
+    assertEquals(1, nodeShardsMap1.size());
+    assertEquals(1, nodeShardsMap2.size());
+    assertFalse("nodes should differ", nodeShardsMap1.keySet().equals(nodeShardsMap2.keySet()));
   }
 
   public void testSetShardsAndNodes() throws Exception {
@@ -92,21 +87,16 @@ public class DefaultNodeSelectionPolicyTest extends TestCase {
     final Map<String, List<String>> indexToShards = new HashMap<String, List<String>>();
     addIndex(indexToShards, "indexA", "shardA", "shardB");
 
-    final Map<String, List<String>> shardsToNode = new HashMap<String, List<String>>();
-    addNodes(shardsToNode, "shardA", "node1", "node2");
-    addNodes(shardsToNode, "shardB", "node1", "node2");
+    addNodes(policy, "shardA", "node1", "node2");
+    addNodes(policy, "shardB", "node1", "node2");
 
-    policy.setShardsAndNodes(indexToShards, shardsToNode);
-    Map<String, List<String>> nodeShardsMap = policy.getNodeShardsMap(new Query(), new String[] { "indexA" });
-    System.out.println(nodeShardsMap);
-    nodeShardsMap = policy.getNodeShardsMap(new Query(), new String[] { "indexA" });
+    Map<String, List<String>> nodeShardsMap = policy.createNode2ShardsMap(indexToShards.get("indexA"));
     assertEquals(1, nodeShardsMap.size());
 
     List<String> shardList = nodeShardsMap.values().iterator().next();
     assertEquals(2, shardList.size());
     assertTrue(shardList.contains("shardA"));
     assertTrue(shardList.contains("shardB"));
-    System.out.println(nodeShardsMap);
   }
 
   private Set<String> extractFoundShards(Map<String, List<String>> nodeShardsMap) {
@@ -117,12 +107,12 @@ public class DefaultNodeSelectionPolicyTest extends TestCase {
     return foundShards;
   }
 
-  private void addNodes(Map<String, List<String>> shardsToNode, String shardName, String... nodes) {
+  private void addNodes(INodeSelectionPolicy policy, String shardName, String... nodes) {
     final List<String> nodeList = new ArrayList<String>();
     for (String node : nodes) {
       nodeList.add(node);
     }
-    shardsToNode.put(shardName, nodeList);
+    policy.update(shardName, nodeList);
   }
 
   private void addIndex(final Map<String, List<String>> indexToShards, String indexName, String... shards) {
@@ -140,21 +130,22 @@ public class DefaultNodeSelectionPolicyTest extends TestCase {
     addIndex(indexToShards, "indexB", "shardB1", "shardB2", "shardB3");
     addIndex(indexToShards, "indexC", "shardC1", "shardC2", "shardC3", "shardC4");
 
-    final Map<String, List<String>> shardsToNode = new HashMap<String, List<String>>();
-    addNodes(shardsToNode, "shardA1", "node1", "node2", "node3");
-    addNodes(shardsToNode, "shardA2", "node1", "node2", "node4");
-    addNodes(shardsToNode, "shardA3", "node1", "node2", "node5");
-    addNodes(shardsToNode, "shardB1", "node3", "node4", "node5");
-    addNodes(shardsToNode, "shardB2", "node2", "node4", "node5");
-    addNodes(shardsToNode, "shardB3", "node1", "node2");
-    addNodes(shardsToNode, "shardC1", "node2", "node3", "node5");
-    addNodes(shardsToNode, "shardC2", "node1", "node2", "node4");
-    addNodes(shardsToNode, "shardC3", "node2", "node4", "node5");
-    addNodes(shardsToNode, "shardC4", "node1", "node3", "node4");
+    addNodes(policy, "shardA1", "node1", "node2", "node3");
+    addNodes(policy, "shardA2", "node1", "node2", "node4");
+    addNodes(policy, "shardA3", "node1", "node2", "node5");
+    addNodes(policy, "shardB1", "node3", "node4", "node5");
+    addNodes(policy, "shardB2", "node2", "node4", "node5");
+    addNodes(policy, "shardB3", "node1", "node2");
+    addNodes(policy, "shardC1", "node2", "node3", "node5");
+    addNodes(policy, "shardC2", "node1", "node2", "node4");
+    addNodes(policy, "shardC3", "node2", "node4", "node5");
+    addNodes(policy, "shardC4", "node1", "node3", "node4");
 
-    policy.setShardsAndNodes(indexToShards, shardsToNode);
-    Map<String, List<String>> nodeShardsMap = policy.getNodeShardsMap(new Query(), new String[] { "indexA", "indexB",
-        "indexC" });
+    List<String> shards = new ArrayList<String>();
+    shards.addAll(indexToShards.get("indexA"));
+    shards.addAll(indexToShards.get("indexB"));
+    shards.addAll(indexToShards.get("indexC"));
+    Map<String, List<String>> nodeShardsMap = policy.createNode2ShardsMap(shards);
     assertEquals(10, extractFoundShards(nodeShardsMap).size());
   }
 

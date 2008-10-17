@@ -72,8 +72,6 @@ public interface IClient {
    * @param count
    *          The count of results that should be returned.
    * @return A object that capsulates all results.
-   * @throws IOException
-   *           If indexes can't be searched.
    * @throws KattaException
    */
   public abstract Hits search(IQuery query, String[] indexNames, int count) throws KattaException;
@@ -84,10 +82,10 @@ public interface IClient {
    * @param hit
    *          The {@link Hit} from that all fields should be returned.
    * @return All fields to a {@link Hit} as field name and field value pairs.
-   * @throws IOException
+   * @throws KattaException
    *           If indexes can't be searched.
    */
-  public abstract MapWritable getDetails(Hit hit) throws IOException;
+  public abstract MapWritable getDetails(Hit hit) throws KattaException;
 
   /**
    * Gets a specific details to a hit.
@@ -98,10 +96,10 @@ public interface IClient {
    *          The names of the fields from that the value should be returned.
    * @return The supplied field to a {@link Hit} as field name and field value
    *         pair.
-   * @throws IOException
+   * @throws KattaException
    *           If indexes can't be searched.
    */
-  public abstract MapWritable getDetails(Hit hit, String[] fields) throws IOException;
+  public abstract MapWritable getDetails(Hit hit, String[] fields) throws KattaException;
 
   /**
    * The overall queries per minute.
@@ -118,8 +116,9 @@ public interface IClient {
    * @param indexNames
    *          A list of index names to search in.
    * @return A number that represents the overall result count to a query.
+   * @throws KattaException
    */
-  public abstract int count(IQuery query, String[] indexNames);
+  public abstract int count(IQuery query, String[] indexNames) throws KattaException;
 
   /**
    * Closes down the client.

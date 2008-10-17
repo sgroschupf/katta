@@ -82,7 +82,7 @@ public class Node implements ISearch, IZkReconnectListener {
   // contains the deploy errors two
   protected final Set<String> _deployedShards = new HashSet<String>();
 
-  private final Timer _timer;
+  private Timer _timer;
   protected final long _startTime = System.currentTimeMillis();
   protected long _queryCounter;
 
@@ -100,7 +100,6 @@ public class Node implements ISearch, IZkReconnectListener {
   public Node(final ZKClient zkClient, final NodeConfiguration configuration) {
     _zkClient = zkClient;
     _configuration = configuration;
-    _timer = new Timer("QueryCounter", true);
 
     _shardsFolder = _configuration.getShardFolder();
     _zkClient.subscribeReconnects(this);
@@ -135,6 +134,7 @@ public class Node implements ISearch, IZkReconnectListener {
 
       LOG.info("Started node: " + _nodeName + "...");
       updateStatus(NodeState.IN_SERVICE);
+      _timer = new Timer("QueryCounter", true);
       _timer.schedule(new StatusUpdater(), new Date(), 60 * 1000);
     } finally {
       _zkClient.getEventLock().unlock();
@@ -324,6 +324,7 @@ public class Node implements ISearch, IZkReconnectListener {
       _zkClient.unsubscribeAll();
       _zkClient.close();
       _rpcServer.stop();
+      _rpcServer = null;
     } finally {
       _zkClient.getEventLock().unlock();
     }
@@ -348,6 +349,10 @@ public class Node implements ISearch, IZkReconnectListener {
 
   public Collection<String> getDeployedShards() {
     return _deployedShards;
+  }
+
+  public Server getRpcServer() {
+    return _rpcServer;
   }
 
   /*
@@ -482,11 +487,6 @@ public class Node implements ISearch, IZkReconnectListener {
     return docFreqs;
   }
 
-  /*
-   * (non-Javadoc)
-   * 
-   * @see net.sf.katta.node.ISearch#getDetails(java.lang.String, int)
-   */
   @SuppressWarnings("unchecked")
   public MapWritable getDetails(final String shard, final int docId) throws IOException {
     final MapWritable result = new MapWritable();
@@ -531,6 +531,11 @@ public class Node implements ISearch, IZkReconnectListener {
   @Override
   protected void finalize() throws Throwable {
     shutdown();
+  }
+
+  @Override
+  public String toString() {
+    return _nodeName;
   }
 
   private void updateStatus(NodeState state) throws KattaException {

@@ -599,6 +599,17 @@ public class ZKClient implements Watcher {
     readWritable(writable, data);
   }
 
+  public <T extends Writable> T readData(final String path, final Class<T> writableClass) throws KattaException {
+    T newInstance;
+    try {
+      newInstance = writableClass.newInstance();
+    } catch (Exception e) {
+      throw new RuntimeException("could not create instance of " + writableClass.getName(), e);
+    }
+    readData(path, newInstance);
+    return newInstance;
+  }
+
   private Writable readWritable(final Writable writable, byte[] data) throws KattaException {
     final DataInputBuffer buffer = new DataInputBuffer();
     buffer.reset(data, data.length);

@@ -67,6 +67,10 @@ public class KattaMiniCluster {
     _zkServer.shutdown();
   }
 
+  public Node getNode(int i) {
+    return _nodes[i];
+  }
+
   public void deployTestIndexes(File indexFile, Class<?> analyzerClass, int deployCount, int replicationCount)
       throws KattaException, InterruptedException {
     IDeployClient deployClient = new DeployClient(_zkConfiguration);
