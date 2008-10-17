@@ -159,24 +159,17 @@ public class ClientFailoverTest extends AbstractKattaTest {
     // start search client
     Client searchClient = new Client();
     final Query query = new Query("content:the");
-    Hits hits = searchClient.search(query, new String[] { index }, 10);
-    assertNotNull(hits);
-    assertEquals(10, hits.getHits().size());
-
-    hits = searchClient.search(query, new String[] { index }, 10);
-    assertNotNull(hits);
-    assertEquals(10, hits.getHits().size());
+    assertSearchResults(10, searchClient.search(query, new String[] { index }, 10));
+    assertSearchResults(10, searchClient.search(query, new String[] { index }, 10));
 
     // flip node1/node2 alive status
-    nodeThread2 = startNode("/tmp/kattaShards2");
     nodeThread1.shutdown();
+    nodeThread2 = startNode("/tmp/kattaShards2");
     nodeThread2.join();
+    waitOnNodes(masterThread, 1);
 
-    // // search again
-    hits = searchClient.search(query, new String[] { index }, 10);
-    assertNotNull(hits);
-    assertEquals(10, hits.getHits().size());
-
+    // search again
+    assertSearchResults(10, searchClient.search(query, new String[] { index }, 10));
     searchClient.close();
   }
 
