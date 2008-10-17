@@ -18,8 +18,6 @@ package net.sf.katta.client;
 import java.util.List;
 import java.util.Map;
 
-import net.sf.katta.node.IQuery;
-
 /**
  * Returns a Map with Nodes and shards within those nodes that have to be
  * searched by the client.
@@ -35,14 +33,28 @@ public interface INodeSelectionPolicy {
 
   /**
    * During startup or as soon the client get a notification about any change in
-   * the gird the client sets the indexToShards and shcardsToNode maps. An
-   * {@link INodeSelectionPolicy} should try to precompute as much as possible
-   * in this method.
+   * the grid the client calls this method with an shard-to-nodes mapping. <br>
    * 
-   * @param indexToShards
-   * @param shardsToNode
+   * @param shard
+   * @param nodes
+   *          all the nodes which serve the shard
    */
-  public void setShardsAndNodes(Map<String, List<String>> indexToShards, Map<String, List<String>> shardsToNode);
+  void update(String shard, List<String> nodes);
+
+  /**
+   * If an index is undeployed, this method is called for each of it shards.
+   * 
+   * @param shard
+   * @return all nodes which served the shard
+   */
+  List<String> remove(String shard);
+
+  /**
+   * If a node becomes not reachable, this method is called.
+   * 
+   * @param node
+   */
+  void removeNode(String node);
 
   /**
    * Returns a map where as key the nodeName is used and as value a list shards
@@ -50,10 +62,9 @@ public interface INodeSelectionPolicy {
    * latency to the client and alternate between nodes to load balance high
    * traffic.
    * 
-   * @param queries
-   * @param indexNames
-   * @return
+   * @throws ShardAccessException
+   *           if one of the shards could not be accessed
    */
-  public Map<String, List<String>> getNodeShardsMap(IQuery queries, String[] indexNames);
+  Map<String, List<String>> createNode2ShardsMap(List<String> shards) throws ShardAccessException;
 
 }

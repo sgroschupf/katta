@@ -15,7 +15,6 @@
  */
 package net.sf.katta.client;
 
-import java.io.IOException;
 import java.util.Set;
 
 import net.sf.katta.AbstractKattaTest;
@@ -87,13 +86,13 @@ public class ClientTest extends AbstractKattaTest {
     _master.shutdown();
   }
 
-  public void testCount() {
+  public void testCount() throws KattaException {
     final Query query = new Query("content: the");
     final int count = _client.count(query, new String[] { INDEX1 });
     assertEquals(937, count);
   }
 
-  public void testGetDetails() throws IOException, KattaException {
+  public void testGetDetails() throws KattaException {
     final Query query = new Query("content:the");
     final Hits hits = _client.search(query, new String[] { INDEX1 }, 10);
     assertNotNull(hits);

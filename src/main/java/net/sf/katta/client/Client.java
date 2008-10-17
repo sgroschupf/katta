@@ -16,12 +16,13 @@
 package net.sf.katta.client;
 
 import java.io.IOException;
+import java.net.ConnectException;
 import java.net.InetSocketAddress;
+import java.net.SocketTimeoutException;
+import java.nio.channels.ClosedChannelException;
 import java.util.ArrayList;
-import java.util.Collection;
+import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -53,20 +54,18 @@ import org.apache.log4j.Logger;
 public class Client implements IClient {
 
   protected final static Logger LOG = Logger.getLogger(Client.class);
-  // TODO i see much space for improvement here, for example we do not need to
-  // reload all index shards ...
 
   protected final ZKClient _zkClient;
 
-  private final IndexDataListener _indexDataChangeListener = new IndexDataListener();
+  private final IndexStateListener _indexStateListener = new IndexStateListener();
   private final IndexPathListener _indexPathChangeListener = new IndexPathListener();
-  private final ShardListener _shardListener = new ShardListener();
+  private final ShardNodeListener _shardNodeListener = new ShardNodeListener();
 
   protected final Map<String, List<String>> _indexToShards = new HashMap<String, List<String>>();
-  protected final Map<String, List<String>> _shardsToNode = new HashMap<String, List<String>>();
-  protected final Map<String, ISearch> _nodeNames2Proxy = new HashMap<String, ISearch>();
+  // TODO: jz remove node proxies if not needed anymore
+  protected final Map<String, ISearch> _node2SearchProxyMap = new HashMap<String, ISearch>();
 
-  protected final INodeSelectionPolicy _policy;
+  protected final INodeSelectionPolicy _selectionPolicy;
   private long _queryCount = 0;
   private final long _start;
 
@@ -81,64 +80,45 @@ public class Client implements IClient {
   }
 
   public Client(final INodeSelectionPolicy policy, final ZkConfiguration config) throws KattaException {
-    _policy = policy;
+    _hadoopConf.set("ipc.client.timeout", "2500");
+    _hadoopConf.set("ipc.client.connect.max.retries", "2");
+    // TODO jz: make configurable
+
+    _selectionPolicy = policy;
     _zkClient = new ZKClient(config);
     try {
       _zkClient.getEventLock().lock();
       _zkClient.start(30000);
-      // first get all changes on index..
+
       List<String> indexes = _zkClient.subscribeChildChanges(ZkPathes.INDEXES, _indexPathChangeListener);
-      loadIndexAndShardsData(indexes);
+      addOrWatchNewIndexes(indexes);
     } finally {
       _zkClient.getEventLock().unlock();
     }
     _start = System.currentTimeMillis();
   }
 
-  protected void loadIndexAndShardsData(List<String> indexes) throws KattaException {
-    for (final String indexName : indexes) {
-      loadShardsFromIndex(indexName);
-    }
-    // set data for policy
-    if (_indexToShards.size() != 0 && _shardsToNode.size() != 0) {
-      _policy.setShardsAndNodes(_indexToShards, _shardsToNode);
-      // create node connections..
-      createNodeConnections();
-    }
+  protected void updateSelectionPolicy(final String shardName, List<String> nodes) {
+    List<String> connectedNodes = eastablishNodeProxiesIfNecessary(nodes);
+    _selectionPolicy.update(shardName, connectedNodes);
   }
 
-  protected void createNodeConnections() {
-    final Collection<List<String>> listOfNodeLists = _shardsToNode.values();
-    Set<String> failedNodes = new HashSet<String>();
-    for (final List<String> nodeList : listOfNodeLists) {
-      for (final String node : nodeList) {
+  private List<String> eastablishNodeProxiesIfNecessary(List<String> nodes) {
+    List<String> connectedNodes = new ArrayList<String>(nodes);
+    for (String node : nodes) {
+      if (!_node2SearchProxyMap.containsKey(node)) {
         try {
-          if (!_nodeNames2Proxy.containsKey(node) && !failedNodes.contains(node)) {
-            final ISearch nodeProxy = getNodeProxy(node);
-            _nodeNames2Proxy.put(node, nodeProxy);
-          }
+          _node2SearchProxyMap.put(node, createNodeProxy(node));
         } catch (Exception e) {
-          LOG.error("could not create proxy for node " + node);
-          failedNodes.add(node);
+          connectedNodes.remove(node);
+          LOG.warn("could not create proxy for node '" + node + "' - " + e.getClass().getSimpleName());
         }
       }
     }
-
-    // cleanup "unreachable" nodes
-    for (final List<String> nodeList : listOfNodeLists) {
-      for (Iterator iterator = nodeList.iterator(); iterator.hasNext();) {
-        String node = (String) iterator.next();
-        if (failedNodes.contains(node)) {
-          iterator.remove();
-        }
-      }
-    }
-    if (!failedNodes.isEmpty()) {
-      _policy.setShardsAndNodes(_indexToShards, _shardsToNode);
-    }
+    return connectedNodes;
   }
 
-  protected ISearch getNodeProxy(final String node) throws IOException {
+  protected ISearch createNodeProxy(final String node) throws IOException {
     LOG.debug("creating proxy for node: " + node);
 
     String[] hostName_port = node.split(":");
@@ -152,21 +132,44 @@ public class Client implements IClient {
     return (ISearch) RPC.getProxy(ISearch.class, 0L, inetSocketAddress, _hadoopConf);
   }
 
-  protected void loadShardsFromIndex(final String indexName) throws KattaException {
-    final String indexPath = ZkPathes.getIndexPath(indexName);
-    final IndexMetaData indexMetaData = new IndexMetaData();
-    _zkClient.readData(indexPath, indexMetaData);
-    if (indexMetaData.getState() == IndexMetaData.IndexState.DEPLOYED
-        || indexMetaData.getState() == IndexMetaData.IndexState.REPLICATING) {
-      final List<String> indexShards = _zkClient.getChildren(indexPath);
-      _indexToShards.put(indexName, indexShards);
-      for (final String shardName : indexShards) {
-        List<String> nodes = _zkClient.subscribeChildChanges(ZkPathes.getShard2NodeRootPath(shardName), _shardListener);
-        _shardsToNode.put(shardName, nodes);
+  protected void removeIndexes(List<String> indexes) {
+    for (String index : indexes) {
+      List<String> shards = _indexToShards.remove(index);
+      for (String shard : shards) {
+        _selectionPolicy.remove(shard);
       }
-    } else {
-      _zkClient.subscribeDataChanges(indexPath, _indexDataChangeListener);
     }
+  }
+
+  protected void addOrWatchNewIndexes(List<String> indexes) throws KattaException {
+    for (String index : indexes) {
+      String indexZkPath = ZkPathes.getIndexPath(index);
+      IndexMetaData indexMetaData = _zkClient.readData(indexZkPath, IndexMetaData.class);
+      if (isIndexSearchable(indexMetaData)) {
+        addIndexForSearching(index, indexZkPath);
+      } else {
+        addIndexForWatching(indexZkPath);
+      }
+    }
+  }
+
+  protected void addIndexForWatching(final String indexZkPath) throws KattaException {
+    _zkClient.subscribeDataChanges(indexZkPath, _indexStateListener);
+  }
+
+  protected void addIndexForSearching(String indexName, String indexZkPath) throws KattaException {
+    final List<String> shards = _zkClient.getChildren(indexZkPath);
+    _indexToShards.put(indexName, shards);
+    for (final String shardName : shards) {
+      List<String> nodes = _zkClient.subscribeChildChanges(ZkPathes.getShard2NodeRootPath(shardName),
+          _shardNodeListener);
+      updateSelectionPolicy(shardName, nodes);
+    }
+  }
+
+  protected boolean isIndexSearchable(final IndexMetaData indexMetaData) {
+    return indexMetaData.getState() == IndexMetaData.IndexState.DEPLOYED
+        || indexMetaData.getState() == IndexMetaData.IndexState.REPLICATING;
   }
 
   public Hits search(final IQuery query, final String[] indexNames) throws KattaException {
@@ -174,94 +177,133 @@ public class Client implements IClient {
   }
 
   public Hits search(final IQuery query, final String[] indexNames, final int count) throws KattaException {
-    String[] indexesToSearchIn = indexNames;
-    for (String indexName : indexNames) {
-      if ("*".equals(indexName)) {
-        Set<String> keySet = _indexToShards.keySet();
-        indexesToSearchIn = new String[keySet.size()];
-        indexesToSearchIn = keySet.toArray(indexesToSearchIn);
-        break;
-      }
-    }
-    final Map<String, List<String>> nodeShardsMap = _policy.getNodeShardsMap(query, indexesToSearchIn);
+    final Map<String, List<String>> nodeShardsMap = getNode2ShardsMap(indexNames);
     final Hits result = new Hits();
-
     final DocumentFrequenceWritable docFreqs = getDocFrequencies(query, nodeShardsMap);
-    final List<Thread> searchThreads = new ArrayList<Thread>(nodeShardsMap.size());
-    final Set<String> keySet = nodeShardsMap.keySet();
-    for (final String node : keySet) {
-      final ISearch searchNode = _nodeNames2Proxy.get(node);
-      final List<String> shards = nodeShardsMap.get(node);
-      final Thread searchThread = new SearchThread(query, docFreqs, searchNode, shards, result, node, count);
-      searchThread.start();
-      searchThreads.add(searchThread);
+
+    List<NodeInteraction> nodeInteractions = new ArrayList<NodeInteraction>();
+    for (final String node : nodeShardsMap.keySet()) {
+      nodeInteractions.add(new SearchInteraction(node, nodeShardsMap, query, docFreqs, result, count));
     }
+    execute(nodeInteractions);
 
     long start = 0;
     if (LOG.isDebugEnabled()) {
       start = System.currentTimeMillis();
     }
-    joinThreads(searchThreads);
-    if (LOG.isDebugEnabled()) {
-      final long end = System.currentTimeMillis();
-      LOG.debug("Time for searching: " + (end - start) / 1000.0);
-    }
-
-    if (LOG.isDebugEnabled()) {
-      start = System.currentTimeMillis();
-    }
     result.sort(count);
     if (LOG.isDebugEnabled()) {
-      final long end = System.currentTimeMillis();
-      LOG.debug("Time for sorting: " + (end - start) / 1000.0);
+      LOG.debug("Time for sorting: " + (System.currentTimeMillis() - start) + " ms");
     }
     _queryCount++;
     return result;
   }
 
-  private void joinThreads(final List<Thread> searchThreads) {
+  public int count(final IQuery query, final String[] indexNames) throws KattaException {
+    final Map<String, List<String>> nodeShardsMap = getNode2ShardsMap(indexNames);
+    final List<Integer> result = new ArrayList<Integer>();
+    List<NodeInteraction> nodeInteractions = new ArrayList<NodeInteraction>();
+    for (final String node : nodeShardsMap.keySet()) {
+      nodeInteractions.add(new GetCountInteraction(node, nodeShardsMap, query, result));
+    }
+    execute(nodeInteractions);
+
+    int resultCount = 0;
+    for (final Integer count : result) {
+      resultCount += count.intValue();
+    }
+    return resultCount;
+  }
+
+  public float getQueryPerMinute() {
+    long time = (System.currentTimeMillis() - _start) / (60 * 1000);
+    time = Math.max(time, 1);
+    return (float) _queryCount / time;
+  }
+
+  private Map<String, List<String>> getNode2ShardsMap(final String[] indexNames) throws ShardAccessException {
+    String[] indexesToSearchIn = indexNames;
+    for (String indexName : indexNames) {
+      if ("*".equals(indexName)) {
+        // TODO jz: refactor to seperate methods but leave as deprecated
+        indexesToSearchIn = new String[_indexToShards.keySet().size()];
+        indexesToSearchIn = _indexToShards.keySet().toArray(indexesToSearchIn);
+        break;
+      }
+    }
+
+    List<String> shardsToSearchIn = getShardsToSearchIn(indexesToSearchIn);
+    final Map<String, List<String>> nodeShardsMap = _selectionPolicy.createNode2ShardsMap(shardsToSearchIn);
+    return nodeShardsMap;
+  }
+
+  public void close() {
+    if (_zkClient != null) {
+      _zkClient.close();
+    }
+  }
+
+  private List<String> getShardsToSearchIn(String[] indexNames) {
+    List<String> shards = new ArrayList<String>();
+    for (String index : indexNames) {
+      shards.addAll(_indexToShards.get(index));
+    }
+    return shards;
+  }
+
+  private DocumentFrequenceWritable getDocFrequencies(final IQuery query, final Map<String, List<String>> node2ShardsMap)
+      throws KattaException {
+    DocumentFrequenceWritable docFreqs = new DocumentFrequenceWritable();
+    List<NodeInteraction> nodeInteractions = new ArrayList<NodeInteraction>();
+    for (final String node : node2ShardsMap.keySet()) {
+      nodeInteractions.add(new GetDocumentFrequencyInteraction(node, node2ShardsMap, query, docFreqs));
+    }
+
+    execute(nodeInteractions);
+    return docFreqs;
+  }
+
+  private void execute(List<NodeInteraction> nodeInteractions) throws KattaException {
+    long start = 0;
+    if (LOG.isDebugEnabled()) {
+      start = System.currentTimeMillis();
+    }
+    final List<Thread> interactionThreads = new ArrayList<Thread>(nodeInteractions.size());
+    for (NodeInteraction nodeInteraction : nodeInteractions) {
+      final Thread interactionThread = new Thread(nodeInteraction);
+      interactionThreads.add(interactionThread);
+      interactionThread.start();
+      // TODO jz: use thread pool / Executor
+    }
+
     try {
-      for (final Thread thread : searchThreads) {
+      for (final Thread thread : interactionThreads) {
         thread.join();
       }
     } catch (final InterruptedException e) {
       LOG.warn("Join for search threads interrupted.", e);
     }
-  }
-
-  private DocumentFrequenceWritable getDocFrequencies(final IQuery query, final Map<String, List<String>> nodeShardsMap) {
-    DocumentFrequenceWritable docFreqs = new DocumentFrequenceWritable();
-    final List<Thread> searchThreads = new ArrayList<Thread>(nodeShardsMap.size());
-    final Set<String> keySet = nodeShardsMap.keySet();
-    for (final String node : keySet) {
-      final ISearch searchNode = _nodeNames2Proxy.get(node);
-      final List<String> shards = nodeShardsMap.get(node);
-      final Thread documentFrequencyThread = new GetDocumentFrequencyThread(searchNode, query, docFreqs, node, shards);
-      documentFrequencyThread.start();
-      searchThreads.add(documentFrequencyThread);
+    for (NodeInteraction nodeInteraction : nodeInteractions) {
+      nodeInteraction.checkSuccess();
     }
-
-    // final long start = System.currentTimeMillis();
-    joinThreads(searchThreads);
-    // final long end = System.currentTimeMillis();
-    // LOG.info("Time for getting document frequencies: " + (end - start)
-    // / 1000.0);
-    return docFreqs;
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(nodeInteractions.get(0).getClass().getSimpleName() + " took " + (System.currentTimeMillis() - start)
+          + " ms");
+    }
   }
 
-  protected class IndexDataListener implements IZkDataListener<IndexMetaData> {
+  protected class IndexStateListener implements IZkDataListener<IndexMetaData> {
 
     public void handleDataAdded(String dataPath, IndexMetaData data) throws KattaException {
       // handled through IndexPathListener
     }
 
-    public void handleDataChange(String dataPath, IndexMetaData data) throws KattaException {
+    public void handleDataChange(String dataPath, IndexMetaData metaData) throws KattaException {
       final String indexName = ZkPathes.getName(dataPath);
-      loadShardsFromIndex(indexName);
-      // set datat for policy
-      _policy.setShardsAndNodes(_indexToShards, _shardsToNode);
-      // create node connections..
-      createNodeConnections();
+      if (isIndexSearchable(metaData)) {
+        addIndexForSearching(indexName, dataPath);
+        _zkClient.unsubscribeDataChanges(dataPath, this);
+      }
     }
 
     public void handleDataDeleted(String dataPath) throws KattaException {
@@ -277,248 +319,234 @@ public class Client implements IClient {
   protected class IndexPathListener implements IZkChildListener {
 
     public void handleChildChange(String parentPath, List<String> currentIndexes) throws KattaException {
-      // index added/removed...
-      // TODO jz: i think index removal is not handled
-      try {
-        loadIndexAndShardsData(currentIndexes);
-        _policy.setShardsAndNodes(_indexToShards, _shardsToNode);
-        // create node connections..
-        createNodeConnections();
-      } catch (final KattaException e) {
-        LOG.error("Failed to read zookeeper information", e);
-      }
+      Set<String> indexes = _indexToShards.keySet();
+      addOrWatchNewIndexes(CollectionUtil.getListOfAdded(indexes, currentIndexes));
+
+      List<String> removedIndexes = CollectionUtil.getListOfRemoved(indexes, currentIndexes);
+      removeIndexes(removedIndexes);
     }
   }
 
-  public MapWritable getDetails(final Hit hit) throws IOException {
+  public MapWritable getDetails(final Hit hit) throws KattaException {
     return getDetails(hit, null);
   }
 
-  public MapWritable getDetails(final Hit hit, final String[] fields) throws IOException {
-    final ISearch searchNode = _nodeNames2Proxy.get(hit.getNode());
-    // TODO only risk would be that between search and get detail the node
-    // crashs.
-    MapWritable details;
-    if (fields == null) {
-      details = searchNode.getDetails(hit.getShard(), hit.getDocId());
+  public MapWritable getDetails(final Hit hit, final String[] fields) throws KattaException {
+    Map<String, List<String>> node2ShardMap = new HashMap<String, List<String>>(1);
+    String node = hit.getNode();
+    List<String> shards = Arrays.asList(hit.getShard());
+    if (_node2SearchProxyMap.containsKey(node)) {
+      node2ShardMap = new HashMap<String, List<String>>(1);
+      node2ShardMap.put(node, shards);
     } else {
-      details = searchNode.getDetails(hit.getShard(), hit.getDocId(), fields);
+      node2ShardMap = _selectionPolicy.createNode2ShardsMap(shards);
+      node = node2ShardMap.keySet().iterator().next();
     }
 
-    return details;
+    GetDetailsInteraction getDetailsInteraction = new GetDetailsInteraction(node, node2ShardMap, hit.getDocId(), fields);
+    getDetailsInteraction.run();
+    getDetailsInteraction.checkSuccess();
+    return getDetailsInteraction.getDetails();
   }
 
-  protected class ShardListener implements IZkChildListener {
+  protected class ShardNodeListener implements IZkChildListener {
 
     public void handleChildChange(String parentPath, List<String> currentNodes) throws KattaException {
-      LOG.debug("Shard event in client.");
-      // a shard got a new node or one was removed...
+      LOG.info("got shard (" + parentPath + ") event: " + currentNodes);
       final String shardName = ZkPathes.getName(parentPath);
-      final List<String> knownShardNodes = _shardsToNode.get(shardName);
-      final List<String> toRemove = CollectionUtil.getListOfRemoved(knownShardNodes, currentNodes);
-      for (final String node : toRemove) {
-        knownShardNodes.remove(node);
-        // TODO do we need to shut thoese down..? (hadoop0.17 has
-        // RPC.stopProxy())
-        _nodeNames2Proxy.remove(node);
-      }
-      final List<String> toAdd = CollectionUtil.getListOfAdded(knownShardNodes, currentNodes);
-      for (final String node : toAdd) {
-        knownShardNodes.add(node);
-        try {
-          _nodeNames2Proxy.put(node, getNodeProxy(node));
-        } catch (Exception e) {
-          LOG.error("could not create proxy for node " + node, e);
-        }
-      }
+
+      // update shard2Nodes mapping
+      updateSelectionPolicy(shardName, currentNodes);
     }
   }
 
-  public float getQueryPerMinute() {
-    long time = (System.currentTimeMillis() - _start) / (60 * 1000);
-    time = Math.max(time, 1);
-    return (float) _queryCount / time;
-  }
-
-  public int count(final IQuery query, final String[] indexNames) {
-    String[] indexesToSearchIn = indexNames;
-    for (String indexName : indexNames) {
-      if ("*".equals(indexName)) {
-        Set<String> keySet = _indexToShards.keySet();
-        indexesToSearchIn = new String[keySet.size()];
-        indexesToSearchIn = keySet.toArray(indexesToSearchIn);
-        break;
-      }
-    }
-    final Map<String, List<String>> nodeShardsMap = _policy.getNodeShardsMap(query, indexesToSearchIn);
-    LOG.info("Client.count()" + nodeShardsMap);
-    final List<Integer> result = new ArrayList<Integer>();
-
-    final long start = System.currentTimeMillis();
-    final List<Thread> searchThreads = new ArrayList<Thread>();
-    final Set<String> keySet = nodeShardsMap.keySet();
-    for (final String node : keySet) {
-      final ISearch searchNode = _nodeNames2Proxy.get(node);
-      final List<String> shards = nodeShardsMap.get(node);
-      final Runnable searchRunnable = new ResultCountThread(query, searchNode, shards, result, node);
-      final Thread searchThread = new Thread(searchRunnable, node);
-      searchThread.start();
-      searchThreads.add(searchThread);
-    }
-
-    joinThreads(searchThreads);
-    final long end = System.currentTimeMillis();
-    LOG.info("Time for counting: " + (end - start) / 1000.0);
-
-    int resultCount = 0;
-    for (final Integer count : result) {
-      resultCount += count.intValue();
-    }
-
-    return resultCount;
-  }
-
-  public void close() {
-    if (_zkClient != null) {
-      _zkClient.close();
-    }
-  }
-
-  // threads for searching..
-
-  private class GetDocumentFrequencyThread extends Thread {
-
-    private final ISearch _searchNode;
-
-    private final DocumentFrequenceWritable _docFreqs;
-
-    private final String _node;
+  private class GetDocumentFrequencyInteraction extends NodeInteraction {
 
     private final IQuery _query;
+    private final DocumentFrequenceWritable _docFreqs;
 
-    private final List<String> _shards;
-
-    public GetDocumentFrequencyThread(final ISearch searchNode, final IQuery query,
-        final DocumentFrequenceWritable docFreqs, final String node, final List<String> shards) {
-      _searchNode = searchNode;
+    public GetDocumentFrequencyInteraction(String node, Map<String, List<String>> node2ShardsMap, IQuery query,
+        DocumentFrequenceWritable docFreqs) {
+      super(node, node2ShardsMap);
       _query = query;
       _docFreqs = docFreqs;
-      _node = node;
-      _shards = shards;
     }
 
     @Override
-    public void run() {
-      try {
-        long startThread = 0;
-        if (LOG.isDebugEnabled()) {
-          startThread = System.currentTimeMillis();
-        }
-        final DocumentFrequenceWritable nodeDocFreqs = _searchNode.getDocFreqs(_query, _shards
-            .toArray(new String[_shards.size()]));
-        _docFreqs.addNumDocs(nodeDocFreqs.getNumDocs());
-        _docFreqs.putAll(nodeDocFreqs.getAll());
-        if (LOG.isDebugEnabled()) {
-          final long endThread = System.currentTimeMillis();
-          LOG.debug("Wait for thread " + _node + " tooks " + (endThread - startThread) / 1000.0 + "sec.");
-        }
-      } catch (final IOException e) {
-        // TODO we should Throw an Exception here since the results are
-        // not correct..
-        LOG.error("Cannot open searcher.", e);
-      }
+    protected void doInteraction(ISearch search, String node, List<String> shards) throws IOException {
+      final DocumentFrequenceWritable nodeDocFreqs = search.getDocFreqs(_query, shards
+          .toArray(new String[shards.size()]));
+      _docFreqs.addNumDocs(nodeDocFreqs.getNumDocs());
+      _docFreqs.putAll(nodeDocFreqs.getAll());
     }
   }
 
-  private class SearchThread extends Thread {
+  private class GetCountInteraction extends NodeInteraction {
 
     private final IQuery _query;
+    private final List<Integer> _result;
 
-    private final ISearch _searchNode;
+    public GetCountInteraction(String node, Map<String, List<String>> node2ShardsMap, IQuery query, List<Integer> result) {
+      super(node, node2ShardsMap);
+      _query = query;
+      _result = result;
+    }
 
-    private final List<String> _shards;
+    @Override
+    protected void doInteraction(ISearch search, String node, List<String> shards) throws IOException {
+      final int count = search.getResultCount(_query, shards.toArray(new String[shards.size()]));
+      _result.add(count);
+    }
+  }
 
+  private class GetDetailsInteraction extends NodeInteraction {
+
+    private final int _docId;
+    private final String[] _fields;
+    private MapWritable _details;
+
+    public GetDetailsInteraction(String node, Map<String, List<String>> node2ShardsMap, int docId, String[] fields) {
+      super(node, node2ShardsMap);
+      _docId = docId;
+      _fields = fields;
+    }
+
+    @Override
+    protected void doInteraction(ISearch search, String node, List<String> shards) throws IOException {
+      String shard = shards.get(0);
+      if (_fields == null) {
+        _details = search.getDetails(shard, _docId);
+      } else {
+        _details = search.getDetails(shard, _docId, _fields);
+      }
+    }
+
+    public MapWritable getDetails() {
+      return _details;
+    }
+  }
+
+  private class SearchInteraction extends NodeInteraction {
+
+    private final IQuery _query;
+    private final int _count;
+    private final DocumentFrequenceWritable _docFreqs;
     private final Hits _result;
 
-    private final String _node;
-
-    private final int _count;
-
-    private final DocumentFrequenceWritable _docFreqs;
-
-    public SearchThread(final IQuery query, final DocumentFrequenceWritable docFreqs, final ISearch searchNode,
-        final List<String> shards, final Hits result, final String node, final int count) {
-      setName(node);
+    public SearchInteraction(String node, Map<String, List<String>> node2ShardsMap, IQuery query,
+        DocumentFrequenceWritable docFreqs, Hits result, int count) {
+      super(node, node2ShardsMap);
       _query = query;
       _docFreqs = docFreqs;
-      _searchNode = searchNode;
-      _shards = shards;
       _result = result;
-      _node = node;
       _count = count;
     }
 
     @Override
-    public void run() {
+    protected void doInteraction(ISearch search, String node, List<String> shards) throws IOException {
       Hits hits = new Hits();
-      try {
-        long startThread = 0;
-        if (LOG.isDebugEnabled()) {
-          startThread = System.currentTimeMillis();
-        }
-        final String[] shardsArray = _shards.toArray(new String[_shards.size()]);
-        final HitsMapWritable shardToHits = _searchNode.search(_query, _docFreqs, shardsArray, _count);
-        hits = shardToHits.getHits();
-        if (LOG.isDebugEnabled()) {
-          final long endThread = System.currentTimeMillis();
-          LOG.debug("Wait for thread " + _node + " tooks " + (endThread - startThread) / 1000.0
-              + "sec. Result size was " + hits.getHits().size());
-        }
-      } catch (final IOException e) {
-        LOG.error("Cannot open searcher.", e);
-      }
+      final String[] shardsArray = shards.toArray(new String[shards.size()]);
+      final HitsMapWritable shardToHits = search.search(_query, _docFreqs, shardsArray, _count);
+      hits = shardToHits.getHits();
       _result.addHits(hits.getHits());
       _result.addTotalHits(hits.size());
     }
-
   }
 
-  public class ResultCountThread extends Thread {
+  /**
+   * This class encapsulates an interaction with one or multiple node's in order
+   * to query information for a set of shards.
+   * 
+   * Given the fact that shards a replicated about nodes, this class tries node
+   * after node to get the desired information.
+   */
+  private abstract class NodeInteraction implements Runnable {
 
     private final String _node;
-    private final List<Integer> _result;
-    private final ISearch _searchNode;
-    private final List<String> _shards;
-    private final IQuery _query;
+    private final Map<String, List<String>> _node2ShardsMap;
+    private final List<String> _triedNodes = new ArrayList<String>(1);
+    private int _tries = 0;
+    private Exception _exception;
 
-    public ResultCountThread(final IQuery query, final ISearch searchNode, final List<String> shards,
-        final List<Integer> result, final String node) {
-      _query = query;
-      _searchNode = searchNode;
-      _shards = shards;
-      _result = result;
+    public NodeInteraction(String node, Map<String, List<String>> node2ShardsMap) {
       _node = node;
+      _node2ShardsMap = node2ShardsMap;
     }
 
-    @Override
-    public void run() {
+    public final void run() {
+      interact(_node, _node2ShardsMap);
+    }
+
+    protected final void interact(String node, Map<String, List<String>> node2ShardsMap) {
+      List<String> shards = node2ShardsMap.get(node);
       try {
-        long startThread = 0;
-        if (LOG.isDebugEnabled()) {
-          startThread = System.currentTimeMillis();
+        _tries++;
+        _triedNodes.add(node);
+        ISearch searcher = _node2SearchProxyMap.get(node);
+        try {
+          long startTime = 0;
+          if (LOG.isDebugEnabled()) {
+            startTime = System.currentTimeMillis();
+          }
+          doInteraction(searcher, node, shards);
+          if (LOG.isDebugEnabled()) {
+            LOG.debug(getClass().getSimpleName() + " with node " + node + " took "
+                + (System.currentTimeMillis() - startTime) + " ms.");
+          }
+        } catch (IOException e) {
+          if (e instanceof SocketTimeoutException || e instanceof ConnectException
+              || e instanceof ClosedChannelException) {
+            if (_tries == 3) {
+              throw new KattaException(getClass().getSimpleName() + " for shards " + shards + " failed. Tried nodes: "
+                  + _triedNodes);
+            }
+            LOG.warn("failed to interact with node " + node + ". Try with other node(s).");
+            Map<String, List<String>> node2ShardsMapForFailedNode = prepareRetry(node, shards);
+
+            // execute the action again for every node
+            for (String newNode : node2ShardsMapForFailedNode.keySet()) {
+              // TODO jz: if more then one node we should spawn new threads
+              interact(newNode, node2ShardsMapForFailedNode);
+            }
+          } else {
+            throw e;
+          }
         }
-        final int count = _searchNode.getResultCount(_query, _shards.toArray(new String[_shards.size()]));
-        _result.add(count);
-        if (LOG.isDebugEnabled()) {
-          final long endThread = System.currentTimeMillis();
-          LOG.debug("Wait for thread " + _node + " tooks " + (endThread - startThread) / 1000.0 + "sec.");
-        }
-      } catch (final IOException e) {
-        LOG.error("Cannot open searcher, remove " + _node + " from connections.", e);
-        _nodeNames2Proxy.remove(_node);
+      } catch (Exception e) {
+        _exception = e;
       }
     }
 
+    public void checkSuccess() throws KattaException {
+      if (_exception != null) {
+        if (_exception instanceof KattaException) {
+          throw (KattaException) _exception;
+        }
+        throw new KattaException(getClass().getSimpleName() + " for shards " + _node2ShardsMap.get(_node)
+            + " failed. Tried nodes: " + _triedNodes, _exception);
+      }
+    }
+
+    private Map<String, List<String>> prepareRetry(String node, List<String> shards) throws ShardAccessException {
+      // remove node
+      _node2ShardsMap.remove(node);
+      _node2SearchProxyMap.remove(node);
+      _selectionPolicy.removeNode(node);
+
+      // find new node(s) for the shards and add to global node2ShardMap
+      Map<String, List<String>> node2ShardsMapForFailedNode = _selectionPolicy.createNode2ShardsMap(shards);
+      for (String newNode : node2ShardsMapForFailedNode.keySet()) {
+        List<String> newNodeShards = node2ShardsMapForFailedNode.get(newNode);
+        if (!_node2ShardsMap.containsKey(newNode)) {
+          _node2ShardsMap.put(newNode, newNodeShards);
+        } else {
+          _node2ShardsMap.get(newNode).addAll(newNodeShards);
+        }
+      }
+      return node2ShardsMapForFailedNode;
+    }
+
+    protected abstract void doInteraction(ISearch search, String node, List<String> shards) throws IOException;
   }
 
 }

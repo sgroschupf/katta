@@ -127,19 +127,22 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
   protected void stopZkServer() {
     if (_zkServer != null) {
       _zkServer.shutdown();
-      int waitingTimes = 0;
-      try {
-        while (!NetworkUtil.isPortFree(ZkServer.DEFAULT_PORT)) {
-          if (waitingTimes > 4) {
-            throw new IllegalStateException("zk server did not freed it port");
-          }
-          Thread.sleep(500);
-          waitingTimes++;
-        }
-      } catch (InterruptedException e) {
-        // proceed
-      }
       _zkServer = null;
+      waitUntilPortFree(ZkServer.DEFAULT_PORT, 5000);
+    }
+  }
+
+  protected void waitUntilPortFree(int port, long maxWaitTime) {
+    long startWait = System.currentTimeMillis();
+    try {
+      while (!NetworkUtil.isPortFree(port)) {
+        if (System.currentTimeMillis() - startWait > maxWaitTime) {
+          throw new IllegalStateException("port " + port + " blocked");
+        }
+        Thread.sleep(500);
+      }
+    } catch (InterruptedException e) {
+      // proceed
     }
   }
 
@@ -283,19 +286,7 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
 
     public void shutdown() {
       _node.shutdown();
-      try {
-        int tryCount = 0;
-        int maxTries = 100;
-        while (!NetworkUtil.isPortFree(_node.getSearchServerPort())) {
-          Thread.sleep(100);
-          tryCount++;
-          if (tryCount >= maxTries) {
-            fail("node shutdown but port " + _node.getSearchServerPort() + " is still blocked");
-          }
-        }
-      } catch (InterruptedException e) {
-        // proceed
-      }
+      waitUntilPortFree(_node.getSearchServerPort(), 5000);
     }
 
   }

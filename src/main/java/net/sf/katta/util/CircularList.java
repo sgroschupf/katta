@@ -19,11 +19,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * CircularList where added elements are always on top. <br/>You can cycle
- * through the list with getNext(), whereat the returned object is moved to the
- * end of list. <br/>Also you could get the top of the list through getTop() and
- * then move it to end with moveToEnd() or to the middle of this list with
- * moveToMid().
+ * CircularList where added elements are always on top. <br/>
+ * You can cycle through the list with getNext(), whereat the returned object is
+ * moved to the end of list. <br/>
+ * Also you could get the top of the list through getTop() and then move it to
+ * end with moveToEnd() or to the middle of this list with moveToMid().
  * 
  * Note: This implementation is not synchronized.
  * 
@@ -150,6 +150,10 @@ public class CircularList<E> {
     return _elements.size();
   }
 
+  public boolean isEmpty() {
+    return _elements.isEmpty();
+  }
+
   private void incrementPos() {
     _currentPos++;
     if (_currentPos == _elements.size())
@@ -162,4 +166,14 @@ public class CircularList<E> {
     }
     return _currentPos - 1;
   }
+
+  @Override
+  public String toString() {
+    return _elements.toString();
+  }
+
+  public List<E> asList() {
+    return _elements;
+  }
+
 }
