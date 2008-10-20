@@ -77,8 +77,7 @@ public class DeployClient implements IDeployClient {
     final List<String> indexes = _zkClient.getChildren(ZkPathes.INDEXES);
     final List<IndexMetaData> returnIndexes = new ArrayList<IndexMetaData>();
     for (final String index : indexes) {
-      final IndexMetaData metaData = new IndexMetaData();
-      _zkClient.readData(ZkPathes.getIndexPath(index), metaData);
+      final IndexMetaData metaData = _zkClient.readData(ZkPathes.getIndexPath(index), IndexMetaData.class);
       if (metaData.getState() == indexState) {
         returnIndexes.add(metaData);
       }
@@ -91,8 +90,7 @@ public class DeployClient implements IDeployClient {
     final List<String> indexes = _zkClient.getChildren(ZkPathes.INDEXES);
     final List<String> returnIndexes = new ArrayList<String>();
     for (final String index : indexes) {
-      final IndexMetaData metaData = new IndexMetaData();
-      _zkClient.readData(ZkPathes.getIndexPath(index), metaData);
+      final IndexMetaData metaData = _zkClient.readData(ZkPathes.getIndexPath(index), IndexMetaData.class);
       if (metaData.getState() == indexState) {
         returnIndexes.add(index);
       }
@@ -102,6 +100,10 @@ public class DeployClient implements IDeployClient {
 
   public void disconnect() {
     _zkClient.close();
+  }
+
+  public IndexMetaData getIndexMetaData(String name) throws KattaException {
+    return _zkClient.readData(ZkPathes.getIndexPath(name), IndexMetaData.class);
   }
 
 }

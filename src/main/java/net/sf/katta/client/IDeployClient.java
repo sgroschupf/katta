@@ -28,11 +28,13 @@ public interface IDeployClient {
 
   void removeIndex(final String name) throws KattaException;
 
-  boolean existsIndex(String indexName) throws KattaException;
+  boolean existsIndex(String name) throws KattaException;
 
   List<IndexMetaData> getIndexes(IndexState indexState) throws KattaException;
 
   List<String> getIndexNames(IndexState indexState) throws KattaException;
+
+  IndexMetaData getIndexMetaData(String name) throws KattaException;
 
   void disconnect();
 
