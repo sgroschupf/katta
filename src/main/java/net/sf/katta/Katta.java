@@ -43,6 +43,7 @@ import net.sf.katta.node.Node;
 import net.sf.katta.node.NodeMetaData;
 import net.sf.katta.node.Query;
 import net.sf.katta.node.Node.NodeState;
+import net.sf.katta.tool.ZkTool;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.SymlinkResourceLoader;
 import net.sf.katta.util.VersionInfo;
@@ -80,6 +81,9 @@ public class Katta {
       startMaster();
     } else if (command.endsWith("version")) {
       showVersion();
+    } else if (command.endsWith("zk")) {
+      // TODO jz: cleanup the whole tool, command-line infrastruucture
+      ZkTool.main(args);
     } else {
       // non static methods
       Katta katta = null;
