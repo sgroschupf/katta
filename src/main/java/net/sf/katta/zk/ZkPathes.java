@@ -21,7 +21,7 @@ package net.sf.katta.zk;
  */
 public class ZkPathes {
 
-  private static final char SEPERATOR = '/';
+  public static final char SEPERATOR = '/';
 
   public static final String ROOT_PATH = "/katta";
 
