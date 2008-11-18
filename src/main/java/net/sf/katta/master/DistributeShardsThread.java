@@ -48,6 +48,7 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
+import org.apache.hadoop.util.StringUtils;
 import org.apache.log4j.Logger;
 
 public class DistributeShardsThread extends Thread {
@@ -383,7 +384,7 @@ public class DistributeShardsThread extends Thread {
         }
         LOG.error("could not deploy index '" + index + "'", e);
         _zkClient.readData(indexZkPath, indexMetaData);
-        indexMetaData.setState(IndexState.ERROR, e.getMessage());
+        indexMetaData.setState(IndexState.ERROR, StringUtils.stringifyException(e));
         _zkClient.writeData(indexZkPath, indexMetaData);
       }
     }
