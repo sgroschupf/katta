@@ -30,6 +30,10 @@ public class NodeConfiguration extends KattaConfiguration {
     return getInt(NODE_SERVER_PORT_START);
   }
 
+  public void setStartPort(final int value) {
+    setProperty(NODE_SERVER_PORT_START, value + "");
+  }
+
   public File getShardFolder() {
     return getFile(SHARD_FOLDER);
   }

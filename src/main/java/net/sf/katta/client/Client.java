@@ -16,10 +16,7 @@
 package net.sf.katta.client;
 
 import java.io.IOException;
-import java.net.ConnectException;
 import java.net.InetSocketAddress;
-import java.net.SocketTimeoutException;
-import java.nio.channels.ClosedChannelException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -499,22 +496,18 @@ public class Client implements IClient {
                 + (System.currentTimeMillis() - startTime) + " ms.");
           }
         } catch (IOException e) {
-          if (e instanceof SocketTimeoutException || e instanceof ConnectException
-              || e instanceof ClosedChannelException) {
-            if (_tries == 3) {
-              throw new KattaException(getClass().getSimpleName() + " for shards " + shards + " failed. Tried nodes: "
-                  + _triedNodes);
-            }
-            LOG.warn("failed to interact with node " + node + ". Try with other node(s).");
-            Map<String, List<String>> node2ShardsMapForFailedNode = prepareRetry(node, shards);
+          if (_tries == 3) {
+            throw new KattaException(getClass().getSimpleName() + " for shards " + shards + " failed. Tried nodes: "
+                + _triedNodes);
+          }
+          LOG.warn(
+              "failed to interact with node " + node + ". Try with other node(s) " + node2ShardsMap.keySet() + ".", e);
+          Map<String, List<String>> node2ShardsMapForFailedNode = prepareRetry(node, shards);
 
-            // execute the action again for every node
-            for (String newNode : node2ShardsMapForFailedNode.keySet()) {
-              // TODO jz: if more then one node we should spawn new threads
-              interact(newNode, node2ShardsMapForFailedNode);
-            }
-          } else {
-            throw e;
+          // execute the action again for every node
+          for (String newNode : node2ShardsMapForFailedNode.keySet()) {
+            // TODO jz: if more then one node we should spawn new threads
+            interact(newNode, node2ShardsMapForFailedNode);
           }
         }
       } catch (Exception e) {
