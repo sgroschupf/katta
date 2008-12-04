@@ -1,3 +1,3 @@
-addFlatDirResolver('buildLib', new File(rootDir, 'src/build/resources/lib'))
-dependencies(":jsch:0.1.39")
+addFlatDirResolver('build-libs', new File(rootDir, 'build-libs'))
+dependencies(":jsch:0.1.27")
 dependencies(":ant-jsch:1.7.0")

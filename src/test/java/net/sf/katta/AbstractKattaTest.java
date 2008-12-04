@@ -66,8 +66,6 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
     onAfterClass();
     stopZkServer();
     cleanZookeeperData(_conf);
-    // TODO fix calling missing method from 0.16.3 api
-    // RPC.stopClient();
   }
 
   @Override

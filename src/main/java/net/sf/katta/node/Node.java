@@ -74,6 +74,7 @@ public class Node implements ISearch, IZkReconnectListener {
   private Server _rpcServer;
   private KattaMultiSearcher _searcher;
 
+  // TODO jz: shouldn't the analyzer depend on the index configuration ?
   private final QueryParser _luceneQueryParser = new QueryParser("field", new KeywordAnalyzer());
 
   protected String _nodeName;
