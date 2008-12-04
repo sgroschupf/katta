@@ -63,8 +63,7 @@ public class IndexerTest extends TestCase {
     }
 
     public void configure(final JobConf jobConf) throws IOException {
-      // TODO Auto-generated method stub
-
+      // nothing todo
     }
   }
 
