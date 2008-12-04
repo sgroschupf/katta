@@ -66,8 +66,6 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
     onAfterClass();
     stopZkServer();
     cleanZookeeperData(_conf);
-    // TODO fix calling missing method from 0.16.3 api
-    // RPC.stopClient();
   }
 
   @Override
@@ -157,10 +155,20 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
     return startNode(new NodeConfiguration().getShardFolder().getAbsolutePath());
   }
 
+  protected NodeStartThread startNode(int port) {
+    return startNode(new NodeConfiguration().getShardFolder().getAbsolutePath(), port);
+  }
+
   protected NodeStartThread startNode(String shardFolder) {
+    NodeConfiguration nodeConf = new NodeConfiguration();
+    return startNode(shardFolder, nodeConf.getStartPort());
+  }
+
+  protected NodeStartThread startNode(String shardFolder, int port) {
     ZKClient zkNodeClient = new ZKClient(_conf);
     NodeConfiguration nodeConf = new NodeConfiguration();
     nodeConf.setShardFolder(shardFolder);
+    nodeConf.setStartPort(port);
     Node node = new Node(zkNodeClient, nodeConf);
     NodeStartThread nodeStartThread = new NodeStartThread(node, zkNodeClient);
     nodeStartThread.start();
