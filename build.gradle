@@ -34,9 +34,8 @@ defaultTasks "help"
 
 
 createTask('wrapper', type: Wrapper).configure {
-  //urlRoot = 'http://dist.codehaus.org/gradle/'
-  urlRoot = 'http://bamboo.ci.codehaus.org/download/GRADLE-CORETRUNK/artifacts/build-15039/dists'
-  gradleVersion = '0.5-20081202150130-0600'
+  urlRoot = 'http://dist.codehaus.org/gradle/'
+  gradleVersion = '0.5'
   jarPath = 'build-libs'
 }
 
