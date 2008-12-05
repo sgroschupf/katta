@@ -39,4 +39,5 @@ public interface IHadoopConstants {
   String MAPRED_TEMP_DIR = "mapred.temp.dir";
 
   String IO_FILE_BUFFER_SIZE = "io.file.buffer.size";
+  String IO_SORT_MB = "io.sort.mb";
 }

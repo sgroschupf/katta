@@ -17,6 +17,8 @@ package net.sf.katta.index.indexer;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.util.Iterator;
 
 import net.sf.katta.util.IndexConfiguration;
@@ -120,7 +122,9 @@ public class Indexer implements Reducer<WritableComparable, Writable, WritableCo
       _inputBuffer.reset(bytes, bytes.length);
       _inputKey.readFields(_inputBuffer);
       _inputValue.readFields(_inputBuffer);
-
+      if (counter == 0) {
+        checkClassCompatibitiy(_inputKey.getClass(), _inputValue.getClass(), _factory.getClass());
+      }
       final Document document = _factory.convert(_inputKey, _inputValue);
       if (document != null) {
         indexWriter.addDocument(document);
@@ -161,6 +165,36 @@ public class Indexer implements Reducer<WritableComparable, Writable, WritableCo
 
     // done
     reporter.setStatus("Indexing done. " + counter + " Documents added to index.");
+  }
+
+  private void checkClassCompatibitiy(Class<? extends WritableComparable> keyClass,
+      Class<? extends Writable> valueClass, Class<? extends IDocumentFactory> documentFactoryClass) {
+    Type[] genericInterfaces = documentFactoryClass.getGenericInterfaces();
+    for (Type type : genericInterfaces) {
+      if (type instanceof ParameterizedType) {
+        ParameterizedType parameterizedType = (ParameterizedType) type;
+        if (parameterizedType.getRawType() == IDocumentFactory.class) {
+          Type[] typeArguments = parameterizedType.getActualTypeArguments();
+          Class<? extends Type> factoryKeyClass = getClass(typeArguments[0]);
+          Class<? extends Type> factoryValueClass = getClass(typeArguments[1]);
+          if (!factoryKeyClass.isAssignableFrom(keyClass)) {
+            throw new IllegalStateException("key class " + keyClass.getName()
+                + " is not assignable to the key-class of the document-factory: " + factoryKeyClass.getName());
+          }
+          if (!factoryValueClass.isAssignableFrom(valueClass)) {
+            throw new IllegalStateException("value class " + keyClass.getName()
+                + " is not assignable to the value-class of the document-factory: " + factoryValueClass.getName());
+          }
+        }
+      }
+    }
+  }
+
+  private static Class<? extends Type> getClass(Type type) {
+    if (type instanceof ParameterizedType) {
+      return (Class<? extends Type>) ((ParameterizedType) type).getRawType();
+    }
+    return (Class<? extends Type>) type;
   }
 
   public void close() throws IOException {
