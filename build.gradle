@@ -21,6 +21,7 @@ archivesBaseName = 'katta'
 group = 'net.sf.katta'
 
 version = "0.4-SNAPSHOT"
+hadoopVersion = "0.18.1"
 
 usePlugin('java')
 usePlugin('maven')
@@ -37,23 +38,6 @@ createTask('wrapper', type: Wrapper).configure {
   urlRoot = 'http://bamboo.ci.codehaus.org/download/GRADLE-CORETRUNK/artifacts/build-15039/dists'
   gradleVersion = '0.5-20081202150130-0600'
   jarPath = 'build-libs'
-}
-
-
-test {
-  dependsOn 'checkHeader'
-  
-  boolean integrationTests = System.getProperty("integrationTests") != null;
-  boolean integrationTestsOnly = System.getProperty("integrationTestsOnly") != null;
-  if (integrationTestsOnly) {
-    include '**/integrationTest/**/*Test.class'
-  } else {
-	include '**/*Test.class'  
-    if (!integrationTests) {
-      exclude '**/integrationTest/**/*Test.class'
-    } 
-  }
-  exclude '**/Abstract*Test.class'
 }
 
 
@@ -79,7 +63,7 @@ dependencies {
   compile "commons-cli:commons-cli:2.0-SNAPSHOT"
   compile "log4j:log4j:1.2.13"
 
-  clientModule(['compile'], "org.apache.hadoop:hadoop-core:0.18.1") {
+  clientModule(['compile'], "org.apache.hadoop:hadoop-core:${hadoopVersion}") {
     dependency("commons-codec:commons-codec:1.3")
     dependency("net.java.dev.jets3:jets3t:0.5.0")
     dependency("xmlenc:xmlenc:0.52")
@@ -90,11 +74,19 @@ dependencies {
   
   
   def HAMCREST = ["org.hamcrest:hamcrest-core:1.1", "org.hamcrest:hamcrest-library:1.1"]
-
   clientModule(['testCompile'], "org.jmock:jmock:2.4.0") {
     dependencies(HAMCREST as String[])
   }
-  testCompile HAMCREST, "junit:junit:3.8.1"
+  clientModule(['testCompile'], "org.apache.hadoop:hadoop:${hadoopVersion}-test") {
+    dependency("org.mortbay.jetty:jetty:5.1.4") {
+      dependency("org.mortbay.jetty:jasper-runtime:x")
+      dependency("org.mortbay.jetty:jasper-compiler:x")
+      dependency("servlet-api:servlet-api:2.4")
+      dependency("jsp-api:jsp-api:2.0")
+    }
+  }
+  testCompile "junit:junit:3.8.1"
+  testCompile HAMCREST
   
 }
 
@@ -132,6 +124,24 @@ createTask('collectRuntimeLibs', dependsOn:'archive_jar') {
   }
   ant.copy(file: archive_jar.archivePath, toDir: runtimeLibsDir)
 }
+
+
+test {
+  dependsOn 'checkHeader'
+  
+  boolean integrationTests = System.getProperty("integrationTests") != null;
+  boolean integrationTestsOnly = System.getProperty("integrationTestsOnly") != null;
+  if (integrationTestsOnly) {
+    include '**/integrationTest/**/*Test.class'
+  } else {
+	include '**/*Test.class'  
+    if (!integrationTests) {
+      exclude '**/integrationTest/**/*Test.class'
+    } 
+  }
+  exclude '**/Abstract*Test.class'
+}
+
 
 libs() {
   SimpleDateFormat simpleDateFormat = new SimpleDateFormat("EEE, d MMM yyyy HH:mm:ss.SSS z");
