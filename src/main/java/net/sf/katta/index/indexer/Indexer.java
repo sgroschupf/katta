@@ -17,9 +17,12 @@ package net.sf.katta.index.indexer;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.util.Iterator;
 
 import net.sf.katta.util.IndexConfiguration;
+import net.sf.katta.util.ReportStatusThread;
 
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.io.BytesWritable;
@@ -119,7 +122,9 @@ public class Indexer implements Reducer<WritableComparable, Writable, WritableCo
       _inputBuffer.reset(bytes, bytes.length);
       _inputKey.readFields(_inputBuffer);
       _inputValue.readFields(_inputBuffer);
-
+      if (counter == 0) {
+        checkClassCompatibitiy(_inputKey.getClass(), _inputValue.getClass(), _factory.getClass());
+      }
       final Document document = _factory.convert(_inputKey, _inputValue);
       if (document != null) {
         indexWriter.addDocument(document);
@@ -139,22 +144,22 @@ public class Indexer implements Reducer<WritableComparable, Writable, WritableCo
     LOG.info(counter + " documents are added to index.");
 
     // optimize
-    Thread thread = createStatusThread(reporter, "Optimize Index...");
+    Thread reportThread = ReportStatusThread.startStatusThread(reporter, "Optimize Index...", 5000);
     indexWriter.optimize();
     indexWriter.close();
-    thread.interrupt();
+    reportThread.interrupt();
 
     // zip
-    thread = createStatusThread(reporter, "Zip Index...");
+    reportThread = ReportStatusThread.startStatusThread(reporter, "Zip Index...", 5000);
     final boolean success = _zipService.zipFolder(indexDirectory, new File(indexDirectory + ".zip"));
-    thread.interrupt();
+    reportThread.interrupt();
 
     if (success) {
       // upload
-      thread = createStatusThread(reporter, "Publish Index...");
+      reportThread = ReportStatusThread.startStatusThread(reporter, "Publish Index...", 5000);
       _indexPublisher.publish(indexDirectory.getAbsolutePath() + ".zip");
       FileUtil.fullyDelete(new File(indexDirectory + ".zip"));
-      thread.interrupt();
+      reportThread.interrupt();
     }
     FileUtil.fullyDelete(indexDirectory.getParentFile());
 
@@ -162,27 +167,38 @@ public class Indexer implements Reducer<WritableComparable, Writable, WritableCo
     reporter.setStatus("Indexing done. " + counter + " Documents added to index.");
   }
 
-  public void close() throws IOException {
-    // nothing to do
-  }
-
-  private Thread createStatusThread(final Reporter reporter, final String status) {
-    final Thread thread = new Thread() {
-      @Override
-      public void run() {
-        try {
-          while (true) {
-            reporter.setStatus(status);
-            sleep(1000);
+  private void checkClassCompatibitiy(Class<? extends WritableComparable> keyClass,
+      Class<? extends Writable> valueClass, Class<? extends IDocumentFactory> documentFactoryClass) {
+    Type[] genericInterfaces = documentFactoryClass.getGenericInterfaces();
+    for (Type type : genericInterfaces) {
+      if (type instanceof ParameterizedType) {
+        ParameterizedType parameterizedType = (ParameterizedType) type;
+        if (parameterizedType.getRawType() == IDocumentFactory.class) {
+          Type[] typeArguments = parameterizedType.getActualTypeArguments();
+          Class<? extends Type> factoryKeyClass = getClass(typeArguments[0]);
+          Class<? extends Type> factoryValueClass = getClass(typeArguments[1]);
+          if (!factoryKeyClass.isAssignableFrom(keyClass)) {
+            throw new IllegalStateException("key class " + keyClass.getName()
+                + " is not assignable to the key-class of the document-factory: " + factoryKeyClass.getName());
           }
-        } catch (final InterruptedException e) {
-          LOG.debug("status thread is stopped: " + status);
+          if (!factoryValueClass.isAssignableFrom(valueClass)) {
+            throw new IllegalStateException("value class " + keyClass.getName()
+                + " is not assignable to the value-class of the document-factory: " + factoryValueClass.getName());
+          }
         }
       }
-    };
-    thread.setDaemon(true);
-    thread.start();
-    return thread;
+    }
+  }
+
+  private static Class<? extends Type> getClass(Type type) {
+    if (type instanceof ParameterizedType) {
+      return (Class<? extends Type>) ((ParameterizedType) type).getRawType();
+    }
+    return (Class<? extends Type>) type;
+  }
+
+  public void close() throws IOException {
+    // nothing to do
   }
 
   private IZipService getZipper(final JobConf jobConf) {
