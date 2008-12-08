@@ -132,7 +132,8 @@ public class IndexMergeApplication {
       // TODO jz: appending / indexes is suboptimal
       IndexState indexState = deployFuture.joinDeployment();
       if (indexState == IndexState.ERROR) {
-        throw new IllegalStateException("could not deploy merged index '" + mergedIndex.getName() + "'");
+        throw new IllegalStateException("could not deploy merged index '" + mergedIndex.getName() + "': "
+            + deployClient.getIndexMetaData(mergedIndex.getName()).getErrorMessage());
       }
 
       // now undeploy the old indices
@@ -188,8 +189,10 @@ public class IndexMergeApplication {
   }
 
   public static void main(String[] args) throws Exception {
+    JobConf jobConf = new JobConf();
+    jobConf.set(IHadoopConstants.IO_SORT_MB, "20");
     ZKClient zkcClient = new ZKClient(new ZkConfiguration());
     zkcClient.start(3000);
-    new IndexMergeApplication(zkcClient).mergeDeployedIndices();
+    new IndexMergeApplication(zkcClient, jobConf).mergeDeployedIndices();
   }
 }
