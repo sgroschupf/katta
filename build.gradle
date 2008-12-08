@@ -193,7 +193,7 @@ dists {
   zip().doFirst() { Task zipTask ->
     zipTask.configure {
       String zipRoot = "$archivesBaseName-$version"
-      zipFileSet(dir: file('bin'), prefix: "$zipRoot/bin")
+      zipFileSet(dir: file('bin'), prefix: "$zipRoot/bin" , fileMode: '775')
       zipFileSet(dir: file('conf'), prefix: "$zipRoot/conf")
       zipFileSet(dir: runtimeLibsDir, prefix: "$zipRoot/lib")
       zipFileSet(dir: docsDir, prefix: "$zipRoot/docs")
@@ -211,7 +211,7 @@ dists {
   tarGz().doFirst() { Task tarTask ->
     tarTask.configure {
       String tarRoot = "$archivesBaseName-$version"
-      tarFileSet(dir: file('bin'), prefix: "$tarRoot/bin")
+      tarFileSet(dir: file('bin'), prefix: "$tarRoot/bin", fileMode: '775')
       tarFileSet(dir: file('conf'), prefix: "$tarRoot/conf")
       tarFileSet(dir: runtimeLibsDir, prefix: "$tarRoot/lib")
       tarFileSet(dir: docsDir, prefix: "$tarRoot/docs")
