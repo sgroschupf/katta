@@ -171,14 +171,16 @@ libs() {
     'SVN-URL': svnUrl +" -r "+revision
     ])
  
-  //create a hadoop job jar
-  jar(baseName: "archive_job") {
+  //create a hadoop job jar (for index merging)
+  jar(baseName: "katta") {
       extension = "job"
-      mergeGroup(runtimeLibsDir)
-      merge(archive_jar.archivePath)
+      mergeGroup(runtimeLibsDir) {
+    	  include('katta-*.jar')
+    	  include('lucene-*.jar')
+      }
       publish = false
   }
-  archive_job_jar.dependsOn('archive_jar', 'collectRuntimeLibs')
+  katta_jar.dependsOn('archive_jar', 'collectRuntimeLibs')
 }
 
 archive_jar.doFirst() {
@@ -198,6 +200,7 @@ dists {
       zipFileSet(dir: srcRoot, prefix: "$zipRoot/src")
       zipFileSet(dir: projectDir, prefix: "$zipRoot") {
         include('*.txt')
+        exclude('todo.txt')
       }
       zipFileSet(dir: buildDir, prefix: "$zipRoot") {
         include('katta-*.job')
@@ -215,6 +218,7 @@ dists {
       tarFileSet(dir: srcRoot, prefix: "$tarRoot/src")
       tarFileSet(dir: projectDir, prefix: "$tarRoot") {
         include('*.txt')
+        exclude('todo.txt')
       }
       tarFileSet(dir: buildDir, prefix: "$tarRoot") {
         include('katta-*.job')
