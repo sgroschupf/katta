@@ -26,9 +26,9 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.MD5Hash;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapred.FileOutputFormat;
 import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.mapred.JobConf;
-import org.apache.lucene.document.Document;
 import org.jmock.Expectations;
 import org.jmock.Mockery;
 
@@ -39,24 +39,23 @@ public class DfsIndexRecordReaderTest extends ExtendedTestCase {
   public void testNext() throws IOException, URISyntaxException {
     JobConf jobConf = new JobConf();
     Path out = new Path(_file.getAbsolutePath());
-    jobConf.setOutputPath(out);
+    FileOutputFormat.setOutputPath(jobConf, out);
 
     Mockery mockery = new Mockery();
     Path path = new Path("src/test/testIndexB/aIndex.zip");
     FileSystem fileSystem = FileSystem.get(jobConf);
     long len = fileSystem.getFileStatus(path).getLen();
-    FileSplit fileSplit = new FileSplit(path, 0, len, jobConf);
+    FileSplit fileSplit = new FileSplit(path, 0, len, (String[]) null);
     final IDocumentDuplicateInformation duplicateInformation = mockery.mock(IDocumentDuplicateInformation.class);
 
     DfsIndexRecordReader reader = new DfsIndexRecordReader(jobConf, fileSplit, duplicateInformation);
 
     mockery.checking(new Expectations() {
       {
-        one(duplicateInformation).getSupportedFieldNames();
-        one(duplicateInformation).getKey(with(any(Document.class)));
+        atLeast(1).of(duplicateInformation).getKeyField();
         will(returnValue("foo"));
-        one(duplicateInformation).getSortValue(with(any(Document.class)));
-        will(returnValue("1"));
+        atLeast(1).of(duplicateInformation).getSortField();
+        will(returnValue("foo"));
       }
     });
 
@@ -64,12 +63,11 @@ public class DfsIndexRecordReaderTest extends ExtendedTestCase {
     DocumentInformation information = reader.createValue();
     reader.next(text, information);
 
-    assertEquals("foo", text.toString());
+    assertEquals("bar", text.toString());
+    assertEquals("bar", information.getSortValue().toString());
     assertEquals(0, information.getDocId().get());
-    assertEquals(new File(out.getParent().getParent().toString(), ".indexes/" + path.getName() + "-"
-        + MD5Hash.digest(path.toString()) + "-uncompress").getAbsolutePath(), new File(new URI(information
-        .getIndexPath().toString())).getAbsolutePath());
-    assertEquals("1", information.getSortValue().toString());
+    assertEquals(new File(out.toString(), ".indexes/" + path.getName() + "-" + MD5Hash.digest(path.toString())
+        + "-uncompress").getAbsolutePath(), new File(new URI(information.getIndexPath().toString())).getAbsolutePath());
 
     mockery.assertIsSatisfied();
   }

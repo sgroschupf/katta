@@ -28,11 +28,11 @@ import org.apache.hadoop.io.SequenceFile.Writer;
 
 public class HadoopTestUtil {
 
-  public static void writeSequenceFile(Configuration conf, Path filePath, WritableComparable... keys)
+  public static void writeSequenceFile(Configuration conf, Path filePath, WritableComparable<?>... keys)
       throws IOException {
     FileSystem fs = FileSystem.get(conf);
     Writer writer = SequenceFile.createWriter(fs, conf, filePath, keys[0].getClass(), NullWritable.class);
-    for (WritableComparable keyWritable : keys) {
+    for (WritableComparable<?> keyWritable : keys) {
       writer.append(keyWritable, NullWritable.get());
     }
     writer.close();
@@ -67,15 +67,15 @@ public class HadoopTestUtil {
 
   public static class TestDocumentRecord {
 
-    private final WritableComparable _key;
+    private final WritableComparable<?> _key;
     private final MapWritable _fieldMap;
 
-    public TestDocumentRecord(WritableComparable key, MapWritable fieldMap) {
+    public TestDocumentRecord(WritableComparable<?> key, MapWritable fieldMap) {
       _key = key;
       _fieldMap = fieldMap;
     }
 
-    public WritableComparable getKey() {
+    public WritableComparable<?> getKey() {
       return _key;
     }
 

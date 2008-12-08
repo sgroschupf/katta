@@ -17,7 +17,10 @@ package net.sf.katta.index.indexer.merge;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+
+import net.sf.katta.util.ReportStatusThread;
 
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -49,28 +52,35 @@ public class DfsIndexInputFormat extends FileInputFormat<Text, DocumentInformati
     } catch (Exception e) {
       throw new RuntimeException("could not instantiate " + IDocumentDuplicateInformation.class.getName(), e);
     }
+    duplicateInformation.setConf(jobConf);
+    ReportStatusThread reportThread = ReportStatusThread.startStatusThread(reporter,
+        "initializing dfs index record reader...", 5000);
+    DfsIndexRecordReader dfsIndexRecordReader = new DfsIndexRecordReader(jobConf, inputSplit, duplicateInformation);
+    reportThread.interrupt();
     reporter.setStatus(((FileSplit) inputSplit).getPath().toString());
-    return new DfsIndexRecordReader(jobConf, inputSplit, duplicateInformation);
+    return dfsIndexRecordReader;
   }
 
   public InputSplit[] getSplits(JobConf jobConf, int numSplits) throws IOException {
-    FileSystem fileSystem = FileSystem.get(jobConf);
-    Path[] indices = getZipIndices(jobConf, fileSystem);
+    Path[] indices = getZipIndices(jobConf);
     InputSplit[] splits = new InputSplit[indices.length];
     for (int i = 0; i < splits.length; i++) {
-      splits[i] = new FileSplit(indices[i], 0, Integer.MAX_VALUE, jobConf);
+      splits[i] = new FileSplit(indices[i], 0, Integer.MAX_VALUE, (String[]) null);
     }
     return splits;
   }
 
-  private Path[] getZipIndices(JobConf jobConf, FileSystem fileSystem) throws IOException {
-    Path[] inputPaths = jobConf.getInputPaths();
-    List<Path> list = new ArrayList<Path>();
-    for (int i = 0; i < inputPaths.length; i++) {
-      Path inputPath = inputPaths[i];
-      getChilds(fileSystem, list, inputPath);
+  private Path[] getZipIndices(JobConf jobConf) throws IOException {
+    Path[] inputPaths = getInputPaths(jobConf);
+    List<Path> zippedShards = new ArrayList<Path>();
+    for (Path inputPath : inputPaths) {
+      FileSystem fileSystem = FileSystem.get(inputPath.toUri(), jobConf);
+      getChilds(fileSystem, zippedShards, inputPath);
     }
-    return list.toArray(new Path[list.size()]);
+    if (zippedShards.isEmpty()) {
+      throw new IllegalStateException("could not find any zipped shard in: " + Arrays.asList(inputPaths));
+    }
+    return zippedShards.toArray(new Path[zippedShards.size()]);
   }
 
   private void getChilds(final FileSystem fileSystem, List<Path> list, Path inputPath) throws IOException {

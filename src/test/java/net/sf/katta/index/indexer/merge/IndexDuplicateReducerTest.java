@@ -15,11 +15,14 @@
  */
 package net.sf.katta.index.indexer.merge;
 
+import static org.hamcrest.Matchers.hasProperty;
+
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;
 
 import junit.framework.TestCase;
+import net.sf.katta.index.indexer.merge.IndexDuplicateReducer.DuplicateCounter;
 
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.OutputCollector;
@@ -40,6 +43,7 @@ public class IndexDuplicateReducerTest extends TestCase {
     for (int i = 0; i < 10; i++) {
       DocumentInformation information = new DocumentInformation();
       information.setDocId(i);
+      information.setSortValue("1");
       if (i == 5) {
         information = collectedInformation;
       }
@@ -48,11 +52,14 @@ public class IndexDuplicateReducerTest extends TestCase {
 
     Mockery mockery = new Mockery();
     final OutputCollector outputCollector = mockery.mock(OutputCollector.class);
-    Reporter reporter = mockery.mock(Reporter.class);
+    final Reporter reporter = mockery.mock(Reporter.class);
 
     mockery.checking(new Expectations() {
       {
-        one(outputCollector).collect(key, collectedInformation);
+        one(outputCollector).collect(with(equal(key)),
+            with(hasProperty("sortValue", equal(collectedInformation.getSortValue()))));
+        one(reporter).incrCounter(DuplicateCounter.DUPLICATE_DOCUMENTS, 1);
+        one(reporter).incrCounter(DuplicateCounter.REMOVED_DOCUMENTS, 9);
       }
     });
 

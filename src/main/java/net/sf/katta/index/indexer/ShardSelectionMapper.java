@@ -30,7 +30,7 @@ import org.apache.hadoop.mapred.OutputCollector;
 import org.apache.hadoop.mapred.Reporter;
 import org.apache.log4j.Logger;
 
-public class ShardSelectionMapper implements Mapper {
+public class ShardSelectionMapper implements Mapper<WritableComparable, Writable, OutputCollector, Reporter> {
 
   private final static Logger LOG = Logger.getLogger(ShardSelectionMapper.class);
 

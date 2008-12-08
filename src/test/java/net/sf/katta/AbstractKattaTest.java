@@ -31,8 +31,6 @@ import net.sf.katta.zk.ZkPathes;
 import net.sf.katta.zk.ZkServer;
 import net.sf.katta.zk.ZKClient.ZkLock;
 
-import org.apache.hadoop.ipc.RPC;
-
 import com.yahoo.zookeeper.ZooKeeper;
 import com.yahoo.zookeeper.ZooKeeper.States;
 
@@ -68,7 +66,6 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
     onAfterClass();
     stopZkServer();
     cleanZookeeperData(_conf);
-    RPC.stopClient();
   }
 
   @Override

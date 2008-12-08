@@ -21,7 +21,6 @@ import net.sf.katta.index.indexer.Indexer;
 import net.sf.katta.index.indexer.ShardSelectionMapper;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.InputFormat;
@@ -66,10 +65,6 @@ public class IndexConfiguration extends KattaConfiguration {
    */
   public static final String INDEX_TMP_DIRECTORY = "index.tmp.directory";
 
-  public static final String MAPRED_INPUT_PATH = "mapred.input.path";
-
-  public static final String MAPRED_OUTPUT_PATH = "mapred.output.path";
-
   public static final String INDEX_UPLOAD_PATH = "index.upload.path";
 
   public static final String INDEX_ARCHIVE_PATH = "index.archive.path";
@@ -89,11 +84,7 @@ public class IndexConfiguration extends KattaConfiguration {
     final Set<Object> keySet = _properties.keySet();
     for (final Object key : keySet) {
       final String value = getProperty((String) key);
-      if (key.equals(MAPRED_INPUT_PATH)) {
-        jobConf.setInputPath(new Path(value));
-      } else if (key.equals(MAPRED_OUTPUT_PATH)) {
-        jobConf.setOutputPath(new Path(value));
-      } else if (key.equals(INPUT_FORMAT_CLASS)) {
+      if (key.equals(INPUT_FORMAT_CLASS)) {
         jobConf.setInputFormat((Class<? extends InputFormat>) getClass(key.toString()));
       } else {
         jobConf.set(key.toString(), value);

@@ -16,12 +16,10 @@
 package net.sf.katta.client;
 
 import java.io.IOException;
-import java.net.ConnectException;
 import java.net.InetSocketAddress;
-import java.net.SocketTimeoutException;
-import java.nio.channels.ClosedChannelException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -240,6 +238,10 @@ public class Client implements IClient {
   public void close() {
     if (_zkClient != null) {
       _zkClient.close();
+      Collection<ISearch> proxies = _node2SearchProxyMap.values();
+      for (ISearch search : proxies) {
+        RPC.stopProxy(search);
+      }
     }
   }
 
@@ -484,6 +486,9 @@ public class Client implements IClient {
         _triedNodes.add(node);
         ISearch searcher = _node2SearchProxyMap.get(node);
         try {
+          if (searcher == null) {
+            throw new IOException("node proxy for node " + node + " is not available any more");
+          }
           long startTime = 0;
           if (LOG.isDebugEnabled()) {
             startTime = System.currentTimeMillis();
@@ -494,22 +499,19 @@ public class Client implements IClient {
                 + (System.currentTimeMillis() - startTime) + " ms.");
           }
         } catch (IOException e) {
-          if (e instanceof SocketTimeoutException || e instanceof ConnectException
-              || e instanceof ClosedChannelException) {
-            if (_tries == 3) {
-              throw new KattaException(getClass().getSimpleName() + " for shards " + shards + " failed. Tried nodes: "
-                  + _triedNodes);
-            }
-            LOG.warn("failed to interact with node " + node + ". Try with other node(s).");
-            Map<String, List<String>> node2ShardsMapForFailedNode = prepareRetry(node, shards);
+          if (_tries == 3) {
+            throw new KattaException(getClass().getSimpleName() + " for shards " + shards + " failed. Tried nodes: "
+                + _triedNodes);
+          }
+          LOG.warn(
+              "failed to interact with node " + node + ". Try with other node(s) " + node2ShardsMap.keySet() + ".", e);
+          Map<String, List<String>> node2ShardsMapForFailedNode = prepareRetry(node, shards);
 
-            // execute the action again for every node
-            for (String newNode : node2ShardsMapForFailedNode.keySet()) {
-              // TODO jz: if more then one node we should spawn new threads
-              interact(newNode, node2ShardsMapForFailedNode);
-            }
-          } else {
-            throw e;
+          // execute the action again for every node
+          for (String newNode : node2ShardsMapForFailedNode.keySet()) {
+            // TODO jz: if more then one node we should spawn new
+            // threads
+            interact(newNode, node2ShardsMapForFailedNode);
           }
         }
       } catch (Exception e) {

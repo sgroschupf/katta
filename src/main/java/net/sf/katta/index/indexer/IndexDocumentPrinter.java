@@ -15,7 +15,8 @@
  */
 package net.sf.katta.index.indexer;
 
-import net.sf.katta.index.indexer.merge.DfsIndexDirectory;
+import net.sf.katta.index.indexer.merge.DfsDirectory;
+import net.sf.katta.util.FileUtil;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -59,7 +60,8 @@ public class IndexDocumentPrinter {
     FileSystem fileSystem = FileSystem.get(jobConf);
     fileSystem.mkdirs(workingPath);
 
-    DfsIndexDirectory directory = new DfsIndexDirectory(fileSystem, zipFile, workingPath);
+    FileUtil.unzipInDfs(fileSystem, zipFile, workingPath);
+    DfsDirectory directory = new DfsDirectory(fileSystem, workingPath, 4096);
     IndexReader reader = IndexReader.open(directory);
     int maxDoc = reader.maxDoc();
     MapFieldSelector selector = new MapFieldSelector(new String[] { indexField });
@@ -71,10 +73,10 @@ public class IndexDocumentPrinter {
     }
 
     System.out.println("delete workingPath " + workingPath);
-    fileSystem.delete(workingPath);
+    fileSystem.delete(workingPath, true);
     System.out.println("");
     System.out.println("");
 
-    System.out.println("Max. documents in shard: " + maxDoc);
+    System.out.println("Documents in shard: " + maxDoc);
   }
 }

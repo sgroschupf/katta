@@ -22,6 +22,8 @@ import java.util.ArrayList;
 import net.sf.katta.testutil.ExtendedTestCase;
 
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.mapred.FileInputFormat;
+import org.apache.hadoop.mapred.FileOutputFormat;
 import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.JobConf;
@@ -37,7 +39,7 @@ public class DfsIndexInputFormatTest extends ExtendedTestCase {
   public void testInputFormat() throws IOException {
     DfsIndexInputFormat indexInputFormat = new DfsIndexInputFormat();
     JobConf jobConf = new JobConf();
-    jobConf.setInputPath(new Path("src/test"));
+    FileInputFormat.setInputPaths(jobConf, new Path("src/test"));
     InputSplit[] splits = indexInputFormat.getSplits(jobConf, 0);
     assertEquals(4, splits.length);
     ArrayList<String> strings = new ArrayList<String>();
@@ -55,9 +57,12 @@ public class DfsIndexInputFormatTest extends ExtendedTestCase {
   public void testGetRecordReader() throws IOException {
     DfsIndexInputFormat indexInputFormat = new DfsIndexInputFormat();
     JobConf jobConf = new JobConf();
-    jobConf.set(DfsIndexInputFormat.DOCUMENT_INFORMATION, DummyDocumentDuplicateInformation.class.getName());
-    jobConf.setInputPath(new Path("src/test"));
-    jobConf.setOutputPath(new Path(_file.getAbsolutePath()));
+    jobConf.set(DfsIndexInputFormat.DOCUMENT_INFORMATION, ConfigurableDocumentDuplicateInformation.class.getName());
+    jobConf.set(ConfigurableDocumentDuplicateInformation.CONF_KEY_KEY_FIELD, "foo");
+    jobConf.set(ConfigurableDocumentDuplicateInformation.CONF_KEY_SORT_FIELD, "foo");
+
+    FileInputFormat.setInputPaths(jobConf, new Path("src/test"));
+    FileOutputFormat.setOutputPath(jobConf, new Path(_file.getAbsolutePath()));
 
     InputSplit[] splits = indexInputFormat.getSplits(jobConf, 0);
     Mockery mockery = new Mockery();
@@ -65,7 +70,7 @@ public class DfsIndexInputFormatTest extends ExtendedTestCase {
 
     mockery.checking(new Expectations() {
       {
-        one(reporter).setStatus(with(any(String.class)));
+        atLeast(1).of(reporter).setStatus(with(any(String.class)));
       }
     });
 
@@ -76,5 +81,4 @@ public class DfsIndexInputFormatTest extends ExtendedTestCase {
     mockery.assertIsSatisfied();
 
   }
-
 }

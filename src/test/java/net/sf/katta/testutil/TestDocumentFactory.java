@@ -31,13 +31,13 @@ import org.apache.lucene.document.Field;
 import org.apache.lucene.document.Field.Index;
 import org.apache.lucene.document.Field.Store;
 
-public class TestDocumentFactory implements IDocumentFactory<WritableComparable, MapWritable> {
+public class TestDocumentFactory implements IDocumentFactory<WritableComparable<?>, MapWritable> {
 
   public void configure(JobConf jobConf) throws IOException {
     //
   }
 
-  public Document convert(WritableComparable key, MapWritable mapWritable) {
+  public Document convert(WritableComparable<?> key, MapWritable mapWritable) {
     final Document document = new Document();
     final Field id = new Field("id", key.toString(), Store.YES, Index.UN_TOKENIZED);
     document.add(id);

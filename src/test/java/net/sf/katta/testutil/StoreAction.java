@@ -27,34 +27,34 @@ import org.jmock.lib.action.CustomAction;
  */
 public class StoreAction extends CustomAction {
 
-  private List<Object[]> _parameters = new ArrayList<Object[]>();
+	private List<Object[]> _parameters = new ArrayList<Object[]>();
 
-  private Action _actionToInvoke;
+	private Action _actionToInvoke;
 
-  public StoreAction() {
-    super("this action will store the parameters of all method calls");
-  }
+	public StoreAction() {
+		super("this action will store the parameters of all method calls");
+	}
 
-  public StoreAction(Action actionToInvoke) {
-    this();
-    _actionToInvoke = actionToInvoke;
-  }
+	public StoreAction(Action actionToInvoke) {
+		this();
+		_actionToInvoke = actionToInvoke;
+	}
 
-  public Object invoke(Invocation invocation) throws Throwable {
-    Object[] parametersAsArray = invocation.getParametersAsArray();
-    _parameters.add(parametersAsArray);
-    if (_actionToInvoke != null) {
-      return _actionToInvoke.invoke(invocation);
-    }
-    return null;
-  }
+	public Object invoke(Invocation invocation) throws Throwable {
+		Object[] parametersAsArray = invocation.getParametersAsArray();
+		_parameters.add(parametersAsArray);
+		if (_actionToInvoke != null) {
+			return _actionToInvoke.invoke(invocation);
+		}
+		return null;
+	}
 
-  public List<Object[]> getParameters() {
-    return _parameters;
-  }
+	public List<Object[]> getParameters() {
+		return _parameters;
+	}
 
-  public void reset() {
-    _parameters.clear();
-  }
+	public void reset() {
+		_parameters.clear();
+	}
 
 }

@@ -30,4 +30,5 @@ public interface IDocumentFactory<T1 extends WritableComparable, T2 extends Writ
   Analyzer getIndexAnalyzer();
 
   void configure(JobConf jobConf) throws IOException;
+
 }

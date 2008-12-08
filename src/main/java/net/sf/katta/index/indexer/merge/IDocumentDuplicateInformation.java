@@ -15,14 +15,11 @@
  */
 package net.sf.katta.index.indexer.merge;
 
-import org.apache.lucene.document.Document;
+import org.apache.hadoop.conf.Configurable;
 
-public interface IDocumentDuplicateInformation {
+public interface IDocumentDuplicateInformation extends Configurable {
 
-  String[] getSupportedFieldNames();
+  String getKeyField();
 
-  String getKey(Document document);
-
-  String getSortValue(Document document);
-
+  String getSortField();
 }

@@ -53,7 +53,7 @@ public class HadoopMiniCluster {
     _dfsCluster = new MiniDFSCluster(_namenodePort, conf, _datanodeCount, true, true, StartupOption.REGULAR, null);
     LOG.info("started namnode on " + conf.get(IHadoopConstants.NAMENODE));
 
-    _mrCluster = new MiniMRCluster(_jobtrackerPort, 0, _tasktrackerCount, conf.get(IHadoopConstants.NAMENODE), false, 1);
+    _mrCluster = new MiniMRCluster(_jobtrackerPort, 0, _tasktrackerCount, conf.get(IHadoopConstants.NAMENODE), 1);
     LOG.info("started jobtracker on " + _mrCluster.createJobConf().get(IHadoopConstants.JOBTRACKER));
   }
 

@@ -34,13 +34,15 @@ import org.apache.hadoop.io.BooleanWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.MapWritable;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapred.FileInputFormat;
+import org.apache.hadoop.mapred.FileOutputFormat;
 import org.apache.hadoop.mapred.JobClient;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.lucene.index.IndexReader;
 
 public class IndexingIntegrationTest extends TestCase {
 
-  private boolean GRID_MODE = true;// hadoop local or cluster mode
+  private boolean GRID_MODE = false;// hadoop local or cluster mode
 
   private int _tasktrackerCount = 4;
   int _documentCount = 23000;
@@ -79,10 +81,10 @@ public class IndexingIntegrationTest extends TestCase {
     _jobConf.setInt(IndexConfiguration.INDEX_SHARD_COUNT, _tasktrackerCount);
 
     FileSystem fileSystem = FileSystem.get(_jobConf);
-    fileSystem.delete(outputPath);
+    fileSystem.delete(outputPath, true);
     writeDocumentRecordSequenceFile(_jobConf, inputPath, _documentCount);
-    _jobConf.setInputPath(inputPath);
-    _jobConf.setOutputPath(outputPath);
+    FileInputFormat.addInputPath(_jobConf, inputPath);
+    FileOutputFormat.setOutputPath(_jobConf, outputPath);
 
     JobClient.runJob(_jobConf);
 

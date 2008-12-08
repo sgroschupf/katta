@@ -26,7 +26,6 @@ import net.sf.katta.index.indexer.Indexer.DocumentCounter;
 import net.sf.katta.util.IndexConfiguration;
 
 import org.apache.hadoop.fs.FileUtil;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.DataOutputBuffer;
 import org.apache.hadoop.io.Writable;
@@ -159,7 +158,6 @@ public class IndexerTest extends TestCase {
     jobConf.set(IndexConfiguration.INPUT_KEY_CLASS, DummyWritableComparable.class.getName());
     jobConf.set(IndexConfiguration.INPUT_VALUE_CLASS, DummyWritable.class.getName());
 
-    jobConf.setOutputPath(new Path(jobConf.get(IndexConfiguration.INDEX_TMP_DIRECTORY), "copy"));
     mapRunnable.configure(jobConf);
 
     final OutputCollector<WritableComparable, Writable> outputCollector = _mockery.mock(OutputCollector.class);
@@ -207,7 +205,6 @@ public class IndexerTest extends TestCase {
     jobConf.set(IndexConfiguration.INDEX_TMP_DIRECTORY, _folder.getAbsolutePath() + File.separator + "index");
     jobConf.set(IndexConfiguration.INDEX_PUBLISHER_CLASS, DummyDistributer2.class.getName());
     jobConf.set(IndexConfiguration.INDEX_ZIP_CLASS, DummyZipper.class.getName());
-    jobConf.setOutputPath(new Path(jobConf.get(IndexConfiguration.INDEX_TMP_DIRECTORY), "copy"));
     jobConf.set(IndexConfiguration.INPUT_KEY_CLASS, DummyWritableComparable.class.getName());
     jobConf.set(IndexConfiguration.INPUT_VALUE_CLASS, DummyWritable.class.getName());
 

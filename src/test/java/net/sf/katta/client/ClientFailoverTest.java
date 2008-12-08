@@ -24,7 +24,6 @@ import net.sf.katta.node.Query;
 import net.sf.katta.zk.ZKClient;
 import net.sf.katta.zk.ZkPathes;
 
-import org.apache.hadoop.ipc.RPC;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 
 public class ClientFailoverTest extends AbstractKattaTest {
@@ -34,11 +33,14 @@ public class ClientFailoverTest extends AbstractKattaTest {
   NodeStartThread nodeThread2;
   String index = "index1";
 
+  static int nodePort1 = 20000;
+  static int nodePort2 = 20001;
+
   @Override
   protected void onSetUp2() throws Exception {
     masterThread = startMaster();
-    nodeThread1 = startNode();
-    nodeThread2 = startNode("/tmp/kattaShards2");
+    nodeThread1 = startNode(nodePort1);
+    nodeThread2 = startNode("/tmp/kattaShards2", nodePort2);
 
     masterThread.join();
     nodeThread1.join();
@@ -52,8 +54,12 @@ public class ClientFailoverTest extends AbstractKattaTest {
 
   @Override
   protected void onTearDown() throws Exception {
-    RPC.stopClient();
     masterThread.shutdown();
+    // jz: since hadoop18 the ipc acts a little fragile when starting and
+    // stopping ipc-servers rapidly on the same port so we increment port
+    // numbers from test to test
+    nodePort1 = nodePort1 + 4;
+    nodePort2 = nodePort2 + 4;
   }
 
   public void testSearch_NodeProxyDownAfterClientInitialization() throws Exception {
@@ -161,24 +167,17 @@ public class ClientFailoverTest extends AbstractKattaTest {
     // start search client
     Client searchClient = new Client();
     final Query query = new Query("content:the");
-    Hits hits = searchClient.search(query, new String[] { index }, 10);
-    assertNotNull(hits);
-    assertEquals(10, hits.getHits().size());
-
-    hits = searchClient.search(query, new String[] { index }, 10);
-    assertNotNull(hits);
-    assertEquals(10, hits.getHits().size());
+    assertSearchResults(10, searchClient.search(query, new String[] { index }, 10));
+    assertSearchResults(10, searchClient.search(query, new String[] { index }, 10));
 
     // flip node1/node2 alive status
-    nodeThread2 = startNode("/tmp/kattaShards2");
-    nodeThread1.shutdown();
+    nodeThread2 = startNode("/tmp/kattaShards2", nodePort2);
     nodeThread2.join();
+    nodeThread1.shutdown();
+    waitOnNodes(masterThread, 1);
 
-    // // search again
-    hits = searchClient.search(query, new String[] { index }, 10);
-    assertNotNull(hits);
-    assertEquals(10, hits.getHits().size());
-
+    // search again
+    assertSearchResults(10, searchClient.search(query, new String[] { index }, 10));
     searchClient.close();
   }
 

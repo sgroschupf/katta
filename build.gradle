@@ -20,8 +20,8 @@ import java.text.SimpleDateFormat
 archivesBaseName = 'katta'
 group = 'net.sf.katta'
 
-version = "0.2-SNAPSHOT"
-hadoopVersion = "0.16.3"
+version = "0.5-SNAPSHOT"
+hadoopVersion = "0.18.1"
 
 usePlugin('java')
 usePlugin('maven')
