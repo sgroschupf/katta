@@ -486,6 +486,9 @@ public class Client implements IClient {
         _triedNodes.add(node);
         ISearch searcher = _node2SearchProxyMap.get(node);
         try {
+          if (searcher == null) {
+            throw new IOException("node proxy for node " + node + " is not available any more");
+          }
           long startTime = 0;
           if (LOG.isDebugEnabled()) {
             startTime = System.currentTimeMillis();
@@ -506,7 +509,8 @@ public class Client implements IClient {
 
           // execute the action again for every node
           for (String newNode : node2ShardsMapForFailedNode.keySet()) {
-            // TODO jz: if more then one node we should spawn new threads
+            // TODO jz: if more then one node we should spawn new
+            // threads
             interact(newNode, node2ShardsMapForFailedNode);
           }
         }
