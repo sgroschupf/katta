@@ -25,6 +25,8 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.Counters;
+import org.apache.hadoop.mapred.FileInputFormat;
+import org.apache.hadoop.mapred.FileOutputFormat;
 import org.apache.hadoop.mapred.JobClient;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.RunningJob;
@@ -49,10 +51,10 @@ public class IndexToSequenceFileJob implements Configurable {
     // input and output path
     for (Path indexPath : indexPathes) {
       LOG.info("add index: " + indexPath);
-      jobConf.addInputPath(indexPath);
+      FileInputFormat.addInputPath(jobConf, indexPath);
     }
     LOG.info("write sequence file to: " + outputPath);
-    jobConf.setOutputPath(outputPath);
+    FileOutputFormat.setOutputPath(jobConf, outputPath);
 
     // set input and output key/value class
     jobConf.setOutputKeyClass(Text.class);
