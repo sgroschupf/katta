@@ -398,8 +398,8 @@ public class DistributeShardsThread extends Thread {
       if (_zkClient.exists(shard2ErrorRootPath)) {
         final List<String> nodesWithFailedShard = _zkClient.getChildren(shard2ErrorRootPath);
         for (final String node : nodesWithFailedShard) {
-          _zkClient.delete(ZkPathes.getNode2ShardPath(node, shard));
           _zkClient.delete(ZkPathes.getShard2ErrorPath(shard, node));
+          _zkClient.deleteIfExists(ZkPathes.getNode2ShardPath(node, shard));
         }
       }
     }
