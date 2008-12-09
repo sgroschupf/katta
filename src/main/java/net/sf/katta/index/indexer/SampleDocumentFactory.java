@@ -41,7 +41,7 @@ public class SampleDocumentFactory implements IDocumentFactory<WritableComparabl
   }
 
   public void configure(final JobConf jobConf) throws IOException {
-
+    // nothing todo
   }
 
 }

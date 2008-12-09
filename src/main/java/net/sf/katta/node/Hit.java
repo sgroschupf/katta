@@ -53,6 +53,7 @@ public class Hit implements Writable, Comparable<Hit> {
   }
 
   public Hit() {
+    // needed for serialization
   }
 
   // public Hit(Text shardName, Text serverName, float score, int docId) {

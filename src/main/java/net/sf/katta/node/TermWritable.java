@@ -28,7 +28,7 @@ public class TermWritable implements Writable {
   private String _field;
 
   public TermWritable() {
-    ;
+    // needed for serialization
   }
 
   public TermWritable(final String field, final String text) {

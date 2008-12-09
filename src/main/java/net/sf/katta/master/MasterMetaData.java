@@ -29,7 +29,7 @@ public class MasterMetaData implements Writable {
   private long _startTime;
 
   public MasterMetaData() {
-    ;
+    // needed for serialization
   }
 
   public MasterMetaData(final String masterName, final long startTime) {
