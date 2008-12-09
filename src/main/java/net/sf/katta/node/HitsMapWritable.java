@@ -105,7 +105,7 @@ public class HitsMapWritable implements Writable {
   }
 
   public String getServerName() {
-    return _serverName.toString();
+    return _serverName;
   }
 
   public Hits getHits() {

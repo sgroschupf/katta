@@ -45,7 +45,7 @@ import org.jmock.Mockery;
 
 public class IndexerTest extends TestCase {
 
-  protected static File _folder = new File(System.getProperty("java.io.tmpdir") + File.separator
+  protected final static File _folder = new File(System.getProperty("java.io.tmpdir") + File.separator
       + IndexerTest.class.getName());
   private final Mockery _mockery = new Mockery();
 

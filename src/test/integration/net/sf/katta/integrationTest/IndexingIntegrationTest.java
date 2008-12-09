@@ -112,7 +112,7 @@ public class IndexingIntegrationTest extends TestCase {
         LongWritable key = new LongWritable(i);
         MapWritable mapWritable = new MapWritable();
         mapWritable.put(new Text("field1"), new Text("value " + i));
-        mapWritable.put(new Text("field2"), new BooleanWritable((i % 2) == 1));
+        mapWritable.put(new Text("field2"), new BooleanWritable((i & 1) == 1));
         return new TestDocumentRecord(key, mapWritable);
       }
     };

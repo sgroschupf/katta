@@ -334,7 +334,7 @@ public class Client implements IClient {
   }
 
   public MapWritable getDetails(final Hit hit, final String[] fields) throws KattaException {
-    Map<String, List<String>> node2ShardMap = new HashMap<String, List<String>>(1);
+    Map<String, List<String>> node2ShardMap;
     String node = hit.getNode();
     List<String> shards = Arrays.asList(hit.getShard());
     if (_node2SearchProxyMap.containsKey(node)) {
@@ -446,7 +446,7 @@ public class Client implements IClient {
 
     @Override
     protected void doInteraction(ISearch search, String node, List<String> shards) throws IOException {
-      Hits hits = new Hits();
+      Hits hits;
       final String[] shardsArray = shards.toArray(new String[shards.size()]);
       final HitsMapWritable shardToHits = search.search(_query, _docFreqs, shardsArray, _count);
       hits = shardToHits.getHits();

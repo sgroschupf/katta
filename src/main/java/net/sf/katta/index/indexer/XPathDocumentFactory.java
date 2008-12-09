@@ -16,7 +16,6 @@
 package net.sf.katta.index.indexer;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -26,6 +25,7 @@ import java.util.Properties;
 import java.util.Set;
 
 import net.sf.katta.util.NumberPaddingUtil;
+import net.sf.katta.util.PropertyUtil;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -96,11 +96,9 @@ public class XPathDocumentFactory implements IDocumentFactory<Text, Text> {
       final String tmp = System.getProperty("java.io.tmpdir");
       final Path tmpFile = new Path(tmp, XPathDocumentFactory.class.getName());
       fileSystem.copyToLocalFile(xpathInputFile, tmpFile);
-      final File file = new File(tmpFile.toString());
-      _properties = new Properties();
-      _properties.load(new FileInputStream(file));
+      _properties = PropertyUtil.loadProperties(new File(tmpFile.toString()));
     } else {
-      _properties.load(XPathDocumentFactory.class.getResourceAsStream("/xpath.properties"));
+      _properties = PropertyUtil.loadProperties("/xpath.properties");
     }
   }
 

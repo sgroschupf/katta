@@ -47,7 +47,7 @@ public class AssignedShard implements Writable {
   }
 
   public String getShardName() {
-    return _indexName.toString() + "_" + getLastNodeName();
+    return _indexName + "_" + getLastNodeName();
   }
 
   private String getLastNodeName() {

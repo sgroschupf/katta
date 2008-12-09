@@ -19,7 +19,8 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 
 public class DefaultDateFormat {
-  public static SimpleDateFormat FORMAT = new SimpleDateFormat("EEE, d MMM yyyy HH:mm:ss Z");
+
+  public final static SimpleDateFormat FORMAT = new SimpleDateFormat("EEE, d MMM yyyy HH:mm:ss Z");
 
   public static String longToDateString(final long timeStamp) {
     return FORMAT.format(new Date(timeStamp));

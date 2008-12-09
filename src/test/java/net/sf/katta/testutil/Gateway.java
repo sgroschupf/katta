@@ -28,7 +28,7 @@ import org.apache.log4j.Logger;
 
 public class Gateway extends Thread {
 
-  protected static Logger LOG = Logger.getLogger(Gateway.class);
+  protected final static Logger LOG = Logger.getLogger(Gateway.class);
 
   private final int _port;
   private final int _destinationPort;

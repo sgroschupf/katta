@@ -49,7 +49,8 @@ public class PropertyUtil {
   public static Properties loadProperties(final File file) {
     final Properties properties = new Properties();
     try {
-      properties.load(new FileInputStream(file));
+      FileInputStream inStream = new FileInputStream(file);
+      properties.load(inStream);
       return properties;
     } catch (final IOException e) {
       throw new RuntimeException("unable to load kata.properties", e);

@@ -92,7 +92,10 @@ public class Query implements IQuery {
 
   @Override
   public boolean equals(final Object obj) {
-    return _query.equals(obj);
+    if (obj instanceof Query) {
+      return _query.equals(((Query) obj).getQuery());
+    }
+    return false;
   }
 
 }
