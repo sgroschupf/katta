@@ -32,6 +32,7 @@ if [ $# = 0 ]; then
   echo "  screen <group|instance id>           start or attach 'screen' on the master node of the Katta EC2 cluster"
   echo "  proxy  <group|instance id>           start a socks proxy on localhost:6666 (use w/foxyproxy)"
   echo "  push   <group> <file>                scp a file to the master node of the Katta EC2 cluster"
+  echo "  mount  <instance id> <path> <group>  shares the path of the instance with all instances in the given group with nfs"
   echo "  <shell cmd> <group|instance id>      execute any command remotely on the master"
   echo "  create-image                         create a Katta AMI"
   exit 1
@@ -55,6 +56,8 @@ elif [ "$COMMAND" = "terminate-cluster" ] ; then
   . "$bin"/terminate-katta-cluster $*
 elif [ "$COMMAND" = "list" ] ; then
   . "$bin"/list-katta-clusters
+elif [ "$COMMAND" = "mount" ] ; then
+  . "$bin"/create-nfs-share $* 
 else
   . "$bin"/cmd-katta-cluster "$COMMAND" $*
 fi

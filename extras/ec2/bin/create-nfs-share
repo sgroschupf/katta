@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# starts a nfs on a server and mounts it on all others.
+
+if [ -z $1 ]; then
+  echo "instance id for nfs server required!"
+  exit -1
+fi
+if [ -z $2 ]; then
+  echo "Must specify the the path to mount."
+  exit -1
+fi
+if [ -z $3 ]; then
+  echo "Cluster name required!"
+  exit -1
+fi
+
+
+NFS_INSTANCE=$1
+MNT_PATH=$2
+CLUSTER=$3
+
+# Import variables
+bin=`dirname "$0"`
+bin=`cd "$bin"; pwd`
+. "$bin"/katta-ec2-env.sh
+ 
+# get nfs host
+ HOST=`ec2-describe-instances $NFS_INSTANCE | grep running | awk '{print $4}'`
+ echo "NFS Server is: $HOST"
+ 
+# get all other servers of given cluster
+KATTA_INSTANCES=`ec2-describe-instances | awk '"RESERVATION" == $1 && ("'$CLUSTER'" == $4 || "'$CLUSTER_MASTER'" == $4), "RESERVATION" == $1 && ("'$CLUSTER'" != $4 && "'$CLUSTER_MASTER'" != $4)'`
+KATTA_INSTANCES=`echo "$KATTA_INSTANCES" | grep INSTANCE | grep running | awk '{print $4}'`
+echo "instances"
+#echo $KATTA_INSTANCES
+for NODE  in $KATTA_INSTANCES
+ do
+	 if [ "$HOST" != "$NODE" ] ; then
+	  MNT_AUTH="$MNT_AUTH $NODE(rw,sync,no_root_squash)"
+	 fi
+ done
+ 
+# configure nfs server
+ssh $SSH_OPTS -t "root@$HOST" "mkdir -p $MNT_PATH"
+ssh $SSH_OPTS -t "root@$HOST" "echo \"$MNT_PATH $MNT_AUTH\" > /etc/exports"
+ssh $SSH_OPTS -t "root@$HOST" "/etc/rc.d/init.d/rpcbind restart"
+ssh $SSH_OPTS -t "root@$HOST" "/etc/rc.d/init.d/nfslock restart"
+ssh $SSH_OPTS -t "root@$HOST" "/etc/rc.d/init.d/nfs restart"
+ssh $SSH_OPTS -t "root@$HOST" "chkconfig nfs on"
+ssh $SSH_OPTS -t "root@$HOST" "chkconfig nfslock on"
+ssh $SSH_OPTS -t "root@$HOST" "chkconfig rpcbind on"
+
+# create mounts
+
+for NODE  in $KATTA_INSTANCES
+ do
+	 if [ "$HOST" != "$NODE" ] ; then
+		 ssh $SSH_OPTS -t "root@$NODE" "/etc/rc.d/init.d/rpcbind restart"
+		 ssh $SSH_OPTS -t "root@$NODE" "/etc/rc.d/init.d/nfslock restart"
+		 ssh $SSH_OPTS -t "root@$NODE" "/etc/rc.d/init.d/netfs restart"
+		 
+		 ssh $SSH_OPTS -t "root@$NODE" "chkconfig nfslock on"
+		 ssh $SSH_OPTS -t "root@$NODE" "chkconfig rpcbind on"
+		 ssh $SSH_OPTS -t "root@$NODE" "chkconfig netfs on"
+		
+		 ssh $SSH_OPTS -t "root@$NODE" "mkdir -p $MNT_PATH"
+		 ssh $SSH_OPTS -t "root@$NODE" "mount -t nfs $HOST:$MNT_PATH $MNT_PATH"
+	 fi
+ done
+ 
