@@ -35,7 +35,7 @@ rm -f java.bin
 
 # Install tools
 echo "Installing rpms."
-yum -y install rsync lynx screen ganglia-gmetad ganglia-gmond ganglia-web httpd php
+yum -y install rsync lynx screen ganglia-gmetad ganglia-gmond ganglia-web dejavu-fonts httpd php
 yum -y clean all
 
 # Install Katta
