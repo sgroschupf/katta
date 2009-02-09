@@ -50,6 +50,36 @@ sed -e "s|%MASTER_HOST%|$MASTER_HOST|" "$bin"/$USER_DATA_FILE > "$bin"/$USER_DAT
 
 # Start slaves
 echo "Adding $1 node(s) to cluster group $CLUSTER with AMI $AMI_IMAGE"
-ec2-run-instances $AMI_IMAGE -n "$NO_INSTANCES" -g "$CLUSTER" -k "$KEY_NAME" -f "$bin"/$USER_DATA_FILE.slave -t "$INSTANCE_TYPE" -z "$MASTER_ZONE" $KERNEL_ARG | grep INSTANCE | awk '{print $2}'
-
+INSTANCES=`ec2-run-instances $AMI_IMAGE -n "$NO_INSTANCES" -g "$CLUSTER" -k "$KEY_NAME" -f "$bin"/$USER_DATA_FILE.slave -t "$INSTANCE_TYPE" -z "$MASTER_ZONE" $KERNEL_ARG | grep INSTANCE | awk '{print $2}'`
 rm "$bin"/$USER_DATA_FILE.slave
+
+#upgrading masters nodes file
+echo "Instances are:"
+echo $INSTANCES
+
+
+## wait until all instances are up
+
+echo "Waiting until all new instances are started."
+EXPECTED_NODES=`echo $INSTANCES| wc -w`
+while true; do
+  printf "."
+  STARTED_NODES=`ec2-describe-instances $INSTANCES | grep running | awk '{print $5}' | wc -l`
+  if [ $STARTED_NODES == $EXPECTED_NODES ]; then
+   break;
+  fi
+  sleep 1
+done
+echo "" 
+
+## get host names of all nodes in the cluster to upgrade the nodes files
+echo "Updating KATTA_HOME/conf/nodes with all nodes in $CLUSTER."
+KATTA_INSTANCES=`ec2-describe-instances | awk '"RESERVATION" == $1 && ("'$CLUSTER'" == $4 || "'$CLUSTER_MASTER'" == $4), "RESERVATION" == $1 && ("'$CLUSTER'" != $4 && "'$CLUSTER_MASTER'" != $4)'`
+KATTA_INSTANCES=`echo "$KATTA_INSTANCES" | grep INSTANCE | grep running`
+[ -z "$KATTA_INSTANCES" ] && echo "No running instances in cluster $CLUSTER." && exit 0
+KATTA_INSTANCES=`echo "$KATTA_INSTANCES" | awk '{print $5}'`
+
+# for some reason the path we get back contains a  \r  \n, so we filter the string with sed.
+KATTA_HOME=`. "$bin"/katta-ec2 "ls -d /usr/local/katta-*" $CLUSTER | tail -n 1 | sed -e s/$'\r'//g`
+. "$bin"/katta-ec2 "echo '$KATTA_INSTANCES' > $KATTA_HOME/conf/nodes" $CLUSTER 
+

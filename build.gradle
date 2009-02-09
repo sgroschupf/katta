@@ -195,6 +195,7 @@ dists {
       String zipRoot = "$archivesBaseName-$version"
       zipFileSet(dir: file('bin'), prefix: "$zipRoot/bin" , fileMode: '775')
       zipFileSet(dir: file('conf'), prefix: "$zipRoot/conf")
+      zipFileSet(dir: file('extras'), prefix: "$zipRoot/extras")
       zipFileSet(dir: runtimeLibsDir, prefix: "$zipRoot/lib")
       zipFileSet(dir: docsDir, prefix: "$zipRoot/docs")
       zipFileSet(dir: srcRoot, prefix: "$zipRoot/src")
@@ -213,6 +214,7 @@ dists {
       String tarRoot = "$archivesBaseName-$version"
       tarFileSet(dir: file('bin'), prefix: "$tarRoot/bin", fileMode: '775')
       tarFileSet(dir: file('conf'), prefix: "$tarRoot/conf")
+      tarFileSet(dir: file('extras'), prefix: "$tarRoot/extras")
       tarFileSet(dir: runtimeLibsDir, prefix: "$tarRoot/lib")
       tarFileSet(dir: docsDir, prefix: "$tarRoot/docs")
       tarFileSet(dir: srcRoot, prefix: "$tarRoot/src")

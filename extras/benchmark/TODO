@@ -1,0 +1,13 @@
++ starts x nodes 
++ copy katta
++ setup katta
++ start NFS server
++ mount nfs
++ start creating test index
++ launch faban nodes
++ install faban
++ configure & deploy benchmark test
++ run benchmark
++ download results
++ shutdown katta cluster
++ shutdown faban cluster

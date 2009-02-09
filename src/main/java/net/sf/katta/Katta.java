@@ -34,6 +34,7 @@ import net.sf.katta.index.DeployedShard;
 import net.sf.katta.index.IndexMetaData;
 import net.sf.katta.index.ShardError;
 import net.sf.katta.index.IndexMetaData.IndexState;
+import net.sf.katta.index.indexer.SampleIndexGenerator;
 import net.sf.katta.index.indexer.merge.IndexMergeApplication;
 import net.sf.katta.master.Master;
 import net.sf.katta.node.Hit;
@@ -84,7 +85,11 @@ public class Katta {
     } else if (command.endsWith("zk")) {
       // TODO jz: cleanup the whole tool, command-line infrastruucture
       ZkTool.main(args);
-    } else {
+    } else if(command.endsWith("index")){
+      generateIndex(args[1], args[2], Integer.parseInt(args[3]), Integer.parseInt(args[4]));
+    }
+    
+    else {
       // non static methods
       Katta katta = null;
       if (command.equals("search")) {
@@ -158,6 +163,11 @@ public class Katta {
     }
   }
 
+  private static void generateIndex(String input, String output, int wordsPerDoc, int indexSize){
+    SampleIndexGenerator sampleIndexGenerator = new SampleIndexGenerator();
+    sampleIndexGenerator.createIndex(input, output, wordsPerDoc, indexSize);
+  }
+  
   private void redeployIndex(final String indexName) throws KattaException {
     String indexPath = ZkPathes.getIndexPath(indexName);
     if (!_zkClient.exists(indexPath)) {
@@ -502,6 +512,9 @@ public class Katta {
     System.err.println("\tlistErrors <index name>\t\tLists all deploy errors for a specified index.");
     System.err
         .println("\tsearch <index name>[,<index name>,...] \"<query>\" [count]\tSearch in supplied indexes. The query should be in \". If you supply a result count hit details will be printed. To search in all indices write \"*\"");
+    System.err
+        .println("\tindex <inputTextFile> <outputPaht>  <numOfWordsPerDoc> <numOfDocuments> \tGenerates a sample index. The inputTextFile is used as dictionary.");
+    
     System.err.println();
     System.exit(1);
   }

@@ -15,39 +15,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Terminate a cluster.
-
-if [ -z $1 ]; then
-  echo "Cluster name required!"
-  exit -1
-fi
-
-CLUSTER=$1
+# List running clusters.
 
 # Import variables
 bin=`dirname "$0"`
 bin=`cd "$bin"; pwd`
-. "$bin"/katta-ec2-env.sh
+. "$bin"/benchmark-ec2-env.sh
 
-# Finding Katta instance
-KATTA_INSTANCES=`ec2-describe-instances | awk '"RESERVATION" == $1 && ("'$CLUSTER'" == $4 || "'$CLUSTER_MASTER'" == $4), "RESERVATION" == $1 && ("'$CLUSTER'" != $4 && "'$CLUSTER_MASTER'" != $4)'`
-KATTA_INSTANCES=`echo "$KATTA_INSTANCES" | grep INSTANCE | grep running`
+# Finding benchmark clusters
+CLUSTERS=`ec2-describe-instances | awk '"RESERVATION" == $1 && $4 ~ /-master$/, "INSTANCE" == $1' | tr '\n' '\t' | grep running | cut -f4 | rev | cut -d'-' -f2- | rev`
 
-[ -z "$KATTA_INSTANCES" ] && echo "No running instances in cluster $CLUSTER." && exit 0
+[ -z "$CLUSTERS" ] && echo "No running clusters." && exit 0
 
-echo "Running Katta instances:"
-echo "$KATTA_INSTANCES"
-
-if [ -z $2 ]; then
-read -p "Terminate all instances? [yes or no]: " answer
- if [ "$answer" != "yes" ]; then
-   echo "scripted stoped"
-   exit 1
- fi
-else 
- if [ "$2" != "yes" ]; then
-    exit 1
- fi
-fi
-
-ec2-terminate-instances `echo "$KATTA_INSTANCES" | awk '{print $2}'`
+echo "Running benchmark clusters:"
+echo "$CLUSTERS"

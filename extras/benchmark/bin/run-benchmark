@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# runs a benchmark
+
+
+if [ -z $1 ]; then
+  echo "App name required!"
+  exit -1
+fi
+
+if [ -z $2 ]; then
+  echo "Must specify the number of nodes to start."
+  exit -1
+fi
+
+if [ -z $3 ]; then
+  echo "Must specify the number of clients to start."
+  exit -1
+fi
+
+
+APP=$1
+NO_INSTANCES=$2
+NO_CLIENTS=$3
+
+# Import variables
+bin=`dirname "$0"`
+bin=`cd "$bin"; pwd`
+. "$bin"/benchmark-ec2-env.sh
+
+APP_CLUSTER="$APP-cluster"
+CLIENT_CLUSTER="grinder-cluster"
+
+# launch 
+echo "Starting clusters $APP_CLUSTER and $CLIENT_CLUSTER."
+echo "========================================="
+#. "$bin"/launch-cluster $CLIENT_CLUSTER $NO_CLIENTS
+#. "$bin"/launch-cluster $APP_CLUSTER $NO_INSTANCES
+# ec2-authorize $CLIENT_CLUSTER -o $APP_CLUSTER -u $AWS_ACCOUNT_ID > /dev/null
+# ec2-authorize $APP_CLUSTER -o $CLIENT_CLUSTER -u $AWS_ACCOUNT_ID > /dev/null
+echo "========================================="
+
+
+echo "Installing grinder on $CLIENT_CLUSTER"
+echo "========================================="
+. "$bin"/install-grinder $CLIENT_CLUSTER 
+echo "========================================="
+
+echo "Installing $APP cluster $APP_CLUSTER"
+echo "=========================================" 
+ INSTALL_SCRIPT="install-$APP" $APP_CLUSTER $CLIENT_CLUSTER
+. "$bin"/"$INSTALL_SCRIPT"
+echo "========================================="
+
+
+echo ">>>>>>>>> run benchmark"
+echo ">>>>>>>>> download results"
+
+#. "$bin"/terminate-benchmark-cluster $APP_CLUSTER
+
+#. "$bin"/terminate-benchmark-cluster $CLIENT_CLUSTER

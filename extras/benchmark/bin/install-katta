@@ -1,0 +1,178 @@
+#!/usr/bin/env bash
+
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# installs a faban
+
+if [ -z $1 ]; then
+  echo "Cluster name required!"
+  exit -1
+fi
+
+CLUSTER=$1
+GRINDER_CLUSTER=$2
+
+
+# Import variables
+bin=`dirname "$0"`
+bin=`cd "$bin"; pwd`
+. "$bin"/benchmark-ec2-env.sh
+. "$bin"/functions
+
+echo "Finding katta binaries"
+KATTA_BINARIES=`ls $bin/../../../build/distributions/katta-*.tar.gz`
+if [ -z $KATTA_BINARIES ]; then
+  echo "Katta binaries do not exists, make sure you build katta first..."
+  exit -1
+fi
+
+
+# install katta 
+
+echo "Installing katta on the master"
+getMaster $CLUSTER
+#scp $SSH_OPTS -r $KATTA_BINARIES "root@$MASTER:"
+KATTA_FILE=`call $MASTER "ls -d katta-*.tar.gz" | sed -e s/$'\r'//g`
+call $MASTER "tar -C /opt -xzf $KATTA_FILE" 
+
+echo "Installing katta on all nodes"
+
+# getting all nodes.
+getNodes $CLUSTER
+KATTA_NODES=$NODES
+ALL_NODES=$KATTA_NODES
+
+if [ -n $GRINDER_CLUSTER ]; then
+ echo "get nodes from grinder"
+ getNodes $GRINDER_CLUSTER
+ echo "grinder nodes $NODES"
+ GRINDER_NODES=$NODES
+ ALL_NODES="$ALL_NODES $GRINDER_NODES"
+fi
+echo "all nodes: $ALL_NODES"
+
+for NODE in $ALL_NODES
+do
+  call $MASTER "scp $KATTA_FILE $NODE:"
+  call $NODE "tar -C /opt -xzf $KATTA_FILE"
+done
+
+## get host names of all nodes in the cluster to upgrade the nodes files
+echo "Configuring Katta"
+
+getNodesInternal $CLUSTER
+getMasterInternal $CLUSTER
+KATTA_HOME=`call $MASTER "ls -d /opt/katta-*" |   sed -e s/$'\r'//g`
+call $MASTER "echo '$NODES_INTERNAL' > $KATTA_HOME/conf/nodes"
+call $MASTER "echo '$MASTER_INTERNAL' > $KATTA_HOME/conf/masters"
+
+# configure katta-env.sh
+ call $MASTER "sed -i -e 's|# export JAVA_HOME=.*|export JAVA_HOME=/usr/local/jdk${JAVA_VERSION}|' \
+   	   -e 's|# export KATTA_LOG_DIR=.*|export KATTA_LOG_DIR=/mnt/katta/logs|' \
+       -e 's|# export KATTA_OPTS=.*|export KATTA_OPTS=-server|' \
+       $KATTA_HOME/conf/katta-env.sh"
+# configure zookeeper 
+call $MASTER "sed -i -e \"s|\( *zookeeper\.servers *=.*\)|zookeeper\.servers=$MASTER_INTERNAL:2181|\" \
+       -e \"s|\( *zookeeper\.log-data-dir *=.*\)|zookeeper\.log-data-dir=/mnt/katta/logs|\" \
+       -e \"s|\( *zookeeper\.data-dir *=.*\)|zookeeper\.data-dir=/mnt/katta/data|\" \
+       $KATTA_HOME/conf/katta.zk.properties"
+      
+call $MASTER "mkdir -p /mnt/katta/logs"
+
+# configure all nodes
+for NODE in $ALL_NODES
+do
+   call $NODE "sed -i -e 's|# export JAVA_HOME=.*|export JAVA_HOME=/usr/local/jdk${JAVA_VERSION}|' \
+   	   -e 's|# export KATTA_LOG_DIR=.*|export KATTA_LOG_DIR=/mnt/katta/logs|' \
+       -e 's|# export KATTA_OPTS=.*|export KATTA_OPTS=-server|' \
+       $KATTA_HOME/conf/katta-env.sh"
+   call $NODE "sed -i -e \"s|\( *zookeeper\.servers *=.*\)|zookeeper\.servers=$MASTER_INTERNAL:2181|\" \
+       -e \"s|\( *zookeeper\.log-data-dir *=.*\)|zookeeper\.log-data-dir=/mnt/katta/logs|\" \
+       -e \"s|\( *zookeeper\.data-dir *=.*\)|zookeeper\.data-dir=/mnt/katta/data|\" \
+       $KATTA_HOME/conf/katta.zk.properties"
+done
+
+echo "Setting up NFS server on master"
+# constructing values
+MNT_PATH=/mnt/katta/data
+for NODE in $KATTA_NODES
+ do
+	 MNT_AUTH="$MNT_AUTH $NODE(rw,sync,no_root_squash)"
+ done
+
+call $MASTER  "mkdir -p $MNT_PATH"
+call $MASTER  "echo \"$MNT_PATH $MNT_AUTH\" > /etc/exports"
+call $MASTER  "/etc/rc.d/init.d/rpcbind restart"
+call $MASTER  "/etc/rc.d/init.d/nfslock restart"
+call $MASTER  "/etc/rc.d/init.d/nfs restart"
+call $MASTER  "chkconfig nfs on"
+call $MASTER  "chkconfig nfslock on"
+call $MASTER  "chkconfig rpcbind on"
+
+sleep 5
+
+for NODE  in $KATTA_NODES
+ do
+ 	call $NODE "/etc/rc.d/init.d/rpcbind restart"
+	call $NODE "/etc/rc.d/init.d/nfslock restart"
+	call $NODE "/etc/rc.d/init.d/netfs restart"
+	 
+	call $NODE "chkconfig nfslock on"
+	call $NODE "chkconfig rpcbind on"
+	call $NODE "chkconfig netfs on"
+	
+	call $NODE "mkdir -p $MNT_PATH"
+	call $NODE "mount -t nfs $MASTER:$MNT_PATH $MNT_PATH"
+ done
+
+# create a test index
+echo "Creaing a text Index"
+for NODE  in $KATTA_NODES
+ do
+   call $NODE "nohup $KATTA_HOME/bin/katta index $KATTA_HOME/extras/benchmark/resources/alice.txt /mnt/katta/data/sampleIndex/ $DOC_SIZE $INDEX_SIZE & "
+ done																		
+echo "Waiting to finsh index creation"
+
+while true; do
+ printf "."
+DONE=`call $MASTER "ls -l /mnt/katta/data/sampleIndex/*/done" | wc -l`
+EXPECTED=`echo $KATTA_NODES | wc -w`
+if [$DONE = $EXPECTED ]; then
+  	echo "" # just a line return
+    echo "Indexing finished."
+    break;
+  fi
+  sleep 1
+done
+
+echo "Starting katta."
+call $MASTER ""$KATTA_HOME"/bin/start-all.sh"
+
+echo "Deploying sample Index"
+call $MASTER "$KATTA_HOME/bin/katta addIndex sample /mnt/katta/data/sampleIndex/ org.apache.lucene.analysis.standard.StandardAnalyzer $REPLICATION"
+
+echo "Configuring grinder"
+GRINDER_HOME="";
+for NODE  in $GRINDER_NODES
+do
+if [ -n $GRINDER_HOME ]; then
+GRINDER_HOME=`call $NODE "ls -d /opt/grinder-*" | sed -e s/$'\r'//g`
+fi
+ call $MASTER "sed -i -e 's|grinder.script = .*|grinder.script = $GRINDER_HOME/scripts/katta-stress-test.jy|' \
+   	       $GRINDER_HOME/scripts/grinder.properties"
+done
+
+echo "katta installed and ready to go... "
