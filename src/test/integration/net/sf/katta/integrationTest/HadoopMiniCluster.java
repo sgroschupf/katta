@@ -20,8 +20,8 @@ import java.io.IOException;
 import net.sf.katta.util.IHadoopConstants;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.dfs.MiniDFSCluster;
-import org.apache.hadoop.dfs.FSConstants.StartupOption;
+import org.apache.hadoop.hdfs.MiniDFSCluster;
+import org.apache.hadoop.hdfs.server.common.HdfsConstants.StartupOption;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.MiniMRCluster;
 import org.apache.log4j.Logger;

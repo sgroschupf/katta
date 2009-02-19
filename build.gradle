@@ -21,14 +21,14 @@ archivesBaseName = 'katta'
 group = 'net.sf.katta'
 
 version = "0.5-SNAPSHOT"
-hadoopVersion = "0.18.1"
+hadoopVersion = "0.19.0"
 
 usePlugin('java')
 usePlugin('maven')
 testSrcDirNames.add("test/integration")
 
-sourceCompatibility = 1.5
-targetCompatibility = 1.5
+sourceCompatibility = 1.6
+targetCompatibility = 1.6
 
 defaultTasks "help"
 
