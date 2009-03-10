@@ -61,7 +61,11 @@
 	</target>
 
 	<target name="job" depends="compile" description="--> creates a hadop job jar">
-		<echo>TODO need implementation</echo>
+		<jar jarfile="${build.dir}/${job.name}">
+		    <zipfileset dir="${build.dir.main-classes}"/>
+		    <zipfileset dir="${conf.dir}" />
+		    <zipfileset dir="${lib.dir}" prefix="lib" includes="**/lucene*.jar" />
+		</jar>
 	</target>
 
 	<!-- ================================================================== -->
@@ -90,12 +94,16 @@
 		<mkdir dir="${build.dir.test-data}" />
 
 		<ivy:cachepath pathid="test.path.id" conf="test" />
+		<ivy:cachepath pathid="instrument.path.id" conf="instrument" />
 		<junit showoutput="false" printsummary="yes" haltonfailure="no" fork="yes" maxmemory="256m" dir="${basedir}" errorProperty="tests.failed" failureProperty="tests.failed">
+			<sysproperty key="net.sourceforge.cobertura.datafile" file="${reports.dir}/katta_coverage.ser" />
 			<classpath>
+				<pathelement location="${instrumented.dir}" />
 				<pathelement location="${build.dir.main-classes}" />
 				<pathelement location="${build.dir.test-classes}" />
 				<pathelement location="${test.res.dir}" />
 				<path refid="test.path.id" />
+				<path refid="instrument.path.id" />
 			</classpath>
 			<formatter type="plain" />
 			<batchtest fork="yes" todir="${build.dir.test-reports}" unless="testcase">
@@ -223,6 +231,8 @@
 		<mkdir dir="${build.dir.dist}/bin" />
 		<mkdir dir="${build.dir.dist}/conf" />
 		<mkdir dir="${build.dir.dist}/docs" />
+		<mkdir dir="${build.dir.dist}/docs/javadoc" />
+		<mkdir dir="${build.dir.dist}/docs/reports" />
 		<mkdir dir="${build.dir.dist}/lib" />
 		<mkdir dir="${build.dir.dist}/src" />
 
@@ -234,9 +244,13 @@
 		<copy todir="${build.dir.dist}/conf">
 			<fileset dir="${basedir}/conf" />
 		</copy>
-		<!-- copy  conf to target dir  -->
-		<copy todir="${build.dir.dist}/docs">
+		<!-- copy  javadoc to target dir  -->
+		<copy todir="${build.dir.dist}/docs/javadoc">
 			<fileset dir="${build.javadoc}" />
+		</copy>
+		<!-- copy reports to target dir  -->
+		<copy todir="${build.dir.dist}/docs/reports" failonerror="no">
+			<fileset dir="${coverage.html.dir}" />
 		</copy>
 		<!-- copy ivy cache to lib -->
 		<copy todir="${build.dir.dist}/lib" flatten="true">
@@ -299,4 +313,34 @@
 		<delete dir=".settings" />
 	</target>
 
+	<!-- ================================================================== -->
+	<!-- Cobertura Section                                                  -->
+	<!-- ================================================================== -->
+
+	<target name="instrument" depends="compile">
+		<ivy:cachepath pathid="instrument.path.id" conf="instrument" />
+		<taskdef classpathref="instrument.path.id" resource="tasks.properties" />
+		<delete file="${reports.dir}/katta_coverage.ser"/>
+		<delete dir="${instrumented.dir}" />
+		<cobertura-instrument datafile="${reports.dir}/katta_coverage.ser" todir="${instrumented.dir}">
+			<!--
+				The following line causes instrument to ignore any
+				source line containing a reference to log4j, for the
+				purposes of coverage reporting.
+			-->
+			<ignore regex="org.apache.log4j.*" />
+			<fileset dir="${build.dir.main-classes}">
+				<include name="**/*.class" />
+			</fileset>
+		</cobertura-instrument>
+	</target>
+	
+	<target name="coverage-report">
+		<cobertura-report datafile="${reports.dir}/katta_coverage.ser" srcdir="${main.src.dir}" destdir="${coverage.html.dir}" />
+	</target>
+
+	<target name="coverage" depends="compile,instrument,test,coverage-report" description="Compile, instrument ourself, run the tests and generate JUnit and coverage reports."/>
+
+
+	
 </project>
