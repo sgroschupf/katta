@@ -1,6 +1,11 @@
 Katta Change Log
 
-Release 0.4.0 - 2008-12-08
+katta 0.5-dev
+
+ switching to ant and ivy for build
+ upgrading to hadoop 0.19.
+ adding ec2 support
+ Release 0.4.0 - 2008-12-08
  
  upgrade hadoop to 0.18.1
  store full stacktrace of index-failures
