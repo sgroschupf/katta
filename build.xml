@@ -290,10 +290,13 @@
 			</settings>
 			<project name="katta" />
 			<classpath>
-
 				<source path="${basedir}/src/main/java" output="${build.dir.main-classes}" />
 				<source path="${basedir}/src/test/java" output="${build.dir.test-classes}" />
 				<source path="${basedir}/src/test/resources" output="${build.dir.test-classes}" />
+				<!-- extras --> 
+				<source path="${extras}/indexing/src/main/java" output="${build.dir}/extras/indexing/classes-main" />
+				<source path="${extras}/indexing/src/test/java" output="${build.dir}/extras/indexing/classes-test" />
+				
 				<output path="${build.dir.main-classes}" />
 				<library pathref="test.path.id" />
 			</classpath>

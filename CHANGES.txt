@@ -1,7 +1,8 @@
 Katta Change Log
 
 katta 0.5-dev
-
+ 
+ Adding coverage reports
  switching to ant and ivy for build
  upgrading to hadoop 0.19.
  adding ec2 support
