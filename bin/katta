@@ -72,12 +72,12 @@ fi
 CLASSPATH="${KATTA_CONF_DIR}"
 
 # for developers, add Katta classes to CLASSPATH
-if [ -d "$KATTA_HOME/build/classes" ]; then
-  CLASSPATH=${CLASSPATH}:$KATTA_HOME/build/classes
+if [ -d "$KATTA_HOME/build/classes-main" ]; then
+  CLASSPATH=${CLASSPATH}:$KATTA_HOME/build/classes-main
 fi
 
-if [ -d "$KATTA_HOME/build/test-classes" ]; then
-  CLASSPATH=${CLASSPATH}:$KATTA_HOME/build/test-classes
+if [ -d "$KATTA_HOME/build/classes-tests" ]; then
+  CLASSPATH=${CLASSPATH}:$KATTA_HOME/build/classes-test
 fi
 
 # so that filenames w/ spaces are handled correctly in loops below
