@@ -188,11 +188,6 @@
 		</javadoc>
 	</target>
 
-	<target name="hello" depends="resolve">
-
-	</target>
-
-
 	<target name="jar" depends="compile">
 		<ivy:cachepath pathid="svnant.path.id" conf="ant" />
 		<typedef resource="org/tigris/subversion/svnant/svnantlib.xml" classpathref="svnant.path.id" />
@@ -339,7 +334,7 @@
 		<cobertura-report datafile="${reports.dir}/katta_coverage.ser" srcdir="${main.src.dir}" destdir="${coverage.html.dir}" />
 	</target>
 
-	<target name="coverage" depends="compile,instrument,test,coverage-report" description="Compile, instrument ourself, run the tests and generate JUnit and coverage reports."/>
+	<target name="coverage" depends="compile,instrument,test,coverage-report" description="--> create coverage reports"/>
 
 
 	
