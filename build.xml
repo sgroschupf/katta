@@ -1,125 +1,10 @@
-<project name="katta" default="test" xmlns:ivy="antlib:org.apache.ivy.ant">
+<project name="katta-core" default="test" xmlns:ivy="antlib:org.apache.ivy.ant">
 
-	<property file="build.properties" />
+	<property name="root.dir" value="${basedir}" />
+	<!-- all standard ant tasks are in the common build file-->
+	<import file="${root.dir}/src/build/ant/common-build.xml" />
 
-	<!-- ================================================================== -->
-	<!-- Ivy                                                                -->
-	<!-- ================================================================== -->
-
-	<target name="download-ivy" unless="ivyIsAvailable" description="--> downloads ivy from a maven repo">
-		<mkdir dir="${ivy.jar.dir}" />
-		<echo message="installing ivy..." />
-		<get src="http://repo1.maven.org/maven2/org/apache/ivy/ivy/${ivy.install.version}/ivy-${ivy.install.version}.jar" dest="${ivy.jar.file}" usetimestamp="true" />
-		<get src="http://repo1.maven.org/maven2/com/jcraft/jsch/${jcraft.install.version}/jsch-${jcraft.install.version}.jar" dest="${jcraft.jar.file}" usetimestamp="true" />
-	</target>
-
-	<target name="check-ivy-available">
-		<available file="${ivy.jar.file}" property="ivyIsAvailable" />
-		<antcall target="download-ivy" />
-	</target>
-
-	<target name="install-ivy" depends="check-ivy-available" description="--> install ivy">
-		<property environment="env" />
-		<path id="ivy.lib.path">
-			<fileset dir="${ivy.jar.dir}" includes="*.jar" />
-		</path>
-		<taskdef resource="org/apache/ivy/ant/antlib.xml" uri="antlib:org.apache.ivy.ant" classpathref="ivy.lib.path" />
-	</target>
-
-	<target name="resolve" depends="install-ivy" description="--> retrieve dependencies with ivy">
-		<ivy:settings file="${basedir}/ivy/ivysettings.xml" />
-		<ivy:resolve useOrigin="true" />
-	</target>
-
-	<target name="clean-ivy" description="--> clean the ivy installation">
-		<delete dir="${ivy.jar.dir}" />
-	</target>
-
-	<target name="clean-cache" depends="install-ivy" description="--> clean the ivy cache">
-		<ivy:cleancache />
-	</target>
-
-	<!-- ================================================================== -->
-	<!-- General cleaning sources                                           -->
-	<!-- ================================================================== -->
-
-	<target name="clean" description="--> clean the project">
-		<delete dir="${build.dir}" />
-	</target>
-
-	<!-- ================================================================== -->
-	<!-- Build sources                                                      -->
-	<!-- ================================================================== -->
-
-	<target name="compile" depends="resolve" description="--> compile main classes">
-		<mkdir dir="${build.dir.main-classes}" />
-		<ivy:cachepath pathid="build.path.id" conf="compile" />
-		<javac encoding="${build.encoding}" srcdir="${main.src.dir}" includes="**/*.java" destdir="${build.dir.main-classes}" debug="${javac.debug}" optimize="${javac.optimize}" target="${javac.version}" source="${javac.version}" deprecation="${javac.deprecation}">
-			<compilerarg line="${javac.args} ${javac.args.warnings}" />
-			<classpath refid="build.path.id" />
-		</javac>
-	</target>
-
-	<target name="job" depends="compile" description="--> creates a hadop job jar">
-		<jar jarfile="${build.dir}/${job.name}">
-		    <zipfileset dir="${build.dir.main-classes}"/>
-		    <zipfileset dir="${conf.dir}" />
-		    <zipfileset dir="${lib.dir}" prefix="lib" includes="**/lucene*.jar" />
-		</jar>
-	</target>
-
-	<!-- ================================================================== -->
-	<!-- Tests                                                              -->
-	<!-- ================================================================== -->
-
-	<target name="compile-test" depends="compile" description="--> compile test classes">
-		<echo>*** Building Tests Sources ***</echo>
-		<mkdir dir="${build.dir.test-classes}" />
-		<ivy:cachepath pathid="test.path.id" conf="test" />
-		<path id="test.path">
-			<path refid="test.path.id" />
-			<pathelement location="${build.dir.main-classes}" />
-		</path>
-
-		<javac encoding="${build.encoding}" srcdir="${test.src.dir}" includes="**/*.java" destdir="${build.dir.test-classes}" debug="${javac.debug}" optimize="${javac.optimize}" target="${javac.version}" source="${javac.version}" deprecation="${javac.deprecation}">
-			<compilerarg line="${javac.args} ${javac.args.warnings}" />
-			<classpath refid="test.path" />
-		</javac>
-	</target>
-
-	<target name="test" depends="compile-test" description="--> run tests">
-		<delete dir="${build.dir.test-reports}" />
-		<mkdir dir="${build.dir.test-reports}" />
-		<delete dir="${build.dir.test-data}" />
-		<mkdir dir="${build.dir.test-data}" />
-
-		<ivy:cachepath pathid="test.path.id" conf="test" />
-		<ivy:cachepath pathid="instrument.path.id" conf="instrument" />
-		<junit showoutput="false" printsummary="yes" haltonfailure="no" fork="yes" maxmemory="256m" dir="${basedir}" errorProperty="tests.failed" failureProperty="tests.failed">
-			<sysproperty key="net.sourceforge.cobertura.datafile" file="${reports.dir}/katta_coverage.ser" />
-			<classpath>
-				<pathelement location="${instrumented.dir}" />
-				<pathelement location="${build.dir.main-classes}" />
-				<pathelement location="${build.dir.test-classes}" />
-				<pathelement location="${test.res.dir}" />
-				<path refid="test.path.id" />
-				<path refid="instrument.path.id" />
-			</classpath>
-			<formatter type="plain" />
-			<batchtest fork="yes" todir="${build.dir.test-reports}" unless="testcase">
-				<fileset dir="${test.src.dir}">
-					<include name="**/*Test.java" unless="testcase" />
-					<exclude name="**/Abstract*.java" unless="testcase" />
-					<exclude name="**/ExtendedTestCase.java" unless="testcase" />
-					<include name="${testcase}" if="testcase" />
-				</fileset>
-			</batchtest>
-			<batchtest fork="yes" todir="${build.dir.test-reports}" if="testcase">
-				<fileset dir="${test.src.dir}" includes="**/${testcase}.java" />
-			</batchtest>
-		</junit>
-		<fail if="tests.failed">Tests failed!</fail>
-	</target>
+	
 
 	<!-- ================================================================== -->
 	<!-- Integration Tests                                                  -->
@@ -173,47 +58,6 @@
 	<!-- ================================================================== -->
 	<!-- Generate a distribution                                            -->
 	<!-- ================================================================== -->
-
-
-	<target name="doc" depends="jar" description="--> create javadoc">
-		<mkdir dir="${build.javadoc}" />
-		<ivy:cachepath pathid="build.path.id" conf="compile" />
-		<javadoc packagenames="sf.net.katta" destdir="${build.javadoc}" author="true" version="true" use="true" windowtitle="${name} ${version} API" doctitle="${name} ${version} API" bottom="Copyright &amp;copy; ${year} 101tec Inc.">
-			<packageset dir="${main.src.dir}" />
-			<link href="${javadoc.link.java}" />
-			<classpath>
-				<path refid="build.path.id" />
-			</classpath>
-			<group title="katta" packages="sf.net.katta*" />
-		</javadoc>
-	</target>
-
-	<target name="jar" depends="compile">
-		<ivy:cachepath pathid="svnant.path.id" conf="ant" />
-		<typedef resource="org/tigris/subversion/svnant/svnantlib.xml" classpathref="svnant.path.id" />
-		<svn>
-			<wcVersion path="." />
-		</svn>
-		<tstamp>
-			<format property="timestamp" pattern="MMM dd yyyy, HH:mm:ss" />
-		</tstamp>
-
-		<jar jarfile="${build.dir}/${jar.name}" basedir="${build.dir.main-classes}">
-			<manifest>
-				<section name="net/sf/katta">
-					<attribute name="Implementation-Vendor" value="101tec inc" />
-					<attribute name="Implementation-Title" value="Katta" />
-					<attribute name="Implementation-Version" value="${version}" />
-					<attribute name="Compile-Time" value="${timestamp}" />
-					<attribute name="Compiled-By" value="${user.name}" />
-					<attribute name="SVN-URL" value="${repository.url}" />
-					<attribute name="SVN-Revision" value="${revision.max-with-flags}" />
-				</section>
-			</manifest>
-		</jar>
-
-	</target>
-
 
 	<target name="dist" depends="jar, doc">
 
@@ -294,12 +138,12 @@
 				<source path="${basedir}/src/test/java" output="${build.dir.test-classes}" />
 				<source path="${basedir}/src/test/resources" output="${build.dir.test-classes}" />
 				<source path="${basedir}/src/test/integration" output="${build.dir.test-classes}" />
-				
-				
-				<!-- extras --> 
+
+
+				<!-- extras -->
 				<source path="${basedir}/extras/indexing/src/main/java" output="${build.dir}/extras/indexing/classes-main" />
 				<source path="${basedir}/extras/indexing/src/test/java" output="${build.dir}/extras/indexing/classes-test" />
-				
+
 				<output path="${build.dir.main-classes}" />
 				<library pathref="test.path.id" />
 			</classpath>
@@ -314,34 +158,29 @@
 		<delete dir=".settings" />
 	</target>
 
+
 	<!-- ================================================================== -->
-	<!-- Cobertura Section                                                  -->
+	<!-- Multi project build                                                -->
 	<!-- ================================================================== -->
 
-	<target name="instrument" depends="compile">
-		<ivy:cachepath pathid="instrument.path.id" conf="instrument" />
-		<taskdef classpathref="instrument.path.id" resource="tasks.properties" />
-		<delete file="${reports.dir}/katta_coverage.ser"/>
-		<delete dir="${instrumented.dir}" />
-		<cobertura-instrument datafile="${reports.dir}/katta_coverage.ser" todir="${instrumented.dir}">
-			<!--
-				The following line causes instrument to ignore any
-				source line containing a reference to log4j, for the
-				purposes of coverage reporting.
-			-->
-			<ignore regex="org.apache.log4j.*" />
-			<fileset dir="${build.dir.main-classes}">
-				<include name="**/*.class" />
-			</fileset>
-		</cobertura-instrument>
-	</target>
-	
-	<target name="coverage-report">
-		<cobertura-report datafile="${reports.dir}/katta_coverage.ser" srcdir="${main.src.dir}" destdir="${coverage.html.dir}" />
+	<macrodef name="iterate">
+		<attribute name="target" />
+		<sequential>
+			<subant target="@{target}">
+				<property name="root.dir" value="${basedir}" />
+				<fileset dir="extras" includes="*/build.xml" />
+			</subant>
+		</sequential>
+	</macrodef>
+
+	<target name="clean-all">
+		<antcall target="clean" />
+		<iterate target="clean" />
 	</target>
 
-	<target name="coverage" depends="compile,instrument,test,coverage-report" description="--> create coverage reports"/>
+	<target name="test-all">
+		<!--<antcall target="test" />-->
+		<iterate target="test" />
+	</target>
 
-
-	
 </project>
