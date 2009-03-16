@@ -1,7 +1,7 @@
 Katta Change Log
 
 katta 0.5-dev
- 
+ Restructure build to support multi sub projects.
  Adding coverage reports
  switching to ant and ivy for build
  upgrading to hadoop 0.19.

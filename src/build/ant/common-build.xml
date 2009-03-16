@@ -11,7 +11,6 @@
 	<!-- ================================================================== -->
 
 	<target name="clean" description="--> clean the project">
-		<echo>build dir ${build.dir}</echo>
 		<echo>cleaning ${ant.project.name}</echo>
 		<delete dir="${build.dir}" />
 	</target>
@@ -184,13 +183,28 @@
 	<!-- ================================================================== -->
 
 	<target name="job" depends="compile" description="--> creates a hadop job jar">
-		<ivy:cachefileset conf="job" setid="libs" />
+		<property name="job.dir" value="${build.dir}/${ant.project.name}-${version}" />
+		<mkdir dir="${job.dir}" />
+		<mkdir dir="${job.dir}/lib" />
 		<!-- copy ivy cache to lib -->
-		
+		<ivy:cachefileset conf="job" setid="libs" />
+		<copy todir="${job.dir}/lib">
+			<fileset refid="libs" />
+		</copy>
+		<!-- copy  conf to target dir  -->
+		<copy todir="${job.dir}">
+			<fileset dir="${basedir}/conf" />
+		</copy>
+		<!-- copy  classes  -->
+		<copy todir="${job.dir}">
+			<fileset dir="${build.dir.main-classes}" />
+		</copy>
+
 		<jar jarfile="${build.dir}/${job.name}">
-			<zipfileset dir="${build.dir.main-classes}" />
-			<zipfileset dir="${conf.dir}" />
-			<zipfileset refid="libs" prefix="lib" />
+			<zipfileset dir="${build.dir}/${ant.project.name}-${version}" />
+			<manifest>
+				<attribute name="Main-Class" value="${job.main.class}" />
+			</manifest>
 		</jar>
 	</target>
 

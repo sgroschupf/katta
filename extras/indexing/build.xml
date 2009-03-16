@@ -1,5 +1,5 @@
-<project name="katta/extras/indexing">
+<project name="katta-indexing-sample">
 	<property name="root.dir" value="../../" />
 	<import file="../../src/build/ant/common-build.xml" />
-
+	<property file="build.properties" />
 </project>

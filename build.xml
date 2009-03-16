@@ -95,7 +95,7 @@
 		<copy todir="${build.dir.dist}/lib" flatten="true">
 			<fileset refid="libs" />
 		</copy>
-		<!-- copy ivy cache to lib -->
+		<!-- copy src -->
 		<copy todir="${build.dir.dist}/src">
 			<fileset dir="${basedir}/src" />
 		</copy>
