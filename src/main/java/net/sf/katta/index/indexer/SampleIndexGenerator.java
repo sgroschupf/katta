@@ -24,6 +24,7 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.HashSet;
 import java.util.Random;
+import java.util.UUID;
 
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
@@ -55,8 +56,7 @@ public class SampleIndexGenerator {
       throw new RuntimeException("Unable to read sample text", e);
     }
 
-    // File index = new File(output, hostname);
-    File index = new File(output, hostname);
+    File index = new File(output, hostname+"-"+UUID.randomUUID().toString());
 
     int count = wordList.length;
     Random random = new Random(System.currentTimeMillis());
