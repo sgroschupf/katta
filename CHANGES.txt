@@ -1,6 +1,7 @@
 Katta Change Log
 
 katta 0.5-dev
+ fix KATTA-22
  SampleIndex generator uses hostname plus uuid for index name now.
  Restructure build to support multi sub projects.
  Adding coverage reports
