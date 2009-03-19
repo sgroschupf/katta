@@ -15,6 +15,7 @@
  */
 package net.sf.katta.indexing;
 
+import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -28,7 +29,6 @@ import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.SequenceFile.Writer;
 
-import com.sun.xml.internal.ws.util.ByteArrayBuffer;
 
 /**
  * Illustrates how to create a {@link SequenceFile}.
@@ -79,7 +79,7 @@ public class SequenceFileCreator {
 	}
 
 	public static String getSampleText(String path) throws IOException {
-		ByteArrayBuffer buffer = new ByteArrayBuffer();
+		ByteArrayOutputStream buffer = new ByteArrayOutputStream();
 		FileInputStream inputStream = new FileInputStream(path);
 		byte[] bytes = new byte[1028];
 		int lenght = -1;
@@ -87,6 +87,6 @@ public class SequenceFileCreator {
 			buffer.write(bytes, 0, lenght);
 		}
 		inputStream.close();
-		return new String(buffer.getRawData());
+		return new String(buffer.toByteArray());
 	}
 }
