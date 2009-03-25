@@ -129,12 +129,14 @@
 		<mkdir dir="${build.dir.test-classes}" />
 		<eclipse>
 			<settings>
-				<jdtcore compilercompliance="5.0" />
+				<jdtcore compilercompliance="6.0" />
 				<resources encoding="UTF-8" />
 			</settings>
 			<project name="katta" />
 			<classpath>
-				<source path="${basedir}/src/main/java" output="${build.dir.main-classes}" />
+				<container path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.6" />
+
+			    <source path="${basedir}/src/main/java" output="${build.dir.main-classes}" />
 				<source path="${basedir}/src/test/java" output="${build.dir.test-classes}" />
 				<source path="${basedir}/src/test/resources" output="${build.dir.test-classes}" />
 				<source path="${basedir}/src/test/integration" output="${build.dir.test-classes}" />
@@ -148,7 +150,7 @@
 				<library pathref="test.path.id" />
 			</classpath>
 		</eclipse>
-
+		<replace file="${basedir.ivy.instance}/.settings/org.eclipse.jdt.core.prefs" token="org.eclipse.jdt.core.compiler.compliance=6.0" value="org.eclipse.jdt.core.compiler.compliance=1.6" />
 	</target>
 
 	<target name="clean-eclipse" depends="resolve" description="cleans the eclipse project files">
