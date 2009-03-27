@@ -221,13 +221,16 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
     ZKClient zkClient = masterThread.getZkClient();
     ZkLock eventLock = zkClient.getEventLock();
     eventLock.lock();
-    while (masterThread.getMaster().getNodes().size() != nodeCount) {
-      if (System.currentTimeMillis() - startWait > 1000 * 60) {
-        break;
+    try {
+      while (masterThread.getMaster().getNodes().size() != nodeCount) {
+        if (System.currentTimeMillis() - startWait > 1000 * 60) {
+          break;
+        }
+        eventLock.getDataChangedCondition().await(10, TimeUnit.SECONDS);
       }
-      eventLock.getDataChangedCondition().await(10, TimeUnit.SECONDS);
+    } finally {
+      eventLock.unlock();
     }
-    eventLock.unlock();
     assertEquals(nodeCount, masterThread.getMaster().getNodes().size());
   }
 
