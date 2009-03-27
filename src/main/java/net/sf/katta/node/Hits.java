@@ -21,6 +21,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Vector;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import net.sf.katta.util.MergeSort;
 
@@ -33,11 +35,11 @@ public class Hits implements Writable {
    */
   private static final long serialVersionUID = -732226190122340208L;
 
-  private List<List<Hit>> _hitsList = new ArrayList<List<Hit>>();
+  private List<List<Hit>> _hitsList = new Vector<List<Hit>>();
 
   private List<Hit> _sortedList;
 
-  private int _totalHits;
+  private AtomicInteger _totalHits = new AtomicInteger();
 
   public List<Hit> getHits() {
     if (_sortedList == null) {
@@ -83,11 +85,11 @@ public class Hits implements Writable {
   }
 
   public int size() {
-    return _totalHits;
+    return _totalHits.get();
   }
 
   public void setTotalHits(final int totalHits) {
-    _totalHits = totalHits;
+    _totalHits.set(totalHits);
   }
 
   public void sort(final int count) {
@@ -179,7 +181,7 @@ public class Hits implements Writable {
   // }
 
   public void addTotalHits(final int size) {
-    _totalHits += size;
+    _totalHits.addAndGet(size);
   }
 
   @Override
