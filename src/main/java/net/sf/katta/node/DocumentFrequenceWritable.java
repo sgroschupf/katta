@@ -18,22 +18,29 @@ package net.sf.katta.node;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import org.apache.hadoop.io.Writable;
 
 public class DocumentFrequenceWritable implements Writable {
-  // TODO decide which one is better
-  // NonBlockingHashMap<TermWritable, Integer> _frequencies = new
-  // NonBlockingHashMap<TermWritable, Integer>();
-  Map<TermWritable, Integer> _frequencies = new ConcurrentHashMap<TermWritable, Integer>();
+  private ReadWriteLock _frequenciesLock = new ReentrantReadWriteLock(true);
+  private Map<TermWritable, Integer> _frequencies = new HashMap<TermWritable, Integer>();
 
-  private int _numDocs;
+  private AtomicInteger _numDocs = new AtomicInteger();
 
   public void put(final String field, final String term, final int frequency) {
-    add(new TermWritable(field, term), frequency);
+    _frequenciesLock.writeLock().lock();
+    try {
+      add(new TermWritable(field, term), frequency);
+    } finally {
+      _frequenciesLock.writeLock().unlock();
+    }
   }
 
   private void add(final TermWritable key, final int frequency) {
@@ -46,9 +53,14 @@ public class DocumentFrequenceWritable implements Writable {
   }
 
   public void putAll(final Map<TermWritable, Integer> frequencyMap) {
-    final Set<TermWritable> keySet = frequencyMap.keySet();
-    for (final TermWritable key : keySet) {
-      add(key, frequencyMap.get(key).intValue());
+    _frequenciesLock.writeLock().lock();
+    try {
+      final Set<TermWritable> keySet = frequencyMap.keySet();
+      for (final TermWritable key : keySet) {
+        add(key, frequencyMap.get(key).intValue());
+      }
+    } finally {
+      _frequenciesLock.writeLock().unlock();
     }
   }
 
@@ -57,49 +69,63 @@ public class DocumentFrequenceWritable implements Writable {
   }
 
   public void addNumDocs(final int numDocs) {
-    _numDocs += numDocs;
+    _numDocs.addAndGet(numDocs);
   }
 
   public Integer get(final TermWritable key) {
-    return _frequencies.get(key);
+    _frequenciesLock.readLock().lock();
+    try {
+      return _frequencies.get(key);
+    } finally {
+      _frequenciesLock.readLock().unlock();
+    }
   }
 
   public Map<TermWritable, Integer> getAll() {
-    return _frequencies;
+    return Collections.unmodifiableMap(_frequencies);
   }
 
   public void readFields(final DataInput in) throws IOException {
-    final int size = in.readInt();
-    for (int i = 0; i < size; i++) {
-      final TermWritable term = new TermWritable();
-      term.readFields(in);
-      final int frequency = in.readInt();
-      _frequencies.put(term, frequency);
+    _frequenciesLock.writeLock().lock();
+    try {
+      final int size = in.readInt();
+      for (int i = 0; i < size; i++) {
+        final TermWritable term = new TermWritable();
+        term.readFields(in);
+        final int frequency = in.readInt();
+        _frequencies.put(term, frequency);
+      }
+      _numDocs.set(in.readInt());
+    } finally {
+      _frequenciesLock.writeLock().unlock();
     }
-    _numDocs = in.readInt();
   }
 
   public void write(final DataOutput out) throws IOException {
-    out.writeInt(_frequencies.size());
-    for (final TermWritable key : _frequencies.keySet()) {
-      key.write(out);
-      final Integer frequency = _frequencies.get(key);
-      out.writeInt(frequency);
+    _frequenciesLock.readLock().lock();
+    try {
+      out.writeInt(_frequencies.size());
+      for (final TermWritable key : _frequencies.keySet()) {
+        key.write(out);
+        final Integer frequency = _frequencies.get(key);
+        out.writeInt(frequency);
+      }
+      out.writeInt(_numDocs.get());
+    } finally {
+      _frequenciesLock.readLock().unlock();
     }
-    out.writeInt(_numDocs);
   }
 
   public int getNumDocs() {
-    return _numDocs;
+    return _numDocs.get();
   }
 
   public void setNumDocs(final int numDocs) {
-    _numDocs = numDocs;
+    _numDocs.set(numDocs);
   }
 
   @Override
   public String toString() {
     return "numDocs: " + getNumDocs() + getAll();
   }
-
 }

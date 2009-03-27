@@ -1,7 +1,8 @@
 Katta Change Log
 
 katta 0.5-dev
-fix KATTA-24, updage to lucene 2.4.1
+ DocumentFrequenceWritableTest is now thread safe doc and term frequencies are always computed correctly
+ fix KATTA-24, update to lucene 2.4.1
  fix KATTA-21
  fix KATTA-22
  SampleIndex generator uses hostname plus uuid for index name now.
