@@ -47,7 +47,7 @@
 		<dependency org="servlet-api" name="servlet-api" rev="2.4" conf="compile" />
 
 		<dependency org="org.apache" name="log4j" rev="1.2.13" conf="compile" />
-		<dependency org="org.apache.lucene" name="lucene-core" rev="2.3.2" conf="compile,job" />
+		<dependency org="org.apache.lucene" name="lucene-core" rev="2.4.1" conf="compile,job" />
 
 		<dependency org="xmlenc" name="xmlenc" rev="0.52" conf="compile" />
 		<dependency org="zookeeper" name="zookeeper" rev="2.2.1" conf="compile" />
