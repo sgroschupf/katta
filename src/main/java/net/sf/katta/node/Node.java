@@ -101,8 +101,6 @@ public class Node implements ISearch, IZkReconnectListener {
   public Node(final ZKClient zkClient, final NodeConfiguration configuration) {
     _zkClient = zkClient;
     _configuration = configuration;
-
-    _shardsFolder = _configuration.getShardFolder();
     _zkClient.subscribeReconnects(this);
   }
 
@@ -113,17 +111,22 @@ public class Node implements ISearch, IZkReconnectListener {
    */
   public void start() throws KattaException {
     LOG.debug("Starting node...");
-    if (!_shardsFolder.exists()) {
-      _shardsFolder.mkdirs();
-    }
-    if (!_shardsFolder.exists()) {
-      throw new IllegalStateException("could not create local shard folder '" + _shardsFolder.getAbsolutePath() + "'");
-    }
 
     try {
       _zkClient.getEventLock().lock();
       LOG.debug("Starting rpc search server...");
       _nodeName = startRPCServer(_configuration);
+
+      // we add hostName and port to the shardFolder to allow multiple nodes per
+      // server with the same configuration
+      _shardsFolder = new File(_configuration.getShardFolder(), _nodeName.replaceAll(":", "@"));
+
+      if (!_shardsFolder.exists()) {
+        _shardsFolder.mkdirs();
+      }
+      if (!_shardsFolder.exists()) {
+        throw new IllegalStateException("could not create local shard folder '" + _shardsFolder.getAbsolutePath() + "'");
+      }
 
       LOG.debug("Starting zk client...");
       if (!_zkClient.isStarted()) {

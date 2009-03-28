@@ -1,6 +1,7 @@
 Katta Change Log
 
 katta 0.5-dev
+ fix KATTA-10, add port to used shard folder so it is possible to start multiple nodes on one server
  fix KATTA-25, upgrading to zookeeper 3.1.1
  Hits is now thread safe, because it is used by multiple searchers that are running concurrently to collect their results
  DocumentFrequenceWritableTest is now thread safe doc and term frequencies are always computed correctly
