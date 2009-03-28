@@ -23,7 +23,7 @@ import net.sf.katta.testutil.Gateway;
 import net.sf.katta.util.ZkConfiguration;
 import net.sf.katta.zk.ZKClient;
 
-import com.yahoo.zookeeper.ZooKeeper;
+import org.apache.zookeeper.ZooKeeper;
 
 public class NodeMasterReconnectTest extends AbstractKattaTest {
 

@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.NetworkUtil;
@@ -27,12 +28,12 @@ import net.sf.katta.util.ZkConfiguration;
 
 import org.apache.log4j.Logger;
 
-import com.yahoo.zookeeper.server.NIOServerCnxn;
-import com.yahoo.zookeeper.server.ServerStats;
-import com.yahoo.zookeeper.server.ZooKeeperServer;
-import com.yahoo.zookeeper.server.NIOServerCnxn.Factory;
-import com.yahoo.zookeeper.server.quorum.QuorumPeer;
-import com.yahoo.zookeeper.server.quorum.QuorumPeer.QuorumServer;
+import org.apache.zookeeper.server.NIOServerCnxn;
+import org.apache.zookeeper.server.ServerStats;
+import org.apache.zookeeper.server.ZooKeeperServer;
+import org.apache.zookeeper.server.NIOServerCnxn.Factory;
+import org.apache.zookeeper.server.quorum.QuorumPeer;
+import org.apache.zookeeper.server.quorum.QuorumPeer.QuorumServer;
 
 public class ZkServer {
 
@@ -109,7 +110,7 @@ public class ZkServer {
 
   private void startSingleZkServer(final int tickTime, final File dataDir, final File dataLogDir, final int port) {
     try {
-      ServerStats.registerAsConcrete();
+//      ServerStats.registerAsConcrete();
       _zk = new ZooKeeperServer(dataDir, dataLogDir, tickTime);
       _nioFactory = new NIOServerCnxn.Factory(port);
       // _nioFactory = new ZkNioFactory(port);
@@ -124,15 +125,17 @@ public class ZkServer {
   private void startQuorumPeer(final ZkConfiguration conf, final String[] localhostHostNames, final String[] hosts,
       final int tickTime, final File dataDir, final File dataLogDir) {
     LOG.info("Starting ZooKeeper ZkServer...");
-    final ArrayList<QuorumServer> peers = new ArrayList<QuorumServer>();
+//    final ArrayList<QuorumServer> peers = new ArrayList<QuorumServer>();
+    HashMap<Long, QuorumServer> peers = new HashMap<Long, QuorumServer>();
     long myId = -1;
     int myPort = -1;
+    
     for (int i = 0; i < hosts.length; i++) {
       final String[] hostAndPort = hosts[i].split(":");
       final String host = hostAndPort[0];
       final int port = Integer.parseInt(hostAndPort[1]);
       final InetSocketAddress inetSocketAddress = new InetSocketAddress(host, port);
-      peers.add(new QuorumServer(i, inetSocketAddress));
+      peers.put(new Long(i), new QuorumServer(i, inetSocketAddress));
       if (NetworkUtil.hostNameInArray(localhostHostNames, host)) {
         myId = i;
         myPort = port;
@@ -145,8 +148,9 @@ public class ZkServer {
     final int electionAlg = 0;
     final int clientPort = conf.getZKClientPort();
     try {
-      _quorumPeer = new QuorumPeer(peers, dataDir, dataLogDir, clientPort, electionAlg, myPort, myId, tickTime,
-          initLimit, syncLimit);
+    	_quorumPeer = new QuorumPeer(peers, dataDir, dataLogDir, clientPort,electionAlg, myId, tickTime, initLimit, syncLimit);
+//      _quorumPeer = new QuorumPeer(peers, dataDir, dataLogDir, clientPort, electionAlg,myId, myPort, myId, tickTime,
+//          initLimit, syncLimit);
       _quorumPeer.start();
     } catch (final IOException e) {
       throw new RuntimeException("Could not start QuorumPeer ZooKeeper server.", e);
@@ -171,7 +175,7 @@ public class ZkServer {
         _nioFactory.shutdown();
       }
       _zk.shutdown();
-      ServerStats.unregister();
+//      ServerStats.unregister();
     }
   }
 
@@ -200,6 +204,6 @@ public class ZkServer {
       _quorumPeer.shutdown();
     }
 
-    ServerStats.unregister();
+//    ServerStats.unregister();
   }
 }

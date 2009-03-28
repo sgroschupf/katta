@@ -34,12 +34,15 @@ import org.apache.hadoop.io.DataOutputBuffer;
 import org.apache.hadoop.io.Writable;
 import org.apache.log4j.Logger;
 
-import com.yahoo.zookeeper.KeeperException;
-import com.yahoo.zookeeper.Watcher;
-import com.yahoo.zookeeper.ZooKeeper;
-import com.yahoo.zookeeper.ZooDefs.CreateFlags;
-import com.yahoo.zookeeper.ZooDefs.Ids;
-import com.yahoo.zookeeper.proto.WatcherEvent;
+import org.apache.zookeeper.CreateMode;
+import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.WatchedEvent;
+import org.apache.zookeeper.Watcher;
+import org.apache.zookeeper.ZooKeeper;
+import org.apache.zookeeper.Watcher.Event.EventType;
+import org.apache.zookeeper.Watcher.Event.KeeperState;
+import org.apache.zookeeper.ZooDefs.Ids;
+import org.apache.zookeeper.proto.WatcherEvent;
 
 /**
  * Abstracts the interation with zookeeper and allows permanent (not just one
@@ -269,7 +272,7 @@ public class ZKClient implements Watcher {
    * @throws KattaException
    */
   public void create(final String path) throws KattaException {
-    create(path, null, 0);
+    create(path, null, CreateMode.PERSISTENT);
   }
 
   /**
@@ -280,15 +283,15 @@ public class ZKClient implements Watcher {
    * @throws KattaException
    */
   public void create(final String path, final Writable writable) throws KattaException {
-    create(path, writable, 0);
+    create(path, writable, CreateMode.PERSISTENT);
   }
 
-  private void create(final String path, final Writable writable, final int flags) throws KattaException {
+  private void create(final String path, final Writable writable, CreateMode mode) throws KattaException {
     ensureZkRunning();
     assert path != null;
     final byte[] data = writableToByteArray(writable);
     try {
-      _zk.create(path, data, Ids.OPEN_ACL_UNSAFE, flags);
+       _zk.create(path, data, Ids.OPEN_ACL_UNSAFE, mode);
     } catch (final Exception e) {
       throw new KattaException("unable to create path '" + path + "' in ZK", e);
     }
@@ -316,7 +319,7 @@ public class ZKClient implements Watcher {
    * @throws KattaException
    */
   public void createEphemeral(final String path) throws KattaException {
-    create(path, null, CreateFlags.EPHEMERAL);
+    create(path, null, CreateMode.EPHEMERAL);
   }
 
   /**
@@ -327,7 +330,7 @@ public class ZKClient implements Watcher {
    * @throws KattaException
    */
   public void createEphemeral(final String path, final Writable writable) throws KattaException {
-    create(path, writable, CreateFlags.EPHEMERAL);
+    create(path, writable, CreateMode.EPHEMERAL);
   }
 
   /**
@@ -347,7 +350,7 @@ public class ZKClient implements Watcher {
       return true;
     } catch (final KeeperException e) {
       String message = "unable to delete path: " + path;
-      if (KeeperException.Code.NotEmpty == e.getCode()) {
+      if (KeeperException.Code.NOTEMPTY == e.code()) {
         message += " Path has sub nodes.";
       }
       throw new KattaException(message, e);
@@ -387,7 +390,7 @@ public class ZKClient implements Watcher {
     try {
       _zk.delete(path, -1);
     } catch (final KeeperException e) {
-      if (e.getCode() != KeeperException.Code.NoNode) {
+      if (e.code() != KeeperException.Code.NONODE) {
         throw new KattaException("unable to delete:" + path, e);
       }
     } catch (final Exception e) {
@@ -442,21 +445,25 @@ public class ZKClient implements Watcher {
     return childCount;
   }
 
-  public void process(final WatcherEvent event) {
-    if (null == event.getPath()) {
-      // prohibit nullpointer (See ZOOKEEPER-77)
-      event.setPath("null");
-    }
-    boolean stateChanged = event.getState() != Watcher.Event.KeeperStateUnknown;
-    boolean dataChanged = event.getType() != Watcher.Event.EventNone;
+  @Override
+  public void process(WatchedEvent event) {
+  	
+//  public void process(final WatcherEvent event) {
+//    if (null == event.getPath()) {
+//      // prohibit nullpointer (See ZOOKEEPER-77)
+//      event.setPath("null");
+//    }
+    
+    boolean stateChanged = event.getState() == KeeperState.Disconnected || event.getState() == KeeperState.Expired;
+    boolean dataChanged = event.getType() == Watcher.Event.EventType.NodeDataChanged || event.getType() == Watcher.Event.EventType.NodeChildrenChanged;
     try {
       getEventLock().lock();
       if (_shutdownTriggered) {
         LOG.debug("ignoring event '{" + event.getType() + " | " + event.getPath() + "}' since shutdown triggered");
         return;
       }
-      if (stateChanged) {
-        processStateChange(event);
+	if (stateChanged) {
+        processDisconnect(event);
       }
       if (dataChanged) {
         processDataOrChildChange(event);
@@ -472,8 +479,7 @@ public class ZKClient implements Watcher {
     }
   }
 
-  private void processStateChange(WatcherEvent event) {
-    if (event.getState() == Event.KeeperStateExpired) {
+  private void processDisconnect(WatchedEvent event) {
       // we do a reconnect
       LOG.warn("disconnected from zookeeper (" + event.getState() + ")");
       if (_shutdownTriggered) {
@@ -481,21 +487,17 @@ public class ZKClient implements Watcher {
       } else {
         reconnect();
       }
-    } else if (event.getState() == Event.KeeperStateDisconnected) {
-      LOG.debug("Received an disconnect event: " + event.toString());
-    }
   }
 
-  private void processDataOrChildChange(WatcherEvent event) {
-    ZkEventType eventType = ZkEventType.getMappedType(event.getType());
+  private void processDataOrChildChange(WatchedEvent event) {
+//    ZkEventType eventType = ZkEventType.getMappedType(event.getType());
     final String path = event.getPath();
-    if (eventType == ZkEventType.NODE_CHILDREN_CHANGED) {
+  
+    if (event.getType() == Watcher.Event.EventType.NodeChildrenChanged) {
       Set<IZkChildListener> childListeners = _path2ChildListenersMap.get(path);
       if (childListeners != null && !childListeners.isEmpty()) {
-        // first we re-subscribe to path since zk subscriptions are
-        // one-timers. Also it is not guaranteed that with this
-        // re-subscription we do not miss an event for that path.
-        List<String> children = resubscribeChildPath(event, path, childListeners);
+       
+    	  List<String> children = resubscribeChildPath(event, path, childListeners);
 
         for (final IZkChildListener listener : childListeners) {
           try {
@@ -508,35 +510,28 @@ public class ZKClient implements Watcher {
     } else {
       Set<IZkDataListener> listeners = _path2DataListenersMap.get(path);
       if (listeners != null && !listeners.isEmpty()) {
-        // first we re-subscribe to path since zk subscriptions are
-        // one-timers. Also it is not guaranteed that with this
-        // re-subscription we do not miss an event for that path.
         byte[] data = resubscribeDataPath(event, path, listeners);
 
         for (final IZkDataListener listener : listeners) {
           try {
-            switch (eventType) {
-            case NODE_CREATED:
+           if(event.getType() == Watcher.Event.EventType.NodeCreated){
               listener.handleDataAdded(event.getPath(), readWritable(listener.createWritable(), data));
-              break;
-            case NODE_DATA_CHANGED:
+           } else if (event.getType()==Watcher.Event.EventType.NodeDataChanged){
               listener.handleDataChange(event.getPath(), readWritable(listener.createWritable(), data));
-              break;
-            case NODE_DELETED:
+           } else if(event.getType()== Watcher.Event.EventType.NodeDeleted){
               listener.handleDataDeleted(event.getPath());
-              break;
-            default:
-              throw ZkEventType.newUnhandledTypeException(eventType);
+           } else {
+             LOG.error("Received a unknown event, ignoring: " + event.getType());
             }
           } catch (final Throwable e) {
-            LOG.error("Faild to process event " + eventType + " with listener: " + listener, e);
+            LOG.error("Faild to process event " + event.getType()+ " with listener: " + listener, e);
           }
         }
       }
     }
   }
 
-  private byte[] resubscribeDataPath(WatcherEvent event, final String path, final Set<IZkDataListener> listeners) {
+  private byte[] resubscribeDataPath(WatchedEvent event, final String path, final Set<IZkDataListener> listeners) {
     byte[] data = null;
     try {
       data = _zk.getData(event.getPath(), true, null);
@@ -549,7 +544,7 @@ public class ZKClient implements Watcher {
     return data;
   }
 
-  private List<String> resubscribeChildPath(WatcherEvent event, final String path,
+  private List<String> resubscribeChildPath(WatchedEvent event, final String path,
       final Set<IZkChildListener> childListeners) {
     List<String> children;
     try {
@@ -767,5 +762,7 @@ public class ZKClient implements Watcher {
     }
 
   }
+
+
 
 }

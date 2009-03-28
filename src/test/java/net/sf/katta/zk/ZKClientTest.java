@@ -27,11 +27,12 @@ import net.sf.katta.util.KattaException;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
+import org.apache.zookeeper.WatchedEvent;
+import org.apache.zookeeper.Watcher.Event;
+import org.apache.zookeeper.Watcher.Event.EventType;
+import org.apache.zookeeper.Watcher.Event.KeeperState;
 import org.jmock.Expectations;
 import org.jmock.Mockery;
-
-import com.yahoo.zookeeper.Watcher.Event;
-import com.yahoo.zookeeper.proto.WatcherEvent;
 
 public class ZKClientTest extends AbstractKattaTest {
 
@@ -154,7 +155,7 @@ public class ZKClientTest extends AbstractKattaTest {
       public void run() {
         try {
           for (int i = 0; i < watchEventsPerThread; i++) {
-            zkClient.process(new WatcherEvent(Event.EventNodeChildrenChanged, Event.KeeperStateUnknown, path));
+            zkClient.process(new WatchedEvent(EventType.NodeChildrenChanged ,KeeperState.SyncConnected, path));
             for (final IZkChildListener childListener : childListeners) {
               zkClient.unsubscribeChildChanges(path, childListener);
               zkClient.subscribeChildChanges(path, childListener);

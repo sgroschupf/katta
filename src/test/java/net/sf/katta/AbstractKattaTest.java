@@ -31,8 +31,8 @@ import net.sf.katta.zk.ZkPathes;
 import net.sf.katta.zk.ZkServer;
 import net.sf.katta.zk.ZKClient.ZkLock;
 
-import com.yahoo.zookeeper.ZooKeeper;
-import com.yahoo.zookeeper.ZooKeeper.States;
+import org.apache.zookeeper.ZooKeeper;
+import org.apache.zookeeper.ZooKeeper.States;
 
 /**
  * Basic katta test which provides some methods for starting master and nodes.

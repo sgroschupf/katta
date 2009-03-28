@@ -17,11 +17,12 @@ package net.sf.katta.zk;
 
 import net.sf.katta.AbstractKattaTest;
 
-import com.yahoo.zookeeper.Watcher;
-import com.yahoo.zookeeper.ZooKeeper;
-import com.yahoo.zookeeper.ZooDefs.Ids;
-import com.yahoo.zookeeper.ZooKeeper.States;
-import com.yahoo.zookeeper.proto.WatcherEvent;
+import org.apache.zookeeper.CreateMode;
+import org.apache.zookeeper.WatchedEvent;
+import org.apache.zookeeper.Watcher;
+import org.apache.zookeeper.ZooKeeper;
+import org.apache.zookeeper.ZooDefs.Ids;
+import org.apache.zookeeper.ZooKeeper.States;
 
 public class ZkServerTest extends AbstractKattaTest implements Watcher {
 
@@ -31,7 +32,7 @@ public class ZkServerTest extends AbstractKattaTest implements Watcher {
     ZooKeeper zk = null;
     try {
       zk = new ZooKeeper(_conf.getZKServers(), _conf.getZKClientPort(), this);
-      zk.create(path, null, Ids.OPEN_ACL_UNSAFE, 0);
+      zk.create(path, null, Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
       fail("no server yet started");
     } catch (final Exception e) {
       zk.close();
@@ -43,16 +44,16 @@ public class ZkServerTest extends AbstractKattaTest implements Watcher {
       Thread.sleep(500);
     }
 
-    zk.create(path, new byte[0], Ids.OPEN_ACL_UNSAFE, 0);
+    zk.create(path, new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
 
     zk.getChildren(path, true);
-    zk.create(path + "/2", new byte[0], Ids.OPEN_ACL_UNSAFE, 0);
+    zk.create(path + "/2", new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
     zk.getChildren(path, true);
-    zk.create(path + "/3", new byte[0], Ids.OPEN_ACL_UNSAFE, 0);
+    zk.create(path + "/3", new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
     zk.close();
   }
 
-  public void process(final WatcherEvent event) {
+  public void process(final WatchedEvent event) {
     // System.out.println("path: " + event.getPath());
     // System.out.println("type: " + event.getType());
     // System.out.println("state: " + event.getState());

@@ -15,13 +15,14 @@
  */
 package net.sf.katta.zk;
 
-import com.yahoo.zookeeper.Watcher;
+import org.apache.zookeeper.Watcher;
 
 /**
  * To improve handling of zk events, this enum is a kind adapter for the types
  * of {@link Watcher.Event}.
  * 
  */
+@Deprecated
 public enum ZkEventType {
 
   NODE_CREATED, NODE_DELETED, NODE_DATA_CHANGED, NODE_CHILDREN_CHANGED;
