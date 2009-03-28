@@ -113,7 +113,7 @@ public class ClientTest extends AbstractKattaTest {
     assertNotNull(hits);
     assertEquals(currentQueryPerMinute + 1, _client.getQueryPerMinute());
     for (final Hit hit : hits.getHits()) {
-      LOG.info(hit.getNode() + " -- " + hit.getShard() + " -- " + hit.getScore() + " -- " + hit.getDocId());
+      writeToLog(hit);
     }
     assertEquals(8, hits.size());
     assertEquals(8, hits.getHits().size());
@@ -127,13 +127,43 @@ public class ClientTest extends AbstractKattaTest {
     final Hits hits = _client.search(query, new String[] { INDEX3, INDEX2 }, 1);
     assertNotNull(hits);
     for (final Hit hit : hits.getHits()) {
-      LOG.info(hit.getNode() + " -- " + hit.getShard() + " -- " + hit.getScore() + " -- " + hit.getDocId());
+      writeToLog(hit);
     }
     assertEquals(8, hits.size());
     assertEquals(1, hits.getHits().size());
     for (final Hit hit : hits.getHits()) {
       LOG.info(hit.getNode() + " -- " + hit.getScore() + " -- " + hit.getDocId());
     }
+  }
+
+  public void testKatta20SearchLimitMaxNumberOfHits() throws KattaException {
+    final Query query = new Query("foo: bar");
+    final Hits expectedHits = _client.search(query, new String[] { INDEX1 }, 4);
+    assertNotNull(expectedHits);
+    LOG.info("Expected hits:");
+    for (final Hit hit : expectedHits.getHits()) {
+      writeToLog(hit);
+    }
+    assertEquals(4, expectedHits.getHits().size());
+
+    for (int i = 0; i < 1000; i++) {
+      // Now we redo the search, but limit the max number of hits. We expect the same
+      // ordering of hits.
+      for (int maxHits = 1; maxHits < expectedHits.size() + 1; maxHits++) {
+        final Hits hits = _client.search(query, new String[] { INDEX1 }, maxHits);
+        assertNotNull(hits);
+        assertEquals(maxHits, hits.getHits().size());
+        for (int j = 0; j < hits.getHits().size(); j++) {
+//           writeToLog("expected: ", expectedHits.getHits().get(j));
+//           writeToLog("actual : ", hits.getHits().get(j));
+          assertEquals(expectedHits.getHits().get(j).getScore(), hits.getHits().get(j).getScore());
+        }
+      }
+    }
+  }
+
+  private void writeToLog(Hit hit) {
+    LOG.info(hit.getNode() + " -- " + hit.getShard() + " -- " + hit.getScore() + " -- " + hit.getDocId());
   }
 
   public void testSearchSimiliarity() throws KattaException {
