@@ -117,7 +117,7 @@ public class Node implements ISearch, IZkReconnectListener {
       _shardsFolder.mkdirs();
     }
     if (!_shardsFolder.exists()) {
-      throw new IllegalStateException("could not create slocal shard folder '" + _shardsFolder.getAbsolutePath() + "'");
+      throw new IllegalStateException("could not create local shard folder '" + _shardsFolder.getAbsolutePath() + "'");
     }
 
     try {
