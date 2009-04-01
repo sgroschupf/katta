@@ -1,6 +1,7 @@
 Katta Change Log
 
 katta 0.5-dev
+ fix KATTA-27, Query parser not  thread-safe.
  minor refactoring to make Node better testable without zookeeper.
  fix KATTA-10, add port to used shard folder so it is possible to start multiple nodes on one server
  fix KATTA-25, upgrading to zookeeper 3.1.1

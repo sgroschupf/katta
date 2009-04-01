@@ -75,9 +75,6 @@ public class Node implements ISearch, IZkReconnectListener {
   private Server _rpcServer;
   private KattaMultiSearcher _searcher;
 
-  // TODO jz: shouldn't the analyzer depend on the index configuration ?
-  private final QueryParser _luceneQueryParser = new QueryParser("field", new KeywordAnalyzer());
-
   protected String _nodeName;
   protected int _searchServerPort;
   protected File _shardsFolder;
@@ -425,7 +422,9 @@ public class Node implements ISearch, IZkReconnectListener {
 
     Query luceneQuery;
     try {
-      luceneQuery = _luceneQueryParser.parse(query.getQuery());
+      // TODO jz: shouldn't the analyzer depend on the index configuration ?
+      final QueryParser luceneQueryParser = new QueryParser("field", new KeywordAnalyzer());
+      luceneQuery = luceneQueryParser.parse(query.getQuery());
     } catch (final ParseException e) {
 
       final String msg = "Failed to parse query: " + query.getQuery();
@@ -470,7 +469,9 @@ public class Node implements ISearch, IZkReconnectListener {
   public DocumentFrequenceWritable getDocFreqs(final IQuery input, final String[] shards) throws IOException {
     Query luceneQuery;
     try {
-      luceneQuery = _luceneQueryParser.parse(input.getQuery());
+      // TODO jz: shouldn't the analyzer depend on the index configuration ?
+      final QueryParser luceneQueryParser = new QueryParser("field", new KeywordAnalyzer());
+      luceneQuery = luceneQueryParser.parse(input.getQuery());
     } catch (final ParseException e) {
       final String msg = "Unable to parse Query: " + input.getQuery();
       final IOException exception = new IOException(msg);

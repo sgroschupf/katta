@@ -15,14 +15,26 @@
  */
 package net.sf.katta.node;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+
+import junit.framework.Assert;
+
 import net.sf.katta.AbstractKattaTest;
 import net.sf.katta.Katta;
+import net.sf.katta.index.AssignedShard;
 import net.sf.katta.index.IndexMetaData;
 import net.sf.katta.index.IndexMetaData.IndexState;
 import net.sf.katta.testutil.TestResources;
+import net.sf.katta.zk.ZKClient;
 import net.sf.katta.zk.ZkPathes;
 
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
+import org.mockito.Mockito;
 
 public class NodeTest extends AbstractKattaTest {
 
@@ -103,6 +115,75 @@ public class NodeTest extends AbstractKattaTest {
     katta.close();
     nodeThread.shutdown();
     masterThread.shutdown();
+  }
+
+  public void testMultiThreadSearch() throws Exception {
+
+    ZKClient zkClient = Mockito.mock(ZKClient.class);
+    Mockito.when(zkClient.getEventLock()).thenReturn(new ZKClient.ZkLock());
+    
+    Node node = new Node(zkClient);
+    node.start();
+
+    List<AssignedShard> shards = new ArrayList<AssignedShard>();
+    shards.add(new AssignedShard("index", "src/test/testIndexA/aIndex"));
+    shards.add(new AssignedShard("index","src/test/testIndexA/bIndex"));
+    shards.add(new AssignedShard("index","src/test/testIndexA/cIndex"));
+    shards.add(new AssignedShard("index","src/test/testIndexA/dIndex"));
+
+    node.deployShards(shards);
+    
+    ArrayList<String> shardNames = new ArrayList<String>();
+    for (AssignedShard assignedShard : shards) {
+      shardNames.add(assignedShard.getShardName());
+    }
+    
+    
+    
+    Query query = new Query("foo: bar");
+    String[] shardArray = shardNames.toArray(new String[shardNames.size()]);
+    DocumentFrequenceWritable freqs = node.getDocFreqs(query, shardArray);
+
+    ExecutorService es = Executors.newFixedThreadPool(100);
+    List<Future<HitsMapWritable>> tasks = new ArrayList<Future<HitsMapWritable>>();
+    for (int i = 0; i < 10000; i++) {
+      QueryClient client = new QueryClient(node, freqs, query, shardArray);
+      Future<HitsMapWritable> future = es.submit(client);
+      tasks.add(future);
+    }
+    HitsMapWritable last = null;
+    for (Future<HitsMapWritable> future : tasks) {
+      HitsMapWritable hitsMapWritable = future.get();
+      if (last == null) {
+        last = hitsMapWritable;
+      } else {
+        Assert.assertEquals(last.getTotalHits(), hitsMapWritable.getTotalHits());
+        float lastScore = last.getHits().getHits().get(0).getScore();
+        float currentScore = hitsMapWritable.getHits().getHits().get(0).getScore();
+        Assert.assertEquals(lastScore, currentScore);
+      }
+    }
+  }
+
+  private class QueryClient implements Callable<HitsMapWritable> {
+
+    private Node _node;
+    private IQuery _query;
+    private DocumentFrequenceWritable _freqs;
+    private String[] _shards;
+
+    public QueryClient(Node node, DocumentFrequenceWritable freqs, IQuery query, String[] shards) {
+      _node = node;
+      _freqs = freqs;
+      _query = query;
+      _shards = shards;
+    }
+
+    @Override
+    public HitsMapWritable call() throws Exception {
+      return _node.search(_query, _freqs, _shards, 2);
+    }
+
   }
 
   //
