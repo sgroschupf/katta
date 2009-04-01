@@ -1,6 +1,7 @@
 Katta Change Log
 
 katta 0.5-dev
+ fix KATTA-4, shards are now searched in parallel with a thread pool, we still need to merge the results together though.
  fix KATTA-27, Query parser not  thread-safe.
  minor refactoring to make Node better testable without zookeeper.
  fix KATTA-10, add port to used shard folder so it is possible to start multiple nodes on one server

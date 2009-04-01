@@ -16,8 +16,15 @@
 package net.sf.katta.node;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import org.apache.log4j.Logger;
 import org.apache.lucene.document.Document;
@@ -52,6 +59,8 @@ public class KattaMultiSearcher {
   private final static Logger LOG = Logger.getLogger(KattaMultiSearcher.class);
 
   private final Map<String, IndexSearcher> _searchers = new ConcurrentHashMap<String, IndexSearcher>();
+  private ExecutorService _threadPool = Executors.newFixedThreadPool(100);
+
   private final String _node;
   private int _maxDoc = 0;
 
@@ -115,13 +124,28 @@ public class KattaMultiSearcher {
     int totalHits = 0;
     final int shardsCount = shards.length;
 
+    // run the search parallel on the shards with a thread pool
+    List<Future<SearchResult>> tasks = new ArrayList<Future<SearchResult>>();
+    for (int i = 0; i < shardsCount; i++) {
+      SearchCall call = new SearchCall(shards[i], weight, limit);
+      Future<SearchResult> future = _threadPool.submit(call);
+      tasks.add(future);
+    }
+
     final ScoreDoc[][] scoreDocs = new ScoreDoc[shardsCount][];
     for (int i = 0; i < shardsCount; i++) {
-      final IndexSearcher indexSearcher = _searchers.get(shards[i]);
-      final TopDocs docs = indexSearcher.search(weight, null, limit);
-      totalHits += docs.totalHits; // update totalHits
-      scoreDocs[i] = docs.scoreDocs;
+      SearchResult searchResult;
+      try {
+        searchResult = tasks.get(i).get();
+        totalHits += searchResult._totalHits;
+        scoreDocs[i] = searchResult._scoreDocs;
+      } catch (InterruptedException e) {
+        throw new IOException("Multithread shard search interrupred:", e);
+      } catch (ExecutionException e) {
+        throw new IOException("Multithread shard search could not be executed:", e);
+      }
     }
+   
     result.addTotalHits(totalHits);
 
     int pos = 0;
@@ -229,6 +253,40 @@ public class KattaMultiSearcher {
     for (final Searchable searchable : _searchers.values()) {
       searchable.close();
     }
+  }
+
+  private class SearchCall implements Callable<SearchResult> {
+
+    private final String _shardName;
+    private final Weight _weight;
+    private final int _limit;
+
+    public SearchCall(String shardName, Weight weight, int limit) {
+      _shardName = shardName;
+      _weight = weight;
+      _limit = limit;
+    }
+
+    @Override
+    public SearchResult call() throws Exception {
+      final IndexSearcher indexSearcher = _searchers.get(_shardName);
+      final TopDocs docs = indexSearcher.search(_weight, null, _limit);
+      // totalHits += docs.totalHits; // update totalHits
+      return new SearchResult(docs.totalHits, docs.scoreDocs);
+    }
+
+  }
+
+  private class SearchResult {
+
+    private final int _totalHits;
+    private final ScoreDoc[] _scoreDocs;
+
+    public SearchResult(int totalHits, ScoreDoc[] scoreDocs) {
+      _totalHits = totalHits;
+      _scoreDocs = scoreDocs;
+    }
+
   }
 
   // cached document frequence source from apache lucene
