@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.net.BindException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -191,29 +192,33 @@ public class Node implements ISearch, IZkReconnectListener {
   private void startShardServing(boolean restart) throws KattaException {
     LOG.info("start serving shards...");
     final String nodeToShardPath = ZkPathes.getNode2ShardRootPath(_nodeName);
-    List<String> shards = _zkClient.subscribeChildChanges(nodeToShardPath, new ShardListener());
+    List<String> shardsNames = _zkClient.subscribeChildChanges(nodeToShardPath, new ShardListener());
+
     if (restart) {
-      List<String> removed = CollectionUtil.getListOfRemoved(_deployedShards, shards);
+      List<String> removed = CollectionUtil.getListOfRemoved(_deployedShards, shardsNames);
       undeployShards(removed);
     }
-    deployShards(shards);
+    ArrayList<AssignedShard> assignedShards = readAssignedShards(shardsNames);
+    
+    deployShards(assignedShards);
     _deployedShards.clear();
-    _deployedShards.addAll(shards);
+    _deployedShards.addAll(shardsNames);
   }
 
-  protected void deployShards(final List<String> shardsToAdd) throws KattaException {
-    for (String shard : shardsToAdd) {
-      File localShardFolder = getLocalShardFolder(shard);
+  protected void deployShards(final List<AssignedShard> newShards) throws KattaException {
+    for (AssignedShard shard : newShards) {
+      String shardName = shard.getShardName();
+      File localShardFolder = getLocalShardFolder(shardName);
       try {
         if (!localShardFolder.exists()) {
           installShard(shard, localShardFolder);
         }
-        serveShard(shard, localShardFolder);
+        serveShard(shardName, localShardFolder);
         announceShard(shard);
       } catch (Exception e) {
         LOG.error(_nodeName + ": could not deploy shard '" + shard + "'", e);
         ShardError shardError = new ShardError(e.getMessage());
-        String shard2ErrorPath = ZkPathes.getShard2ErrorPath(shard, _nodeName);
+        String shard2ErrorPath = ZkPathes.getShard2ErrorPath(shardName, _nodeName);
         if (_zkClient.exists(shard2ErrorPath)) {
           LOG.warn("detected old shard-to-error entry - deleting it..");
           // must be an old ephemeral
@@ -253,17 +258,18 @@ public class Node implements ISearch, IZkReconnectListener {
   /*
    * Announce in zookeeper node is serving this shard,
    */
-  private void announceShard(String shard) throws KattaException {
-    LOG.info("announce shard '" + shard + "'");
+  private void announceShard(AssignedShard shard) throws KattaException {
+    String shardName = shard.getShardName();
+    LOG.info("announce shard '" + shardName + "'");
     // announce that this node serves this shard now...
-    final String shard2NodePath = ZkPathes.getShard2NodePath(shard, _nodeName);
+    final String shard2NodePath = ZkPathes.getShard2NodePath(shardName, _nodeName);
     if (_zkClient.exists(shard2NodePath)) {
       LOG.warn("detected old shard-to-node entry - deleting it..");
       // must be an old ephemeral
       _zkClient.delete(shard2NodePath);
     }
 
-    DeployedShard deployedShard = new DeployedShard(shard, _searcher.getNumDoc(shard));
+    DeployedShard deployedShard = new DeployedShard(shardName, _searcher.getNumDoc(shardName));
     _zkClient.createEphemeral(shard2NodePath, deployedShard);
   }
 
@@ -272,9 +278,10 @@ public class Node implements ISearch, IZkReconnectListener {
    * system. So all hadoop support file systems can be used, like local hdfs s3
    * etc. In case the shard is compressed we also unzip the content.
    */
-  private void installShard(String shardName, File localShardFolder) throws KattaException {
-    final String shardPath = readAssignedShard(shardName).getShardPath();
-    LOG.info("install shard '" + shardName + "' from " + shardPath);
+  private void installShard(AssignedShard shard, File localShardFolder) throws KattaException {
+    final String shardPath = shard.getShardPath();
+    String shardName = shard.getShardName();
+    LOG.info("install shard '" + shardName+ "' from " + shardPath);
     URI uri;
     try {
       uri = new URI(shardPath);
@@ -396,14 +403,14 @@ public class Node implements ISearch, IZkReconnectListener {
     return new File(_shardsFolder, shardName);
   }
 
-  /*
-   * Reads AssignedShard data from ZooKeeper
-   */
-  private AssignedShard readAssignedShard(final String shardName) throws KattaException {
-    final AssignedShard assignedShard = new AssignedShard();
-    _zkClient.readData(ZkPathes.getNode2ShardPath(_nodeName, shardName), assignedShard);
-    return assignedShard;
-  }
+//  /*
+//   * Reads AssignedShard data from ZooKeeper
+//   */
+//  private AssignedShard readAssignedShard(final String shardName) throws KattaException {
+//    final AssignedShard assignedShard = new AssignedShard();
+//    _zkClient.readData(ZkPathes.getNode2ShardPath(_nodeName, shardName), assignedShard);
+//    return assignedShard;
+//  }
 
   public HitsMapWritable search(final IQuery query, final DocumentFrequenceWritable freqs, final String[] shards)
       throws IOException {
@@ -550,7 +557,16 @@ public class Node implements ISearch, IZkReconnectListener {
     metaData.setState(state);
     _zkClient.writeData(nodePath, metaData);
   }
-
+  
+  private ArrayList<AssignedShard> readAssignedShards(final List<String> shardsToDeploy) throws KattaException {
+    ArrayList<AssignedShard> newShards = new ArrayList<AssignedShard>();
+    for (String shardName : shardsToDeploy) {
+      AssignedShard assignedShard = new AssignedShard();
+      _zkClient.readData(ZkPathes.getNode2ShardPath(_nodeName, shardName), assignedShard);  
+      newShards.add(assignedShard);
+    }
+    return newShards;
+  }
   /*
    * Listens to events within the nodeToShard zookeeper folder. Those events are
    * fired if a shard is assigned or removed for this node.
@@ -564,8 +580,13 @@ public class Node implements ISearch, IZkReconnectListener {
       _deployedShards.removeAll(shardsToUndeploy);
       _deployedShards.addAll(shardsToDeploy);
       undeployShards(shardsToUndeploy);
-      deployShards(shardsToDeploy);
+      // we actually want to get all shard information now to make sure it can not be changed during any other steps
+      
+      ArrayList<AssignedShard> newShards = readAssignedShards(shardsToDeploy);
+      deployShards(newShards);
     }
+
+   
 
   }
 
