@@ -24,8 +24,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
-import javax.management.openmbean.KeyAlreadyExistsException;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import net.sf.katta.index.IndexMetaData;
 import net.sf.katta.node.DocumentFrequenceWritable;
@@ -391,6 +394,37 @@ public class Client implements IClient {
     getDetailsInteraction.run();
     getDetailsInteraction.checkSuccess();
     return getDetailsInteraction.getDetails();
+  }
+
+  public List<MapWritable> getDetails(List<Hit> hits) throws KattaException, InterruptedException {
+    return getDetails(hits, null);
+  }
+
+  public List<MapWritable> getDetails(List<Hit> hits, final String[] fields) throws KattaException, InterruptedException {
+    ExecutorService executorService = Executors.newFixedThreadPool(Math.min(20, hits.size() + 1));
+    List<MapWritable> results = new ArrayList<MapWritable>();
+    List<Future<MapWritable>> futures = new ArrayList<Future<MapWritable>>();
+    for (final Hit hit : hits) {
+      futures.add(executorService.submit(new Callable<MapWritable>() {
+
+        @Override
+        public MapWritable call() throws Exception {
+          return getDetails(hit, fields);
+        }
+      }));
+    }
+
+    for (Future<MapWritable> future : futures) {
+      try {
+        results.add(future.get());
+      } catch (ExecutionException e) {
+        throw new KattaException("Could not get hit details.", e.getCause());
+      }
+    }
+
+    executorService.shutdown();
+    
+    return results;
   }
 
   protected class ShardNodeListener implements IZkChildListener {

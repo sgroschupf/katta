@@ -15,7 +15,7 @@
  */
 package net.sf.katta.client;
 
-import java.io.IOException;
+import java.util.List;
 
 import net.sf.katta.node.Hit;
 import net.sf.katta.node.Hits;
@@ -56,8 +56,6 @@ public interface IClient {
    * @param indexNames
    *          A list of index names to search in.
    * @return A object that capsulates all results.
-   * @throws IOException
-   *           If indexes can't be searched.
    * @throws KattaException
    */
   public abstract Hits search(Query query, String[] indexNames) throws KattaException;
@@ -109,6 +107,38 @@ public interface IClient {
    *           If indexes can't be searched.
    */
   public abstract MapWritable getDetails(Hit hit, String[] fields) throws KattaException;
+
+  /**
+   * Gets list of all details for the given list of hits. The details are retrieved in
+   * parallel rather than getting them one by one. Thus using this method is the preferred
+   * way of getting the details of multiple hits.
+   * 
+   * @param hits
+   *          The list of hits from that all fields should be returned.
+   * @return The list of details for given hits.
+   * @throws KattaException
+   *           If indexes can't be searched.
+   * @throws InterruptedException
+   *           If the current thread got interrupted.
+   */
+  public List<MapWritable> getDetails(List<Hit> hits) throws KattaException, InterruptedException;
+
+  /**
+   * Gets list of details for the given list of hits. The details are retrieved in
+   * parallel rather than getting them one by one. Thus using this method is the preferred
+   * way of getting the details of multiple hits.
+   * 
+   * @param hits
+   *          The list of hits from that all fields should be returned.
+   * @param fields
+   *          The field names of which the value should be returned.
+   * @return The list of details for given hits.
+   * @throws KattaException
+   *           If indexes can't be searched.
+   * @throws InterruptedException
+   *           If the current thread got interrupted.
+   */
+  public List<MapWritable> getDetails(List<Hit> hits, final String[] fields) throws KattaException, InterruptedException;
 
   /**
    * The overall queries per minute.

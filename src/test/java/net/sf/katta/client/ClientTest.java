@@ -15,6 +15,7 @@
  */
 package net.sf.katta.client;
 
+import java.util.List;
 import java.util.Set;
 
 import net.sf.katta.AbstractKattaTest;
@@ -105,6 +106,24 @@ public class ClientTest extends AbstractKattaTest {
       final Set<Writable> keySet = details.keySet();
       assertFalse(keySet.isEmpty());
       final Writable writable = details.get(new Text("path"));
+      assertNotNull(writable);
+    }
+  }
+
+  public void testGetDetailsConcurrently() throws KattaException, ParseException, InterruptedException {
+    final Query query = new QueryParser("", new KeywordAnalyzer()).parse("content: the");
+    final Hits hits = _client.search(query, new String[] { INDEX1 }, 10);
+    assertNotNull(hits);
+    assertEquals(10, hits.getHits().size());
+    List<MapWritable> detailList = _client.getDetails(hits.getHits());
+    assertEquals(hits.getHits().size(), detailList.size());
+    for (int i = 0; i < detailList.size(); i++) {
+      final MapWritable details1 = _client.getDetails(hits.getHits().get(i));
+      final MapWritable details2 = detailList.get(i);
+      assertEquals(details1.entrySet(), details2.entrySet());
+      final Set<Writable> keySet = details2.keySet();
+      assertFalse(keySet.isEmpty());
+      final Writable writable = details2.get(new Text("path"));
       assertNotNull(writable);
     }
   }
