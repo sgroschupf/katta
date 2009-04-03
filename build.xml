@@ -151,6 +151,9 @@
 			</classpath>
 		</eclipse>
 		<replace file="${basedir.ivy.instance}/.settings/org.eclipse.jdt.core.prefs" token="org.eclipse.jdt.core.compiler.compliance=6.0" value="org.eclipse.jdt.core.compiler.compliance=1.6" />
+		<concat destfile="${basedir.ivy.instance}/.settings/org.eclipse.jdt.core.prefs" append="true">
+			 <filelist dir="${root.dir}/src/build/eclipse" files="formatter"/>
+		</concat>
 	</target>
 
 	<target name="clean-eclipse" depends="resolve" description="cleans the eclipse project files">
