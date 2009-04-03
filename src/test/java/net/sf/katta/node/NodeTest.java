@@ -33,7 +33,10 @@ import net.sf.katta.testutil.TestResources;
 import net.sf.katta.zk.ZKClient;
 import net.sf.katta.zk.ZkPathes;
 
+import org.apache.lucene.analysis.KeywordAnalyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
+import org.apache.lucene.queryParser.QueryParser;
+import org.apache.lucene.search.Query;
 import org.mockito.Mockito;
 
 public class NodeTest extends AbstractKattaTest {
@@ -139,15 +142,17 @@ public class NodeTest extends AbstractKattaTest {
     }
     
     
+    QueryParser parser = new QueryParser("field", new KeywordAnalyzer());
+    Query query = parser.parse("foo: bar");
+    QueryWritable writable = new QueryWritable(query);
     
-    Query query = new Query("foo: bar");
     String[] shardArray = shardNames.toArray(new String[shardNames.size()]);
-    DocumentFrequenceWritable freqs = node.getDocFreqs(query, shardArray);
+    DocumentFrequenceWritable freqs = node.getDocFreqs(writable, shardArray);
 
     ExecutorService es = Executors.newFixedThreadPool(100);
     List<Future<HitsMapWritable>> tasks = new ArrayList<Future<HitsMapWritable>>();
     for (int i = 0; i < 10000; i++) {
-      QueryClient client = new QueryClient(node, freqs, query, shardArray);
+      QueryClient client = new QueryClient(node, freqs, writable, shardArray);
       Future<HitsMapWritable> future = es.submit(client);
       tasks.add(future);
     }
@@ -168,11 +173,11 @@ public class NodeTest extends AbstractKattaTest {
   private class QueryClient implements Callable<HitsMapWritable> {
 
     private Node _node;
-    private IQuery _query;
+    private QueryWritable _query;
     private DocumentFrequenceWritable _freqs;
     private String[] _shards;
 
-    public QueryClient(Node node, DocumentFrequenceWritable freqs, IQuery query, String[] shards) {
+    public QueryClient(Node node, DocumentFrequenceWritable freqs, QueryWritable query, String[] shards) {
       _node = node;
       _freqs = freqs;
       _query = query;

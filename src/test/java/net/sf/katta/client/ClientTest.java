@@ -22,7 +22,6 @@ import net.sf.katta.master.Master;
 import net.sf.katta.node.Hit;
 import net.sf.katta.node.Hits;
 import net.sf.katta.node.Node;
-import net.sf.katta.node.Query;
 import net.sf.katta.testutil.TestResources;
 import net.sf.katta.util.KattaException;
 
@@ -30,7 +29,11 @@ import org.apache.hadoop.io.MapWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 import org.apache.log4j.Logger;
+import org.apache.lucene.analysis.KeywordAnalyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
+import org.apache.lucene.queryParser.ParseException;
+import org.apache.lucene.queryParser.QueryParser;
+import org.apache.lucene.search.Query;
 
 /**
  * Test for {@link Client}.
@@ -86,14 +89,14 @@ public class ClientTest extends AbstractKattaTest {
     _master.shutdown();
   }
 
-  public void testCount() throws KattaException {
-    final Query query = new Query("content: the");
+  public void testCount() throws KattaException, ParseException {
+    final Query query = new QueryParser("", new KeywordAnalyzer()).parse("content: the");
     final int count = _client.count(query, new String[] { INDEX1 });
     assertEquals(937, count);
   }
 
-  public void testGetDetails() throws KattaException {
-    final Query query = new Query("content:the");
+  public void testGetDetails() throws KattaException, ParseException {
+    final Query query = new QueryParser("", new KeywordAnalyzer()).parse("content: the");
     final Hits hits = _client.search(query, new String[] { INDEX1 }, 10);
     assertNotNull(hits);
     assertEquals(10, hits.getHits().size());
@@ -106,8 +109,8 @@ public class ClientTest extends AbstractKattaTest {
     }
   }
 
-  public void testSearch() throws KattaException {
-    final Query query = new Query("foo: bar");
+  public void testSearch() throws KattaException, ParseException {
+    final Query query = new QueryParser("", new KeywordAnalyzer()).parse("foo: bar");
     float currentQueryPerMinute = _client.getQueryPerMinute();
     final Hits hits = _client.search(query, new String[] { INDEX3, INDEX2 });
     assertNotNull(hits);
@@ -122,8 +125,8 @@ public class ClientTest extends AbstractKattaTest {
     }
   }
 
-  public void testSearchLimit() throws KattaException {
-    final Query query = new Query("foo: bar");
+  public void testSearchLimit() throws KattaException, ParseException {
+    final Query query = new QueryParser("", new KeywordAnalyzer()).parse("foo: bar");
     final Hits hits = _client.search(query, new String[] { INDEX3, INDEX2 }, 1);
     assertNotNull(hits);
     for (final Hit hit : hits.getHits()) {
@@ -136,8 +139,8 @@ public class ClientTest extends AbstractKattaTest {
     }
   }
 
-  public void testKatta20SearchLimitMaxNumberOfHits() throws KattaException {
-    final Query query = new Query("foo: bar");
+  public void testKatta20SearchLimitMaxNumberOfHits() throws KattaException, ParseException {
+    final Query query = new QueryParser("", new KeywordAnalyzer()).parse("foo: bar");
     final Hits expectedHits = _client.search(query, new String[] { INDEX1 }, 4);
     assertNotNull(expectedHits);
     LOG.info("Expected hits:");
@@ -166,8 +169,8 @@ public class ClientTest extends AbstractKattaTest {
     LOG.info(hit.getNode() + " -- " + hit.getShard() + " -- " + hit.getScore() + " -- " + hit.getDocId());
   }
 
-  public void testSearchSimiliarity() throws KattaException {
-    final Query query = new Query("foo: bar");
+  public void testSearchSimiliarity() throws KattaException, ParseException {
+    final Query query = new QueryParser("", new KeywordAnalyzer()).parse("foo: bar");
     final Hits hits = _client.search(query, new String[] { INDEX2 });
     assertNotNull(hits);
     assertEquals(4, hits.getHits().size());

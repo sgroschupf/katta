@@ -36,7 +36,7 @@ public interface ISearch extends VersionedProtocol {
    * @throws ParseException
    * @throws IOException
    */
-  public HitsMapWritable search(IQuery query, DocumentFrequenceWritable freqs, String[] shardNames) throws IOException;
+  public HitsMapWritable search(QueryWritable query, DocumentFrequenceWritable freqs, String[] shardNames) throws IOException;
 
   /**
    * @param query
@@ -48,7 +48,7 @@ public interface ISearch extends VersionedProtocol {
    * @throws ParseException
    * @throws IOException
    */
-  public HitsMapWritable search(IQuery query, DocumentFrequenceWritable freqs, String[] shardNames, int count)
+  public HitsMapWritable search(QueryWritable query, DocumentFrequenceWritable freqs, String[] shardNames, int count)
       throws IOException;
 
   /**
@@ -64,7 +64,7 @@ public interface ISearch extends VersionedProtocol {
    * @throws IOException
    * @throws ParseException
    */
-  public DocumentFrequenceWritable getDocFreqs(IQuery input, String[] shards) throws IOException;
+  public DocumentFrequenceWritable getDocFreqs(QueryWritable input, String[] shards) throws IOException;
 
   /**
    * Returns only the request fields of a lucene document.
@@ -100,5 +100,5 @@ public interface ISearch extends VersionedProtocol {
    * @return
    * @throws IOException
    */
-  public int getResultCount(IQuery query, String[] strings) throws IOException;
+  public int getResultCount(QueryWritable query, String[] strings) throws IOException;
 }

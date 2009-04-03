@@ -156,13 +156,16 @@ public class Node implements ISearch, IZkReconnectListener {
     if (_zkClient.exists(node2ShardRootPath)) {
       shardsToServe = _zkClient.getChildren(node2ShardRootPath);
     }
-    List<String> localShards = Arrays.asList(_shardsFolder.list(FileUtil.VISIBLE_FILES_FILTER));
+    String[] folderList = _shardsFolder.list(FileUtil.VISIBLE_FILES_FILTER);
+    if (folderList != null) {
+      List<String> localShards = Arrays.asList(folderList);
 
-    List<String> shardsToRemove = CollectionUtil.getListOfRemoved(localShards, shardsToServe);
-    for (String shard : shardsToRemove) {
-      File localShard = getLocalShardFolder(shard);
-      LOG.info("delete local shard " + localShard.getAbsolutePath());
-      FileUtil.deleteFolder(localShard);
+      List<String> shardsToRemove = CollectionUtil.getListOfRemoved(localShards, shardsToServe);
+      for (String shard : shardsToRemove) {
+        File localShard = getLocalShardFolder(shard);
+        LOG.info("delete local shard " + localShard.getAbsolutePath());
+        FileUtil.deleteFolder(localShard);
+      }
     }
   }
 
@@ -409,30 +412,19 @@ public class Node implements ISearch, IZkReconnectListener {
 //    return assignedShard;
 //  }
 
-  public HitsMapWritable search(final IQuery query, final DocumentFrequenceWritable freqs, final String[] shards)
+  public HitsMapWritable search(final QueryWritable query, final DocumentFrequenceWritable freqs, final String[] shards)
       throws IOException {
     return search(query, freqs, shards, Integer.MAX_VALUE - 1);
   }
 
-  public HitsMapWritable search(final IQuery query, final DocumentFrequenceWritable freqs, final String[] shards,
+  public HitsMapWritable search(final QueryWritable query, final DocumentFrequenceWritable freqs, final String[] shards,
       final int count) throws IOException {
     if (LOG.isDebugEnabled()) {
       LOG.debug("You are searching with the query: '" + query.getQuery() + "'");
     }
 
-    Query luceneQuery;
-    try {
-      // TODO jz: shouldn't the analyzer depend on the index configuration ?
-      final QueryParser luceneQueryParser = new QueryParser("field", new KeywordAnalyzer());
-      luceneQuery = luceneQueryParser.parse(query.getQuery());
-    } catch (final ParseException e) {
-
-      final String msg = "Failed to parse query: " + query.getQuery();
-      LOG.error(msg, e);
-      final IOException exception = new IOException(msg);
-      exception.setStackTrace(e.getStackTrace());
-      throw exception;
-    }
+    Query luceneQuery = query.getQuery();
+   
     if (LOG.isDebugEnabled()) {
       LOG.debug("Lucene query: " + luceneQuery.toString());
     }
@@ -466,19 +458,8 @@ public class Node implements ISearch, IZkReconnectListener {
     return _protocolVersion;
   }
 
-  public DocumentFrequenceWritable getDocFreqs(final IQuery input, final String[] shards) throws IOException {
-    Query luceneQuery;
-    try {
-      // TODO jz: shouldn't the analyzer depend on the index configuration ?
-      final QueryParser luceneQueryParser = new QueryParser("field", new KeywordAnalyzer());
-      luceneQuery = luceneQueryParser.parse(input.getQuery());
-    } catch (final ParseException e) {
-      final String msg = "Unable to parse Query: " + input.getQuery();
-      final IOException exception = new IOException(msg);
-      exception.setStackTrace(e.getStackTrace());
-      LOG.error(msg, e);
-      throw exception;
-    }
+  public DocumentFrequenceWritable getDocFreqs(final QueryWritable input, final String[] shards) throws IOException {
+    Query luceneQuery = input.getQuery();
 
     final Query rewrittenQuery = _searcher.rewrite(luceneQuery, shards);
     final DocumentFrequenceWritable docFreqs = new DocumentFrequenceWritable();
@@ -535,7 +516,7 @@ public class Node implements ISearch, IZkReconnectListener {
     return result;
   }
 
-  public int getResultCount(final IQuery query, final String[] shards) throws IOException {
+  public int getResultCount(final QueryWritable query, final String[] shards) throws IOException {
     final DocumentFrequenceWritable docFreqs = getDocFreqs(query, shards);
     return search(query, docFreqs, shards, 1).getTotalHits();
   }

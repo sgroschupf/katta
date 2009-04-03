@@ -1,6 +1,10 @@
 Katta Change Log
 
 katta 0.5-dev
+ fix KATTA-2, use the correct analyzer for queries. I used the opportunity here to depreciate IQuery and Query and switched it to lucene Query. 
+ It is now possible to use any kind of lucene query created programatically. If you using a string you can use the lucene QueryParser. 
+ The depreciate still uses the hardcoded KeywordAnalyzer.
+ fix NPE in Node zookeeper reconnect in case the shardfolder was empty.  
  fix KATTA-4, shards are now searched in parallel with a thread pool, we still need to merge the results together though.
  fix KATTA-27, Query parser not  thread-safe.
  minor refactoring to make Node better testable without zookeeper.

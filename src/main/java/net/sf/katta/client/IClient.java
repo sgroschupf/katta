@@ -23,6 +23,7 @@ import net.sf.katta.node.IQuery;
 import net.sf.katta.util.KattaException;
 
 import org.apache.hadoop.io.MapWritable;
+import org.apache.lucene.search.Query;
 
 /**
  * Client for searching document indices deployed on a katta cluster.
@@ -59,7 +60,12 @@ public interface IClient {
    *           If indexes can't be searched.
    * @throws KattaException
    */
+  public abstract Hits search(Query query, String[] indexNames) throws KattaException;
+
+  @Deprecated
   public abstract Hits search(IQuery query, String[] indexNames) throws KattaException;
+  
+  
 
   /**
    * Searches with a given query in the supplied indexes for a limited amount of
@@ -74,6 +80,9 @@ public interface IClient {
    * @return A object that capsulates all results.
    * @throws KattaException
    */
+  public abstract Hits search(Query query, String[] indexNames, int count) throws KattaException;
+  
+  @Deprecated
   public abstract Hits search(IQuery query, String[] indexNames, int count) throws KattaException;
 
   /**
@@ -118,6 +127,9 @@ public interface IClient {
    * @return A number that represents the overall result count to a query.
    * @throws KattaException
    */
+  public abstract int count(Query query, String[] indexNames) throws KattaException;
+  
+  @Deprecated
   public abstract int count(IQuery query, String[] indexNames) throws KattaException;
 
   /**

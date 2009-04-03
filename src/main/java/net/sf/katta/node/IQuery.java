@@ -17,6 +17,7 @@ package net.sf.katta.node;
 
 import org.apache.hadoop.io.Writable;
 
+@Deprecated
 public interface IQuery extends Writable {
 
   // void setDocFreqs(MapWritable docFreqs);

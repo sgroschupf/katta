@@ -21,6 +21,7 @@ import java.io.IOException;
 
 import org.apache.hadoop.io.Text;
 
+@Deprecated
 public class Query implements IQuery {
 
   private Text _query = new Text("");

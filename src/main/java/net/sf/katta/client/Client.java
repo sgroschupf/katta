@@ -25,6 +25,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import javax.management.openmbean.KeyAlreadyExistsException;
+
 import net.sf.katta.index.IndexMetaData;
 import net.sf.katta.node.DocumentFrequenceWritable;
 import net.sf.katta.node.Hit;
@@ -32,6 +34,7 @@ import net.sf.katta.node.Hits;
 import net.sf.katta.node.HitsMapWritable;
 import net.sf.katta.node.IQuery;
 import net.sf.katta.node.ISearch;
+import net.sf.katta.node.QueryWritable;
 import net.sf.katta.util.CollectionUtil;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.ZkConfiguration;
@@ -44,6 +47,10 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.MapWritable;
 import org.apache.hadoop.ipc.RPC;
 import org.apache.log4j.Logger;
+import org.apache.lucene.analysis.KeywordAnalyzer;
+import org.apache.lucene.queryParser.ParseException;
+import org.apache.lucene.queryParser.QueryParser;
+import org.apache.lucene.search.Query;
 
 /**
  * Default implementation of {@link IClient}.
@@ -122,7 +129,7 @@ public class Client implements IClient {
     String[] hostName_port = node.split(":");
     if (hostName_port.length != 2) {
       throw new RuntimeException("invalid node name format '" + node
-          + "' (It should be a host name with a port number devided by a ':')");
+              + "' (It should be a host name with a port number devided by a ':')");
     }
     final String hostName = hostName_port[0];
     final String port = hostName_port[1];
@@ -160,21 +167,45 @@ public class Client implements IClient {
     _indexToShards.put(indexName, shards);
     for (final String shardName : shards) {
       List<String> nodes = _zkClient.subscribeChildChanges(ZkPathes.getShard2NodeRootPath(shardName),
-          _shardNodeListener);
+              _shardNodeListener);
       updateSelectionPolicy(shardName, nodes);
     }
   }
 
   protected boolean isIndexSearchable(final IndexMetaData indexMetaData) {
     return indexMetaData.getState() == IndexMetaData.IndexState.DEPLOYED
-        || indexMetaData.getState() == IndexMetaData.IndexState.REPLICATING;
+            || indexMetaData.getState() == IndexMetaData.IndexState.REPLICATING;
   }
 
+  @Deprecated
+  /*
+   * @deprecated Old api uses IQuery what just transport a string, also uses
+   * only a KeywordAnalyzer.
+   */
   public Hits search(final IQuery query, final String[] indexNames) throws KattaException {
     return search(query, indexNames, Integer.MAX_VALUE);
   }
 
+  public Hits search(final Query query, final String[] indexNames) throws KattaException {
+    return search(query, indexNames, Integer.MAX_VALUE);
+  }
+
+  @Deprecated
+  /*
+   * @deprecated Old api uses IQuery what just transport a string, also uses
+   * only a KeywordAnalyzer.
+   */
   public Hits search(final IQuery query, final String[] indexNames, final int count) throws KattaException {
+    try {
+      final QueryParser luceneQueryParser = new QueryParser("field", new KeywordAnalyzer());
+      Query luceneQuery = luceneQueryParser.parse(query.getQuery());
+      return search(luceneQuery, indexNames, count);
+    } catch (ParseException e) {
+      throw new KattaException("Unable to parse Query: " + query.getQuery(), e);
+    }
+  }
+
+  public Hits search(final Query query, final String[] indexNames, final int count) throws KattaException {
     final Map<String, List<String>> nodeShardsMap = getNode2ShardsMap(indexNames);
     final Hits result = new Hits();
     final DocumentFrequenceWritable docFreqs = getDocFrequencies(query, nodeShardsMap);
@@ -197,7 +228,18 @@ public class Client implements IClient {
     return result;
   }
 
+  @Deprecated
   public int count(final IQuery query, final String[] indexNames) throws KattaException {
+    try {
+      final QueryParser luceneQueryParser = new QueryParser("field", new KeywordAnalyzer());
+      Query luceneQuery = luceneQueryParser.parse(query.getQuery());
+      return count(luceneQuery, indexNames);
+    } catch (ParseException e) {
+      throw new KattaException("Unable to parse Query: " + query.getQuery(), e);
+    }
+  }
+
+    public int count(final Query query, final String[] indexNames) throws KattaException {
     final Map<String, List<String>> nodeShardsMap = getNode2ShardsMap(indexNames);
     final List<Integer> result = new ArrayList<Integer>();
     List<NodeInteraction> nodeInteractions = new ArrayList<NodeInteraction>();
@@ -253,8 +295,8 @@ public class Client implements IClient {
     return shards;
   }
 
-  private DocumentFrequenceWritable getDocFrequencies(final IQuery query, final Map<String, List<String>> node2ShardsMap)
-      throws KattaException {
+  private DocumentFrequenceWritable getDocFrequencies(final Query query, final Map<String, List<String>> node2ShardsMap)
+          throws KattaException {
     DocumentFrequenceWritable docFreqs = new DocumentFrequenceWritable();
     List<NodeInteraction> nodeInteractions = new ArrayList<NodeInteraction>();
     for (final String node : node2ShardsMap.keySet()) {
@@ -290,7 +332,7 @@ public class Client implements IClient {
     }
     if (LOG.isDebugEnabled()) {
       LOG.debug(nodeInteractions.get(0).getClass().getSimpleName() + " took " + (System.currentTimeMillis() - start)
-          + " ms");
+              + " ms");
     }
   }
 
@@ -364,11 +406,11 @@ public class Client implements IClient {
 
   private class GetDocumentFrequencyInteraction extends NodeInteraction {
 
-    private final IQuery _query;
+    private final Query _query;
     private final DocumentFrequenceWritable _docFreqs;
 
-    public GetDocumentFrequencyInteraction(String node, Map<String, List<String>> node2ShardsMap, IQuery query,
-        DocumentFrequenceWritable docFreqs) {
+    public GetDocumentFrequencyInteraction(String node, Map<String, List<String>> node2ShardsMap, Query query,
+            DocumentFrequenceWritable docFreqs) {
       super(node, node2ShardsMap);
       _query = query;
       _docFreqs = docFreqs;
@@ -376,8 +418,8 @@ public class Client implements IClient {
 
     @Override
     protected void doInteraction(ISearch search, String node, List<String> shards) throws IOException {
-      final DocumentFrequenceWritable nodeDocFreqs = search.getDocFreqs(_query, shards
-          .toArray(new String[shards.size()]));
+      final DocumentFrequenceWritable nodeDocFreqs = search.getDocFreqs(new QueryWritable(_query), shards
+              .toArray(new String[shards.size()]));
       _docFreqs.addNumDocs(nodeDocFreqs.getNumDocs());
       _docFreqs.putAll(nodeDocFreqs.getAll());
     }
@@ -385,10 +427,10 @@ public class Client implements IClient {
 
   private class GetCountInteraction extends NodeInteraction {
 
-    private final IQuery _query;
+    private final Query _query;
     private final List<Integer> _result;
 
-    public GetCountInteraction(String node, Map<String, List<String>> node2ShardsMap, IQuery query, List<Integer> result) {
+    public GetCountInteraction(String node, Map<String, List<String>> node2ShardsMap, Query query, List<Integer> result) {
       super(node, node2ShardsMap);
       _query = query;
       _result = result;
@@ -396,7 +438,7 @@ public class Client implements IClient {
 
     @Override
     protected void doInteraction(ISearch search, String node, List<String> shards) throws IOException {
-      final int count = search.getResultCount(_query, shards.toArray(new String[shards.size()]));
+      final int count = search.getResultCount(new QueryWritable(_query), shards.toArray(new String[shards.size()]));
       _result.add(count);
     }
   }
@@ -430,13 +472,13 @@ public class Client implements IClient {
 
   private class SearchInteraction extends NodeInteraction {
 
-    private final IQuery _query;
+    private final Query _query;
     private final int _count;
     private final DocumentFrequenceWritable _docFreqs;
     private final Hits _result;
 
-    public SearchInteraction(String node, Map<String, List<String>> node2ShardsMap, IQuery query,
-        DocumentFrequenceWritable docFreqs, Hits result, int count) {
+    public SearchInteraction(String node, Map<String, List<String>> node2ShardsMap, Query query,
+            DocumentFrequenceWritable docFreqs, Hits result, int count) {
       super(node, node2ShardsMap);
       _query = query;
       _docFreqs = docFreqs;
@@ -448,7 +490,7 @@ public class Client implements IClient {
     protected void doInteraction(ISearch search, String node, List<String> shards) throws IOException {
       Hits hits;
       final String[] shardsArray = shards.toArray(new String[shards.size()]);
-      final HitsMapWritable shardToHits = search.search(_query, _docFreqs, shardsArray, _count);
+      final HitsMapWritable shardToHits = search.search(new QueryWritable(_query), _docFreqs, shardsArray, _count);
       hits = shardToHits.getHits();
       _result.addHits(hits.getHits());
       _result.addTotalHits(hits.size());
@@ -496,15 +538,16 @@ public class Client implements IClient {
           doInteraction(searcher, node, shards);
           if (LOG.isDebugEnabled()) {
             LOG.debug(getClass().getSimpleName() + " with node " + node + " took "
-                + (System.currentTimeMillis() - startTime) + " ms.");
+                    + (System.currentTimeMillis() - startTime) + " ms.");
           }
         } catch (IOException e) {
           if (_tries == 3) {
             throw new KattaException(getClass().getSimpleName() + " for shards " + shards + " failed. Tried nodes: "
-                + _triedNodes);
+                    + _triedNodes);
           }
           LOG.warn(
-              "failed to interact with node " + node + ". Try with other node(s) " + node2ShardsMap.keySet() + ".", e);
+                  "failed to interact with node " + node + ". Try with other node(s) " + node2ShardsMap.keySet() + ".",
+                  e);
           Map<String, List<String>> node2ShardsMapForFailedNode = prepareRetry(node, shards);
 
           // execute the action again for every node
@@ -525,7 +568,7 @@ public class Client implements IClient {
           throw (KattaException) _exception;
         }
         throw new KattaException(getClass().getSimpleName() + " for shards " + _node2ShardsMap.get(_node)
-            + " failed. Tried nodes: " + _triedNodes, _exception);
+                + " failed. Tried nodes: " + _triedNodes, _exception);
       }
     }
 
