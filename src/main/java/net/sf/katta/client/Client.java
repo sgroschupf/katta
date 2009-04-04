@@ -401,7 +401,7 @@ public class Client implements IClient {
   }
 
   public List<MapWritable> getDetails(List<Hit> hits, final String[] fields) throws KattaException, InterruptedException {
-    ExecutorService executorService = Executors.newFixedThreadPool(Math.min(20, hits.size() + 1));
+    ExecutorService executorService = Executors.newFixedThreadPool(Math.min(10, hits.size() + 1));
     List<MapWritable> results = new ArrayList<MapWritable>();
     List<Future<MapWritable>> futures = new ArrayList<Future<MapWritable>>();
     for (final Hit hit : hits) {
