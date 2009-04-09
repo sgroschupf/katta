@@ -59,7 +59,7 @@
 	<!-- Generate a distribution                                            -->
 	<!-- ================================================================== -->
 
-	<target name="dist" depends="test, jar, doc, checkstyle">
+	<target name="dist" depends="coverage, jar, doc, checkstyle">
 
 		<delete dir="${build.dir.dist}" />
 		<!-- creating a fileset for pulling all libs from ivycache cuz disk space is cheap -->
