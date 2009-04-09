@@ -1,6 +1,6 @@
 Katta Change Log
 
-katta 0.5-dev
+katta 0.5
  fix KATTA-23, Parallize result detail retrieval
  fix KATTA-2, use the correct analyzer for queries. I used the opportunity here to depreciate IQuery and Query and switched it to lucene Query. 
  It is now possible to use any kind of lucene query created programatically. If you using a string you can use the lucene QueryParser. 
