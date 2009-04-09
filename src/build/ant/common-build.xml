@@ -120,6 +120,21 @@
 		<fail if="tests.failed">Tests failed!</fail>
 	</target>
 
+	
+	<target name="checkstyle" depends="resolve">
+		<ivy:cachepath pathid="checkstyle.path.id" conf="checkstyle" />
+		<taskdef resource="checkstyletask.properties" classpathref="checkstyle.path.id" />
+
+		<checkstyle config="src/build/checkstyle/checkstyle.xml">
+			<fileset dir="${main.src.dir}" includes="**/*.java" />
+			<fileset dir="${test.src.dir}" includes="**/*.java" />
+			<formatter type="plain" />
+			<formatter type="xml" toFile="${build.dir}/checkstyle_errors.xml" />
+		</checkstyle>
+
+	</target>
+
+		
 	<!-- ================================================================== -->
 	<!-- Cobertura Section                                                  -->
 	<!-- ================================================================== -->
