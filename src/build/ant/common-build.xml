@@ -86,7 +86,7 @@
 		</javac>
 	</target>
 
-	<target name="test" depends="compile-test" description="--> run tests">
+	<target name="test" depends="compile-test, checkstyle" description="--> run tests">
 		<delete dir="${build.dir.test-reports}" />
 		<mkdir dir="${build.dir.test-reports}" />
 		<delete dir="${build.dir.test-data}" />
