@@ -59,7 +59,7 @@
 	<!-- Generate a distribution                                            -->
 	<!-- ================================================================== -->
 
-	<target name="dist" depends="coverage, jar, doc, checkstyle">
+	<target name="dist" depends="coverage, jar, doc, checkstyle" description="--> builds the Katta distribution">
 
 		<delete dir="${build.dir.dist}" />
 		<!-- creating a fileset for pulling all libs from ivycache cuz disk space is cheap -->
@@ -120,7 +120,7 @@
 	<!-- Generating eclipse file                                            -->
 	<!-- ================================================================== -->
 
-	<target name="eclipse" depends="resolve">
+	<target name="eclipse" depends="resolve" description="--> generates the eclipse project files">
 
 		<ivy:cachepath pathid="eclipse.path.id" conf="eclipse" />
 		<ivy:cachepath pathid="test.path.id" conf="test" />
@@ -156,7 +156,7 @@
 		</concat>
 	</target>
 
-	<target name="clean-eclipse" depends="resolve" description="cleans the eclipse project files">
+	<target name="clean-eclipse" depends="resolve" description="--> cleans the eclipse project files">
 		<delete file=".classpath" />
 		<delete file=".eclipse" />
 		<delete file=".project" />
