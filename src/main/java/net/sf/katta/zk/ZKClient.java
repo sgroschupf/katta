@@ -16,6 +16,7 @@
 package net.sf.katta.zk;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -624,25 +625,32 @@ public class ZKClient implements Watcher {
    * 
    * @throws KattaException
    */
-  public void showFolders() throws KattaException {
+  public void showFolders(OutputStream output) throws KattaException {
     final int level = 1;
-    final StringBuffer buffer = new StringBuffer();
-    final String startPath = "";
-    addChildren(level, buffer, startPath);
+    final StringBuilder builder = new StringBuilder();
+    final String startPath = "/";
+    addChildren(level, builder, startPath);
     try {
-      System.out.write(buffer.toString().getBytes());
+      output.write(builder.toString().getBytes());
     } catch (final IOException e) {
       e.printStackTrace();
     }
 
   }
 
-  private void addChildren(final int level, final StringBuffer buffer, final String startPath) throws KattaException {
+  private void addChildren(final int level, final StringBuilder builder, final String startPath) throws KattaException {
     final List<String> children = getChildren(startPath);
     for (final String node : children) {
-      buffer.append(getSpaces(level - 1) + "'-" + "+" + node + "\n");
+      builder.append(getSpaces(level - 1) + "'-" + "+" + node + "\n");
 
-      addChildren(level + 1, buffer, startPath + "/" + node);
+      String nestedPath;
+      if (startPath.endsWith("/")) {
+        nestedPath = startPath + node;
+      } else {
+        nestedPath = startPath + "/" + node;
+      }
+      
+      addChildren(level + 1, builder, nestedPath);
     }
   }
 

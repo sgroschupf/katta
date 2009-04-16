@@ -37,10 +37,10 @@ import net.sf.katta.index.IndexMetaData.IndexState;
 import net.sf.katta.index.indexer.SampleIndexGenerator;
 import net.sf.katta.index.indexer.merge.IndexMergeApplication;
 import net.sf.katta.master.Master;
+import net.sf.katta.node.BaseNode;
 import net.sf.katta.node.Hit;
 import net.sf.katta.node.Hits;
 import net.sf.katta.node.IQuery;
-import net.sf.katta.node.BaseNode;
 import net.sf.katta.node.LuceneNode;
 import net.sf.katta.node.NodeMetaData;
 import net.sf.katta.node.Query;
@@ -263,7 +263,7 @@ public class Katta {
   }
 
   public void showStructure() throws KattaException {
-    _zkClient.showFolders();
+    _zkClient.showFolders(System.out);
   }
 
   private void check() throws KattaException {
@@ -515,7 +515,7 @@ public class Katta {
     System.err
         .println("\tsearch <index name>[,<index name>,...] \"<query>\" [count]\tSearch in supplied indexes. The query should be in \". If you supply a result count hit details will be printed. To search in all indices write \"*\"");
     System.err
-        .println("\tindex <inputTextFile> <outputPaht>  <numOfWordsPerDoc> <numOfDocuments> \tGenerates a sample index. The inputTextFile is used as dictionary.");
+        .println("\tindex <inputTextFile> <outputPath>  <numOfWordsPerDoc> <numOfDocuments> \tGenerates a sample index. The inputTextFile is used as dictionary.");
     
     System.err.println();
     System.exit(1);

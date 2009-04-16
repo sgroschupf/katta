@@ -15,6 +15,7 @@
  */
 package net.sf.katta.zk;
 
+import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.ConcurrentModificationException;
 import java.util.List;
@@ -28,7 +29,6 @@ import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 import org.apache.zookeeper.WatchedEvent;
-import org.apache.zookeeper.Watcher.Event;
 import org.apache.zookeeper.Watcher.Event.EventType;
 import org.apache.zookeeper.Watcher.Event.KeeperState;
 import org.jmock.Expectations;
@@ -48,6 +48,16 @@ public class ZKClientTest extends AbstractKattaTest {
     startZkServer();
     client.start(30000);// now should work
     client.close();
+  }
+
+  public void testShowStructure() throws KattaException {
+    final ZKClient client = new ZKClient(_conf);
+    client.start(10000);
+    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+    client.showFolders(outputStream);
+    String output = new String(outputStream.toByteArray());
+    assertTrue(output.contains("+katta"));
+    assertTrue(output.contains("+node-to-shard"));
   }
 
   public void testCreateFolder() throws KattaException {
