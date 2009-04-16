@@ -33,16 +33,13 @@ import org.apache.hadoop.io.DataInputBuffer;
 import org.apache.hadoop.io.DataOutputBuffer;
 import org.apache.hadoop.io.Writable;
 import org.apache.log4j.Logger;
-
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
-import org.apache.zookeeper.Watcher.Event.EventType;
 import org.apache.zookeeper.Watcher.Event.KeeperState;
 import org.apache.zookeeper.ZooDefs.Ids;
-import org.apache.zookeeper.proto.WatcherEvent;
 
 /**
  * Abstracts the interation with zookeeper and allows permanent (not just one
@@ -90,8 +87,8 @@ public class ZKClient implements Watcher {
       throw new IllegalStateException("zk client has already been started");
     }
 
+    getEventLock().lock();
     try {
-      getEventLock().lock();
       _shutdownTriggered = false;
       final long startTime = System.currentTimeMillis();
       try {
@@ -111,7 +108,6 @@ public class ZKClient implements Watcher {
           }
           LOG.debug("Zookeeper ZkServer not yet available, sleeping...");
           getEventLock().getStateChangedCondition().await(1000, TimeUnit.MILLISECONDS);
-          // Thread.sleep(1000);
         }
 
         // createDefaultNameSpace();
@@ -551,7 +547,7 @@ public class ZKClient implements Watcher {
       children = _zk.getChildren(event.getPath(), true);
     } catch (final Exception e) {
       LOG.fatal("re-subscription for child changes on path '" + path + "' failed. removing listeners", e);
-      children = Collections.EMPTY_LIST;
+      children = Collections.emptyList();
       childListeners.clear();
     }
     return children;
