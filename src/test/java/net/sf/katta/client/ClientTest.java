@@ -22,7 +22,7 @@ import net.sf.katta.AbstractKattaTest;
 import net.sf.katta.master.Master;
 import net.sf.katta.node.Hit;
 import net.sf.katta.node.Hits;
-import net.sf.katta.node.Node;
+import net.sf.katta.node.BaseNode;
 import net.sf.katta.testutil.TestResources;
 import net.sf.katta.util.KattaException;
 
@@ -47,8 +47,8 @@ public class ClientTest extends AbstractKattaTest {
   private static final String INDEX2 = "index2";
   private static final String INDEX3 = "index3";
 
-  private static Node _node1;
-  private static Node _node2;
+  private static BaseNode _node1;
+  private static BaseNode _node2;
   private static Master _master;
   private static IDeployClient _deployClient;
   private static IClient _client;

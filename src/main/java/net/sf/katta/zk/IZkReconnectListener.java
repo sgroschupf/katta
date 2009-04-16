@@ -19,5 +19,9 @@ import net.sf.katta.util.KattaException;
 
 public interface IZkReconnectListener {
 
+  /**
+   * Handles all work that need to be done in case a node got disconnected from
+   * zookeeper and got reconnected again.
+   */
   void handleReconnect() throws KattaException;
 }

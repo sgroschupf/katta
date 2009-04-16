@@ -24,9 +24,9 @@ import net.sf.katta.client.DeployClient;
 import net.sf.katta.client.IIndexDeployFuture;
 import net.sf.katta.index.IndexMetaData;
 import net.sf.katta.index.IndexMetaData.IndexState;
-import net.sf.katta.node.Node;
+import net.sf.katta.node.BaseNode;
 import net.sf.katta.node.NodeMetaData;
-import net.sf.katta.node.Node.NodeState;
+import net.sf.katta.node.BaseNode.NodeState;
 import net.sf.katta.testutil.TestResources;
 import net.sf.katta.util.FileUtil;
 import net.sf.katta.zk.ZKClient;
@@ -114,8 +114,8 @@ public class MasterTest extends AbstractKattaTest {
 
     final NodeStartThread nodeStartThread1 = startNode();
     final NodeStartThread nodeStartThread2 = startNode(SECOND_SHARD_FOLDER);
-    final Node node1 = nodeStartThread1.getNode();
-    final Node node2 = nodeStartThread2.getNode();
+    final BaseNode node1 = nodeStartThread1.getNode();
+    final BaseNode node2 = nodeStartThread2.getNode();
     masterStartThread.join();
     nodeStartThread1.join();
     nodeStartThread2.join();
@@ -165,8 +165,8 @@ public class MasterTest extends AbstractKattaTest {
 
     final NodeStartThread nodeStartThread1 = startNode();
     final NodeStartThread nodeStartThread2 = startNode(SECOND_SHARD_FOLDER);
-    final Node node1 = nodeStartThread1.getNode();
-    final Node node2 = nodeStartThread2.getNode();
+    final BaseNode node1 = nodeStartThread1.getNode();
+    final BaseNode node2 = nodeStartThread2.getNode();
     masterStartThread.join();
     nodeStartThread1.join();
     nodeStartThread2.join();

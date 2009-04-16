@@ -20,7 +20,8 @@ import java.io.File;
 import net.sf.katta.client.DeployClient;
 import net.sf.katta.client.IDeployClient;
 import net.sf.katta.master.Master;
-import net.sf.katta.node.Node;
+import net.sf.katta.node.BaseNode;
+import net.sf.katta.node.LuceneNode;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.NodeConfiguration;
 import net.sf.katta.util.ZkConfiguration;
@@ -38,15 +39,15 @@ public class KattaMiniCluster {
   private final ZkConfiguration _zkConfiguration;
   private ZkServer _zkServer;
   private final Master _master;
-  private final Node[] _nodes;
+  private final BaseNode[] _nodes;
 
   public KattaMiniCluster(ZkConfiguration zkConfiguration, int nodeCount) throws KattaException {
     _zkConfiguration = zkConfiguration;
-    _nodes = new Node[nodeCount];
+    _nodes = new BaseNode[nodeCount];
     for (int i = 0; i < _nodes.length; i++) {
       NodeConfiguration nodeConf = new NodeConfiguration();
       nodeConf.setShardFolder(new File(nodeConf.getShardFolder(), "" + i).getAbsolutePath());
-      _nodes[i] = new Node(new ZKClient(_zkConfiguration), nodeConf);
+      _nodes[i] = new LuceneNode(new ZKClient(_zkConfiguration), nodeConf);
     }
     _master = new Master(new ZKClient(zkConfiguration));
   }
@@ -54,20 +55,20 @@ public class KattaMiniCluster {
   public void start() throws KattaException {
     _zkServer = new ZkServer(_zkConfiguration);
     _master.start();
-    for (Node node : _nodes) {
+    for (BaseNode node : _nodes) {
       node.start();
     }
   }
 
   public void stop() {
     _master.shutdown();
-    for (Node node : _nodes) {
+    for (BaseNode node : _nodes) {
       node.shutdown();
     }
     _zkServer.shutdown();
   }
 
-  public Node getNode(int i) {
+  public BaseNode getNode(int i) {
     return _nodes[i];
   }
 

@@ -40,12 +40,14 @@ import net.sf.katta.master.Master;
 import net.sf.katta.node.Hit;
 import net.sf.katta.node.Hits;
 import net.sf.katta.node.IQuery;
-import net.sf.katta.node.Node;
+import net.sf.katta.node.BaseNode;
+import net.sf.katta.node.LuceneNode;
 import net.sf.katta.node.NodeMetaData;
 import net.sf.katta.node.Query;
-import net.sf.katta.node.Node.NodeState;
+import net.sf.katta.node.BaseNode.NodeState;
 import net.sf.katta.tool.ZkTool;
 import net.sf.katta.util.KattaException;
+import net.sf.katta.util.NodeConfiguration;
 import net.sf.katta.util.SymlinkResourceLoader;
 import net.sf.katta.util.VersionInfo;
 import net.sf.katta.util.ZkConfiguration;
@@ -240,7 +242,7 @@ public class Katta {
   public static void startNode() throws KattaException, InterruptedException {
     final ZkConfiguration configuration = new ZkConfiguration();
     final ZKClient client = new ZKClient(configuration);
-    final Node node = new Node(client);
+    final BaseNode node = new LuceneNode(client, new NodeConfiguration());
     node.start();
     Runtime.getRuntime().addShutdownHook(new Thread() {
       @Override
@@ -394,7 +396,7 @@ public class Katta {
       if (!deployedShards.isEmpty()) {
         DeployedShard deployedShard = new DeployedShard();
         _zkClient.readData(ZkPathes.getShard2NodePath(shard, deployedShards.get(0)), deployedShard);
-        docCount += deployedShard.getNumOfDocs();
+        docCount +=  Integer.parseInt(deployedShard.getMetaData().get(LuceneNode.NUM_OF_DOCS));
       }
     }
     return docCount;

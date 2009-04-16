@@ -18,8 +18,10 @@ package net.sf.katta;
 import java.util.concurrent.TimeUnit;
 
 import net.sf.katta.master.Master;
-import net.sf.katta.node.Node;
+import net.sf.katta.node.BaseNode;
+import net.sf.katta.node.LuceneNode;
 import net.sf.katta.testutil.Gateway;
+import net.sf.katta.util.NodeConfiguration;
 import net.sf.katta.util.ZkConfiguration;
 import net.sf.katta.zk.ZKClient;
 
@@ -41,7 +43,7 @@ public class NodeMasterReconnectTest extends AbstractKattaTest {
     final MasterStartThread masterStartThread = startMaster();
     final Master master = masterStartThread.getMaster();
     final ZKClient zkNodeClient = new ZKClient(gatewayConf);
-    final Node node = new Node(zkNodeClient);
+    final BaseNode node = new LuceneNode(zkNodeClient, new NodeConfiguration());
     node.start();
     masterStartThread.join();
     final ZKClient zkMasterClient = masterStartThread.getZkClient();

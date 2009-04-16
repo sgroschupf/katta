@@ -19,7 +19,8 @@ import java.io.File;
 import java.util.concurrent.TimeUnit;
 
 import net.sf.katta.master.Master;
-import net.sf.katta.node.Node;
+import net.sf.katta.node.BaseNode;
+import net.sf.katta.node.LuceneNode;
 import net.sf.katta.testutil.ExtendedTestCase;
 import net.sf.katta.util.FileUtil;
 import net.sf.katta.util.KattaException;
@@ -169,7 +170,7 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
     NodeConfiguration nodeConf = new NodeConfiguration();
     nodeConf.setShardFolder(shardFolder);
     nodeConf.setStartPort(port);
-    Node node = new Node(zkNodeClient, nodeConf);
+    BaseNode node = new LuceneNode(zkNodeClient, nodeConf);
     NodeStartThread nodeStartThread = new NodeStartThread(node, zkNodeClient);
     nodeStartThread.start();
     return nodeStartThread;
@@ -269,16 +270,16 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
 
   protected class NodeStartThread extends Thread {
 
-    private final Node _node;
+    private final BaseNode _node;
     private final ZKClient _client;
 
-    public NodeStartThread(Node node, ZKClient client) {
+    public NodeStartThread(BaseNode node, ZKClient client) {
       _node = node;
       _client = client;
       setName(getClass().getSimpleName());
     }
 
-    public Node getNode() {
+    public BaseNode getNode() {
       return _node;
     }
 

@@ -36,7 +36,7 @@ import net.sf.katta.index.AssignedShard;
 import net.sf.katta.index.IndexMetaData;
 import net.sf.katta.index.IndexMetaData.IndexState;
 import net.sf.katta.node.NodeMetaData;
-import net.sf.katta.node.Node.NodeState;
+import net.sf.katta.node.BaseNode.NodeState;
 import net.sf.katta.util.CollectionUtil;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.zk.IZkChildListener;

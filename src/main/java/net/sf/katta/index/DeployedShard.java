@@ -18,46 +18,58 @@ package net.sf.katta.index;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
 
 import org.apache.hadoop.io.Writable;
 
 public class DeployedShard implements Writable {
 
   private String _shardName;
-  private int _numOfDocs;
-  private long _deployTime = System.currentTimeMillis();
+  private Map<String, String> _metaData;
 
   public DeployedShard() {
     // for serialization
   }
 
-  public DeployedShard(final String shardName, final int numOfDocs) {
+  public DeployedShard(final String shardName, final Map<String, String> metaData) {
     _shardName = shardName;
-    _numOfDocs = numOfDocs;
+    _metaData = metaData;
   }
 
   public void readFields(final DataInput in) throws IOException {
     _shardName = in.readUTF();
-    _deployTime = in.readLong();
-    _numOfDocs = in.readInt();
+    int keyCount = in.readInt();
+    _metaData = new HashMap<String, String>();
+    for (int i = 0; i < keyCount; i++) {
+      String key = in.readUTF();
+      String value = in.readUTF();
+      _metaData.put(key, value);
+    }
   }
 
   public void write(final DataOutput out) throws IOException {
     out.writeUTF(_shardName);
-    out.writeLong(_deployTime);
-    out.writeInt(_numOfDocs);
+    out.writeInt(_metaData.size());
+    Iterator<String> iterator = _metaData.keySet().iterator();
+    while (iterator.hasNext()) {
+      String key = (String) iterator.next();
+      String value = _metaData.get(key);
+      if (value == null) {
+        throw new IllegalArgumentException("null values in meta data not supported");
+      }
+      out.writeUTF(key);
+      out.writeUTF(value);
+    }
   }
 
   public String getShardName() {
     return _shardName;
   }
 
-  public long getDeployTime() {
-    return _deployTime;
-  }
-
-  public int getNumOfDocs() {
-    return _numOfDocs;
+  public Map<String, String> getMetaData() {
+    return _metaData;
   }
 
 }

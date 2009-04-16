@@ -19,7 +19,8 @@ import net.sf.katta.AbstractKattaTest;
 import net.sf.katta.client.Client;
 import net.sf.katta.client.DeployClient;
 import net.sf.katta.client.IDeployClient;
-import net.sf.katta.node.Node;
+import net.sf.katta.node.BaseNode;
+import net.sf.katta.node.LuceneNode;
 import net.sf.katta.node.Query;
 import net.sf.katta.testutil.TestResources;
 import net.sf.katta.util.KattaException;
@@ -127,11 +128,11 @@ public class FailTest extends AbstractKattaTest {
   private class DummyNode {
 
     private final ZKClient _client;
-    private final Node _node;
+    private final BaseNode _node;
 
     public DummyNode(final ZkConfiguration conf, final NodeConfiguration nodeConfiguration) throws KattaException {
       _client = new ZKClient(conf);
-      _node = new Node(_client, nodeConfiguration);
+      _node = new LuceneNode(_client, nodeConfiguration);
       _node.start();
     }
 

@@ -23,13 +23,13 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import junit.framework.Assert;
-
 import net.sf.katta.AbstractKattaTest;
 import net.sf.katta.Katta;
 import net.sf.katta.index.AssignedShard;
 import net.sf.katta.index.IndexMetaData;
 import net.sf.katta.index.IndexMetaData.IndexState;
 import net.sf.katta.testutil.TestResources;
+import net.sf.katta.util.NodeConfiguration;
 import net.sf.katta.zk.ZKClient;
 import net.sf.katta.zk.ZkPathes;
 
@@ -96,7 +96,7 @@ public class NodeTest extends AbstractKattaTest {
     waitForChilds(masterThread.getZkClient(), ZkPathes.NODES, 1);
 
     // deploy index
-    Node node = nodeThread.getNode();
+    BaseNode node = nodeThread.getNode();
     assertEquals(0, node.getDeployedShards().size());
     Katta katta = new Katta();
     String index = "index";
@@ -125,7 +125,7 @@ public class NodeTest extends AbstractKattaTest {
     ZKClient zkClient = Mockito.mock(ZKClient.class);
     Mockito.when(zkClient.getEventLock()).thenReturn(new ZKClient.ZkLock());
     
-    Node node = new Node(zkClient);
+    LuceneNode node = new LuceneNode(zkClient, new NodeConfiguration());
     node.start();
 
     List<AssignedShard> shards = new ArrayList<AssignedShard>();
@@ -134,7 +134,7 @@ public class NodeTest extends AbstractKattaTest {
     shards.add(new AssignedShard("index","src/test/testIndexA/cIndex"));
     shards.add(new AssignedShard("index","src/test/testIndexA/dIndex"));
 
-    node.deployShards(shards);
+    node.deploy(shards);
     
     ArrayList<String> shardNames = new ArrayList<String>();
     for (AssignedShard assignedShard : shards) {
@@ -172,12 +172,12 @@ public class NodeTest extends AbstractKattaTest {
 
   private class QueryClient implements Callable<HitsMapWritable> {
 
-    private Node _node;
+    private LuceneNode _node;
     private QueryWritable _query;
     private DocumentFrequenceWritable _freqs;
     private String[] _shards;
 
-    public QueryClient(Node node, DocumentFrequenceWritable freqs, QueryWritable query, String[] shards) {
+    public QueryClient(LuceneNode node, DocumentFrequenceWritable freqs, QueryWritable query, String[] shards) {
       _node = node;
       _freqs = freqs;
       _query = query;
