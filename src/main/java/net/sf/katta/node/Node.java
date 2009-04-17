@@ -466,9 +466,9 @@ public class Node implements ISearch, IZkReconnectListener {
 
     final HashSet<Term> termSet = new HashSet<Term>();
     rewrittenQuery.extractTerms(termSet);
-    final java.util.Iterator<Term> termIterator = termSet.iterator();
     int numDocs = 0;
     for (final String shard : shards) {
+    final java.util.Iterator<Term> termIterator = termSet.iterator();
       while (termIterator.hasNext()) {
         final Term term = termIterator.next();
         final int docFreq = _searcher.docFreq(shard, term);
