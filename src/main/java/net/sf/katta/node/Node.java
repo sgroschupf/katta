@@ -380,7 +380,7 @@ public class Node implements ISearch, IZkReconnectListener {
         LOG.info("search server started on : " + hostName + ":" + serverPort);
         _searchServerPort = serverPort;
       } catch (final BindException e) {
-        if (configuration.getStartPort() - serverPort < tryCount) {
+        if (serverPort - configuration.getStartPort() < tryCount) {
           serverPort++;
           // try again
         } else {

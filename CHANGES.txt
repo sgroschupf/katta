@@ -1,6 +1,8 @@
 Katta Change Log
 
 katta 0.5.1
+ fix KATTA-37 (blocker), undeploy shard also deleted other shards 
+ fix KATTA-38, endless loop in finding free rcp port
 
 katta 0.5
  fix KATTA-23, Parallize result detail retrieval
