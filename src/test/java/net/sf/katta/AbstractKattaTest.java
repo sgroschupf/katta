@@ -116,7 +116,7 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
     }
     if (!NetworkUtil.isPortFree(ZkServer.DEFAULT_PORT)) {
       throw new IllegalStateException("port " + ZkServer.DEFAULT_PORT
-          + " blocked. Probably other zk server is running.");
+              + " blocked. Probably other zk server is running.");
     }
     _zkServer = new ZkServer(_conf);
   }
@@ -182,7 +182,7 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
   protected void waitForStatus(ZKClient client, States state, long timeout) throws Exception {
     long maxWait = System.currentTimeMillis() + timeout;
     while ((maxWait > System.currentTimeMillis())
-        && (client.getZookeeperState() == null || client.getZookeeperState() != state)) {
+            && (client.getZookeeperState() == null || client.getZookeeperState() != state)) {
       Thread.sleep(500);
     }
     assertEquals(state, client.getZookeeperState());
@@ -198,7 +198,7 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
   }
 
   public static void waitForChilds(final ZKClient client, final String path, final int childCount)
-      throws InterruptedException, KattaException {
+          throws InterruptedException, KattaException {
     int tryCount = 0;
     while (client.getChildren(path).size() != childCount && tryCount++ < 100) {
       Thread.sleep(500);

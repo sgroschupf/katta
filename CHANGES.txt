@@ -1,6 +1,8 @@
 Katta Change Log
 
 katta 0.5.1
+ fix KATTA-41, SecondaryMaster cannot take over when firstMaster failed.
+ fix KATTA-39, logical bug in calculating the DF
  fix KATTA-37 (blocker), undeploy shard also deleted other shards 
  fix KATTA-38, endless loop in finding free rcp port
 

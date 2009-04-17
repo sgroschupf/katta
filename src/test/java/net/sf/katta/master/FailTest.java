@@ -15,6 +15,8 @@
  */
 package net.sf.katta.master;
 
+import java.util.concurrent.TimeUnit;
+
 import net.sf.katta.AbstractKattaTest;
 import net.sf.katta.client.Client;
 import net.sf.katta.client.DeployClient;
@@ -32,41 +34,31 @@ import org.apache.lucene.analysis.standard.StandardAnalyzer;
 
 public class FailTest extends AbstractKattaTest {
 
-  // TODO jz: this does not work, since bother master starts as master (cause
-  // their identifying the master file as their own old ephemeral and delete
-  // it. Thus having two masters on one host is currently not possible)
-  // public void testMasterFail() throws Exception {
-  // final ZKClient masterClient = new ZKClient(_conf);
-  // final ZKClient secMasterClient = new ZKClient(_conf);
-  // final NodeStartThread nodeThread = startNode();
-  //
-  // final Master master = new Master(masterClient);
-  // master.start();
-  //
-  // // start secondary master..
-  // final Master secMaster = new Master(secMasterClient);
-  // secMaster.start();
-  //
-  // nodeThread.join();
-  // waitForPath(masterClient, ZkPathes.MASTER);
-  // waitForChilds(masterClient, ZkPathes.NODES, 1);
-  //
-  // // kill master
-  // secMasterClient.getEventLock().lock();
-  // try {
-  // master.shutdown();
-  // secMasterClient.getEventLock().getDataChangedCondition().await(30,
-  // TimeUnit.SECONDS);
-  // } finally {
-  // secMasterClient.getEventLock().unlock();
-  // }
-  // // just make sure we can read the file
-  // waitForPath(secMasterClient, ZkPathes.MASTER);
-  // assertTrue(secMaster.isMaster());
-  //
-  // nodeThread.shutdown();
-  // secMasterClient.close();
-  // }
+
+  public void testMasterFail() throws Exception {
+    final ZKClient masterClient = new ZKClient(_conf);
+    final ZKClient secMasterClient = new ZKClient(_conf);
+
+    final Master master = new Master(masterClient);
+    master.start();
+
+    // start secondary master..
+    final Master secMaster = new Master(secMasterClient);
+    secMaster.start();
+
+    waitForPath(masterClient, ZkPathes.MASTER);
+
+    MasterMetaData masterData = new MasterMetaData();
+    masterClient.readData(ZkPathes.MASTER, masterData);
+
+    // kill master
+    master.shutdown();
+    // just make sure we can read the file
+    waitForPath(secMasterClient, ZkPathes.MASTER);
+    assertTrue(secMaster.isMaster());
+
+    secMasterClient.close();
+  }
 
   // TODO test zk disconnect
 
@@ -97,7 +89,7 @@ public class FailTest extends AbstractKattaTest {
     final IDeployClient deployClient = new DeployClient(_conf);
     final String indexName = "index";
     deployClient.addIndex(indexName, TestResources.UNZIPPED_INDEX.getAbsolutePath(), StandardAnalyzer.class.getName(),
-        3).joinDeployment();
+            3).joinDeployment();
     final Client client = new Client();
     assertEquals(2, client.count(new Query("foo:bar"), new String[] { indexName }));
     assertEquals(1, node1.countShards());
