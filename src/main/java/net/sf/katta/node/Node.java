@@ -239,7 +239,7 @@ public class Node implements ISearch, IZkReconnectListener {
         if (_zkClient.exists(shard2NodePath)) {
           _zkClient.delete(shard2NodePath);
         }
-        FileUtil.deleteFolder(_shardsFolder);
+        FileUtil.deleteFolder(getLocalShardFolder(shard));
       } catch (final Exception e) {
         LOG.error("Failed to undeploy shard: " + shard, e);
       }

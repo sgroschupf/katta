@@ -15,6 +15,7 @@
  */
 package net.sf.katta.node;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -124,28 +125,27 @@ public class NodeTest extends AbstractKattaTest {
 
     ZKClient zkClient = Mockito.mock(ZKClient.class);
     Mockito.when(zkClient.getEventLock()).thenReturn(new ZKClient.ZkLock());
-    
+
     Node node = new Node(zkClient);
     node.start();
 
     List<AssignedShard> shards = new ArrayList<AssignedShard>();
     shards.add(new AssignedShard("index", "src/test/testIndexA/aIndex"));
-    shards.add(new AssignedShard("index","src/test/testIndexA/bIndex"));
-    shards.add(new AssignedShard("index","src/test/testIndexA/cIndex"));
-    shards.add(new AssignedShard("index","src/test/testIndexA/dIndex"));
+    shards.add(new AssignedShard("index", "src/test/testIndexA/bIndex"));
+    shards.add(new AssignedShard("index", "src/test/testIndexA/cIndex"));
+    shards.add(new AssignedShard("index", "src/test/testIndexA/dIndex"));
 
     node.deployShards(shards);
-    
+
     ArrayList<String> shardNames = new ArrayList<String>();
     for (AssignedShard assignedShard : shards) {
       shardNames.add(assignedShard.getShardName());
     }
-    
-    
+
     QueryParser parser = new QueryParser("field", new KeywordAnalyzer());
     Query query = parser.parse("foo: bar");
     QueryWritable writable = new QueryWritable(query);
-    
+
     String[] shardArray = shardNames.toArray(new String[shardNames.size()]);
     DocumentFrequenceWritable freqs = node.getDocFreqs(writable, shardArray);
 
@@ -168,6 +168,30 @@ public class NodeTest extends AbstractKattaTest {
         Assert.assertEquals(lastScore, currentScore);
       }
     }
+  }
+
+  public void testUndeployShards() throws Exception {
+    ZKClient zkClient = Mockito.mock(ZKClient.class);
+    Mockito.when(zkClient.getEventLock()).thenReturn(new ZKClient.ZkLock());
+
+    Node node = new Node(zkClient);
+    node.start();
+
+    List<AssignedShard> shards = new ArrayList<AssignedShard>();
+    shards.add(new AssignedShard("index", "src/test/testIndexA/aIndex"));
+    shards.add(new AssignedShard("index", "src/test/testIndexA/bIndex"));
+    shards.add(new AssignedShard("index", "src/test/testIndexA/cIndex"));
+    shards.add(new AssignedShard("index", "src/test/testIndexA/dIndex"));
+
+    node.deployShards(shards);
+
+    File workingFolder = node._shardsFolder;
+    assertEquals(4, workingFolder.list().length);
+    // we should have 4 folders in our working folder now.
+    ArrayList<String> list = new ArrayList<String>();
+    list.add(shards.get(0).getShardName());
+    node.undeployShards(list);
+    assertEquals(3, workingFolder.list().length);
   }
 
   private class QueryClient implements Callable<HitsMapWritable> {
