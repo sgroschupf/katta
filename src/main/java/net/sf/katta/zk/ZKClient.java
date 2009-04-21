@@ -283,7 +283,7 @@ public class ZKClient implements Watcher {
     create(path, writable, CreateMode.PERSISTENT);
   }
 
-  private void create(final String path, final Writable writable, CreateMode mode) throws KattaException {
+  public void create(final String path, final Writable writable, CreateMode mode) throws KattaException {
     ensureZkRunning();
     assert path != null;
     final byte[] data = writableToByteArray(writable);
@@ -453,13 +453,13 @@ public class ZKClient implements Watcher {
     
     boolean stateChanged = event.getState() == KeeperState.Disconnected || event.getState() == KeeperState.Expired;
     boolean dataChanged = event.getType() == Watcher.Event.EventType.NodeDataChanged || event.getType() == Watcher.Event.EventType.NodeChildrenChanged;
+    getEventLock().lock();
     try {
-      getEventLock().lock();
       if (_shutdownTriggered) {
         LOG.debug("ignoring event '{" + event.getType() + " | " + event.getPath() + "}' since shutdown triggered");
         return;
       }
-	if (stateChanged) {
+      if (stateChanged) {
         processDisconnect(event);
       }
       if (dataChanged) {
@@ -716,6 +716,9 @@ public class ZKClient implements Watcher {
       }
       if (!exists(ZkPathes.SHARD_TO_ERROR)) {
         create(ZkPathes.SHARD_TO_ERROR);
+      }
+      if (!exists(ZkPathes.LOADTEST_NODES)) {
+        create(ZkPathes.LOADTEST_NODES);
       }
     } catch (KattaException e) {
       if (e.getCause() instanceof KeeperException && e.getCause().getMessage().contains("KeeperErrorCode = NodeExists")) {

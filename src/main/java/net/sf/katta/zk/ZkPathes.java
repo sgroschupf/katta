@@ -36,6 +36,8 @@ public class ZkPathes {
   public static final String SHARD_TO_NODE = ROOT_PATH + "/shard-to-node";
   public static final String SHARD_TO_ERROR = ROOT_PATH + "/shard-to-error";
 
+  public static final String LOADTEST_NODES = ROOT_PATH + "/loadtest-nodes";
+
   public static String getNodePath(String node) {
     return buildPath(NODES, node);
   }

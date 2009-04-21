@@ -1,6 +1,7 @@
 Katta Change Log
 
 katta 0.6-dev
+ KATTA-17, Added first cut load testing code.
  fix KATTA-36, bin/katta showStructure not throwing an exception anymore.
  fix KATTA-35, Added missing target descriptions to build.xml.
 

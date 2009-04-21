@@ -36,6 +36,8 @@ import net.sf.katta.index.ShardError;
 import net.sf.katta.index.IndexMetaData.IndexState;
 import net.sf.katta.index.indexer.SampleIndexGenerator;
 import net.sf.katta.index.indexer.merge.IndexMergeApplication;
+import net.sf.katta.loadtest.LoadTestSearcher;
+import net.sf.katta.loadtest.LoadTestStarter;
 import net.sf.katta.master.Master;
 import net.sf.katta.node.BaseNode;
 import net.sf.katta.node.Hit;
@@ -82,6 +84,14 @@ public class Katta {
       startNode();
     } else if (command.endsWith("startMaster")) {
       startMaster();
+    } else if (command.endsWith("startLoadTestSearcher")) {
+      startTestSearcher();
+    } else if (command.endsWith("startLoadTest")) {
+      final int runTime = Integer.parseInt(args[3]);
+      final String[] indexNames = args[4].split(",");
+      final String query = args[5];
+      final int count = Integer.parseInt(args[6]);
+      startIntegrationTest(Integer.parseInt(args[1]), Integer.parseInt(args[2]), runTime, indexNames, query, count);
     } else if (command.endsWith("version")) {
       showVersion();
     } else if (command.endsWith("zk")) {
@@ -163,6 +173,41 @@ public class Katta {
         katta.close();
       }
     }
+  }
+
+  public static void startIntegrationTest(int nodes, int threads, int runTime, String[] indexNames, String queryString,
+          int count) throws KattaException {
+    final ZkConfiguration conf = new ZkConfiguration();
+    final ZKClient client = new ZKClient(conf);
+    final LoadTestStarter integrationTester = new LoadTestStarter(client, nodes, threads, runTime, indexNames, queryString, count);
+    integrationTester.start();
+    Runtime.getRuntime().addShutdownHook(new Thread() {
+      @Override
+      public void run() {
+        integrationTester.shutdown();
+      }
+    });
+    try {
+      while (client.isStarted()) {
+        Thread.sleep(100);
+      }
+    } catch (InterruptedException e) {
+      // terminate
+    }
+  }
+
+  public static void startTestSearcher() throws KattaException, InterruptedException {
+    final ZkConfiguration conf = new ZkConfiguration();
+    final ZKClient client = new ZKClient(conf);
+    final LoadTestSearcher testSearcher = new LoadTestSearcher(client);
+    testSearcher.start();
+    Runtime.getRuntime().addShutdownHook(new Thread() {
+      @Override
+      public void run() {
+        testSearcher.shutdown();
+      }
+    });
+    testSearcher.join();
   }
 
   private static void generateIndex(String input, String output, int wordsPerDoc, int indexSize){
@@ -502,12 +547,16 @@ public class Katta {
     System.err.println("\tlistNodes\t\tLists all nodes.");
     System.err.println("\tstartMaster\t\tStarts a local master.");
     System.err.println("\tstartNode\t\tStarts a local node.");
+    System.err.println("\tstartLoadTestSearcher\tStarts a load test searcher.");
+    System.err.println("\tstartLoadTest <nodes> <threads> <test-duration-ms> <query> <max hits>");
+    System.err.println("\t\t\t\tStarts a load test.");
     System.err.println("\tshowStructure\t\tShows the structure of a Katta installation.");
     System.err.println("\tcheck\t\t\tAnalyze index/shard/node status.");
     System.err.println("\tversion\t\t\tPrint the version.");
-    System.err
-        .println("\taddIndex <index name> <path to index> <lucene analyzer class> [<replication level>]\tAdd a index to a Katta installation.");
-    System.err.println("\tremoveIndex <index name>\tRemove a index from a Katta installation.");
+    System.err.println("\taddIndex <index name> <path to index> <lucene analyzer class> [<replication level>]");
+    System.err.println("\t\t\t\tAdd an index to a Katta installation.");
+    System.err.println("\tremoveIndex <index name>");
+    System.err.println("\t\t\t\tRemove an index from a Katta installation.");
     System.err.println("\tredeployIndex <index name>\tUndeploys and deploys an index.");
     System.err
         .println("\tmergeIndexes [-indexes <index1,index2>] [-hadoopSiteXml <siteXmlPath>]\tmergers all or the specified indexes.");
