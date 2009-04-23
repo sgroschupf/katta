@@ -18,6 +18,7 @@ package net.sf.katta.master;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.MasterConfiguration;
@@ -41,7 +42,10 @@ public class Master {
 
   protected boolean _isMaster;
 
+  private String _masterName;
+
   public Master(final ZKClient zkClient) throws KattaException {
+    _masterName = NetworkUtil.getLocalhostName()+"_"+UUID.randomUUID().toString();
     _zkClient = zkClient;
     final MasterConfiguration masterConfiguration = new MasterConfiguration();
     final String deployPolicyClassName = masterConfiguration.getDeployPolicy();
@@ -109,26 +113,25 @@ public class Master {
   }
 
   private void becomeMasterOrSecondaryMaster() throws KattaException {
-    final String hostName = NetworkUtil.getLocalhostName();
-    cleanupOldMasterData(hostName);
+    cleanupOldMasterData(_masterName);
 
-    final MasterMetaData freshMaster = new MasterMetaData(hostName, System.currentTimeMillis());
+    final MasterMetaData freshMaster = new MasterMetaData(_masterName, System.currentTimeMillis());
     if (!_zkClient.exists(ZkPathes.MASTER)) {
-      LOG.info(hostName + " starting as master...");
+      LOG.info(_masterName + " starting as master...");
       _isMaster = true;
       _zkClient.createEphemeral(ZkPathes.MASTER, freshMaster);
     } else {
-      LOG.info(hostName + " starting as secondary master...");
+      LOG.info(_masterName + " starting as secondary master...");
       _isMaster = false;
       _zkClient.subscribeDataChanges(ZkPathes.MASTER, new MasterListener());
     }
   }
 
-  private void cleanupOldMasterData(final String hostName) throws KattaException {
+  private void cleanupOldMasterData(final String masterName) throws KattaException {
     if (_zkClient.exists(ZkPathes.MASTER)) {
-      final MasterMetaData existingMaster = new MasterMetaData(hostName, System.currentTimeMillis());
+      final MasterMetaData existingMaster = new MasterMetaData("", System.currentTimeMillis());
       _zkClient.readData(ZkPathes.MASTER, existingMaster);
-      if (existingMaster.getMasterName().equals(hostName)) {
+      if (existingMaster.getMasterName().equals(masterName)) {
         LOG.warn("detected old master entry pointing to this host - deleting it..");
         _zkClient.delete(ZkPathes.MASTER);
       }
@@ -214,6 +217,10 @@ public class Master {
 
   public List<String> getIndexes() {
     return Collections.unmodifiableList(_indexes);
+  }
+  
+  public String getMasterName() {
+    return _masterName;
   }
 
 }

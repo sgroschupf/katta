@@ -64,7 +64,7 @@ public abstract class BaseNode implements IRequestHandler, IZkReconnectListener 
 
   private Server _rpcServer;
 
-  private File _shardsFolder;
+  protected File _shardsFolder;
   private final Set<String> _deployedShards = new HashSet<String>();
 
   private Timer _timer;
@@ -187,7 +187,7 @@ public abstract class BaseNode implements IRequestHandler, IZkReconnectListener 
         LOG.info("Search server started on : " + hostName + ":" + serverPort);
         _serverPort = serverPort;
       } catch (final BindException e) {
-        if (configuration.getStartPort() - serverPort < tryCount) {
+        if (serverPort - configuration.getStartPort() < tryCount) {
           serverPort++;
           // try again
         } else {
@@ -276,7 +276,7 @@ public abstract class BaseNode implements IRequestHandler, IZkReconnectListener 
    * Invokes undeploy in subclass, remove shard folder from working folder and
    * remove shard to node association in zookeeper
    */
-  private void undeploy(List<String> removed) {
+  protected void undeploy(List<String> removed) {
     for (String shard : removed) {
       try {
         LOG.info("Undeploying shard: " + shard);
@@ -287,7 +287,7 @@ public abstract class BaseNode implements IRequestHandler, IZkReconnectListener 
         if (_zkClient.exists(shard2NodePath)) {
           _zkClient.delete(shard2NodePath);
         }
-        FileUtil.deleteFolder(_shardsFolder);
+        FileUtil.deleteFolder(getLocalShardFolder(shard));
       } catch (final Exception e) {
         LOG.error("Failed to undeploy shard: " + shard, e);
       }

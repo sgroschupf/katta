@@ -1,6 +1,13 @@
 Katta Change Log
 
 katta 0.6-dev
+
+ merged katta 0.5.1 into 0.6-dev
+  fix KATTA-41, SecondaryMaster cannot take over when firstMaster failed.
+  fix KATTA-39, logical bug in calculating the DF
+  fix KATTA-37 (blocker), undeploy shard also deleted other shards 
+  fix KATTA-38, endless loop in finding free rcp port
+ 
  KATTA-17, Added first cut load testing code.
  fix KATTA-36, bin/katta showStructure not throwing an exception anymore.
  fix KATTA-35, Added missing target descriptions to build.xml.
