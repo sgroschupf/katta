@@ -25,7 +25,7 @@ import org.apache.hadoop.io.Writable;
 public class TestSearcherMetaData implements Writable {
 
   private Text _host = new Text();
-  private int _port = 17676;
+  private int _port;
   
   @Override
   public void readFields(DataInput dataInput) throws IOException {

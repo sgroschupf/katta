@@ -19,7 +19,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
-import java.net.BindException;
 import java.util.Random;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -28,23 +27,20 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 import net.sf.katta.Katta;
+import net.sf.katta.node.BaseRpcServer;
 import net.sf.katta.util.KattaException;
-import net.sf.katta.util.NetworkUtil;
+import net.sf.katta.util.LoadTestNodeConfiguration;
 import net.sf.katta.zk.ZKClient;
 import net.sf.katta.zk.ZkPathes;
 
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.ipc.RPC;
-import org.apache.hadoop.ipc.RPC.Server;
 import org.apache.log4j.Logger;
 import org.apache.zookeeper.CreateMode;
 
-public class LoadTestNode implements TestCommandListener {
+public class LoadTestNode extends BaseRpcServer implements TestCommandListener {
 
   final static Logger LOG = Logger.getLogger(LoadTestNode.class);
 
   private ZKClient _zkClient;
-  private Server _rpcServer;
   ScheduledExecutorService _executorService = Executors.newScheduledThreadPool(1);
   private Writer _statisticsWriter;
 
@@ -84,8 +80,7 @@ public class LoadTestNode implements TestCommandListener {
     _zkClient = zkClient;
     _configuration = configuration;
     try {
-      // TODO PVo change file (configurable)
-      _statisticsWriter = new OutputStreamWriter(new FileOutputStream("build/test-run.log"), "UTF-8");
+      _statisticsWriter = new OutputStreamWriter(new FileOutputStream(_configuration.getStatisticsFile()), "UTF-8");
     } catch (IOException e) {
       throw new KattaException("Failed to create statistics output file.", e);
     }
@@ -96,7 +91,10 @@ public class LoadTestNode implements TestCommandListener {
     if (!_zkClient.isStarted()) {
       _zkClient.start(30000);
     }
-    TestSearcherMetaData metaData = startRpcServer();
+    startRpcServer(_configuration.getStartPort());
+    TestSearcherMetaData metaData = new TestSearcherMetaData();
+    metaData.setHost(getRpcHostName());
+    metaData.setPort(getRpcServerPort());
     announceTestSearcher(metaData);
   }
 
@@ -111,7 +109,7 @@ public class LoadTestNode implements TestCommandListener {
         return;
       }
       _shutdown = true;
-      _rpcServer.stop();
+      stopRpcServer();
       _executorService.shutdown();
       try {
         _executorService.awaitTermination(10, TimeUnit.SECONDS);
@@ -130,48 +128,6 @@ public class LoadTestNode implements TestCommandListener {
     } finally {
       _shutdownLock.unlock();
     }
-  }
-
-  /**
-   * Starting the hadoop RPC server that response to query requests. We iterate
-   * over a port range of node.server.port.start + 10000
-   */
-  // TODO PVo duplicated code
-  private TestSearcherMetaData startRpcServer() {
-    // TODO PVo configurable??
-    int startPort = 17676;
-    int tryCount = 10000;
-
-    TestSearcherMetaData metaData = new TestSearcherMetaData();
-    metaData.setHost(NetworkUtil.getLocalhostName());
-    int serverPort = startPort;
-    while (_rpcServer == null) {
-      try {
-        _rpcServer = RPC.getServer(this, "0.0.0.0", serverPort, new Configuration());
-        LOG.info("Search server started on : " + metaData.getHost() + ":" + serverPort);
-        metaData.setPort(serverPort);
-      } catch (final BindException e) {
-        if (startPort - serverPort < tryCount) {
-          serverPort++;
-          // try again
-        } else {
-          throw new RuntimeException("Tried " + tryCount + " ports and no one is free...");
-        }
-      } catch (final IOException e) {
-        throw new RuntimeException("Unable to create rpc search server", e);
-      }
-    }
-
-    try {
-      _rpcServer.start();
-    } catch (final IOException e) {
-      throw new RuntimeException("Failed to start rpc search server", e);
-    }
-    return metaData;
-  }
-
-  public void join() throws InterruptedException {
-    _rpcServer.join();
   }
 
   @Override
@@ -213,6 +169,11 @@ public class LoadTestNode implements TestCommandListener {
   @Override
   public long getProtocolVersion(String arg0, long arg1) throws IOException {
     return 0;
+  }
+
+  @Override
+  protected void setup() {
+    // do nothing
   }
   
   //TODO PVo reconnect

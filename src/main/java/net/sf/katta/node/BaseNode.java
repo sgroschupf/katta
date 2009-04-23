@@ -17,7 +17,6 @@ package net.sf.katta.node;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.BindException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
@@ -38,7 +37,6 @@ import net.sf.katta.index.ShardError;
 import net.sf.katta.util.CollectionUtil;
 import net.sf.katta.util.FileUtil;
 import net.sf.katta.util.KattaException;
-import net.sf.katta.util.NetworkUtil;
 import net.sf.katta.util.NodeConfiguration;
 import net.sf.katta.zk.IZkChildListener;
 import net.sf.katta.zk.IZkReconnectListener;
@@ -48,11 +46,9 @@ import net.sf.katta.zk.ZkPathes;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.ipc.RPC;
-import org.apache.hadoop.ipc.RPC.Server;
 import org.apache.log4j.Logger;
 
-public abstract class BaseNode implements IRequestHandler, IZkReconnectListener {
+public abstract class BaseNode extends BaseRpcServer implements IRequestHandler, IZkReconnectListener {
 
   protected final static Logger LOG = Logger.getLogger(BaseNode.class);
 
@@ -60,9 +56,6 @@ public abstract class BaseNode implements IRequestHandler, IZkReconnectListener 
 
   private ZKClient _zkClient;
   private String _nodeName;
-  private int _serverPort;
-
-  private Server _rpcServer;
 
   protected File _shardsFolder;
   private final Set<String> _deployedShards = new HashSet<String>();
@@ -86,8 +79,6 @@ public abstract class BaseNode implements IRequestHandler, IZkReconnectListener 
 
   // to implement by subclasses
 
-  protected abstract void setup();
-
   protected abstract void tearDown();
 
   protected abstract void undeploy(String shard) throws IOException;
@@ -103,23 +94,15 @@ public abstract class BaseNode implements IRequestHandler, IZkReconnectListener 
   }
 
   public int getSearchServerPort() {
-    return _serverPort;
+    return getRpcServerPort();
   }
 
   public NodeState getState() {
     return _currentState;
   }
 
-  public void join() throws InterruptedException {
-    _rpcServer.join();
-  }
-
   public Collection<String> getDeployedShards() {
     return _deployedShards;
-  }
-
-  public Server getRpcServer() {
-    return _rpcServer;
   }
 
   private File getLocalShardFolder(final String shardName) {
@@ -139,7 +122,7 @@ public abstract class BaseNode implements IRequestHandler, IZkReconnectListener 
     try {
       _zkClient.getEventLock().lock();
       LOG.debug("Starting rpc search server...");
-      _nodeName = startRPCServer(_configuration);
+      _nodeName = startRpcServer(_configuration.getStartPort());
 
       // we add hostName and port to the shardFolder to allow multiple nodes per
       // server with the same configuration
@@ -171,41 +154,6 @@ public abstract class BaseNode implements IRequestHandler, IZkReconnectListener 
     } finally {
       _zkClient.getEventLock().unlock();
     }
-  }
-
-  /**
-   * Starting the hadoop RPC server that response to query requests. We iterate
-   * over a port range of node.server.port.start + 10000
-   */
-  private String startRPCServer(final NodeConfiguration configuration) {
-    int serverPort = configuration.getStartPort();
-    final String hostName = NetworkUtil.getLocalhostName();
-    int tryCount = 10000;
-    while (_rpcServer == null) {
-      try {
-        _rpcServer = RPC.getServer(this, "0.0.0.0", serverPort, new Configuration());
-        LOG.info("Search server started on : " + hostName + ":" + serverPort);
-        _serverPort = serverPort;
-      } catch (final BindException e) {
-        if (serverPort - configuration.getStartPort() < tryCount) {
-          serverPort++;
-          // try again
-        } else {
-          throw new RuntimeException("Tried " + tryCount + " ports and no one is free...");
-        }
-      } catch (final IOException e) {
-        throw new RuntimeException("Unable to create rpc search server", e);
-      }
-    }
-
-    setup();
-
-    try {
-      _rpcServer.start();
-    } catch (final IOException e) {
-      throw new RuntimeException("Failed to start rpc search server", e);
-    }
-    return hostName + ":" + serverPort;
   }
 
   /**
@@ -450,8 +398,7 @@ public abstract class BaseNode implements IRequestHandler, IZkReconnectListener 
       _timer.cancel();
       _zkClient.unsubscribeAll();
       _zkClient.close();
-      _rpcServer.stop();
-      _rpcServer = null;
+      stopRpcServer();
     } finally {
       _zkClient.getEventLock().unlock();
     }
