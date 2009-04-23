@@ -37,6 +37,7 @@ import net.sf.katta.index.IndexMetaData.IndexState;
 import net.sf.katta.index.indexer.SampleIndexGenerator;
 import net.sf.katta.index.indexer.merge.IndexMergeApplication;
 import net.sf.katta.loadtest.LoadTestNode;
+import net.sf.katta.loadtest.LoadTestNodeConfiguration;
 import net.sf.katta.loadtest.LoadTestStarter;
 import net.sf.katta.master.Master;
 import net.sf.katta.node.BaseNode;
@@ -199,7 +200,7 @@ public class Katta {
   public static void startLoadTestNode() throws KattaException, InterruptedException {
     final ZkConfiguration conf = new ZkConfiguration();
     final ZKClient client = new ZKClient(conf);
-    final LoadTestNode testSearcher = new LoadTestNode(client);
+    final LoadTestNode testSearcher = new LoadTestNode(client, new LoadTestNodeConfiguration());
     testSearcher.start();
     Runtime.getRuntime().addShutdownHook(new Thread() {
       @Override

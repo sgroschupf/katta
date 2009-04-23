@@ -41,7 +41,7 @@ import org.apache.zookeeper.CreateMode;
 
 public class LoadTestNode implements TestCommandListener {
 
-  private final static Logger LOG = Logger.getLogger(LoadTestNode.class);
+  final static Logger LOG = Logger.getLogger(LoadTestNode.class);
 
   private ZKClient _zkClient;
   private Server _rpcServer;
@@ -50,6 +50,7 @@ public class LoadTestNode implements TestCommandListener {
 
   private Lock _shutdownLock = new ReentrantLock(true);
   private volatile boolean _shutdown = false;
+  LoadTestNodeConfiguration _configuration;
 
   private final class TestSearcherRunnable implements Runnable {
     private int _count;
@@ -75,13 +76,13 @@ public class LoadTestNode implements TestCommandListener {
         writeStatistics(-1);
         LOG.error("Search failed.", e);
       }
-      // TODO PVo configurable
-      _executorService.schedule(this, _random.nextInt(500), TimeUnit.MILLISECONDS);
+      _executorService.schedule(this, _random.nextInt(_configuration.getTestDelay()), TimeUnit.MILLISECONDS);
     }
   }
 
-  public LoadTestNode(final ZKClient zkClient) throws KattaException {
+  public LoadTestNode(final ZKClient zkClient, LoadTestNodeConfiguration configuration) throws KattaException {
     _zkClient = zkClient;
+    _configuration = configuration;
     try {
       // TODO PVo change file (configurable)
       _statisticsWriter = new OutputStreamWriter(new FileOutputStream("build/test-run.log"), "UTF-8");
@@ -91,26 +92,16 @@ public class LoadTestNode implements TestCommandListener {
   }
 
   public void start() throws KattaException {
-    _zkClient.getEventLock().lock();
-    try {
-      LOG.debug("Starting zk client...");
-      if (!_zkClient.isStarted()) {
-        _zkClient.start(30000);
-      }
-      TestSearcherMetaData metaData = startRpcServer();
-      announceTestSearcher(metaData);
-    } finally {
-      _zkClient.getEventLock().unlock();
+    LOG.debug("Starting zk client...");
+    if (!_zkClient.isStarted()) {
+      _zkClient.start(30000);
     }
+    TestSearcherMetaData metaData = startRpcServer();
+    announceTestSearcher(metaData);
   }
 
   private void announceTestSearcher(TestSearcherMetaData metaData) throws KattaException {
-    _zkClient.getEventLock().lock();
-    try {
-      _zkClient.create(ZkPathes.LOADTEST_NODES + "/node-", metaData, CreateMode.EPHEMERAL_SEQUENTIAL);
-    } finally {
-      _zkClient.getEventLock().unlock();
-    }
+    _zkClient.create(ZkPathes.LOADTEST_NODES + "/node-", metaData, CreateMode.EPHEMERAL_SEQUENTIAL);
   }
 
   public void shutdown() {
@@ -135,12 +126,7 @@ public class LoadTestNode implements TestCommandListener {
         LOG.warn("Failed to close statistics file.", e);
       }
 
-      _zkClient.getEventLock().lock();
-      try {
-        _zkClient.close();
-      } finally {
-        _zkClient.getEventLock().unlock();
-      }
+      _zkClient.close();
     } finally {
       _shutdownLock.unlock();
     }
@@ -228,4 +214,6 @@ public class LoadTestNode implements TestCommandListener {
   public long getProtocolVersion(String arg0, long arg1) throws IOException {
     return 0;
   }
+  
+  //TODO PVo reconnect
 }

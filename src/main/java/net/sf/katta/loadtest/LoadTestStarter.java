@@ -56,8 +56,8 @@ public class LoadTestStarter {
     }
   }
 
-  public LoadTestStarter(final ZKClient zkClient, int nodes, int threads, int runTime, String[] indexNames, String queryString,
-          int count) {
+  public LoadTestStarter(final ZKClient zkClient, int nodes, int threads, int runTime, String[] indexNames,
+          String queryString, int count) {
     _zkClient = zkClient;
     _numberOfTesterNodes = nodes;
     _threads = threads;
@@ -68,23 +68,17 @@ public class LoadTestStarter {
   }
 
   public void start() throws KattaException {
-    _zkClient.getEventLock().lock();
-    try {
-      LOG.debug("Starting zk client...");
-      if (!_zkClient.isStarted()) {
-        _zkClient.start(30000);
-      }
-      _childListener = new ChildListener();
-      _zkClient.subscribeChildChanges(ZkPathes.LOADTEST_NODES, _childListener);
-      checkNodes(_zkClient.getChildren(ZkPathes.LOADTEST_NODES));
-    } finally {
-      _zkClient.getEventLock().unlock();
+    LOG.debug("Starting zk client...");
+    if (!_zkClient.isStarted()) {
+      _zkClient.start(30000);
     }
+    _childListener = new ChildListener();
+    _zkClient.subscribeChildChanges(ZkPathes.LOADTEST_NODES, _childListener);
+    checkNodes(_zkClient.getChildren(ZkPathes.LOADTEST_NODES));
   }
 
   void checkNodes(List<String> children) throws KattaException {
-    _zkClient.getEventLock().lock();
-    try {
+    synchronized (_testNodes) {
       LOG.info("Nodes found: " + children);
 
       Set<String> obsoleteNodes = new HashSet<String>(_testNodes.keySet());
@@ -109,8 +103,6 @@ public class LoadTestStarter {
       if (_testNodes.size() >= _numberOfTesterNodes) {
         startTest();
       }
-    } finally {
-      _zkClient.getEventLock().unlock();
     }
   }
 
