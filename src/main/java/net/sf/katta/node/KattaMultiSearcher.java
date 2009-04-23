@@ -17,6 +17,7 @@ package net.sf.katta.node;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
@@ -149,20 +150,30 @@ public class KattaMultiSearcher {
     result.addTotalHits(totalHits);
 
     int pos = 0;
-    boolean working = true;
-    while (working) {
+    BitSet done = new BitSet(shardsCount);
+    while (done.cardinality() != shardsCount) {
       ScoreDoc scoreDoc = null;
-      for (int i = 0; i < scoreDocs.length; i++) {
-        final ScoreDoc[] docs = scoreDocs[i];
-        if (pos < docs.length) {
-          scoreDoc = docs[pos];
-          final Hit hit = new Hit(shards[i], _node, scoreDoc.score, scoreDoc.doc);
-          if (!hq.insert(hit) || hq.size() == limit) {
-            working = false;
-            break;
+      for (int i = 0; i < shardsCount; i++) {
+        // only process this shard if it is not yet done.
+        if (!done.get(i)) {
+          final ScoreDoc[] docs = scoreDocs[i];
+          if (pos < docs.length) {
+            scoreDoc = docs[pos];
+            final Hit hit = new Hit(shards[i], _node, scoreDoc.score, scoreDoc.doc);
+            if (!hq.insert(hit)) {
+              // no doc left that has a higher score than the lowest score in
+              // the queue
+              done.set(i, true);
+            }
+          } else {
+            // no docs left in this shard
+            done.set(i, true);
           }
         }
       }
+      // we always wait until we got all hits from this position in all shards.
+      
+      
       pos++;
       if (scoreDoc == null) {
         // we do not have any data more
@@ -376,7 +387,7 @@ public class KattaMultiSearcher {
     }
   }
 
-  private class KattaHitQueue extends PriorityQueue {
+  protected class KattaHitQueue extends PriorityQueue {
     KattaHitQueue(final int size) {
       initialize(size);
     }
