@@ -26,6 +26,7 @@ import java.util.Set;
 
 import net.sf.katta.util.KattaException;
 import net.sf.katta.zk.IZkChildListener;
+import net.sf.katta.zk.IZkReconnectListener;
 import net.sf.katta.zk.ZKClient;
 import net.sf.katta.zk.ZkPathes;
 
@@ -35,14 +36,14 @@ import org.apache.log4j.Logger;
 
 public class LoadTestStarter {
 
-  private static final Logger LOG = Logger.getLogger(LoadTestStarter.class);
+  static final Logger LOG = Logger.getLogger(LoadTestStarter.class);
 
-  private ZKClient _zkClient;
+  ZKClient _zkClient;
   private Map<String, TestSearcherMetaData> _testNodes = new HashMap<String, TestSearcherMetaData>();
   private int _numberOfTesterNodes;
   private int _threads;
 
-  private ChildListener _childListener;
+  ChildListener _childListener;
 
   private String[] _indexNames;
   private String _queryString;
@@ -53,6 +54,16 @@ public class LoadTestStarter {
     @Override
     public void handleChildChange(String parentPath, List<String> currentChilds) throws KattaException {
       checkNodes(currentChilds);
+    }
+  }
+
+  class ReconnectListener implements IZkReconnectListener {
+
+    @Override
+    public void handleReconnect() throws KattaException {
+      LOG.info("Reconnecting test starter.");
+      _zkClient.subscribeChildChanges(ZkPathes.LOADTEST_NODES, _childListener);
+      checkNodes(_zkClient.getChildren(ZkPathes.LOADTEST_NODES));
     }
   }
 
@@ -69,12 +80,18 @@ public class LoadTestStarter {
 
   public void start() throws KattaException {
     LOG.debug("Starting zk client...");
-    if (!_zkClient.isStarted()) {
-      _zkClient.start(30000);
+    _zkClient.getEventLock().lock();
+    try {
+      if (!_zkClient.isStarted()) {
+        _zkClient.start(30000);
+      }
+      _zkClient.subscribeReconnects(new ReconnectListener());
+      _childListener = new ChildListener();
+      _zkClient.subscribeChildChanges(ZkPathes.LOADTEST_NODES, _childListener);
+      checkNodes(_zkClient.getChildren(ZkPathes.LOADTEST_NODES));
+    } finally {
+      _zkClient.getEventLock().unlock();
     }
-    _childListener = new ChildListener();
-    _zkClient.subscribeChildChanges(ZkPathes.LOADTEST_NODES, _childListener);
-    checkNodes(_zkClient.getChildren(ZkPathes.LOADTEST_NODES));
   }
 
   void checkNodes(List<String> children) throws KattaException {
@@ -117,7 +134,7 @@ public class LoadTestStarter {
         throw new KattaException("Failed to start tests.", e);
       }
     }
-    _zkClient.unsubscribeChildChanges(ZkPathes.LOADTEST_NODES, _childListener);
+    _zkClient.unsubscribeAll();
     for (TestCommandListener testCommandListener : listeners) {
       LOG.info("Starting test on node.");
       testCommandListener.startTest(_threads, _indexNames, _queryString, _count);

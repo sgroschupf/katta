@@ -291,12 +291,12 @@ public class ZKClient implements Watcher {
     create(path, writable, CreateMode.PERSISTENT);
   }
 
-  public void create(final String path, final Writable writable, CreateMode mode) throws KattaException {
+  public String create(final String path, final Writable writable, CreateMode mode) throws KattaException {
     ensureZkRunning();
     assert path != null;
     final byte[] data = writableToByteArray(writable);
     try {
-      _zk.create(path, data, Ids.OPEN_ACL_UNSAFE, mode);
+      return _zk.create(path, data, Ids.OPEN_ACL_UNSAFE, mode);
     } catch (final Exception e) {
       throw new KattaException("unable to create path '" + path + "' in ZK", e);
     }

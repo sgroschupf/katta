@@ -30,6 +30,7 @@ import net.sf.katta.Katta;
 import net.sf.katta.node.BaseRpcServer;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.LoadTestNodeConfiguration;
+import net.sf.katta.zk.IZkReconnectListener;
 import net.sf.katta.zk.ZKClient;
 import net.sf.katta.zk.ZkPathes;
 
@@ -47,6 +48,9 @@ public class LoadTestNode extends BaseRpcServer implements TestCommandListener {
   private Lock _shutdownLock = new ReentrantLock(true);
   private volatile boolean _shutdown = false;
   LoadTestNodeConfiguration _configuration;
+  TestSearcherMetaData _metaData;
+
+  private String _currentNodeName;
 
   private final class TestSearcherRunnable implements Runnable {
     private int _count;
@@ -76,6 +80,15 @@ public class LoadTestNode extends BaseRpcServer implements TestCommandListener {
     }
   }
 
+  class ReconnectListener implements IZkReconnectListener {
+
+    @Override
+    public void handleReconnect() throws KattaException {
+      LOG.info("Reconnecting load test node.");
+      announceTestSearcher(_metaData);
+    }
+  }
+
   public LoadTestNode(final ZKClient zkClient, LoadTestNodeConfiguration configuration) throws KattaException {
     _zkClient = zkClient;
     _configuration = configuration;
@@ -88,18 +101,28 @@ public class LoadTestNode extends BaseRpcServer implements TestCommandListener {
 
   public void start() throws KattaException {
     LOG.debug("Starting zk client...");
-    if (!_zkClient.isStarted()) {
-      _zkClient.start(30000);
+    _zkClient.getEventLock().lock();
+    try {
+      if (!_zkClient.isStarted()) {
+        _zkClient.start(30000);
+      }
+      _zkClient.subscribeReconnects(new ReconnectListener());
+    } finally {
+      _zkClient.getEventLock().unlock();
     }
     startRpcServer(_configuration.getStartPort());
-    TestSearcherMetaData metaData = new TestSearcherMetaData();
-    metaData.setHost(getRpcHostName());
-    metaData.setPort(getRpcServerPort());
-    announceTestSearcher(metaData);
+    _metaData = new TestSearcherMetaData();
+    _metaData.setHost(getRpcHostName());
+    _metaData.setPort(getRpcServerPort());
+    announceTestSearcher(_metaData);
   }
 
-  private void announceTestSearcher(TestSearcherMetaData metaData) throws KattaException {
-    _zkClient.create(ZkPathes.LOADTEST_NODES + "/node-", metaData, CreateMode.EPHEMERAL_SEQUENTIAL);
+  void announceTestSearcher(TestSearcherMetaData metaData) throws KattaException {
+    LOG.info("Announcing new node.");
+    if (_currentNodeName != null) {
+      _zkClient.deleteIfExists(_currentNodeName);
+    }
+    _currentNodeName = _zkClient.create(ZkPathes.LOADTEST_NODES + "/node-", metaData, CreateMode.EPHEMERAL_SEQUENTIAL);
   }
 
   public void shutdown() {
@@ -134,6 +157,7 @@ public class LoadTestNode extends BaseRpcServer implements TestCommandListener {
   public void startTest(int threads, final String[] indexNames, final String queryString, final int count) {
     LOG.info("Requested to run test with " + threads + " threads.");
     _executorService = Executors.newScheduledThreadPool(threads);
+    _zkClient.unsubscribeAll();
     for (int i = 0; i < threads; i++) {
       _executorService.submit(new TestSearcherRunnable(count, indexNames, queryString));
     }
@@ -175,6 +199,4 @@ public class LoadTestNode extends BaseRpcServer implements TestCommandListener {
   protected void setup() {
     // do nothing
   }
-  
-  //TODO PVo reconnect
 }
