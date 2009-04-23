@@ -28,8 +28,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
-import javax.sound.sampled.Port;
-
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.ZkConfiguration;
 
@@ -510,7 +508,7 @@ public class ZKClient implements Watcher {
         HashSet<IZkChildListener> copiedSet = new HashSet<IZkChildListener>();
         copiedSet.addAll(childListeners);
 
-        List<String> children = resubscribeChildPath(event, path, childListeners);
+        List<String> children = resubscribeChildPath(path, childListeners);
 
         for (final IZkChildListener listener : copiedSet) {
           try {
@@ -526,7 +524,7 @@ public class ZKClient implements Watcher {
 
         HashSet<IZkDataListener> copiedSet = new HashSet<IZkDataListener>();
         copiedSet.addAll(listeners);
-        byte[] data = resubscribeDataPath(event, path, listeners);
+        byte[] data = resubscribeDataPath(path, listeners);
 
         for (final IZkDataListener listener : copiedSet) {
           try {
@@ -547,10 +545,10 @@ public class ZKClient implements Watcher {
     }
   }
 
-  private byte[] resubscribeDataPath(WatchedEvent event, final String path, final Set<IZkDataListener> listeners) {
+  private byte[] resubscribeDataPath(String path, Set<IZkDataListener> listeners) {
     byte[] data = null;
     try {
-      data = _zk.getData(event.getPath(), true, null);
+      data = _zk.getData(path, true, null);
     } catch (final Exception e) {
       for (final IZkDataListener listener : listeners) {
         removeDataListener(path, listener);
@@ -560,11 +558,10 @@ public class ZKClient implements Watcher {
     return data;
   }
 
-  private List<String> resubscribeChildPath(WatchedEvent event, final String path,
-          final Set<IZkChildListener> childListeners) {
+  private List<String> resubscribeChildPath(String path, Set<IZkChildListener> childListeners) {
     List<String> children;
     try {
-      children = _zk.getChildren(event.getPath(), true);
+      children = _zk.getChildren(path, true);
     } catch (final Exception e) {
       LOG.fatal("re-subscription for child changes on path '" + path + "' failed. removing listeners", e);
       children = Collections.EMPTY_LIST;
