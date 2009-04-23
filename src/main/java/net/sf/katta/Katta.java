@@ -36,7 +36,7 @@ import net.sf.katta.index.ShardError;
 import net.sf.katta.index.IndexMetaData.IndexState;
 import net.sf.katta.index.indexer.SampleIndexGenerator;
 import net.sf.katta.index.indexer.merge.IndexMergeApplication;
-import net.sf.katta.loadtest.LoadTestSearcher;
+import net.sf.katta.loadtest.LoadTestNode;
 import net.sf.katta.loadtest.LoadTestStarter;
 import net.sf.katta.master.Master;
 import net.sf.katta.node.BaseNode;
@@ -84,8 +84,8 @@ public class Katta {
       startNode();
     } else if (command.endsWith("startMaster")) {
       startMaster();
-    } else if (command.endsWith("startLoadTestSearcher")) {
-      startTestSearcher();
+    } else if (command.endsWith("startLoadTestNode")) {
+      startLoadTestNode();
     } else if (command.endsWith("startLoadTest")) {
       final int runTime = Integer.parseInt(args[3]);
       final String[] indexNames = args[4].split(",");
@@ -196,10 +196,10 @@ public class Katta {
     }
   }
 
-  public static void startTestSearcher() throws KattaException, InterruptedException {
+  public static void startLoadTestNode() throws KattaException, InterruptedException {
     final ZkConfiguration conf = new ZkConfiguration();
     final ZKClient client = new ZKClient(conf);
-    final LoadTestSearcher testSearcher = new LoadTestSearcher(client);
+    final LoadTestNode testSearcher = new LoadTestNode(client);
     testSearcher.start();
     Runtime.getRuntime().addShutdownHook(new Thread() {
       @Override
@@ -547,7 +547,7 @@ public class Katta {
     System.err.println("\tlistNodes\t\tLists all nodes.");
     System.err.println("\tstartMaster\t\tStarts a local master.");
     System.err.println("\tstartNode\t\tStarts a local node.");
-    System.err.println("\tstartLoadTestSearcher\tStarts a load test searcher.");
+    System.err.println("\tstartLoadTestNode\tStarts a load test node.");
     System.err.println("\tstartLoadTest <nodes> <threads> <test-duration-ms> <query> <max hits>");
     System.err.println("\t\t\t\tStarts a load test.");
     System.err.println("\tshowStructure\t\tShows the structure of a Katta installation.");
@@ -557,14 +557,16 @@ public class Katta {
     System.err.println("\t\t\t\tAdd an index to a Katta installation.");
     System.err.println("\tremoveIndex <index name>");
     System.err.println("\t\t\t\tRemove an index from a Katta installation.");
-    System.err.println("\tredeployIndex <index name>\tUndeploys and deploys an index.");
+    System.err.println("\tredeployIndex <index name>");
+    System.err.println("\t\t\t\tUndeploys and deploys an index.");
+    System.err.println("\tmergeIndexes [-indexes <index1,index2>] [-hadoopSiteXml <siteXmlPath>]");
+    System.err.println("\t\t\t\tMergers all or the specified indexes.");
+    System.err.println("\tlistErrors <index name>\tLists all deploy errors for a specified index.");
+    System.err.println("\tsearch <index name>[,<index name>,...] \"<query>\" [count]");
     System.err
-        .println("\tmergeIndexes [-indexes <index1,index2>] [-hadoopSiteXml <siteXmlPath>]\tmergers all or the specified indexes.");
-    System.err.println("\tlistErrors <index name>\t\tLists all deploy errors for a specified index.");
-    System.err
-        .println("\tsearch <index name>[,<index name>,...] \"<query>\" [count]\tSearch in supplied indexes. The query should be in \". If you supply a result count hit details will be printed. To search in all indices write \"*\"");
-    System.err
-        .println("\tindex <inputTextFile> <outputPath>  <numOfWordsPerDoc> <numOfDocuments> \tGenerates a sample index. The inputTextFile is used as dictionary.");
+            .println("\t\t\t\tSearch in supplied indexes. The query should be in \". If you supply a result count hit details will be printed. To search in all indices write \"*\"");
+    System.err.println("\tindex <inputTextFile> <outputPath> <numOfWordsPerDoc> <numOfDocuments>");
+    System.err.println("\t\t\t\tGenerates a sample index. The inputTextFile is used as dictionary.");
     
     System.err.println();
     System.exit(1);

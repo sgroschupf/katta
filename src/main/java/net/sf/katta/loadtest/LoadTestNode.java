@@ -39,9 +39,9 @@ import org.apache.hadoop.ipc.RPC.Server;
 import org.apache.log4j.Logger;
 import org.apache.zookeeper.CreateMode;
 
-public class LoadTestSearcher implements TestCommandListener {
+public class LoadTestNode implements TestCommandListener {
 
-  private final static Logger LOG = Logger.getLogger(LoadTestSearcher.class);
+  private final static Logger LOG = Logger.getLogger(LoadTestNode.class);
 
   private ZKClient _zkClient;
   private Server _rpcServer;
@@ -80,7 +80,7 @@ public class LoadTestSearcher implements TestCommandListener {
     }
   }
 
-  public LoadTestSearcher(final ZKClient zkClient) throws KattaException {
+  public LoadTestNode(final ZKClient zkClient) throws KattaException {
     _zkClient = zkClient;
     try {
       // TODO PVo change file (configurable)
