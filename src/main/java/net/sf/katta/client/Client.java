@@ -86,14 +86,17 @@ public class Client implements IClient {
   public Client() throws KattaException {
     this(new DefaultNodeSelectionPolicy(), new ZkConfiguration());
   }
-
-  public Client(final INodeSelectionPolicy policy, final ZkConfiguration config) throws KattaException {
+  public Client(INodeSelectionPolicy nodeSelectionPolicy, ZkConfiguration zkConfiguration) throws KattaException {
+   this(nodeSelectionPolicy, zkConfiguration.getZKServers(), zkConfiguration.getZKClientPort(), zkConfiguration.getZKTickTime());
+  }
+  
+  public Client(final INodeSelectionPolicy policy, String servers, int port, int timeout) throws KattaException {
     _hadoopConf.set("ipc.client.timeout", "2500");
     _hadoopConf.set("ipc.client.connect.max.retries", "2");
     // TODO jz: make configurable
 
     _selectionPolicy = policy;
-    _zkClient = new ZKClient(config);
+    _zkClient = new ZKClient(servers, port, timeout);
     try {
       _zkClient.getEventLock().lock();
       _zkClient.start(30000);
@@ -105,6 +108,8 @@ public class Client implements IClient {
     }
     _start = System.currentTimeMillis();
   }
+
+
 
   protected void updateSelectionPolicy(final String shardName, List<String> nodes) {
     List<String> connectedNodes = eastablishNodeProxiesIfNecessary(nodes);

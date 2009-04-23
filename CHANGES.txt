@@ -1,6 +1,7 @@
 Katta Change Log
 
 katta 0.6-dev
+ fix KATTA-46, constructor for client and DeployClient exposing zkClient configuration values, so no ZKConfiguration object is required. 
  fix KATTA-45, we might ignored hits with a higher score that are in later shards.
  merged katta 0.5.1 into 0.6-dev
   fix KATTA-41, SecondaryMaster cannot take over when firstMaster failed.

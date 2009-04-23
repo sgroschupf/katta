@@ -29,6 +29,10 @@ public class DeployClient implements IDeployClient {
 
   private ZKClient _zkClient;
 
+  public DeployClient(String servers, int port, int timeout) throws KattaException {
+    this(new ZKClient(servers, port, timeout));
+  }
+  
   public DeployClient(ZkConfiguration zkConfiguration) throws KattaException {
     this(new ZKClient(zkConfiguration));
   }

@@ -28,6 +28,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
+import javax.sound.sampled.Port;
+
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.ZkConfiguration;
 
@@ -64,6 +66,12 @@ public class ZKClient implements Watcher {
   private final int _timeOut;
   private boolean _shutdownTriggered;
 
+  public ZKClient(String servers, int port, int timeout) {
+    _servers = servers;
+    _port = port;
+    _timeOut = timeout;
+  }
+  
   public ZKClient(final ZkConfiguration configuration) {
     _servers = configuration.getZKServers();
     _port = configuration.getZKClientPort();
