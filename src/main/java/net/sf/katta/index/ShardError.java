@@ -51,4 +51,9 @@ public class ShardError implements Writable {
     out.writeLong(_timestamp);
     out.writeUTF(_errorMsg);
   }
+
+  @Override
+  public String toString() {
+    return _timestamp + " " + _errorMsg;
+  }
 }

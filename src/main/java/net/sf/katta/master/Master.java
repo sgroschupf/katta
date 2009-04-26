@@ -25,12 +25,13 @@ import net.sf.katta.util.MasterConfiguration;
 import net.sf.katta.util.NetworkUtil;
 import net.sf.katta.zk.IZkChildListener;
 import net.sf.katta.zk.IZkDataListener;
+import net.sf.katta.zk.IZkReconnectListener;
 import net.sf.katta.zk.ZKClient;
 import net.sf.katta.zk.ZkPathes;
 
 import org.apache.log4j.Logger;
 
-public class Master {
+public class Master implements IZkReconnectListener {
 
   protected final static Logger LOG = Logger.getLogger(Master.class);
 
@@ -44,9 +45,25 @@ public class Master {
 
   private String _masterName;
 
+  private IndexListener _indexListener;
+
+  private NodeListener _nodeListener;
+
+  private MasterListener _masterLister;
+
   public Master(final ZKClient zkClient) throws KattaException {
-    _masterName = NetworkUtil.getLocalhostName()+"_"+UUID.randomUUID().toString();
+    _masterName = NetworkUtil.getLocalhostName() + "_" + UUID.randomUUID().toString();
+    _indexListener = new IndexListener();
+    _nodeListener =  new NodeListener();
+    _masterLister = new MasterListener();
     _zkClient = zkClient;
+    try {
+      _zkClient.getEventLock().lock();
+      zkClient.subscribeReconnects(this);
+    } finally {
+      _zkClient.getEventLock().unlock();
+    }
+
     final MasterConfiguration masterConfiguration = new MasterConfiguration();
     final String deployPolicyClassName = masterConfiguration.getDeployPolicy();
     IDeployPolicy deployPolicy;
@@ -123,7 +140,7 @@ public class Master {
     } else {
       LOG.info(_masterName + " starting as secondary master...");
       _isMaster = false;
-      _zkClient.subscribeDataChanges(ZkPathes.MASTER, new MasterListener());
+      _zkClient.subscribeDataChanges(ZkPathes.MASTER, _masterLister);
     }
   }
 
@@ -140,13 +157,13 @@ public class Master {
 
   private void startIndexManagement() throws KattaException {
     LOG.debug("Loading indexes...");
-    _indexes = _zkClient.subscribeChildChanges(ZkPathes.INDEXES, new IndexListener());
+    _indexes = _zkClient.subscribeChildChanges(ZkPathes.INDEXES, _indexListener);
     _manageShardThread.updateIndexes(_indexes);
   }
 
   private void startNodeManagement() throws KattaException {
     LOG.info("start managing nodes...");
-    _nodes = _zkClient.subscribeChildChanges(ZkPathes.NODES, new NodeListener());
+    _nodes = _zkClient.subscribeChildChanges(ZkPathes.NODES, _nodeListener);
     if (!_nodes.isEmpty()) {
       LOG.info("found following nodes connected: " + _nodes);
     }
@@ -218,9 +235,24 @@ public class Master {
   public List<String> getIndexes() {
     return Collections.unmodifiableList(_indexes);
   }
-  
+
   public String getMasterName() {
     return _masterName;
+  }
+
+  @Override
+  public void handleReconnect() throws KattaException {
+    try {
+      _zkClient.getEventLock().lock();
+      becomeMasterOrSecondaryMaster();
+      if (_isMaster) {
+        startNodeManagement();
+        startIndexManagement();
+      }
+    } finally {
+      _zkClient.getEventLock().unlock();
+    }
+
   }
 
 }

@@ -99,4 +99,10 @@ public class IndexMetaData implements Writable {
   public int getReplicationLevel() {
     return _replicationLevel;
   }
+  
+  @Override
+  public String toString() {
+   return "state: "+_state + " replication: "+_replicationLevel + " path: "+_path + " error: "+_errorMessage;
+  }
+  
 }

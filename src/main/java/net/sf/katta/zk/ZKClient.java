@@ -28,6 +28,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
+import net.sf.katta.index.IndexMetaData;
+import net.sf.katta.index.ShardError;
+import net.sf.katta.master.MasterMetaData;
+import net.sf.katta.node.NodeMetaData;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.ZkConfiguration;
 
@@ -69,7 +73,7 @@ public class ZKClient implements Watcher {
     _port = port;
     _timeOut = timeout;
   }
-  
+
   public ZKClient(final ZkConfiguration configuration) {
     _servers = configuration.getZKServers();
     _port = configuration.getZKClientPort();
@@ -148,11 +152,16 @@ public class ZKClient implements Watcher {
   }
 
   private void ensureZkRunning() {
-    if (_shutdownTriggered) {
-      throw new IllegalStateException("zk client is already closing");
-    }
-    if (_zk == null) {
-      throw new IllegalStateException("zk client has not been started yet");
+    try {
+      getEventLock().lock();
+      if (_shutdownTriggered) {
+        throw new IllegalStateException("zk client is already closing");
+      }
+      if (_zk == null) {
+        throw new IllegalStateException("zk client has not been started yet");
+      }
+    } finally {
+      getEventLock().unlock();
     }
   }
 
@@ -460,7 +469,8 @@ public class ZKClient implements Watcher {
     // }
     boolean stateChanged = event.getState() == KeeperState.Disconnected || event.getState() == KeeperState.Expired;
     boolean dataChanged = event.getType() == Watcher.Event.EventType.NodeDataChanged
-            || event.getType() == Watcher.Event.EventType.NodeChildrenChanged ||  event.getType() == Watcher.Event.EventType.NodeDeleted;
+            || event.getType() == Watcher.Event.EventType.NodeChildrenChanged
+            || event.getType() == Watcher.Event.EventType.NodeDeleted;
     try {
       getEventLock().lock();
       if (_shutdownTriggered) {
@@ -575,7 +585,11 @@ public class ZKClient implements Watcher {
       close();
       start(1000 * 60 * 10);
       for (IZkReconnectListener reconnectListener : _reconnectListener) {
-        reconnectListener.handleReconnect();
+        try {
+          reconnectListener.handleReconnect();
+        } catch (Exception e) {
+          LOG.error("Unable to trigger handleReconnect in reconnectListener: " + reconnectListener, e);
+        }
       }
     } catch (final Exception e) {
       throw new RuntimeException("Exception while restarting zk client", e);
@@ -657,7 +671,7 @@ public class ZKClient implements Watcher {
   private void addChildren(final int level, final StringBuilder builder, final String startPath) throws KattaException {
     final List<String> children = getChildren(startPath);
     for (final String node : children) {
-      builder.append(getSpaces(level - 1) + "'-" + "+" + node + "\n");
+      builder.append(getSpaces(level - 1) + "'-" + "+" + node + "(" + getNodeAsText(startPath + "/" + node) + ")\n");
 
       String nestedPath;
       if (startPath.endsWith("/")) {
@@ -665,9 +679,24 @@ public class ZKClient implements Watcher {
       } else {
         nestedPath = startPath + "/" + node;
       }
-      
+
       addChildren(level + 1, builder, nestedPath);
     }
+  }
+
+  private String getNodeAsText(String path) {
+
+    Class[] classes = new Class[] { IndexMetaData.class, NodeMetaData.class, MasterMetaData.class, ShardError.class };
+    try {
+      for (int i = 0; i < classes.length; i++) {
+        Writable newInstance = (Writable) classes[i].newInstance();
+        readData(path, newInstance);
+        return newInstance.toString();
+      }
+
+    } catch (Exception e) {
+    }
+    return "";
   }
 
   private String getSpaces(final int level) {

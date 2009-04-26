@@ -40,6 +40,7 @@ import net.sf.katta.node.BaseNode.NodeState;
 import net.sf.katta.util.CollectionUtil;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.zk.IZkChildListener;
+import net.sf.katta.zk.IZkReconnectListener;
 import net.sf.katta.zk.ZKClient;
 import net.sf.katta.zk.ZkPathes;
 
@@ -55,37 +56,51 @@ public class DistributeShardsThread extends Thread {
 
   protected final static Logger LOG = Logger.getLogger(DistributeShardsThread.class);
 
-  protected final ZKClient _zkClient;
+  private final ZKClient _zkClient;
   private final IDeployPolicy _deployPolicy;
   private final long _safeModeMaxTime;
 
   private final StatusUpdate _statusUpdate = new StatusUpdate();
-  protected final UpdateLock _updateLock = new UpdateLock();
+  private final UpdateLock _updateLock = new UpdateLock();
 
   private boolean _safeMode;
 
   protected final List<IndexStateListener> _indexStateListeners = new CopyOnWriteArrayList<IndexStateListener>();
 
   public DistributeShardsThread(final ZKClient zkClient, final IDeployPolicy deployPolicy, final long safeModeMaxTime) {
-    _deployPolicy = deployPolicy;
-    _zkClient = zkClient;
-    _safeModeMaxTime = safeModeMaxTime;
     setDaemon(true);
     setName(getClass().getSimpleName());
+    _deployPolicy = deployPolicy;
+    _zkClient = zkClient;
+    // try {
+    // _zkClient.getEventLock().lock();
+    // _zkClient.subscribeReconnects(this);
+    // } finally {
+    // _zkClient.getEventLock().unlock();
+    // }
+    _safeModeMaxTime = safeModeMaxTime;
   }
 
   public void updateIndexes(final Collection<String> indexes) {
-    _updateLock.lock();
     _statusUpdate.updateIndexes(indexes);
-    _updateLock.getUpdatedCondition().signal();
-    _updateLock.unlock();
+    try {
+      _updateLock.lock();
+      _updateLock.getUpdatedCondition().signal();
+    } finally {
+      _updateLock.unlock();
+    }
   }
 
   public void updateNodes(final Collection<String> nodes) {
-    _updateLock.lock();
     _statusUpdate.updateNodes(nodes);
-    _updateLock.getUpdatedCondition().signal();
-    _updateLock.unlock();
+    try {
+      _updateLock.lock();
+      _updateLock.getUpdatedCondition().signal();
+    } catch (Exception e) {
+      e.printStackTrace();
+    } finally {
+      _updateLock.unlock();
+    }
   }
 
   public boolean isInSafeMode() {
@@ -96,7 +111,6 @@ public class DistributeShardsThread extends Thread {
   public void run() {
     try {
       LOG.info("starting...");
-
       Set<String> liveNodes = new HashSet<String>();
       Set<String> liveIndexes = new HashSet<String>();
       runInSafeMode(liveNodes, liveIndexes);
@@ -111,29 +125,31 @@ public class DistributeShardsThread extends Thread {
       }
 
       while (true) {
-        _updateLock.lock();
+        // sleep(3000);
         Set<String> updatedNodes = null;
         Set<String> updatedIndexes = null;
         try {
           Set<String> unbalancedIndexes = getUnbalancedIndexes(_statusUpdate.getNodes().size());
-          try {
-            while (!(_statusUpdate.hasChanges(liveIndexes, liveNodes) || !unbalancedIndexes.isEmpty())
-                || _statusUpdate.getNodes().isEmpty()) {
-              if (_statusUpdate.getNodes().isEmpty()) {
-                LOG.warn("no nodes connected - delaying update");
-                // jz: if connected nodes in under a certain threshold go in
-                // safe-mode?
-              }
-              _updateLock.getUpdatedCondition().await();
-              unbalancedIndexes = getUnbalancedIndexes(_statusUpdate.getNodes().size());
-              // TODO jz: wait x ms and if nothing happens rebalance ??
+          while (!(_statusUpdate.hasChanges(liveIndexes, liveNodes) || !unbalancedIndexes.isEmpty())
+                  || _statusUpdate.getNodes().isEmpty()) {
+            if (_statusUpdate.getNodes().isEmpty()) {
+              LOG.warn("no nodes connected - delaying update");
+              // jz: if connected nodes in under a certain threshold go in
+              // safe-mode?
             }
-            LOG.info("processing of update started...");
-            updatedIndexes = new HashSet<String>(_statusUpdate.getIndexes());
-            updatedNodes = new HashSet<String>(_statusUpdate.getNodes());
-          } finally {
-            _updateLock.unlock();
+            try {
+              _updateLock.lock();
+              _updateLock.getUpdatedCondition().await();
+            } finally {
+              _updateLock.unlock();
+            }
+
+            unbalancedIndexes = getUnbalancedIndexes(_statusUpdate.getNodes().size());
+            // TODO jz: wait x ms and if nothing happens rebalance ??
           }
+          LOG.info("processing of update started...");
+          updatedIndexes = new HashSet<String>(_statusUpdate.getIndexes());
+          updatedNodes = new HashSet<String>(_statusUpdate.getNodes());
 
           // get deltas
           final Set<String> addedIndexes = CollectionUtil.getSetOfAdded(liveIndexes, updatedIndexes);
@@ -164,6 +180,7 @@ public class DistributeShardsThread extends Thread {
           LOG.error("Failed to execute shard update to {" + toString(updatedIndexes, updatedNodes) + "}", e);
         }
         LOG.info("processing of update finsihed!");
+        sleep(1000);
       }
     } catch (final InterruptedException e) {
       // sg: in case we shutdown this thread we need to make sure all index
@@ -177,20 +194,24 @@ public class DistributeShardsThread extends Thread {
   }
 
   private void runInSafeMode(Set<String> liveNodes, Set<String> liveIndexes) throws InterruptedException {
-    _updateLock.lock();
     _safeMode = true;
     try {
       while (_statusUpdate.lastChangeTimeStamp() + _safeModeMaxTime > System.currentTimeMillis()
-          || _statusUpdate.getNodes().isEmpty() || areNodesConnecting(_statusUpdate.getNodes())) {
+              || _statusUpdate.getNodes().isEmpty() || areNodesConnecting(_statusUpdate.getNodes())) {
         LOG.info("SAFE MODE: No nodes available or state unstable within the last " + _safeModeMaxTime + " ms.");
-        _updateLock.getUpdatedCondition().await(_safeModeMaxTime, TimeUnit.MILLISECONDS);
+        try {
+          _updateLock.lock();
+          _updateLock.getUpdatedCondition().await(_safeModeMaxTime, TimeUnit.MILLISECONDS);
+        } finally {
+          _updateLock.unlock();
+        }
       }
       liveNodes.addAll(_statusUpdate.getNodes());
       liveIndexes.addAll(_statusUpdate.getIndexes());
       LOG.info("SAFE MODE: leaving safe mode with " + liveNodes.size() + " connected nodes");
     } finally {
       _safeMode = false;
-      _updateLock.unlock();
+
     }
   }
 
@@ -264,13 +285,13 @@ public class DistributeShardsThread extends Thread {
       final IndexMetaData indexMetaData = new IndexMetaData();
       _zkClient.readData(indexZkPath, indexMetaData);
       if (indexMetaData.getState() != IndexState.ERROR && indexMetaData.getState() != IndexState.DEPLOYING
-          && indexMetaData.getState() != IndexState.REPLICATING) {
+              && indexMetaData.getState() != IndexState.REPLICATING) {
         int desiredReplicationCount = indexMetaData.getReplicationLevel();
         int minimalReplicationCount = getMinimalReplicationCount(indexZkPath, desiredReplicationCount);
         if (minimalReplicationCount < desiredReplicationCount) {
           if (minimalReplicationCount >= nodeCount) {
             LOG.warn("found index '" + index
-                + "' underreplicated but skip replicating since not enough nodes connected");
+                    + "' underreplicated but skip replicating since not enough nodes connected");
           } else {
             underreplicatedIndexes.add(index);
           }
@@ -287,7 +308,7 @@ public class DistributeShardsThread extends Thread {
       final IndexMetaData indexMetaData = new IndexMetaData();
       _zkClient.readData(indexZkPath, indexMetaData);
       if (indexMetaData.getState() != IndexState.ERROR && indexMetaData.getState() != IndexState.DEPLOYING
-          && indexMetaData.getState() != IndexState.REPLICATING) {
+              && indexMetaData.getState() != IndexState.REPLICATING) {
         if (isOverReplicated(indexZkPath, indexMetaData)) {
           overreplicatedIndexes.add(index);
         }
@@ -312,7 +333,7 @@ public class DistributeShardsThread extends Thread {
   private boolean isOverReplicated(final String indexZkPath, final IndexMetaData indexMetaData) throws KattaException {
     final List<String> shards = _zkClient.getChildren(indexZkPath);
     final Map<String, List<String>> currentShard2NodesMap = readShard2NodesMapFromZk(_zkClient, new HashSet<String>(
-        shards));
+            shards));
     for (final String shard : shards) {
       final int servingNodes = currentShard2NodesMap.get(shard).size();
       if (servingNodes > indexMetaData.getReplicationLevel()) {
@@ -358,7 +379,7 @@ public class DistributeShardsThread extends Thread {
   }
 
   private void distributeIndexes(final Set<String> affectedIndexes, final IndexState state, Set<String> liveNodes)
-      throws KattaException {
+          throws KattaException {
     if (affectedIndexes.isEmpty()) {
       return;
     }
@@ -391,7 +412,7 @@ public class DistributeShardsThread extends Thread {
   }
 
   private void distributeIndexShards(final String index, final IndexMetaData indexMD, final Set<String> indexShards,
-      final Map<String, AssignedShard> shard2AssignedShardMap, Collection liveNodes) throws KattaException {
+          final Map<String, AssignedShard> shard2AssignedShardMap, Collection liveNodes) throws KattaException {
     // cleanup/undeploy failed shards
     for (final String shard : indexShards) {
       final String shard2ErrorRootPath = ZkPathes.getShard2ErrorRootPath(shard);
@@ -424,7 +445,7 @@ public class DistributeShardsThread extends Thread {
     final Map<String, List<String>> currentShard2NodesMap = readShard2NodesMapFromZk(_zkClient, indexShards);
     final Map<String, List<String>> currentNodeToShardsMap = readNode2ShardsMapFromZk(_zkClient);
     final Map<String, List<String>> distributionMap = _deployPolicy.createDistributionPlan(currentShard2NodesMap,
-        currentNodeToShardsMap, new ArrayList<String>(liveNodes), indexMD.getReplicationLevel());
+            currentNodeToShardsMap, new ArrayList<String>(liveNodes), indexMD.getReplicationLevel());
     writeShardDistributionMapToZK(distributionMap, shard2AssignedShardMap);
 
     final IndexStateListener indexStateListener = new IndexStateListener(index, indexMD, indexShards, liveNodes.size());
@@ -433,7 +454,7 @@ public class DistributeShardsThread extends Thread {
   }
 
   private static Map<String, List<String>> readShard2NodesMapFromZk(final ZKClient zkClient,
-      final Set<String> indexShards) throws KattaException {
+          final Set<String> indexShards) throws KattaException {
     final Map<String, List<String>> shard2NodeNames = new HashMap<String, List<String>>();
     for (final String shard : indexShards) {
       final String shard2NodeRootPath = ZkPathes.getShard2NodeRootPath(shard);
@@ -461,7 +482,7 @@ public class DistributeShardsThread extends Thread {
   }
 
   private void writeShardDistributionMapToZK(final Map<String, List<String>> distributionMap,
-      final Map<String, AssignedShard> shard2AssignedShardMap) throws KattaException {
+          final Map<String, AssignedShard> shard2AssignedShardMap) throws KattaException {
     final Set<String> nodes = distributionMap.keySet();
     for (final String node : nodes) {
       final List<String> existingShards = _zkClient.getChildren(ZkPathes.getNode2ShardRootPath(node));
@@ -481,7 +502,7 @@ public class DistributeShardsThread extends Thread {
   }
 
   private Map<String, AssignedShard> readShardsFromFs(final String index, final IndexMetaData indexMetaData)
-      throws IndexInvalidException {
+          throws IndexInvalidException {
     final String indexPathString = indexMetaData.getPath();
     // get shard folders from source
     URI uri;
@@ -489,14 +510,14 @@ public class DistributeShardsThread extends Thread {
       uri = new URI(indexPathString);
     } catch (final URISyntaxException e) {
       throw new IndexInvalidException("unable to parse index path uri '" + indexPathString
-          + "', make sure it starts with file:// or hdfs:// ", e);
+              + "', make sure it starts with file:// or hdfs:// ", e);
     }
     FileSystem fileSystem;
     try {
       fileSystem = FileSystem.get(uri, new Configuration());
     } catch (final IOException e) {
       throw new IndexInvalidException("unable to retrive file system for index path '" + indexPathString
-          + "', make sure your path starts with hadoop support prefix like file:// or hdfs://", e);
+              + "', make sure your path starts with hadoop support prefix like file:// or hdfs://", e);
     }
     final Map<String, AssignedShard> shard2AssignedShard = new HashMap<String, AssignedShard>();
     try {
@@ -576,7 +597,7 @@ public class DistributeShardsThread extends Thread {
     private final int _replicationLevel;
 
     public IndexStateListener(final String index, final IndexMetaData indexMetaData, final Set<String> shards,
-        final int nodeCount) {
+            final int nodeCount) {
       _index = index;
       _indexMetaData = indexMetaData;
       _shards = shards;
@@ -696,8 +717,8 @@ public class DistributeShardsThread extends Thread {
       }
 
       LOG
-          .info("switching index '" + _index + "' from state " + _indexMetaData.getState() + " into state "
-              + indexState);
+              .info("switching index '" + _index + "' from state " + _indexMetaData.getState() + " into state "
+                      + indexState);
       final String indexZkPath = ZkPathes.getIndexPath(_index);
       _zkClient.readData(indexZkPath, _indexMetaData);
       if (indexState == IndexState.ERROR) {
@@ -727,12 +748,28 @@ public class DistributeShardsThread extends Thread {
     private static final long serialVersionUID = 1L;
     private final Condition _updatedCondition = newCondition();
 
+    // @Override
+    // public void lock() {
+    // new IOException(">>>>>>>>>>>>>>>>>>>>lock").printStackTrace();
+    // super.lock();
+    // }
+    //    
+    // @Override
+    // public void unlock() {
+    // new IOException("<<<<<<<<<<<<<<<<<<<<<<<unlock").printStackTrace();
+    // super.unlock();
+    // }
+
     /**
      * This condition will be signaled if a {@link StatusUpdate} has been
      * modified.
      */
     public Condition getUpdatedCondition() {
       return _updatedCondition;
+    }
+
+    public Collection<Thread> getThreads() {
+      return getQueuedThreads();
     }
 
   }

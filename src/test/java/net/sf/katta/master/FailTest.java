@@ -15,10 +15,13 @@
  */
 package net.sf.katta.master;
 
+import junit.framework.Assert;
 import net.sf.katta.AbstractKattaTest;
 import net.sf.katta.client.Client;
 import net.sf.katta.client.DeployClient;
 import net.sf.katta.client.IDeployClient;
+import net.sf.katta.client.IIndexDeployFuture;
+import net.sf.katta.index.IndexMetaData.IndexState;
 import net.sf.katta.node.BaseNode;
 import net.sf.katta.node.LuceneNode;
 import net.sf.katta.node.Query;
@@ -30,6 +33,10 @@ import net.sf.katta.zk.ZKClient;
 import net.sf.katta.zk.ZkPathes;
 
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
+import org.apache.zookeeper.WatchedEvent;
+import org.apache.zookeeper.Watcher.Event.EventType;
+import org.apache.zookeeper.Watcher.Event.KeeperState;
+import org.apache.zookeeper.proto.WatcherEvent;
 
 public class FailTest extends AbstractKattaTest {
 
@@ -112,6 +119,37 @@ public class FailTest extends AbstractKattaTest {
     deployClient.disconnect();
     node3.close();
     masterThread.shutdown();
+  }
+
+  public void testZkReconnectDuringDeployment() throws KattaException, InterruptedException {
+
+    final MasterStartThread masterThread = startMaster();
+    final ZKClient masterZkClient = masterThread.getZkClient();
+
+    final NodeConfiguration sconf1 = new NodeConfiguration();
+    final String defaulFolder = sconf1.getShardFolder().getAbsolutePath();
+    sconf1.setShardFolder(defaulFolder + "/" + 1);
+    final DummyNode node1 = new DummyNode(_conf, sconf1);
+
+    final IDeployClient deployClient = new DeployClient(_conf);
+
+    WatchedEvent event = new WatchedEvent(new WatcherEvent(EventType.None.getIntValue(), KeeperState.Expired
+            .getIntValue(), null));
+    for (int i = 0; i < 100; i++) {
+      final String indexName = "index" + i;
+      IIndexDeployFuture index = deployClient.addIndex(indexName, TestResources.UNZIPPED_INDEX.getAbsolutePath(),
+              StandardAnalyzer.class.getName(), 3);
+
+      System.out.println("deploying: " + indexName);
+      masterZkClient.getEventLock().lock();
+      masterZkClient.process(event);
+      masterZkClient.getEventLock().unlock();
+      index.joinDeployment();
+      Assert.assertTrue(index.getState().equals(IndexState.DEPLOYED));
+      deployClient.removeIndex(indexName);
+      System.out.println("removing: " + indexName);
+    }
+
   }
 
   private class DummyNode {

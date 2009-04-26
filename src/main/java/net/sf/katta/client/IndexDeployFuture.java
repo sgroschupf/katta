@@ -19,11 +19,15 @@ import net.sf.katta.index.IndexMetaData;
 import net.sf.katta.index.IndexMetaData.IndexState;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.zk.IZkDataListener;
+import net.sf.katta.zk.IZkReconnectListener;
 import net.sf.katta.zk.ZKClient;
 import net.sf.katta.zk.ZkPathes;
 
-public class IndexDeployFuture implements IIndexDeployFuture, IZkDataListener<IndexMetaData> {
+import org.apache.log4j.Logger;
 
+public class IndexDeployFuture implements IIndexDeployFuture, IZkDataListener<IndexMetaData>, IZkReconnectListener {
+
+  private static Logger LOG = Logger.getLogger(IndexDeployFuture.class);
   private final ZKClient _zkClient;
   private final String _indexZkPath;
   private IndexMetaData _indexMetaData;
@@ -36,6 +40,7 @@ public class IndexDeployFuture implements IIndexDeployFuture, IZkDataListener<In
     // subscribe index
     _zkClient.getEventLock().lock();
     try {
+      _zkClient.subscribeReconnects(this);
       _zkClient.subscribeDataChanges(_indexZkPath, this);
       _zkClient.readData(_indexZkPath, _indexMetaData);
     } finally {
@@ -49,7 +54,7 @@ public class IndexDeployFuture implements IIndexDeployFuture, IZkDataListener<In
 
   public synchronized IndexState joinDeployment() throws InterruptedException {
     while (isDeploymentRunning()) {
-      this.wait();
+      this.wait(5000);
     }
     return getState();
   }
@@ -96,4 +101,13 @@ public class IndexDeployFuture implements IIndexDeployFuture, IZkDataListener<In
     return new IndexMetaData();
   }
 
+  @Override
+  public void handleReconnect() throws KattaException {
+    // sg: we just want to make sure we get the very latest state of the index,
+    // since we might missed a event. With zookeeper 3.x we should still have
+    // subcribed notifcatins and dont need to resubscribe
+    LOG.warn("Reconnecting IndexDeployFuture");
+    _zkClient.readData(_indexZkPath, _indexMetaData);
+    // this.notifyAll();
+  }
 }
