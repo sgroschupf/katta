@@ -15,6 +15,9 @@
  */
 package net.sf.katta.loadtest;
 
+import java.io.IOException;
+import java.util.List;
+
 import org.apache.hadoop.ipc.VersionedProtocol;
 
 public interface TestCommandListener extends VersionedProtocol {
@@ -23,4 +26,5 @@ public interface TestCommandListener extends VersionedProtocol {
 
   public void stopTest();
 
+  public List<Integer> getResults() throws IOException;
 }

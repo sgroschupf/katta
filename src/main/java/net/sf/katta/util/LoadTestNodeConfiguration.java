@@ -19,7 +19,6 @@ package net.sf.katta.util;
 public class LoadTestNodeConfiguration extends KattaConfiguration {
 
   private final static String LOADTESTNODE_TEST_DELAY_MS = "loadtestnode.testdelay";
-  private static final String LOADTESTNODE_STATISTICS_OUTPUT_FILE = "loadtestnode.statistics.output";
   private static final String LOADTESTNODE_START_PORT = "loadtestnode.server.port.start";
 
   public LoadTestNodeConfiguration() {
@@ -32,14 +31,6 @@ public class LoadTestNodeConfiguration extends KattaConfiguration {
 
   public void setTestDelay(int delayMs) {
     setProperty(LOADTESTNODE_TEST_DELAY_MS, delayMs + "");
-  }
-
-  public String getStatisticsFile() {
-    return getProperty(LOADTESTNODE_STATISTICS_OUTPUT_FILE);
-  }
-  
-  public void setStatisticsFile(String fileName) {
-    setProperty(LOADTESTNODE_STATISTICS_OUTPUT_FILE, fileName);
   }
 
   public int getStartPort() {

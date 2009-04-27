@@ -15,19 +15,20 @@
  */
 package net.sf.katta.loadtest;
 
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.OutputStreamWriter;
-import java.io.Writer;
+import java.util.List;
 import java.util.Random;
+import java.util.Vector;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
-import net.sf.katta.Katta;
+import net.sf.katta.client.Client;
+import net.sf.katta.client.IClient;
 import net.sf.katta.node.BaseRpcServer;
+import net.sf.katta.node.Query;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.LoadTestNodeConfiguration;
 import net.sf.katta.zk.IZkReconnectListener;
@@ -43,12 +44,13 @@ public class LoadTestNode extends BaseRpcServer implements TestCommandListener {
 
   private ZKClient _zkClient;
   ScheduledExecutorService _executorService;
-  private Writer _statisticsWriter;
+  private List<Integer> _statistics;
 
   private Lock _shutdownLock = new ReentrantLock(true);
   private volatile boolean _shutdown = false;
   LoadTestNodeConfiguration _configuration;
   TestSearcherMetaData _metaData;
+  IClient _client = new Client();
 
   private String _currentNodeName;
 
@@ -64,14 +66,15 @@ public class LoadTestNode extends BaseRpcServer implements TestCommandListener {
       _queryString = queryString;
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public void run() {
       // TODO PVo search for different terms
       try {
         long startTime = System.currentTimeMillis();
-        Katta.search(_indexNames, _queryString, _count);
+        _client.search(new Query(_queryString), _indexNames, _count);
         long endTime = System.currentTimeMillis();
-        writeStatistics(endTime - startTime);
+        writeStatistics((int) (endTime - startTime));
       } catch (KattaException e) {
         writeStatistics(-1);
         LOG.error("Search failed.", e);
@@ -92,15 +95,11 @@ public class LoadTestNode extends BaseRpcServer implements TestCommandListener {
   public LoadTestNode(final ZKClient zkClient, LoadTestNodeConfiguration configuration) throws KattaException {
     _zkClient = zkClient;
     _configuration = configuration;
-    try {
-      _statisticsWriter = new OutputStreamWriter(new FileOutputStream(_configuration.getStatisticsFile()), "UTF-8");
-    } catch (IOException e) {
-      throw new KattaException("Failed to create statistics output file.", e);
-    }
   }
 
   public void start() throws KattaException {
     LOG.debug("Starting zk client...");
+    _statistics = new Vector<Integer>();
     _zkClient.getEventLock().lock();
     try {
       if (!_zkClient.isStarted()) {
@@ -142,13 +141,6 @@ public class LoadTestNode extends BaseRpcServer implements TestCommandListener {
         }
       }
 
-      LOG.info("Closing stream.");
-      try {
-        _statisticsWriter.close();
-      } catch (IOException e) {
-        LOG.warn("Failed to close statistics file.", e);
-      }
-
       _zkClient.close();
     } finally {
       _shutdownLock.unlock();
@@ -165,12 +157,8 @@ public class LoadTestNode extends BaseRpcServer implements TestCommandListener {
     }
   }
 
-  void writeStatistics(long elapsedTime) {
-    try {
-      _statisticsWriter.write("" + elapsedTime + "\n");
-    } catch (IOException e) {
-      LOG.warn("Could not write statistics data.", e);
-    }
+  void writeStatistics(int elapsedTime) {
+    _statistics.add(elapsedTime);
   }
 
   @Override
@@ -200,5 +188,10 @@ public class LoadTestNode extends BaseRpcServer implements TestCommandListener {
   @Override
   protected void setup() {
     // do nothing
+  }
+
+  @Override
+  public List<Integer> getResults() throws IOException {
+    return _statistics;
   }
 }
