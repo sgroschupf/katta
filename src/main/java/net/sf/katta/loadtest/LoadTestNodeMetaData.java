@@ -22,7 +22,7 @@ import java.io.IOException;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 
-public class TestSearcherMetaData implements Writable {
+public class LoadTestNodeMetaData implements Writable {
 
   private Text _host = new Text();
   private int _port;

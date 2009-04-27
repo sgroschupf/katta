@@ -38,7 +38,7 @@ import net.sf.katta.zk.ZkPathes;
 import org.apache.log4j.Logger;
 import org.apache.zookeeper.CreateMode;
 
-public class LoadTestNode extends BaseRpcServer implements TestCommandListener {
+public class LoadTestNode extends BaseRpcServer implements ILoadTestNode {
 
   final static Logger LOG = Logger.getLogger(LoadTestNode.class);
 
@@ -49,7 +49,7 @@ public class LoadTestNode extends BaseRpcServer implements TestCommandListener {
   private Lock _shutdownLock = new ReentrantLock(true);
   private volatile boolean _shutdown = false;
   LoadTestNodeConfiguration _configuration;
-  TestSearcherMetaData _metaData;
+  LoadTestNodeMetaData _metaData;
   IClient _client = new Client();
 
   private String _currentNodeName;
@@ -110,13 +110,13 @@ public class LoadTestNode extends BaseRpcServer implements TestCommandListener {
       _zkClient.getEventLock().unlock();
     }
     startRpcServer(_configuration.getStartPort());
-    _metaData = new TestSearcherMetaData();
+    _metaData = new LoadTestNodeMetaData();
     _metaData.setHost(getRpcHostName());
     _metaData.setPort(getRpcServerPort());
     announceTestSearcher(_metaData);
   }
 
-  void announceTestSearcher(TestSearcherMetaData metaData) throws KattaException {
+  void announceTestSearcher(LoadTestNodeMetaData metaData) throws KattaException {
     LOG.info("Announcing new node.");
     if (_currentNodeName != null) {
       _zkClient.deleteIfExists(_currentNodeName);

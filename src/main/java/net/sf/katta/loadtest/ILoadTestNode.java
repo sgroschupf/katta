@@ -20,7 +20,7 @@ import java.util.List;
 
 import org.apache.hadoop.ipc.VersionedProtocol;
 
-public interface TestCommandListener extends VersionedProtocol {
+public interface ILoadTestNode extends VersionedProtocol {
 
   public void startTest(int threads, String[] indexNames, String queryString, int count);
 

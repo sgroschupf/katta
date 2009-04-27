@@ -39,7 +39,7 @@ public class LoadTestStarter {
   static final Logger LOG = Logger.getLogger(LoadTestStarter.class);
 
   ZKClient _zkClient;
-  private Map<String, TestSearcherMetaData> _testNodes = new HashMap<String, TestSearcherMetaData>();
+  private Map<String, LoadTestNodeMetaData> _testNodes = new HashMap<String, LoadTestNodeMetaData>();
   private int _numberOfTesterNodes;
   private int _threads;
 
@@ -108,7 +108,7 @@ public class LoadTestStarter {
       for (String child : children) {
         if (!_testNodes.containsKey(child)) {
           try {
-            TestSearcherMetaData metaData = new TestSearcherMetaData();
+            LoadTestNodeMetaData metaData = new LoadTestNodeMetaData();
             _zkClient.readData(ZkPathes.LOADTEST_NODES + "/" + child, metaData);
             LOG.info("New test node on " + metaData.getHost() + ":" + metaData.getPort());
             _testNodes.put(child, metaData);
@@ -124,18 +124,18 @@ public class LoadTestStarter {
   }
 
   private void startTest() throws KattaException {
-    List<TestSearcherMetaData> testers = new ArrayList<TestSearcherMetaData>(_testNodes.values());
-    List<TestCommandListener> listeners = new ArrayList<TestCommandListener>();
+    List<LoadTestNodeMetaData> testers = new ArrayList<LoadTestNodeMetaData>(_testNodes.values());
+    List<ILoadTestNode> listeners = new ArrayList<ILoadTestNode>();
     for (int i = 0; i < _numberOfTesterNodes; i++) {
       try {
-        listeners.add((TestCommandListener) RPC.getProxy(TestCommandListener.class, 0, new InetSocketAddress(testers
+        listeners.add((ILoadTestNode) RPC.getProxy(ILoadTestNode.class, 0, new InetSocketAddress(testers
                 .get(i).getHost(), testers.get(i).getPort()), new Configuration()));
       } catch (IOException e) {
         throw new KattaException("Failed to start tests.", e);
       }
     }
     _zkClient.unsubscribeAll();
-    for (TestCommandListener testCommandListener : listeners) {
+    for (ILoadTestNode testCommandListener : listeners) {
       LOG.info("Starting test on node.");
       testCommandListener.startTest(_threads, _indexNames, _queryString, _count);
     }
@@ -144,7 +144,7 @@ public class LoadTestStarter {
     } catch (InterruptedException e) {
       // ignore
     }
-    for (TestCommandListener testCommandListener : listeners) {
+    for (ILoadTestNode testCommandListener : listeners) {
       LOG.info("Stopping test on node.");
       testCommandListener.stopTest();
     }
