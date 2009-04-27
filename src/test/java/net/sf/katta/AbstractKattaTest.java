@@ -18,12 +18,14 @@ package net.sf.katta;
 import java.io.File;
 import java.util.concurrent.TimeUnit;
 
+import net.sf.katta.loadtest.LoadTestNode;
 import net.sf.katta.master.Master;
 import net.sf.katta.node.BaseNode;
 import net.sf.katta.node.LuceneNode;
 import net.sf.katta.testutil.ExtendedTestCase;
 import net.sf.katta.util.FileUtil;
 import net.sf.katta.util.KattaException;
+import net.sf.katta.util.LoadTestNodeConfiguration;
 import net.sf.katta.util.NetworkUtil;
 import net.sf.katta.util.NodeConfiguration;
 import net.sf.katta.util.ZkConfiguration;
@@ -174,6 +176,14 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
     NodeStartThread nodeStartThread = new NodeStartThread(node, zkNodeClient);
     nodeStartThread.start();
     return nodeStartThread;
+  }
+
+  protected LoadTestNode startLoadTestNode() throws KattaException {
+    ZKClient zkNodeClient = new ZKClient(_conf);
+    LoadTestNodeConfiguration nodeConf = new LoadTestNodeConfiguration();
+    LoadTestNode node = new LoadTestNode(zkNodeClient, nodeConf);
+    node.start();
+    return node;
   }
 
   protected void waitForStatus(ZKClient client, ZooKeeper.States state) throws Exception {

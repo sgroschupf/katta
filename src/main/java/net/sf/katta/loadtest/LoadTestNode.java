@@ -42,7 +42,7 @@ public class LoadTestNode extends BaseRpcServer implements TestCommandListener {
   final static Logger LOG = Logger.getLogger(LoadTestNode.class);
 
   private ZKClient _zkClient;
-  ScheduledExecutorService _executorService = Executors.newScheduledThreadPool(1);
+  ScheduledExecutorService _executorService;
   private Writer _statisticsWriter;
 
   private Lock _shutdownLock = new ReentrantLock(true);
@@ -133,11 +133,13 @@ public class LoadTestNode extends BaseRpcServer implements TestCommandListener {
       }
       _shutdown = true;
       stopRpcServer();
-      _executorService.shutdown();
-      try {
-        _executorService.awaitTermination(10, TimeUnit.SECONDS);
-      } catch (InterruptedException e1) {
-        // ignore
+      if (_executorService != null) {
+        _executorService.shutdown();
+        try {
+          _executorService.awaitTermination(10, TimeUnit.SECONDS);
+        } catch (InterruptedException e1) {
+          // ignore
+        }
       }
 
       LOG.info("Closing stream.");
