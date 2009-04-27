@@ -99,7 +99,6 @@ public class LoadTestNode extends BaseRpcServer implements ILoadTestNode {
 
   public void start() throws KattaException {
     LOG.debug("Starting zk client...");
-    _statistics = new Vector<Integer>();
     _zkClient.getEventLock().lock();
     try {
       if (!_zkClient.isStarted()) {
@@ -122,6 +121,18 @@ public class LoadTestNode extends BaseRpcServer implements ILoadTestNode {
       _zkClient.deleteIfExists(_currentNodeName);
     }
     _currentNodeName = _zkClient.create(ZkPathes.LOADTEST_NODES + "/node-", metaData, CreateMode.EPHEMERAL_SEQUENTIAL);
+  }
+
+  private void unregisterNode() {
+    LOG.info("Unregistering node.");
+    if (_currentNodeName != null) {
+      try {
+        _zkClient.deleteIfExists(_currentNodeName);
+      } catch (KattaException e) {
+        LOG.error("Couldn't unregister node.", e);
+      }
+      _currentNodeName = null;
+    }
   }
 
   public void shutdown() {
@@ -151,7 +162,8 @@ public class LoadTestNode extends BaseRpcServer implements ILoadTestNode {
   public void startTest(int threads, final String[] indexNames, final String queryString, final int count) {
     LOG.info("Requested to run test with " + threads + " threads.");
     _executorService = Executors.newScheduledThreadPool(threads);
-    _zkClient.unsubscribeAll();
+    _statistics = new Vector<Integer>();
+    unregisterNode();
     for (int i = 0; i < threads; i++) {
       _executorService.submit(new TestSearcherRunnable(count, indexNames, queryString));
     }
@@ -165,19 +177,11 @@ public class LoadTestNode extends BaseRpcServer implements ILoadTestNode {
   public void stopTest() {
     LOG.info("Requested to stop test.");
     _executorService.shutdown();
-
-    // shutdown from different thread
-    new Thread() {
-      @Override
-      public void run() {
-        try {
-          Thread.sleep(500);
-        } catch (InterruptedException e) {
-          // ignore
-        }
-        shutdown();
-      }
-    }.start();
+    try {
+      announceTestSearcher(_metaData);
+    } catch (KattaException e) {
+      LOG.info("Failed to announce test node.", e);
+    }
   }
 
   @Override
@@ -191,7 +195,18 @@ public class LoadTestNode extends BaseRpcServer implements ILoadTestNode {
   }
 
   @Override
-  public List<Integer> getResults() throws IOException {
-    return _statistics;
+  public int[] getResults() {
+    try {
+      _executorService.awaitTermination(10, TimeUnit.SECONDS);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+    }
+
+    int result[] = new int[_statistics.size()];
+    for (int i = 0; i < result.length; i++) {
+      result[i] = _statistics.get(i);
+    }
+
+    return result;
   }
 }

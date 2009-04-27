@@ -88,11 +88,13 @@ public class Katta {
     } else if (command.endsWith("startLoadTestNode")) {
       startLoadTestNode();
     } else if (command.endsWith("startLoadTest")) {
-      final int runTime = Integer.parseInt(args[3]);
-      final String[] indexNames = args[4].split(",");
-      final String query = args[5];
-      final int count = Integer.parseInt(args[6]);
-      startIntegrationTest(Integer.parseInt(args[1]), Integer.parseInt(args[2]), runTime, indexNames, query, count);
+      int fromThreads = Integer.parseInt(args[2]);
+      int toThreads = Integer.parseInt(args[3]);
+      final int runTime = Integer.parseInt(args[4]);
+      final String[] indexNames = args[5].split(",");
+      final String query = args[6];
+      final int count = Integer.parseInt(args[7]);
+      startIntegrationTest(Integer.parseInt(args[1]), fromThreads, toThreads, runTime, indexNames, query, count);
     } else if (command.endsWith("version")) {
       showVersion();
     } else if (command.endsWith("zk")) {
@@ -176,11 +178,11 @@ public class Katta {
     }
   }
 
-  public static void startIntegrationTest(int nodes, int threads, int runTime, String[] indexNames, String queryString,
-          int count) throws KattaException {
+  public static void startIntegrationTest(int nodes, int fromThreads, int toThreads, int runTime, String[] indexNames,
+          String queryString, int count) throws KattaException {
     final ZkConfiguration conf = new ZkConfiguration();
     final ZKClient client = new ZKClient(conf);
-    final LoadTestStarter integrationTester = new LoadTestStarter(client, nodes, threads, runTime, indexNames, queryString, count);
+    final LoadTestStarter integrationTester = new LoadTestStarter(client, nodes, fromThreads, toThreads, runTime, indexNames, queryString, count);
     integrationTester.start();
     Runtime.getRuntime().addShutdownHook(new Thread() {
       @Override
@@ -549,7 +551,7 @@ public class Katta {
     System.err.println("\tstartMaster\t\tStarts a local master.");
     System.err.println("\tstartNode\t\tStarts a local node.");
     System.err.println("\tstartLoadTestNode\tStarts a load test node.");
-    System.err.println("\tstartLoadTest <nodes> <threads> <test-duration-ms> <query> <max hits>");
+    System.err.println("\tstartLoadTest <nodes> <from-threads> <to-threads> <test-duration-ms> <query> <max hits>");
     System.err.println("\t\t\t\tStarts a load test.");
     System.err.println("\tshowStructure\t\tShows the structure of a Katta installation.");
     System.err.println("\tcheck\t\t\tAnalyze index/shard/node status.");

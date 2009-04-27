@@ -15,7 +15,11 @@
  */
 package net.sf.katta.loadtest;
 
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -41,7 +45,8 @@ public class LoadTestStarter {
   ZKClient _zkClient;
   private Map<String, LoadTestNodeMetaData> _testNodes = new HashMap<String, LoadTestNodeMetaData>();
   private int _numberOfTesterNodes;
-  private int _threads;
+  private int _fromThreads;
+  private int _toThreads;
 
   ChildListener _childListener;
 
@@ -49,6 +54,7 @@ public class LoadTestStarter {
   private String _queryString;
   private int _count;
   private int _runTime;
+  private Writer _statisticsWriter;
 
   class ChildListener implements IZkChildListener {
     @Override
@@ -67,15 +73,22 @@ public class LoadTestStarter {
     }
   }
 
-  public LoadTestStarter(final ZKClient zkClient, int nodes, int threads, int runTime, String[] indexNames,
-          String queryString, int count) {
+  public LoadTestStarter(final ZKClient zkClient, int nodes, int fromThreads, int toThreads, int runTime,
+          String[] indexNames, String queryString, int count) throws KattaException {
     _zkClient = zkClient;
     _numberOfTesterNodes = nodes;
-    _threads = threads;
+    _fromThreads = fromThreads;
+    _toThreads = toThreads;
     _indexNames = indexNames;
     _queryString = queryString;
     _count = count;
     _runTime = runTime;
+    try {
+      _statisticsWriter = new OutputStreamWriter(new FileOutputStream("build/statistics-" + System.currentTimeMillis()
+              + ".log"));
+    } catch (FileNotFoundException e) {
+      throw new KattaException("Failed to create statistics file.", e);
+    }
   }
 
   public void start() throws KattaException {
@@ -125,28 +138,50 @@ public class LoadTestStarter {
 
   private void startTest() throws KattaException {
     List<LoadTestNodeMetaData> testers = new ArrayList<LoadTestNodeMetaData>(_testNodes.values());
-    List<ILoadTestNode> listeners = new ArrayList<ILoadTestNode>();
+    List<ILoadTestNode> testNodes = new ArrayList<ILoadTestNode>();
     for (int i = 0; i < _numberOfTesterNodes; i++) {
       try {
-        listeners.add((ILoadTestNode) RPC.getProxy(ILoadTestNode.class, 0, new InetSocketAddress(testers
-                .get(i).getHost(), testers.get(i).getPort()), new Configuration()));
+        testNodes.add((ILoadTestNode) RPC.getProxy(ILoadTestNode.class, 0, new InetSocketAddress(testers.get(i)
+                .getHost(), testers.get(i).getPort()), new Configuration()));
       } catch (IOException e) {
         throw new KattaException("Failed to start tests.", e);
       }
     }
     _zkClient.unsubscribeAll();
-    for (ILoadTestNode testCommandListener : listeners) {
-      LOG.info("Starting test on node.");
-      testCommandListener.startTest(_threads, _indexNames, _queryString, _count);
+    for (int threads = _fromThreads; threads <= _toThreads; threads++) {
+      for (ILoadTestNode testNode : testNodes) {
+        LOG.info("Starting test on node.");
+        testNode.startTest(threads, _indexNames, _queryString, _count);
+      }
+      try {
+        Thread.sleep(_runTime);
+      } catch (InterruptedException e) {
+        // ignore
+      }
+      LOG.info("Stopping all tests...");
+      for (ILoadTestNode testNode : testNodes) {
+        testNode.stopTest();
+      }
+      LOG.info("Collecting results...");
+      List<Integer> results = new ArrayList<Integer>();
+      for (ILoadTestNode testNode : testNodes) {
+        int[] nodeResults = testNode.getResults();
+        for (int result : nodeResults) {
+          results.add(result);
+        }
+      }
+      try {
+        for (Integer result : results) {
+          _statisticsWriter.write(threads + "\t" + result + "\n");
+        }
+      } catch (IOException e) {
+        throw new KattaException("Failed to write statistics data.", e);
+      }
     }
     try {
-      Thread.sleep(_runTime);
-    } catch (InterruptedException e) {
-      // ignore
-    }
-    for (ILoadTestNode testCommandListener : listeners) {
-      LOG.info("Stopping test on node.");
-      testCommandListener.stopTest();
+      _statisticsWriter.close();
+    } catch (IOException e) {
+      LOG.warn("Failed to close statistics file.");
     }
     shutdown();
   }
