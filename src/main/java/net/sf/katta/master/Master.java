@@ -30,6 +30,7 @@ import net.sf.katta.zk.ZKClient;
 import net.sf.katta.zk.ZkPathes;
 
 import org.apache.log4j.Logger;
+import org.apache.zookeeper.Watcher.Event.KeeperState;
 
 public class Master implements IZkReconnectListener {
 
@@ -241,7 +242,7 @@ public class Master implements IZkReconnectListener {
   }
 
   @Override
-  public void handleReconnect() throws KattaException {
+  public void handleNewSession() throws Exception {
     try {
       _zkClient.getEventLock().lock();
       becomeMasterOrSecondaryMaster();
@@ -255,4 +256,8 @@ public class Master implements IZkReconnectListener {
 
   }
 
+  @Override
+  public void handleStateChanged(KeeperState state) throws Exception {
+    // do nothing
+  }
 }

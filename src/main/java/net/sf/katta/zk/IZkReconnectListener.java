@@ -15,13 +15,26 @@
  */
 package net.sf.katta.zk;
 
-import net.sf.katta.util.KattaException;
+import org.apache.zookeeper.Watcher.Event.KeeperState;
 
 public interface IZkReconnectListener {
 
   /**
-   * Handles all work that need to be done in case a node got disconnected from
-   * zookeeper and got reconnected again.
+   * Called when the zookeeper connection state has changed.
+   * 
+   * @param state
+   *            The new state.
+   * @throws Exception
+   *             On any error.
    */
-  void handleReconnect() throws KattaException;
+  public void handleStateChanged(KeeperState state) throws Exception;
+
+  /**
+   * Called after the zookeeper session has expired and a new session has been
+   * created. You would have to re-create any ephemeral nodes here.
+   * 
+   * @throws Exception
+   *             On any error.
+   */
+  public void handleNewSession() throws Exception;
 }

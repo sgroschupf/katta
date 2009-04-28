@@ -24,6 +24,7 @@ import net.sf.katta.zk.ZKClient;
 import net.sf.katta.zk.ZkPathes;
 
 import org.apache.log4j.Logger;
+import org.apache.zookeeper.Watcher.Event.KeeperState;
 
 public class IndexDeployFuture implements IIndexDeployFuture, IZkDataListener<IndexMetaData>, IZkReconnectListener {
 
@@ -102,12 +103,18 @@ public class IndexDeployFuture implements IIndexDeployFuture, IZkDataListener<In
   }
 
   @Override
-  public void handleReconnect() throws KattaException {
-    // sg: we just want to make sure we get the very latest state of the index,
-    // since we might missed a event. With zookeeper 3.x we should still have
-    // subcribed notifcatins and dont need to resubscribe
-    LOG.warn("Reconnecting IndexDeployFuture");
-    _zkClient.readData(_indexZkPath, _indexMetaData);
-    // this.notifyAll();
+  public void handleNewSession() throws Exception {
+    // ignore
+  }
+
+  @Override
+  public void handleStateChanged(KeeperState state) throws Exception {
+    if (state == KeeperState.SyncConnected) {
+      // sg: we just want to make sure we get the very latest state of the index,
+      // since we might missed a event. With zookeeper 3.x we should still have
+      // subcribed notifcatins and dont need to resubscribe
+      LOG.warn("Reconnecting IndexDeployFuture");
+      _zkClient.readData(_indexZkPath, _indexMetaData);
+    }
   }
 }

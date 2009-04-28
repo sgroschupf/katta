@@ -22,6 +22,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.TimeUnit;
@@ -89,10 +90,10 @@ public class ZKClient implements Watcher {
    * zookeeper servers.
    * 
    * @param maxMsToWaitUntilConnected
-   *          the milliseconds a method call will wait until the zookeeper
-   *          client is connected with the server
+   *            the milliseconds a method call will wait until the zookeeper
+   *            client is connected with the server
    * @throws KattaException
-   *           if connection fails or default namespaces could not be created
+   *             if connection fails or default namespaces could not be created
    */
   public void start(final long maxMsToWaitUntilConnected) throws KattaException {
     if (_zk != null) {
@@ -183,8 +184,8 @@ public class ZKClient implements Watcher {
    * @param listener
    * @return list of children nodes for given path.
    * @throws KattaException
-   *           Thrown in case we can't read the children nodes. Note that we
-   *           also remove the notification listener.
+   *             Thrown in case we can't read the children nodes. Note that we
+   *             also remove the notification listener.
    */
   public List<String> subscribeChildChanges(final String path, final IZkChildListener listener) throws KattaException {
     ensureZkRunning();
@@ -467,7 +468,7 @@ public class ZKClient implements Watcher {
     // // prohibit nullpointer (See ZOOKEEPER-77)
     // event.setPath("null");
     // }
-    boolean stateChanged = event.getState() == KeeperState.Disconnected || event.getState() == KeeperState.Expired;
+    boolean stateChanged = event.getPath() == null;
     boolean dataChanged = event.getType() == Watcher.Event.EventType.NodeDataChanged
             || event.getType() == Watcher.Event.EventType.NodeChildrenChanged
             || event.getType() == Watcher.Event.EventType.NodeDeleted;
@@ -478,7 +479,7 @@ public class ZKClient implements Watcher {
         return;
       }
       if (stateChanged) {
-        processDisconnect(event);
+        processStateChanged(event);
       }
       if (dataChanged) {
         processDataOrChildChange(event);
@@ -494,13 +495,53 @@ public class ZKClient implements Watcher {
     }
   }
 
-  private void processDisconnect(WatchedEvent event) {
-    // we do a reconnect
-    LOG.warn("disconnected from zookeeper (" + event.getState() + ")");
-    if (_shutdownTriggered) {
-      // already closing
+  private void processStateChanged(WatchedEvent event) {
+    if (event.getState() == KeeperState.SyncConnected) {
+      LOG.debug("zookeeper state changed (" + event.getState() + ")");
     } else {
-      reconnect();
+      LOG.warn("zookeeper state changed (" + event.getState() + ")");
+    }
+    if (_shutdownTriggered) {
+      return;
+    }
+    for (IZkReconnectListener listener : _reconnectListener) {
+      try {
+        listener.handleStateChanged(event.getState());
+      } catch (Exception e) {
+        LOG.error("Failed to trigger handleStateChanged on "+listener, e);
+      }
+    }
+    if (event.getState() == KeeperState.Expired) {
+      close();
+      try {
+        start(1000 * 60 * 10);
+      } catch (KattaException e) {
+        throw new RuntimeException("Exception while restarting zk client", e);
+      }
+      for (IZkReconnectListener listener : _reconnectListener) {
+        try {
+          listener.handleNewSession();
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          LOG.warn("Failed to trigger handleNewSession on "+listener, e);
+        } catch (Throwable t) {
+          LOG.error("Failed to trigger handleNewSession on "+listener, t);
+        }
+      }
+
+      if (event.getState() == KeeperState.SyncConnected) {
+        // re-register all subscriptions
+        synchronized (_path2ChildListenersMap) {
+          for (Entry<String, Set<IZkChildListener>> entry : _path2ChildListenersMap.entrySet()) {
+            resubscribeChildPath(entry.getKey(), entry.getValue());
+          }
+        }
+        synchronized (_path2DataListenersMap) {
+          for (Entry<String, Set<IZkDataListener>> entry : _path2DataListenersMap.entrySet()) {
+            resubscribeDataPath(entry.getKey(), entry.getValue());
+          }
+        }
+      }
     }
   }
 
@@ -574,26 +615,10 @@ public class ZKClient implements Watcher {
       children = _zk.getChildren(path, true);
     } catch (final Exception e) {
       LOG.fatal("re-subscription for child changes on path '" + path + "' failed. removing listeners", e);
-      children = Collections.EMPTY_LIST;
+      children = Collections.emptyList();
       // childListeners.clear();
     }
     return children;
-  }
-
-  private void reconnect() {
-    try {
-      close();
-      start(1000 * 60 * 10);
-      for (IZkReconnectListener reconnectListener : _reconnectListener) {
-        try {
-          reconnectListener.handleReconnect();
-        } catch (Exception e) {
-          LOG.error("Unable to trigger handleReconnect in reconnectListener: " + reconnectListener, e);
-        }
-      }
-    } catch (final Exception e) {
-      throw new RuntimeException("Exception while restarting zk client", e);
-    }
   }
 
   /**

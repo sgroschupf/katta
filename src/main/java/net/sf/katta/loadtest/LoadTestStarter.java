@@ -37,6 +37,7 @@ import net.sf.katta.zk.ZkPathes;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.ipc.RPC;
 import org.apache.log4j.Logger;
+import org.apache.zookeeper.Watcher.Event.KeeperState;
 
 public class LoadTestStarter {
 
@@ -66,10 +67,16 @@ public class LoadTestStarter {
   class ReconnectListener implements IZkReconnectListener {
 
     @Override
-    public void handleReconnect() throws KattaException {
-      LOG.info("Reconnecting test starter.");
-      _zkClient.subscribeChildChanges(ZkPathes.LOADTEST_NODES, _childListener);
-      checkNodes(_zkClient.getChildren(ZkPathes.LOADTEST_NODES));
+    public void handleNewSession() throws Exception {
+      // do nothing
+    }
+
+    @Override
+    public void handleStateChanged(KeeperState state) throws Exception {
+      if (state == KeeperState.SyncConnected) {
+        LOG.info("Reconnecting test starter.");
+        checkNodes(_zkClient.getChildren(ZkPathes.LOADTEST_NODES));
+      }
     }
   }
 

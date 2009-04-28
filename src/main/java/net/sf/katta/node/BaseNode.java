@@ -47,6 +47,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.log4j.Logger;
+import org.apache.zookeeper.Watcher.Event.KeeperState;
 
 public abstract class BaseNode extends BaseRpcServer implements IRequestHandler, IZkReconnectListener {
 
@@ -363,18 +364,19 @@ public abstract class BaseNode extends BaseRpcServer implements IRequestHandler,
     _zkClient.createEphemeral(shard2NodePath, deployedShard);
   }
 
-  /*
-   * (non-Javadoc)
-   * 
-   * @see net.sf.katta.zk.IZkReconnectListener#handleReconnect()
-   */
-  public void handleReconnect() throws KattaException {
+  @Override
+  public void handleNewSession() throws Exception {
     announceNode(NodeState.RECONNECTING);
     cleanupLocalWorkDir();
     startServing(true);
     updateStatus(NodeState.IN_SERVICE);
   }
 
+  @Override
+  public void handleStateChanged(KeeperState state) throws Exception {
+    // do nothing
+  }
+  
   /**
    * Cleanly shutdown the node.
    */

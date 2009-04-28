@@ -37,6 +37,7 @@ import net.sf.katta.zk.ZkPathes;
 
 import org.apache.log4j.Logger;
 import org.apache.zookeeper.CreateMode;
+import org.apache.zookeeper.Watcher.Event.KeeperState;
 
 public class LoadTestNode extends BaseRpcServer implements ILoadTestNode {
 
@@ -86,9 +87,14 @@ public class LoadTestNode extends BaseRpcServer implements ILoadTestNode {
   class ReconnectListener implements IZkReconnectListener {
 
     @Override
-    public void handleReconnect() throws KattaException {
+    public void handleNewSession() throws Exception {
       LOG.info("Reconnecting load test node.");
       announceTestSearcher(_metaData);
+    }
+
+    @Override
+    public void handleStateChanged(KeeperState state) throws Exception {
+      // do nothing
     }
   }
 
