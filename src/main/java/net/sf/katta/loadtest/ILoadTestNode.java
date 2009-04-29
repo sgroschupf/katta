@@ -23,5 +23,5 @@ public interface ILoadTestNode extends VersionedProtocol {
 
   public void stopTest();
 
-  public int[] getResults();
+  public LoadTestQueryResult[] getResults();
 }

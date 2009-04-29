@@ -44,9 +44,9 @@ public class LoadTestNodeTest extends AbstractKattaTest {
     Thread.sleep(500);
     node.stopTest();
     
-    int[] results = node.getResults();
-    for (int result : results) {
-      assertTrue(result != -1);
+    LoadTestQueryResult[] results = node.getResults();
+    for (LoadTestQueryResult result : results) {
+      assertTrue(result.getEndTime() != -1);
     }
     assertTrue(results.length > 0);
     

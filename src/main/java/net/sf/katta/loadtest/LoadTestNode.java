@@ -45,7 +45,7 @@ public class LoadTestNode extends BaseRpcServer implements ILoadTestNode {
 
   private ZKClient _zkClient;
   ScheduledExecutorService _executorService;
-  private List<Integer> _statistics;
+  private List<LoadTestQueryResult> _statistics;
 
   private Lock _shutdownLock = new ReentrantLock(true);
   private volatile boolean _shutdown = false;
@@ -71,13 +71,13 @@ public class LoadTestNode extends BaseRpcServer implements ILoadTestNode {
     @Override
     public void run() {
       // TODO PVo search for different terms
+      long startTime = System.currentTimeMillis();
       try {
-        long startTime = System.currentTimeMillis();
         _client.search(new Query(_queryString), _indexNames, _count);
         long endTime = System.currentTimeMillis();
-        writeStatistics((int) (endTime - startTime));
+        _statistics.add(new LoadTestQueryResult(startTime, endTime, _queryString, "node-id"));
       } catch (KattaException e) {
-        writeStatistics(-1);
+        _statistics.add(new LoadTestQueryResult(startTime, -1, _queryString, "node-id"));
         LOG.error("Search failed.", e);
       }
       _executorService.schedule(this, _random.nextInt(_configuration.getTestDelay()), TimeUnit.MILLISECONDS);
@@ -168,15 +168,11 @@ public class LoadTestNode extends BaseRpcServer implements ILoadTestNode {
   public void startTest(int threads, final String[] indexNames, final String queryString, final int count) {
     LOG.info("Requested to run test with " + threads + " threads.");
     _executorService = Executors.newScheduledThreadPool(threads);
-    _statistics = new Vector<Integer>();
+    _statistics = new Vector<LoadTestQueryResult>();
     unregisterNode();
     for (int i = 0; i < threads; i++) {
       _executorService.submit(new TestSearcherRunnable(count, indexNames, queryString));
     }
-  }
-
-  void writeStatistics(int elapsedTime) {
-    _statistics.add(elapsedTime);
   }
 
   @Override
@@ -201,14 +197,14 @@ public class LoadTestNode extends BaseRpcServer implements ILoadTestNode {
   }
 
   @Override
-  public int[] getResults() {
+  public LoadTestQueryResult[] getResults() {
     try {
       _executorService.awaitTermination(10, TimeUnit.SECONDS);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
     }
 
-    int result[] = new int[_statistics.size()];
+    LoadTestQueryResult result[] = new LoadTestQueryResult[_statistics.size()];
     for (int i = 0; i < result.length; i++) {
       result[i] = _statistics.get(i);
     }

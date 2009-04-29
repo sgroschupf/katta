@@ -170,16 +170,19 @@ public class LoadTestStarter {
         testNode.stopTest();
       }
       LOG.info("Collecting results...");
-      List<Integer> results = new ArrayList<Integer>();
+      List<LoadTestQueryResult> results = new ArrayList<LoadTestQueryResult>();
       for (ILoadTestNode testNode : testNodes) {
-        int[] nodeResults = testNode.getResults();
-        for (int result : nodeResults) {
+        LoadTestQueryResult[] nodeResults = testNode.getResults();
+        for (LoadTestQueryResult result : nodeResults) {
           results.add(result);
         }
       }
       try {
-        for (Integer result : results) {
-          _statisticsWriter.write(threads + "\t" + result + "\n");
+        for (LoadTestQueryResult result : results) {
+          _statisticsWriter.write(threads + "\t" + result.getNodeId() + "\t" + result.getStartTime() + "\t"
+                  + result.getEndTime() + "\t"
+                  + (result.getEndTime() > 0 ? result.getEndTime() - result.getStartTime() : -1) + "\t"
+                  + result.getQuery() + "\n");
         }
       } catch (IOException e) {
         throw new KattaException("Failed to write statistics data.", e);
