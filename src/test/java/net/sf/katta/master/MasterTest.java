@@ -126,7 +126,7 @@ public class MasterTest extends AbstractKattaTest {
     final File indexFile = TestResources.INDEX1;
     final Katta katta = new Katta();
     final String index = "indexA";
-    katta.addIndex(index, "file://" + indexFile.getAbsolutePath(), StandardAnalyzer.class.getName(), 2);
+    katta.addIndex(index, "file://" + indexFile.getAbsolutePath(), 2);
 
     final int shardCount = indexFile.list(FileUtil.VISIBLE_FILES_FILTER).length;
     assertEquals(shardCount, zkClientMaster.countChildren(ZkPathes.getIndexPath(index)));
@@ -176,8 +176,7 @@ public class MasterTest extends AbstractKattaTest {
     final File indexFile = TestResources.INDEX1;
     DeployClient deployClient = new DeployClient(_conf);
     final String index = "indexA";
-    IIndexDeployFuture deployFuture = deployClient.addIndex(index, "file://" + indexFile.getAbsolutePath(),
-        StandardAnalyzer.class.getName(), 1);
+    IIndexDeployFuture deployFuture = deployClient.addIndex(index, "file://" + indexFile.getAbsolutePath(), 1);
     deployFuture.joinDeployment();
 
     final int shardCount = indexFile.list(FileUtil.VISIBLE_FILES_FILTER).length;
@@ -227,7 +226,7 @@ public class MasterTest extends AbstractKattaTest {
     final File indexFile = TestResources.INVALID_INDEX;
     final Katta katta = new Katta();
     final String index = "indexA";
-    katta.addIndex(index, "file://" + indexFile.getAbsolutePath(), StandardAnalyzer.class.getName(), 2);
+    katta.addIndex(index, "file://" + indexFile.getAbsolutePath(), 2);
 
     final IndexMetaData metaData = new IndexMetaData();
     zkClientMaster.readData(ZkPathes.getIndexPath(index), metaData);
@@ -254,7 +253,7 @@ public class MasterTest extends AbstractKattaTest {
 
     final Katta katta = new Katta();
     final String index = "indexA";
-    katta.addIndex(index, "file://" + indexFile.getAbsolutePath(), StandardAnalyzer.class.getName(), 2);
+    katta.addIndex(index, "file://" + indexFile.getAbsolutePath(), 2);
     assertEquals(shardCount, zkClientMaster.countChildren(ZkPathes.getIndexPath(index)));
 
     // restartmaster
@@ -283,8 +282,7 @@ public class MasterTest extends AbstractKattaTest {
     final File indexFile = TestResources.INDEX1;
     final String index = "indexA";
     final DeployClient deployClient = new DeployClient(zkClient);
-    final IIndexDeployFuture deployFuture = deployClient.addIndex(index, "file://" + indexFile.getAbsolutePath(),
-        StandardAnalyzer.class.getName(), 2);
+    final IIndexDeployFuture deployFuture = deployClient.addIndex(index, "file://" + indexFile.getAbsolutePath(), 2);
     deployFuture.joinDeployment();
     assertEquals(1, deployClient.getIndexes(IndexState.DEPLOYED).size());
     final List<String> shards = zkClient.getChildren(ZkPathes.getIndexPath(index));

@@ -25,7 +25,6 @@ import org.apache.hadoop.io.Writable;
 public class IndexMetaData implements Writable {
 
   private Text _path = new Text();
-  private Text _analyzerClassName = new Text();
   private int _replicationLevel;
 
   private IndexState _state;
@@ -35,9 +34,8 @@ public class IndexMetaData implements Writable {
     ANNOUNCED, DEPLOYED, ERROR, DEPLOYING, REPLICATING;
   }
 
-  public IndexMetaData(final String path, final String analyzerName, final int replicationLevel, final IndexState state) {
+  public IndexMetaData(final String path, final int replicationLevel, final IndexState state) {
     _path.set(path);
-    _analyzerClassName.set(analyzerName);
     _replicationLevel = replicationLevel;
     _state = state;
   }
@@ -48,7 +46,6 @@ public class IndexMetaData implements Writable {
 
   public void readFields(final DataInput in) throws IOException {
     _path.readFields(in);
-    _analyzerClassName.readFields(in);
     _replicationLevel = in.readInt();
     _state = IndexState.values()[in.readByte()];
     if (_state == IndexState.ERROR) {
@@ -58,7 +55,6 @@ public class IndexMetaData implements Writable {
 
   public void write(final DataOutput out) throws IOException {
     _path.write(out);
-    _analyzerClassName.write(out);
     out.writeInt(_replicationLevel);
     out.writeByte(_state.ordinal());
     if (_state == IndexState.ERROR) {
@@ -70,9 +66,6 @@ public class IndexMetaData implements Writable {
     return _path.toString();
   }
 
-  public String getAnalyzerClassName() {
-    return _analyzerClassName.toString();
-  }
 
   public IndexState getState() {
     return _state;

@@ -72,11 +72,11 @@ public class ClientTest extends AbstractKattaTest {
     waitOnNodes(masterStartThread, 2);
 
     _deployClient = new DeployClient(_conf);
-    _deployClient.addIndex(INDEX1, TestResources.INDEX1.getAbsolutePath(), StandardAnalyzer.class.getName(), 1)
+    _deployClient.addIndex(INDEX1, TestResources.INDEX1.getAbsolutePath(), 1)
         .joinDeployment();
-    _deployClient.addIndex(INDEX2, TestResources.INDEX1.getAbsolutePath(), StandardAnalyzer.class.getName(), 1)
+    _deployClient.addIndex(INDEX2, TestResources.INDEX1.getAbsolutePath(), 1)
         .joinDeployment();
-    _deployClient.addIndex(INDEX3, TestResources.INDEX1.getAbsolutePath(), StandardAnalyzer.class.getName(), 1)
+    _deployClient.addIndex(INDEX3, TestResources.INDEX1.getAbsolutePath(), 1)
         .joinDeployment();
     _client = new Client();
   }

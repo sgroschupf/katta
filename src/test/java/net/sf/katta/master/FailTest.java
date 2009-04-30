@@ -32,11 +32,11 @@ import net.sf.katta.util.ZkConfiguration;
 import net.sf.katta.zk.ZKClient;
 import net.sf.katta.zk.ZkPathes;
 
-import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher.Event.EventType;
 import org.apache.zookeeper.Watcher.Event.KeeperState;
 import org.apache.zookeeper.proto.WatcherEvent;
+
 
 public class FailTest extends AbstractKattaTest {
 
@@ -93,8 +93,7 @@ public class FailTest extends AbstractKattaTest {
     // deploy index
     final IDeployClient deployClient = new DeployClient(_conf);
     final String indexName = "index";
-    deployClient.addIndex(indexName, TestResources.UNZIPPED_INDEX.getAbsolutePath(), StandardAnalyzer.class.getName(),
-            3).joinDeployment();
+    deployClient.addIndex(indexName, TestResources.UNZIPPED_INDEX.getAbsolutePath(), 3).joinDeployment();
     final Client client = new Client();
     assertEquals(2, client.count(new Query("foo:bar"), new String[] { indexName }));
     assertEquals(1, node1.countShards());
@@ -137,8 +136,7 @@ public class FailTest extends AbstractKattaTest {
             .getIntValue(), null));
     for (int i = 0; i < 100; i++) {
       final String indexName = "index" + i;
-      IIndexDeployFuture index = deployClient.addIndex(indexName, TestResources.UNZIPPED_INDEX.getAbsolutePath(),
-              StandardAnalyzer.class.getName(), 3);
+      IIndexDeployFuture index = deployClient.addIndex(indexName, TestResources.UNZIPPED_INDEX.getAbsolutePath(), 3);
 
       System.out.println("deploying: " + indexName);
       masterZkClient.getEventLock().lock();

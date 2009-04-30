@@ -20,8 +20,6 @@ import net.sf.katta.client.DeployClient;
 import net.sf.katta.testutil.TestResources;
 import net.sf.katta.util.KattaException;
 
-import org.apache.lucene.analysis.standard.StandardAnalyzer;
-
 public class LoadTestNodeTest extends AbstractKattaTest {
 
   private static final String INDEX1 = "index1";
@@ -36,7 +34,7 @@ public class LoadTestNodeTest extends AbstractKattaTest {
     startNode();
     
     DeployClient deployClient = new DeployClient(_conf);
-    deployClient.addIndex(INDEX1, TestResources.INDEX1.getAbsolutePath(), StandardAnalyzer.class.getName(), 1)
+    deployClient.addIndex(INDEX1, TestResources.INDEX1.getAbsolutePath(), 1)
         .joinDeployment();
 
     LoadTestNode node = startLoadTestNode();

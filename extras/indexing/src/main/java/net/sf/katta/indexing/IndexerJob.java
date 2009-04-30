@@ -19,6 +19,8 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Random;
 
+import net.sf.katta.util.IndexConfiguration;
+
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.FileUtil;
@@ -33,7 +35,7 @@ import org.apache.hadoop.mapred.RecordReader;
 import org.apache.hadoop.mapred.Reporter;
 import org.apache.hadoop.mapred.SequenceFileInputFormat;
 import org.apache.hadoop.mapred.TextOutputFormat;
-import org.apache.lucene.analysis.standard.StandardAnalyzer;
+import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.Field.Index;
@@ -120,7 +122,7 @@ public class IndexerJob {
       String shardName = "" + millis + "-" + new Random().nextInt();
       File file = new File(tmp, shardName);
       report.progress();
-      StandardAnalyzer analyzer = new StandardAnalyzer();
+      Analyzer analyzer = IndexConfiguration.getAnalyzer(_conf);
       IndexWriter indexWriter = new IndexWriter(file, analyzer);
       indexWriter.setMergeFactor(100000);
       report.setStatus("Adding documents...");

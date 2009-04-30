@@ -126,7 +126,7 @@ public class IndexMergeApplication {
       mergedIndex = mergedIndex.makeQualified(fileSystem);
       LOG.info("deploying new merged index: " + mergedIndex);
       IIndexDeployFuture deployFuture = deployClient.addIndex(mergedIndex.getName(), mergedIndex.toString()
-          + "/indexes", deployedIndexes.get(0).getAnalyzerClassName(), deployedIndexes.get(0).getReplicationLevel());
+          + "/indexes", deployedIndexes.get(0).getReplicationLevel());
       // TODO jz: just taking the analyzer and replication level from the
       // first is unclean
       // TODO jz: appending / indexes is suboptimal

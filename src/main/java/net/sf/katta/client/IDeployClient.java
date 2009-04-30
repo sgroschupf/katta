@@ -23,8 +23,8 @@ import net.sf.katta.util.KattaException;
 
 public interface IDeployClient {
 
-  IIndexDeployFuture addIndex(final String name, final String path, final String analyzerClass,
-      final int replicationLevel) throws KattaException;
+  IIndexDeployFuture addIndex(final String name, final String path, 
+          final int replicationLevel) throws KattaException;
 
   void removeIndex(final String name) throws KattaException;
 

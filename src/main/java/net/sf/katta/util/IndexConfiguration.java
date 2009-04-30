@@ -25,6 +25,7 @@ import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.InputFormat;
 import org.apache.hadoop.mapred.JobConf;
+import org.apache.lucene.analysis.Analyzer;
 
 public class IndexConfiguration extends KattaConfiguration {
 
@@ -60,6 +61,8 @@ public class IndexConfiguration extends KattaConfiguration {
 
   public static final String INDEXER_MAX_BUFFERED_DOCS = "indexer.max.bufferedDocs";
 
+  public static final String INDEXER_ANALYZER = "indexer.analyzer";
+
   /**
    * Path Related *
    */
@@ -77,6 +80,28 @@ public class IndexConfiguration extends KattaConfiguration {
   public static final String INPUT_KEY_CLASS = "index.input.key.class";
 
   public static final String INPUT_VALUE_CLASS = "index.input.value.class";
+
+  /*
+   * Utility to get the analyzer to be used when indexing or index merging.
+   * Currently this method just returns a single analyzer. But it can be
+   * extended such that we read a file mapping <field name, analyzer> and return
+   * a PerFieldAnalyzer instead.
+   */
+  public static Analyzer getAnalyzer(Configuration conf) {
+    Analyzer analyzer = null;
+    try {
+      analyzer = (Analyzer) Class.forName(
+              conf.get(IndexConfiguration.INDEXER_ANALYZER, "org.apache.lucene.analysis.standard.StandardAnalyzer"))
+              .newInstance();
+    } catch (InstantiationException e1) {
+      e1.printStackTrace();
+    } catch (IllegalAccessException e1) {
+      e1.printStackTrace();
+    } catch (ClassNotFoundException e1) {
+      e1.printStackTrace();
+    }
+    return analyzer;
+  }
 
   public JobConf createJobConf(final Configuration configuration) {
     JobConf jobConf = new JobConf(configuration);
@@ -108,5 +133,4 @@ public class IndexConfiguration extends KattaConfiguration {
   public void enrichJobConf(Configuration conf, String confKey) {
     conf.set(confKey, getProperty(confKey));
   }
-
 }

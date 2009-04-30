@@ -118,14 +118,14 @@ public class Katta {
         }
       } else if (command.endsWith("addIndex")) {
         int replication = 3;
-        if (args.length < 4) {
+        if (args.length < 3) {
           printUsageAndExit();
         }
-        if (args.length == 5) {
-          replication = Integer.parseInt(args[4]);
+        if (args.length == 4) {
+          replication = Integer.parseInt(args[3]);
         }
         katta = new Katta();
-        katta.addIndex(args[1], args[2], args[3], replication);
+        katta.addIndex(args[1], args[2], replication);
       } else if (command.endsWith("removeIndex")) {
         katta = new Katta();
         katta.removeIndex(args[1]);
@@ -230,7 +230,7 @@ public class Katta {
     try {
       removeIndex(indexName);
       Thread.sleep(5000);
-      addIndex(indexName, indexMetaData.getPath(), indexMetaData.getAnalyzerClassName(), indexMetaData
+      addIndex(indexName, indexMetaData.getPath(), indexMetaData
           .getReplicationLevel());
     } catch (InterruptedException e) {
       printError("Redeployment of index '" + indexName + "' interrupted.");
@@ -399,7 +399,7 @@ public class Katta {
     if (!detailedView) {
       table = new Table(new String[] { "Name", "Status", "Path", "Shards", "Documents", "Size" });
     } else {
-      table = new Table(new String[] { "Name", "Status", "Path", "Shards", "Documents", "Size", "Analyzer",
+      table = new Table(new String[] { "Name", "Status", "Path", "Shards", "Documents", "Size",
           "Replication" });
     }
 
@@ -416,8 +416,8 @@ public class Katta {
       if (!detailedView) {
         table.addRow(index, state, metaData.getPath(), shards.size(), docCount, indexSize);
       } else {
-        table.addRow(index, state, metaData.getPath(), shards.size(), docCount, indexSize, metaData
-            .getAnalyzerClassName(), metaData.getReplicationLevel());
+        table.addRow(index, state, metaData.getPath(), shards.size(), docCount, indexSize, 
+                metaData.getReplicationLevel());
       }
     }
     if (table.rowSize() > 0) {
@@ -450,7 +450,7 @@ public class Katta {
     return docCount;
   }
 
-  public void addIndex(final String name, final String path, final String analyzerClass, final int replicationLevel)
+  public void addIndex(final String name, final String path, final int replicationLevel)
       throws KattaException {
     final String indexZkPath = ZkPathes.getIndexPath(name);
     if (name.trim().equals("*")) {
@@ -464,7 +464,7 @@ public class Katta {
 
     try {
       IDeployClient deployClient = new DeployClient(_zkClient);
-      IIndexDeployFuture deployFuture = deployClient.addIndex(name, path, analyzerClass, replicationLevel);
+      IIndexDeployFuture deployFuture = deployClient.addIndex(name, path, replicationLevel);
       while (true) {
         if (deployFuture.getState() == IndexState.DEPLOYED) {
           System.out.println("deployed index " + name);
@@ -556,7 +556,7 @@ public class Katta {
     System.err.println("\tshowStructure\t\tShows the structure of a Katta installation.");
     System.err.println("\tcheck\t\t\tAnalyze index/shard/node status.");
     System.err.println("\tversion\t\t\tPrint the version.");
-    System.err.println("\taddIndex <index name> <path to index> <lucene analyzer class> [<replication level>]");
+    System.err.println("\taddIndex <index name> <path to index> [<replication level>]");
     System.err.println("\t\t\t\tAdd an index to a Katta installation.");
     System.err.println("\tremoveIndex <index name>");
     System.err.println("\t\t\t\tRemove an index from a Katta installation.");

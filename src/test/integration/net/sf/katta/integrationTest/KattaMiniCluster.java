@@ -76,8 +76,7 @@ public class KattaMiniCluster {
       throws KattaException, InterruptedException {
     IDeployClient deployClient = new DeployClient(_zkConfiguration);
     for (int i = 0; i < deployCount; i++) {
-      deployClient.addIndex(indexFile.getName() + i, indexFile.getAbsolutePath(), analyzerClass.getName(),
-          replicationCount).joinDeployment();
+      deployClient.addIndex(indexFile.getName() + i, indexFile.getAbsolutePath(), replicationCount).joinDeployment();
     }
     deployClient.disconnect();
   }

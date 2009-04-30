@@ -1,6 +1,7 @@
 Katta Change Log
 
 katta 0.6-dev
+ fix KATTA-47, anaylzer is not required anymore, contributed by Vivek Magotra.
  fix KATTA-51, master hangs when reconnecting to zk during deployment of a index.
  fix KATTA-46, constructor for client and DeployClient exposing zkClient configuration values, so no ZKConfiguration object is required. 
  fix KATTA-45, we might ignored hits with a higher score that are in later shards.

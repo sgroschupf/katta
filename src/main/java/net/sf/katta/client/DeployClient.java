@@ -44,12 +44,12 @@ public class DeployClient implements IDeployClient {
     }
   }
 
-  public IIndexDeployFuture addIndex(String name, String path, String analyzerClass, int replicationLevel)
+  public IIndexDeployFuture addIndex(String name, String path, int replicationLevel)
       throws KattaException {
     final String indexPath = ZkPathes.getIndexPath(name);
     validateIndexName(name, indexPath);
 
-    final IndexMetaData indexMetaData = new IndexMetaData(path, analyzerClass, replicationLevel,
+    final IndexMetaData indexMetaData = new IndexMetaData(path, replicationLevel,
         IndexMetaData.IndexState.ANNOUNCED);
     _zkClient.create(indexPath, indexMetaData);
     return new IndexDeployFuture(_zkClient, name, indexMetaData);

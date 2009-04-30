@@ -122,13 +122,12 @@ public class ZKClientTest extends AbstractKattaTest {
     if (client.exists(katta)) {
       client.deleteRecursive(katta);
     }
-    client.create(katta, new IndexMetaData("path", "someAnalyzr", 3, IndexMetaData.IndexState.ANNOUNCED));
+    client.create(katta, new IndexMetaData("path", 3, IndexMetaData.IndexState.ANNOUNCED));
     client.subscribeDataChanges(katta, listener);
     for (int i = 0; i < 10; i++) {
       client.getEventLock().lock();
       try{
-        final IndexMetaData indexMetaData = new IndexMetaData("path", "someAnalyzr" + i, 3,
-            IndexMetaData.IndexState.ANNOUNCED);
+        final IndexMetaData indexMetaData = new IndexMetaData("path", 3, IndexMetaData.IndexState.ANNOUNCED);
         client.writeData(katta, indexMetaData);
         client.getEventLock().getDataChangedCondition().await();
       } finally {

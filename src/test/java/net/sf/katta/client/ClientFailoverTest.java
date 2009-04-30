@@ -48,7 +48,7 @@ public class ClientFailoverTest extends AbstractKattaTest {
 
     // distribute index over 2 nodes
     Katta katta = new Katta();
-    katta.addIndex(index, "src/test/testIndexA", StandardAnalyzer.class.getName(), 2);
+    katta.addIndex(index, "src/test/testIndexA", 2);
     katta.close();
   }
 

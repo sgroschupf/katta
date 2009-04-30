@@ -29,8 +29,6 @@ import net.sf.katta.util.KattaException;
 import net.sf.katta.zk.ZKClient;
 import net.sf.katta.zk.ZkPathes;
 
-import org.apache.lucene.analysis.standard.StandardAnalyzer;
-
 public class PerformanceTest extends AbstractKattaTest {
 
   final int _hitCount = 200000;
@@ -52,8 +50,8 @@ public class PerformanceTest extends AbstractKattaTest {
     waitForChilds(zkClientMaster, ZkPathes.NODES, 2);
 
     final Katta katta = new Katta();
-    katta.addIndex("index1", TestResources.INDEX1.getAbsolutePath(), StandardAnalyzer.class.getName(), 1);
-    katta.addIndex("index2", TestResources.INDEX2.getAbsolutePath(), StandardAnalyzer.class.getName(), 1);
+    katta.addIndex("index1", TestResources.INDEX1.getAbsolutePath(), 1);
+    katta.addIndex("index2", TestResources.INDEX2.getAbsolutePath(), 1);
 
     final IClient client = new Client();
     final Query query = new Query("foo: bar");

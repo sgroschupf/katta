@@ -74,10 +74,11 @@ public class IndexMergeJob implements Configurable {
   }
 
   public static void enrichJobConf(JobConf jobConf, IndexConfiguration indexConfiguration) {
-    // TODO jz: we should get rid of all these single enrichments
+    // TODO jz: we should get rid of all these single "enrichments".
     indexConfiguration.enrichJobConf(jobConf, DfsIndexInputFormat.DOCUMENT_INFORMATION);
     indexConfiguration.enrichJobConf(jobConf, ConfigurableDocumentDuplicateInformation.CONF_KEY_KEY_FIELD);
     indexConfiguration.enrichJobConf(jobConf, ConfigurableDocumentDuplicateInformation.CONF_KEY_SORT_FIELD);
     indexConfiguration.enrichJobConf(jobConf, IndexConfiguration.INDEX_SHARD_KEY_GENERATOR_CLASS);
+    indexConfiguration.enrichJobConf(jobConf, IndexConfiguration.INDEXER_ANALYZER);
   }
 }
