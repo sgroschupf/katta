@@ -19,7 +19,7 @@ import org.apache.hadoop.ipc.VersionedProtocol;
 
 public interface ILoadTestNode extends VersionedProtocol {
 
-  public void startTest(int threads, String[] indexNames, String queryString, int count);
+  public void startTest(int queryRate, String[] indexNames, String queryString, int count);
 
   public void stopTest();
 

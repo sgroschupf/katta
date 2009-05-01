@@ -32,22 +32,24 @@ public class LoadTestNodeTest extends AbstractKattaTest {
   public void testStartSearch() throws KattaException, InterruptedException {
     startMaster();
     startNode();
-    
+
     DeployClient deployClient = new DeployClient(_conf);
-    deployClient.addIndex(INDEX1, TestResources.INDEX1.getAbsolutePath(), 1)
-        .joinDeployment();
+    deployClient.addIndex(INDEX1, TestResources.INDEX1.getAbsolutePath(), 1).joinDeployment();
 
     LoadTestNode node = startLoadTestNode();
-    node.startTest(1, new String[] { INDEX1 }, "test", 10);
-    Thread.sleep(500);
+    node.startTest(10, new String[] { INDEX1 }, "test", 10);
+    Thread.sleep(5000);
     node.stopTest();
-    
+
     LoadTestQueryResult[] results = node.getResults();
     for (LoadTestQueryResult result : results) {
       assertTrue(result.getEndTime() != -1);
     }
-    assertTrue(results.length > 0);
-    
+
+    // we should have executed 50 queries in 5s
+    assertTrue(results.length >= 45);
+    assertTrue("Queries per 500ms: " + results.length, results.length <= 55);
+
     node.shutdown();
   }
 }

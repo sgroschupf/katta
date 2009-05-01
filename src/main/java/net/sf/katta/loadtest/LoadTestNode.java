@@ -52,19 +52,20 @@ public class LoadTestNode extends BaseRpcServer implements ILoadTestNode {
   LoadTestNodeConfiguration _configuration;
   LoadTestNodeMetaData _metaData;
   IClient _client = new Client();
-
   private String _currentNodeName;
+  private Random _random = new Random(System.currentTimeMillis());
 
   private final class TestSearcherRunnable implements Runnable {
     private int _count;
     private String[] _indexNames;
     private String _queryString;
-    private Random _random = new Random(System.currentTimeMillis());
+    private int _testDelay;
 
-    TestSearcherRunnable(int count, String[] indexNames, String queryString) {
+    TestSearcherRunnable(int testDelay, int count, String[] indexNames, String queryString) {
       _count = count;
       _indexNames = indexNames;
       _queryString = queryString;
+      _testDelay = testDelay;
     }
 
     @SuppressWarnings("deprecation")
@@ -75,12 +76,16 @@ public class LoadTestNode extends BaseRpcServer implements ILoadTestNode {
       try {
         _client.search(new Query(_queryString), _indexNames, _count);
         long endTime = System.currentTimeMillis();
-        _statistics.add(new LoadTestQueryResult(startTime, endTime, _queryString, "node-id"));
+        _statistics.add(new LoadTestQueryResult(startTime, endTime, _queryString, getRpcHostName() + ":"
+                + getRpcServerPort()));
       } catch (KattaException e) {
-        _statistics.add(new LoadTestQueryResult(startTime, -1, _queryString, "node-id"));
+        _statistics.add(new LoadTestQueryResult(startTime, -1, _queryString, getRpcHostName() + ":"
+                + getRpcServerPort()));
         LOG.error("Search failed.", e);
       }
-      _executorService.schedule(this, _random.nextInt(_configuration.getTestDelay()), TimeUnit.MILLISECONDS);
+      long endTime = System.currentTimeMillis();
+      int testDelay = Math.max(0, (int) (_testDelay - (endTime - startTime)));
+      _executorService.schedule(this, _random.nextInt(testDelay * 2), TimeUnit.MILLISECONDS);
     }
   }
 
@@ -165,13 +170,19 @@ public class LoadTestNode extends BaseRpcServer implements ILoadTestNode {
   }
 
   @Override
-  public void startTest(int threads, final String[] indexNames, final String queryString, final int count) {
-    LOG.info("Requested to run test with " + threads + " threads.");
+  public void startTest(int queryRate, final String[] indexNames, final String queryString, final int count) {
+    int threads = Math.max(1, queryRate / 3);
+    int testDelay = 1000 * threads / queryRate;
+
+    LOG.info("Requested to run test at " + queryRate + " queries per second using " + threads
+            + " threads and a test delay of " + testDelay + "ms.");
+
     _executorService = Executors.newScheduledThreadPool(threads);
     _statistics = new Vector<LoadTestQueryResult>();
     unregisterNode();
     for (int i = 0; i < threads; i++) {
-      _executorService.submit(new TestSearcherRunnable(count, indexNames, queryString));
+      _executorService.schedule(new TestSearcherRunnable(testDelay, count, indexNames, queryString), _random
+              .nextInt(testDelay), TimeUnit.MILLISECONDS);
     }
   }
 

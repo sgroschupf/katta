@@ -18,19 +18,10 @@ package net.sf.katta.util;
 
 public class LoadTestNodeConfiguration extends KattaConfiguration {
 
-  private final static String LOADTESTNODE_TEST_DELAY_MS = "loadtestnode.testdelay";
   private static final String LOADTESTNODE_START_PORT = "loadtestnode.server.port.start";
 
   public LoadTestNodeConfiguration() {
     super("/katta.loadtestnode.properties");
-  }
-
-  public int getTestDelay() {
-    return getInt(LOADTESTNODE_TEST_DELAY_MS);
-  }
-
-  public void setTestDelay(int delayMs) {
-    setProperty(LOADTESTNODE_TEST_DELAY_MS, delayMs + "");
   }
 
   public int getStartPort() {

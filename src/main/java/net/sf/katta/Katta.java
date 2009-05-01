@@ -92,13 +92,15 @@ public class Katta {
     } else if (command.endsWith("startLoadTestNode")) {
       startLoadTestNode(conf);
     } else if (command.endsWith("startLoadTest")) {
-      int fromThreads = Integer.parseInt(args[2]);
-      int toThreads = Integer.parseInt(args[3]);
-      final int runTime = Integer.parseInt(args[4]);
-      final String[] indexNames = args[5].split(",");
-      final String query = args[6];
-      final int count = Integer.parseInt(args[7]);
-      startIntegrationTest(Integer.parseInt(args[1]), fromThreads, toThreads, runTime, indexNames, query, count, conf);
+      int nodes = Integer.parseInt(args[1]);
+      int startRate = Integer.parseInt(args[2]);
+      int endRate = Integer.parseInt(args[3]);
+      int step = Integer.parseInt(args[4]);
+      final int runTime = Integer.parseInt(args[5]);
+      final String[] indexNames = args[6].split(",");
+      final String query = args[7];
+      final int count = Integer.parseInt(args[8]);
+      startIntegrationTest(nodes, startRate, endRate, step, runTime, indexNames, query, count, conf);
     } else if (command.endsWith("version")) {
       showVersion();
     } else if (command.endsWith("zk")) {
@@ -182,11 +184,10 @@ public class Katta {
     }
   }
 
-  public static void startIntegrationTest(int nodes, int fromThreads, int toThreads, int runTime, String[] indexNames,
+  public static void startIntegrationTest(int nodes, int startRate, int endRate, int step, int runTime, String[] indexNames,
           String queryString, int count, ZkConfiguration conf) throws KattaException {
     final ZKClient client = new ZKClient(conf);
-    final LoadTestStarter integrationTester = new LoadTestStarter(client, nodes, fromThreads, toThreads, runTime,
-            indexNames, queryString, count);
+    final LoadTestStarter integrationTester = new LoadTestStarter(client, nodes, startRate, endRate, step, runTime, indexNames, queryString, count);
     integrationTester.start();
     Runtime.getRuntime().addShutdownHook(new Thread() {
       @Override
@@ -564,8 +565,8 @@ public class Katta {
     System.err.println("\tstartMaster\t\tStarts a local master.");
     System.err.println("\tstartNode\t\tStarts a local node.");
     System.err.println("\tstartLoadTestNode\tStarts a load test node.");
-    System.err.println("\tstartLoadTest <nodes> <from-threads> <to-threads> <test-duration-ms> <query> <max hits>");
-    System.err.println("\t\t\t\tStarts a load test.");
+    System.err.println("\tstartLoadTest <nodes> <start-query-rate> <end-query-rate> <step> <test-duration-ms> <query> <max hits>");
+    System.err.println("\t\t\t\tStarts a load test. The query rate is in queries per second.");
     System.err.println("\tshowStructure\t\tShows the structure of a Katta installation.");
     System.err.println("\tcheck\t\t\tAnalyze index/shard/node status.");
     System.err.println("\tversion\t\t\tPrint the version.");

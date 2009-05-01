@@ -34,6 +34,9 @@ import net.sf.katta.zk.IZkReconnectListener;
 import net.sf.katta.zk.ZKClient;
 import net.sf.katta.zk.ZkPathes;
 
+import org.apache.commons.math.stat.descriptive.StorelessUnivariateStatistic;
+import org.apache.commons.math.stat.descriptive.moment.Mean;
+import org.apache.commons.math.stat.descriptive.moment.StandardDeviation;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.ipc.RPC;
 import org.apache.log4j.Logger;
@@ -46,8 +49,9 @@ public class LoadTestStarter {
   ZKClient _zkClient;
   private Map<String, LoadTestNodeMetaData> _testNodes = new HashMap<String, LoadTestNodeMetaData>();
   private int _numberOfTesterNodes;
-  private int _fromThreads;
-  private int _toThreads;
+  private int _startRate;
+  private int _endRate;
+  private int _step;
 
   ChildListener _childListener;
 
@@ -56,6 +60,7 @@ public class LoadTestStarter {
   private int _count;
   private int _runTime;
   private Writer _statisticsWriter;
+  private Writer _resultWriter;
 
   class ChildListener implements IZkChildListener {
     @Override
@@ -80,19 +85,21 @@ public class LoadTestStarter {
     }
   }
 
-  public LoadTestStarter(final ZKClient zkClient, int nodes, int fromThreads, int toThreads, int runTime,
+  public LoadTestStarter(final ZKClient zkClient, int nodes, int startRate, int endRate, int step, int runTime,
           String[] indexNames, String queryString, int count) throws KattaException {
     _zkClient = zkClient;
     _numberOfTesterNodes = nodes;
-    _fromThreads = fromThreads;
-    _toThreads = toThreads;
+    _startRate = startRate;
+    _endRate = endRate;
+    _step = step;
     _indexNames = indexNames;
     _queryString = queryString;
     _count = count;
     _runTime = runTime;
     try {
-      _statisticsWriter = new OutputStreamWriter(new FileOutputStream("build/statistics-" + System.currentTimeMillis()
-              + ".log"));
+      long currentTime = System.currentTimeMillis();
+      _statisticsWriter = new OutputStreamWriter(new FileOutputStream("build/load-test-log-" + currentTime + ".log"));
+      _resultWriter = new OutputStreamWriter(new FileOutputStream("build/load-test-results-" + currentTime + ".log"));
     } catch (FileNotFoundException e) {
       throw new KattaException("Failed to create statistics file.", e);
     }
@@ -155,10 +162,20 @@ public class LoadTestStarter {
       }
     }
     _zkClient.unsubscribeAll();
-    for (int threads = _fromThreads; threads <= _toThreads; threads++) {
-      for (ILoadTestNode testNode : testNodes) {
-        LOG.info("Starting test on node.");
-        testNode.startTest(threads, _indexNames, _queryString, _count);
+    for (int queryRate = _startRate; queryRate <= _endRate; queryRate += _step) {
+      LOG.info("Executing tests at query rate: " + queryRate + " queries per second.");
+      int numberOfNodes = Math.min(testNodes.size(), queryRate);
+      LOG.info("Using " + numberOfNodes + " load test nodes for this test.");
+      List<ILoadTestNode> nodesForTest = testNodes.subList(0, numberOfNodes);
+
+      int remainingQueryRate = queryRate;
+      int remainingNodes = numberOfNodes;
+      for (ILoadTestNode testNode : nodesForTest) {
+        int queryRateForNode = remainingQueryRate / remainingNodes;
+        LOG.info("Starting test on node using query rate: " + queryRateForNode + " queries per second.");
+        testNode.startTest(queryRateForNode, _indexNames, _queryString, _count);
+        --remainingNodes;
+        remainingQueryRate -= queryRateForNode;
       }
       try {
         Thread.sleep(_runTime);
@@ -166,30 +183,43 @@ public class LoadTestStarter {
         // ignore
       }
       LOG.info("Stopping all tests...");
-      for (ILoadTestNode testNode : testNodes) {
+      for (ILoadTestNode testNode : nodesForTest) {
         testNode.stopTest();
       }
       LOG.info("Collecting results...");
       List<LoadTestQueryResult> results = new ArrayList<LoadTestQueryResult>();
-      for (ILoadTestNode testNode : testNodes) {
+      for (ILoadTestNode testNode : nodesForTest) {
         LoadTestQueryResult[] nodeResults = testNode.getResults();
         for (LoadTestQueryResult result : nodeResults) {
           results.add(result);
         }
       }
+      LOG.info("Received " + results.size() + " queries, expected " + queryRate * _runTime / 1000);
       try {
+        StorelessUnivariateStatistic timeStandardDeviation = new StandardDeviation();
+        StorelessUnivariateStatistic timeMean = new Mean();
+        int errors = 0;
+
         for (LoadTestQueryResult result : results) {
-          _statisticsWriter.write(threads + "\t" + result.getNodeId() + "\t" + result.getStartTime() + "\t"
-                  + result.getEndTime() + "\t"
-                  + (result.getEndTime() > 0 ? result.getEndTime() - result.getStartTime() : -1) + "\t"
-                  + result.getQuery() + "\n");
+          long elapsedTime = result.getEndTime() > 0 ? result.getEndTime() - result.getStartTime() : -1;
+          _statisticsWriter.write(queryRate + "\t" + result.getNodeId() + "\t" + result.getStartTime() + "\t"
+                  + result.getEndTime() + "\t" + elapsedTime + "\t" + result.getQuery() + "\n");
+          if (elapsedTime != -1) {
+            timeStandardDeviation.increment(elapsedTime);
+            timeMean.increment(elapsedTime);
+          } else {
+            ++errors;
+          }
         }
+        _resultWriter.write(queryRate + "\t" + ((double) results.size() * 1000 / _runTime) + "\t" + errors + "\t"
+                + timeMean.getResult() + "\t" + timeStandardDeviation.getResult() + "\n");
       } catch (IOException e) {
         throw new KattaException("Failed to write statistics data.", e);
       }
     }
     try {
       _statisticsWriter.close();
+      _resultWriter.close();
     } catch (IOException e) {
       LOG.warn("Failed to close statistics file.");
     }
