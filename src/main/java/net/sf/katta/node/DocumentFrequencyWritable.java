@@ -28,7 +28,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import org.apache.hadoop.io.Writable;
 
-public class DocumentFrequenceWritable implements Writable {
+public class DocumentFrequencyWritable implements Writable {
   private ReadWriteLock _frequenciesLock = new ReentrantReadWriteLock(true);
   private Map<TermWritable, Integer> _frequencies = new HashMap<TermWritable, Integer>();
 
@@ -43,11 +43,16 @@ public class DocumentFrequenceWritable implements Writable {
     }
   }
 
+  /**
+   * Assumes a write lock is already in place.
+   * @param key          The item that has a frequency.
+   * @param frequency    The frequency of the key.
+   */
   private void add(final TermWritable key, final int frequency) {
     int result = frequency;
     final Integer frequencyObject = _frequencies.get(key);
     if (frequencyObject != null) {
-      result += frequencyObject.intValue();
+      result += frequencyObject;
     }
     _frequencies.put(key, result);
   }
@@ -57,7 +62,7 @@ public class DocumentFrequenceWritable implements Writable {
     try {
       final Set<TermWritable> keySet = frequencyMap.keySet();
       for (final TermWritable key : keySet) {
-        add(key, frequencyMap.get(key).intValue());
+        add(key, frequencyMap.get(key));
       }
     } finally {
       _frequenciesLock.writeLock().unlock();

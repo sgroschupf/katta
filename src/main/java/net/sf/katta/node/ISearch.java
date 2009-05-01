@@ -25,66 +25,62 @@ public interface ISearch extends VersionedProtocol {
 
   /**
    * Returns all Hits that match the query. This might be significant slower as
-   * {@link #search(IQuery, DocumentFrequenceWritable, String[], int)} since we
-   * replace count with {@link Integer.MAX_VALUE}.
+   * {@link #search(QueryWritable, DocumentFrequencyWritable , String[], int)} since we
+   * replace count with Integer.MAX_VALUE.
    * 
-   * @param query
-   * @param freqs
-   * @param shardNames
-   *          A array of shard names to search in.
-   * @return
-   * @throws ParseException
-   * @throws IOException
+   * @param query         The query to run.
+   * @param freqs         Term frequency information for term weighting.
+   * @param shardNames    A array of shard names to search in.
+   * @return A list of hits from the search.
+   * @throws IOException     If the search had a problem reading files.
    */
-  public HitsMapWritable search(QueryWritable query, DocumentFrequenceWritable freqs, String[] shardNames) throws IOException;
+  public HitsMapWritable search(QueryWritable query, DocumentFrequencyWritable freqs, String[] shardNames) throws IOException;
 
   /**
-   * @param query
-   * @param freqs
-   * @param shardNames
-   * @param count
-   *          the top n high score hits
-   * @return
-   * @throws ParseException
-   * @throws IOException
+   * @param query         The query to run.
+   * @param freqs         Term frequency information for term weighting.
+   * @param shardNames    A array of shard names to search in.
+   * @param count         The top n high score hits.
+   * @return A list of hits from the search.
+   * @throws ParseException  If the query is ill-formed.
+   * @throws IOException     If the search had a problem reading files.
    */
-  public HitsMapWritable search(QueryWritable query, DocumentFrequenceWritable freqs, String[] shardNames, int count)
+  public HitsMapWritable search(QueryWritable query, DocumentFrequencyWritable freqs, String[] shardNames, int count)
       throws IOException;
 
   /**
    * Returns the number of documents a term occurs in. In a distributed search
    * environment, we need to get this first and then query all nodes again with
-   * this information to ensure we compute TF IDF correctly. See {@link http
-   * ://lucene
-   * .apache.org/java/2_3_0/api/org/apache/lucene/search/Similarity.html}
+   * this information to ensure we compute TF IDF correctly. See
+   * {@link http://lucene.apache.org/java/2_3_0/api/org/apache/lucene/search/Similarity.html}
    * 
-   * @param input
-   * @param shards
-   * @return
-   * @throws IOException
-   * @throws ParseException
+   * @param input       TODO is this really just a Lucene query?
+   * @param shards      The shards to search in.
+   * @return A list of hits from the search.
+   * @throws IOException     If the search had a problem reading files.
    */
-  public DocumentFrequenceWritable getDocFreqs(QueryWritable input, String[] shards) throws IOException;
+  public DocumentFrequencyWritable getDocFreqs(QueryWritable input, String[] shards) throws IOException;
 
   /**
-   * Returns only the request fields of a lucene document.
+   * Returns only the requested fields of a lucene document.  The fields are returned
+   * as a map.
    * 
-   * @param shard
-   * @param docId
-   * @param fields
-   * @return
+   * @param shard        The shard to ask for the document.
+   * @param docId        The document that is desired.
+   * @param fields       The fields to return.
+   * @return             TODO what does this return?  A map?
    * @throws IOException
    */
   public MapWritable getDetails(String shard, int docId, String[] fields) throws IOException;
 
   /**
    * Returns the lucene document. Each field:value tuple of the lucene document
-   * is pushed ito the map. In most cases
+   * is inserted into the returned map. In most cases
    * {@link #getDetails(String, int, String[])} would be a better choice for
    * performance reasons.
    * 
-   * @param shard
-   * @param docId
+   * @param shard        The shard to ask for the document.
+   * @param docId        The document that is desired.
    * @return
    * @throws IOException
    */

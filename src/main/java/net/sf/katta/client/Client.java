@@ -15,29 +15,8 @@
  */
 package net.sf.katta.client;
 
-import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-
 import net.sf.katta.index.IndexMetaData;
-import net.sf.katta.node.DocumentFrequenceWritable;
-import net.sf.katta.node.Hit;
-import net.sf.katta.node.Hits;
-import net.sf.katta.node.HitsMapWritable;
-import net.sf.katta.node.IQuery;
-import net.sf.katta.node.ISearch;
-import net.sf.katta.node.QueryWritable;
+import net.sf.katta.node.*;
 import net.sf.katta.util.CollectionUtil;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.ZkConfiguration;
@@ -45,7 +24,6 @@ import net.sf.katta.zk.IZkChildListener;
 import net.sf.katta.zk.IZkDataListener;
 import net.sf.katta.zk.ZKClient;
 import net.sf.katta.zk.ZkPathes;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.MapWritable;
 import org.apache.hadoop.ipc.RPC;
@@ -54,6 +32,11 @@ import org.apache.lucene.analysis.KeywordAnalyzer;
 import org.apache.lucene.queryParser.ParseException;
 import org.apache.lucene.queryParser.QueryParser;
 import org.apache.lucene.search.Query;
+
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.util.*;
+import java.util.concurrent.*;
 
 /**
  * Default implementation of {@link IClient}.
@@ -216,7 +199,7 @@ public class Client implements IClient {
   public Hits search(final Query query, final String[] indexNames, final int count) throws KattaException {
     final Map<String, List<String>> nodeShardsMap = getNode2ShardsMap(indexNames);
     final Hits result = new Hits();
-    final DocumentFrequenceWritable docFreqs = getDocFrequencies(query, nodeShardsMap);
+    final DocumentFrequencyWritable docFreqs = getDocFrequencies(query, nodeShardsMap);
 
     List<NodeInteraction> nodeInteractions = new ArrayList<NodeInteraction>();
     for (final String node : nodeShardsMap.keySet()) {
@@ -303,9 +286,9 @@ public class Client implements IClient {
     return shards;
   }
 
-  private DocumentFrequenceWritable getDocFrequencies(final Query query, final Map<String, List<String>> node2ShardsMap)
+  private DocumentFrequencyWritable getDocFrequencies(final Query query, final Map<String, List<String>> node2ShardsMap)
           throws KattaException {
-    DocumentFrequenceWritable docFreqs = new DocumentFrequenceWritable();
+    DocumentFrequencyWritable docFreqs = new DocumentFrequencyWritable();
     List<NodeInteraction> nodeInteractions = new ArrayList<NodeInteraction>();
     for (final String node : node2ShardsMap.keySet()) {
       nodeInteractions.add(new GetDocumentFrequencyInteraction(node, node2ShardsMap, query, docFreqs));
@@ -446,10 +429,10 @@ public class Client implements IClient {
   private class GetDocumentFrequencyInteraction extends NodeInteraction {
 
     private final Query _query;
-    private final DocumentFrequenceWritable _docFreqs;
+    private final DocumentFrequencyWritable _docFreqs;
 
     public GetDocumentFrequencyInteraction(String node, Map<String, List<String>> node2ShardsMap, Query query,
-            DocumentFrequenceWritable docFreqs) {
+            DocumentFrequencyWritable docFreqs) {
       super(node, node2ShardsMap);
       _query = query;
       _docFreqs = docFreqs;
@@ -457,7 +440,7 @@ public class Client implements IClient {
 
     @Override
     protected void doInteraction(ISearch search, String node, List<String> shards) throws IOException {
-      final DocumentFrequenceWritable nodeDocFreqs = search.getDocFreqs(new QueryWritable(_query), shards
+      final DocumentFrequencyWritable nodeDocFreqs = search.getDocFreqs(new QueryWritable(_query), shards
               .toArray(new String[shards.size()]));
       _docFreqs.addNumDocs(nodeDocFreqs.getNumDocs());
       _docFreqs.putAll(nodeDocFreqs.getAll());
@@ -513,11 +496,11 @@ public class Client implements IClient {
 
     private final Query _query;
     private final int _count;
-    private final DocumentFrequenceWritable _docFreqs;
+    private final DocumentFrequencyWritable _docFreqs;
     private final Hits _result;
 
     public SearchInteraction(String node, Map<String, List<String>> node2ShardsMap, Query query,
-            DocumentFrequenceWritable docFreqs, Hits result, int count) {
+            DocumentFrequencyWritable docFreqs, Hits result, int count) {
       super(node, node2ShardsMap);
       _query = query;
       _docFreqs = docFreqs;

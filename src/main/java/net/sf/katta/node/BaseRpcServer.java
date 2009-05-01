@@ -55,7 +55,7 @@ public abstract class BaseRpcServer {
           serverPort++;
           // try again
         } else {
-          throw new RuntimeException("Tried " + tryCount + " ports and no one is free...");
+          throw new RuntimeException("Tried " + tryCount + " ports and none is free...");
         }
       } catch (final IOException e) {
         throw new RuntimeException("Unable to create rpc search server", e);

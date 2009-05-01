@@ -30,9 +30,7 @@ import org.apache.hadoop.io.Writable;
 
 public class Hits implements Writable {
 
-  /**
-   * 
-   */
+  @SuppressWarnings({"UnusedDeclaration"})
   private static final long serialVersionUID = -732226190122340208L;
 
   private List<List<Hit>> _hitsList = new Vector<List<Hit>>();

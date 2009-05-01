@@ -15,15 +15,15 @@
  */
 package net.sf.katta.node;
 
+import junit.framework.TestCase;
+
 import java.util.ArrayList;
 import java.util.List;
-
-import junit.framework.TestCase;
 
 public class DocumentFrequenceWritableTest extends TestCase {
 
   public void testAddNumDocsMultiThreading() throws InterruptedException {
-    final DocumentFrequenceWritable writable = new DocumentFrequenceWritable();
+    final DocumentFrequencyWritable writable = new DocumentFrequencyWritable();
 
     runThreads(10, writable, new Runnable() {
       @Override
@@ -38,7 +38,7 @@ public class DocumentFrequenceWritableTest extends TestCase {
   }
 
   public void testAddFrequencies() throws InterruptedException {
-    final DocumentFrequenceWritable writable = new DocumentFrequenceWritable();
+    final DocumentFrequencyWritable writable = new DocumentFrequencyWritable();
     runThreads(10, writable, new Runnable() {
       @Override
       public void run() {
@@ -51,7 +51,7 @@ public class DocumentFrequenceWritableTest extends TestCase {
     assertEquals(10 * 10000, writable.get("field", "term").intValue());
   }
 
-  private void runThreads(int numberOfThreads, final DocumentFrequenceWritable writable, Runnable runnable) throws InterruptedException {
+  private void runThreads(int numberOfThreads, final DocumentFrequencyWritable writable, Runnable runnable) throws InterruptedException {
     List<Thread> threads = new ArrayList<Thread>();
     for (int i = 0; i < numberOfThreads; i++) {
       threads.add(new Thread(runnable));

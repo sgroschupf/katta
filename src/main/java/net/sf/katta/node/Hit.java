@@ -28,9 +28,7 @@ import org.apache.hadoop.io.Writable;
  */
 public class Hit implements Writable, Comparable<Hit> {
 
-  /**
-   * 
-   */
+  @SuppressWarnings({"UnusedDeclaration"})
   private static final long serialVersionUID = -4098882107088103222L;
 
   private Text _shard;
@@ -75,6 +73,14 @@ public class Hit implements Writable, Comparable<Hit> {
     return _score;
   }
 
+  public int getDocId() {
+    return _docId;
+  }
+
+  public void setDocId(final int docId) {
+    _docId = docId;
+  }
+
   public void readFields(final DataInput in) throws IOException {
     _score = in.readFloat();
     final boolean hasNode = in.readBoolean();
@@ -116,7 +122,7 @@ public class Hit implements Writable, Comparable<Hit> {
     int result = 1;
     int temp;
     temp = Float.floatToIntBits(_score);
-    result = prime * result + (temp ^ (temp >>> 32));
+    result = prime * result + temp;
     result = prime * result + ((_node == null) ? 0 : _node.hashCode());
     result = prime * result + ((_shard == null) ? 0 : _shard.hashCode());
     result = prime * result + _docId;
@@ -147,14 +153,6 @@ public class Hit implements Writable, Comparable<Hit> {
     if (_docId != other._docId)
       return false;
     return true;
-  }
-
-  public int getDocId() {
-    return _docId;
-  }
-
-  public void setDocId(final int docId) {
-    _docId = docId;
   }
 
   @Override

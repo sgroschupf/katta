@@ -35,7 +35,6 @@ import net.sf.katta.zk.ZKClient;
 import net.sf.katta.zk.ZkPathes;
 
 import org.apache.lucene.analysis.KeywordAnalyzer;
-import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.queryParser.QueryParser;
 import org.apache.lucene.search.Query;
 import org.mockito.Mockito;
@@ -147,7 +146,7 @@ public class NodeTest extends AbstractKattaTest {
     QueryWritable writable = new QueryWritable(query);
 
     String[] shardArray = shardNames.toArray(new String[shardNames.size()]);
-    DocumentFrequenceWritable freqs = node.getDocFreqs(writable, shardArray);
+    DocumentFrequencyWritable freqs = node.getDocFreqs(writable, shardArray);
 
     ExecutorService es = Executors.newFixedThreadPool(100);
     List<Future<HitsMapWritable>> tasks = new ArrayList<Future<HitsMapWritable>>();
@@ -198,10 +197,10 @@ public class NodeTest extends AbstractKattaTest {
 
     private LuceneNode _node;
     private QueryWritable _query;
-    private DocumentFrequenceWritable _freqs;
+    private DocumentFrequencyWritable _freqs;
     private String[] _shards;
 
-    public QueryClient(LuceneNode node, DocumentFrequenceWritable freqs, QueryWritable query, String[] shards) {
+    public QueryClient(LuceneNode node, DocumentFrequencyWritable freqs, QueryWritable query, String[] shards) {
       _node = node;
       _freqs = freqs;
       _query = query;
@@ -237,7 +236,7 @@ public class NodeTest extends AbstractKattaTest {
   // final AssignedShard shard1 = new AssignedShard("bla2",
   // "src/test/testIndexA/bIndex");
   // searchServer.addShard(shard1);
-  // final DocumentFrequenceWritable docFreqs =
+  // final DocumentFrequencyWritable docFreqs =
   // searchServer.getDocFreqs(query,
   // new String[] { shard1.getName() });
   // searchServer.setSimilarityDocFreqs(docFreqs);
@@ -273,7 +272,7 @@ public class NodeTest extends AbstractKattaTest {
   // AssignedShard shard = new AssignedShard("bla2",
   // "src/test/testIndexA/bIndex");
   // searchServer.addShard(shard);
-  // DocumentFrequenceWritable docFreqs = searchServer.getDocFreqs(query, new
+  // DocumentFrequencyWritable docFreqs = searchServer.getDocFreqs(query, new
   // String[] { shard.getName() });
   // searchServer.setSimilarityDocFreqs(docFreqs);
   // HitsMapWritable searchHits = searchServer.search(new Query("foo: bar"),
@@ -333,7 +332,7 @@ public class NodeTest extends AbstractKattaTest {
   // final AssignedShard shard = new AssignedShard("bla2",
   // "src/test/testIndexA/bIndex");
   // searchServer.addShard(shard);
-  // DocumentFrequenceWritable docFreqs = searchServer.getDocFreqs(query, new
+  // DocumentFrequencyWritable docFreqs = searchServer.getDocFreqs(query, new
   // String[] { shard.getName() });
   // searchServer.setSimilarityDocFreqs(docFreqs);
   // HitsMapWritable searchHits = searchServer.search(query, new String[] {
@@ -412,10 +411,10 @@ public class NodeTest extends AbstractKattaTest {
   //
   // final Query query = new Query("foo: bar");
   //
-  // final DocumentFrequenceWritable docFreqs =
+  // final DocumentFrequencyWritable docFreqs =
   // searchServer1.getDocFreqs(query,
   // new String[] { shard.getName() });
-  // final DocumentFrequenceWritable docFreqs2 =
+  // final DocumentFrequencyWritable docFreqs2 =
   // searchServer2.getDocFreqs(query, new String[] { shard2.getName() });
   // docFreqs.putAll(docFreqs2.getAll());
   // docFreqs.addNumDocs(docFreqs2.getNumDocs());
@@ -469,7 +468,7 @@ public class NodeTest extends AbstractKattaTest {
   // searchServer.addShard(shard);
   //
   // final Query query = new Query("content: the");
-  // final DocumentFrequenceWritable docFreqs =
+  // final DocumentFrequencyWritable docFreqs =
   // searchServer.getDocFreqs(query,
   // new String[] { shard.getName() });
   // searchServer.setSimilarityDocFreqs(docFreqs);
@@ -509,7 +508,7 @@ public class NodeTest extends AbstractKattaTest {
   // searchServer.addShard(shard);
   //
   // final Query query = new Query("content: the");
-  // final DocumentFrequenceWritable docFreqs =
+  // final DocumentFrequencyWritable docFreqs =
   // searchServer.getDocFreqs(query,
   // new String[] { shard.getName() });
   // searchServer.setSimilarityDocFreqs(docFreqs);
@@ -592,7 +591,7 @@ public class NodeTest extends AbstractKattaTest {
   // searchServer.addShard(shard);
   //
   // final Query query = new Query("content: the");
-  // final DocumentFrequenceWritable docFreqs =
+  // final DocumentFrequencyWritable docFreqs =
   // searchServer.getDocFreqs(query,
   // new String[] { shard.getName() });
   // searchServer.setSimilarityDocFreqs(docFreqs);

@@ -15,27 +15,25 @@
  */
 package net.sf.katta.node;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-
 import net.sf.katta.util.NodeConfiguration;
 import net.sf.katta.zk.ZKClient;
-
 import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.DataOutputBuffer;
 import org.apache.hadoop.io.MapWritable;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.io.Writable;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.Fieldable;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Implementation of a node serving lucene shards.
@@ -51,24 +49,12 @@ public class LuceneNode extends BaseNode implements ISearch {
     super(zkClient, configuration);
   }
 
-  /*
-   * (non-Javadoc)
-   * 
-   * @see
-   * net.sf.katta.node.IRequestHandler#handle(org.apache.hadoop.io.Writable)
-   */
-  @Override
-  public Writable handle(Writable request) {
-    // TODO Auto-generated method stub
-    return null;
-  }
-
   public int getResultCount(final QueryWritable query, final String[] shards) throws IOException {
-    final DocumentFrequenceWritable docFreqs = getDocFreqs(query, shards);
+    final DocumentFrequencyWritable docFreqs = getDocFreqs(query, shards);
     return search(query, docFreqs, shards, 1).getTotalHits();
   }
 
-  public HitsMapWritable search(final QueryWritable query, final DocumentFrequenceWritable freqs,
+  public HitsMapWritable search(final QueryWritable query, final DocumentFrequencyWritable freqs,
           final String[] shards, final int count) throws IOException {
     if (LOG.isDebugEnabled()) {
       LOG.debug("You are searching with the query: '" + query.getQuery() + "'");
@@ -105,7 +91,7 @@ public class LuceneNode extends BaseNode implements ISearch {
     return result;
   }
 
-  public HitsMapWritable search(final QueryWritable query, final DocumentFrequenceWritable freqs, final String[] shards)
+  public HitsMapWritable search(final QueryWritable query, final DocumentFrequencyWritable freqs, final String[] shards)
           throws IOException {
     return search(query, freqs, shards, Integer.MAX_VALUE - 1);
   }
@@ -146,19 +132,17 @@ public class LuceneNode extends BaseNode implements ISearch {
     return result;
   }
 
-  public DocumentFrequenceWritable getDocFreqs(final QueryWritable input, final String[] shards) throws IOException {
+  public DocumentFrequencyWritable getDocFreqs(final QueryWritable input, final String[] shards) throws IOException {
     Query luceneQuery = input.getQuery();
 
     final Query rewrittenQuery = _searcher.rewrite(luceneQuery, shards);
-    final DocumentFrequenceWritable docFreqs = new DocumentFrequenceWritable();
+    final DocumentFrequencyWritable docFreqs = new DocumentFrequencyWritable();
 
     final HashSet<Term> termSet = new HashSet<Term>();
     rewrittenQuery.extractTerms(termSet);
     int numDocs = 0;
     for (final String shard : shards) {
-      final java.util.Iterator<Term> termIterator = termSet.iterator();
-      while (termIterator.hasNext()) {
-        final Term term = termIterator.next();
+      for (Term term : termSet) {
         final int docFreq = _searcher.docFreq(shard, term);
         docFreqs.put(term.field(), term.text(), docFreq);
       }

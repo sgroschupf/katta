@@ -15,22 +15,6 @@
  */
 package net.sf.katta.node;
 
-import java.io.File;
-import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.Timer;
-import java.util.TimerTask;
-
 import net.sf.katta.index.AssignedShard;
 import net.sf.katta.index.DeployedShard;
 import net.sf.katta.index.ShardError;
@@ -42,14 +26,19 @@ import net.sf.katta.zk.IZkChildListener;
 import net.sf.katta.zk.IZkReconnectListener;
 import net.sf.katta.zk.ZKClient;
 import net.sf.katta.zk.ZkPathes;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.log4j.Logger;
 import org.apache.zookeeper.Watcher.Event.KeeperState;
 
-public abstract class BaseNode extends BaseRpcServer implements IRequestHandler, IZkReconnectListener {
+import java.io.File;
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.*;
+
+public abstract class BaseNode extends BaseRpcServer implements IZkReconnectListener {
 
   protected final static Logger LOG = Logger.getLogger(BaseNode.class);
 
@@ -163,7 +152,7 @@ public abstract class BaseNode extends BaseRpcServer implements IRequestHandler,
    */
   private void cleanupLocalWorkDir() throws KattaException {
     String node2ShardRootPath = ZkPathes.getNode2ShardRootPath(_nodeName);
-    List<String> shardsToServe = Collections.EMPTY_LIST;
+    List<String> shardsToServe = Collections.emptyList();
 
     if (_zkClient.exists(node2ShardRootPath)) {
       shardsToServe = _zkClient.getChildren(node2ShardRootPath);
@@ -450,6 +439,7 @@ public abstract class BaseNode extends BaseRpcServer implements IRequestHandler,
 
   @Override
   protected void finalize() throws Throwable {
+    super.finalize();
     shutdown();
   }
 

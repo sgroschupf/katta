@@ -15,45 +15,22 @@
  */
 package net.sf.katta.node;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.BitSet;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-
 import org.apache.log4j.Logger;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.FieldSelector;
 import org.apache.lucene.index.CorruptIndexException;
 import org.apache.lucene.index.Term;
-import org.apache.lucene.search.DefaultSimilarity;
-import org.apache.lucene.search.Explanation;
-import org.apache.lucene.search.Filter;
-import org.apache.lucene.search.HitCollector;
-import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.*;
 import org.apache.lucene.search.Query;
-import org.apache.lucene.search.ScoreDoc;
-import org.apache.lucene.search.Searchable;
-import org.apache.lucene.search.Searcher;
-import org.apache.lucene.search.Similarity;
-import org.apache.lucene.search.Sort;
-import org.apache.lucene.search.TopDocs;
-import org.apache.lucene.search.TopFieldDocs;
-import org.apache.lucene.search.Weight;
 import org.apache.lucene.util.PriorityQueue;
 
+import java.io.IOException;
+import java.util.*;
+import java.util.concurrent.*;
+
 /**
- * Implements search over a set of <code>Searchables</code>.
+ * Implements search over a set of named <code>Searchables</code>.
  * 
- * <p>
- * Applications usually need only call the inherited {@link #search(Query)} or
- * {@link #search(Query,Filter)} methods.
  */
 public class KattaMultiSearcher {
 
@@ -63,6 +40,8 @@ public class KattaMultiSearcher {
   private ExecutorService _threadPool = Executors.newFixedThreadPool(100);
 
   private final String _node;
+
+  //TODO is this needed?  It is never used.
   private int _maxDoc = 0;
 
   public KattaMultiSearcher(final String node) {
@@ -113,19 +92,18 @@ public class KattaMultiSearcher {
    * @param max
    * @throws IOException
    */
-  public final void search(final Query query, final DocumentFrequenceWritable freqs, final String[] shards,
+  public final void search(final Query query, final DocumentFrequencyWritable freqs, final String[] shards,
       final HitsMapWritable result, final int max) throws IOException {
     final Query rewrittenQuery = rewrite(query, shards);
     final int numDocs = freqs.getNumDocs();
-    final CachedDfSource cacheSim = new CachedDfSource(freqs.getAll(), numDocs, new DefaultSimilarity());
-    final Weight weight = rewrittenQuery.weight(cacheSim);
-    // we can maximal found all docs in this system or maximal the requested
+    final Weight weight = rewrittenQuery.weight(new CachedDfSource(freqs.getAll(), numDocs, new DefaultSimilarity()));
+    // limit the request to the number requested or the total number of documents, whichever is smaller
     final int limit = Math.min(numDocs, max);
     final KattaHitQueue hq = new KattaHitQueue(limit);
     int totalHits = 0;
     final int shardsCount = shards.length;
 
-    // run the search parallel on the shards with a thread pool
+    // run the search in parallel on the shards with a thread pool
     List<Future<SearchResult>> tasks = new ArrayList<Future<SearchResult>>();
     for (int i = 0; i < shardsCount; i++) {
       SearchCall call = new SearchCall(shards[i], weight, limit);
@@ -141,7 +119,7 @@ public class KattaMultiSearcher {
         totalHits += searchResult._totalHits;
         scoreDocs[i] = searchResult._scoreDocs;
       } catch (InterruptedException e) {
-        throw new IOException("Multithread shard search interrupred:", e);
+        throw new IOException("Multithread shard search interrupted:", e);
       } catch (ExecutionException e) {
         throw new IOException("Multithread shard search could not be executed:", e);
       }
@@ -176,13 +154,12 @@ public class KattaMultiSearcher {
       
       pos++;
       if (scoreDoc == null) {
-        // we do not have any data more
+        // we do not have any more data
         break;
       }
     }
 
-    for (int i = hq.size() - 1; i >= 0; i--) {
-      final Hit hit = (Hit) hq.pop();
+    for (Hit hit : hq) {
       if (hit != null) {
         result.addHitToShard(hit.getShard(), hit);
       }
@@ -205,7 +182,7 @@ public class KattaMultiSearcher {
   }
 
   /**
-   * Returns the lucene document of a given shard.
+   * Returns a specified lucene document from a given shard.
    * 
    * @param shardName
    * @param docId
@@ -213,7 +190,7 @@ public class KattaMultiSearcher {
    * @throws CorruptIndexException
    * @throws IOException
    */
-  public Document doc(final String shardName, final int docId) throws CorruptIndexException, IOException {
+  public Document doc(final String shardName, final int docId) throws IOException {
     final Searchable searchable = _searchers.get(shardName);
     if (searchable != null) {
       return searchable.doc(docId);
@@ -242,7 +219,7 @@ public class KattaMultiSearcher {
   }
 
   /**
-   * Returns the document frequence for a given term within a given shard.
+   * Returns the document frequency for a given term within a given shard.
    * 
    * @param shardName
    * @param term
@@ -266,6 +243,10 @@ public class KattaMultiSearcher {
     }
   }
 
+  /**
+   * Implements a single thread of a search.  Each shard has a separate SearchCall and they
+   * are run more or less in parallel.
+   */
   private class SearchCall implements Callable<SearchResult> {
 
     private final String _shardName;
@@ -282,14 +263,12 @@ public class KattaMultiSearcher {
     public SearchResult call() throws Exception {
       final IndexSearcher indexSearcher = _searchers.get(_shardName);
       final TopDocs docs = indexSearcher.search(_weight, null, _limit);
-      // totalHits += docs.totalHits; // update totalHits
       return new SearchResult(docs.totalHits, docs.scoreDocs);
     }
 
   }
 
-  private class SearchResult {
-
+  private static class SearchResult {
     private final int _totalHits;
     private final ScoreDoc[] _scoreDocs;
 
@@ -300,19 +279,19 @@ public class KattaMultiSearcher {
 
   }
 
-  // cached document frequence source from apache lucene
+  // cached document frequency source from apache lucene
   // MultiSearcher.
   /**
-   * Document Frequency cache acting as a Dummy-Searcher. This class is no
-   * full-fledged Searcher, but only supports the methods necessary to
+   * Document Frequency cache acting as a Dummy-Searcher. This class is not a
+   * fully-fledged Searcher, but only supports the methods necessary to
    * initialize Weights.
    */
   private static class CachedDfSource extends Searcher {
-    private final Map dfMap; // Map from Terms to corresponding doc freqs
+    private final Map<TermWritable, Integer> dfMap; // Map from Terms to corresponding doc freqs
 
     private final int maxDoc; // document count
 
-    public CachedDfSource(final Map dfMap, final int maxDoc, final Similarity similarity) {
+    public CachedDfSource(final Map<TermWritable, Integer> dfMap, final int maxDoc, final Similarity similarity) {
       this.dfMap = dfMap;
       this.maxDoc = maxDoc;
       setSimilarity(similarity);
@@ -322,7 +301,7 @@ public class KattaMultiSearcher {
     public int docFreq(final Term term) {
       int df;
       try {
-        df = ((Integer) dfMap.get(new TermWritable(term.field(), term.text()))).intValue();
+        df = dfMap.get(new TermWritable(term.field(), term.text()));
       } catch (final NullPointerException e) {
         throw new IllegalArgumentException("df for term " + term.text() + " not available");
       }
@@ -387,7 +366,7 @@ public class KattaMultiSearcher {
     }
   }
 
-  protected class KattaHitQueue extends PriorityQueue {
+  protected class KattaHitQueue extends PriorityQueue implements Iterable<Hit> {
     KattaHitQueue(final int size) {
       initialize(size);
     }
@@ -402,6 +381,22 @@ public class KattaMultiSearcher {
         return hitA.getDocId() > hitB.getDocId();
       }
       return hitA.getScore() < hitB.getScore();
+    }
+
+    public Iterator<Hit> iterator() {
+      return new Iterator<Hit>() {
+        public boolean hasNext() {
+          return KattaHitQueue.this.size() > 0;
+        }
+
+        public Hit next() {
+          return (Hit) KattaHitQueue.this.pop();
+        }
+
+        public void remove() {
+          throw new UnsupportedOperationException("Can't remove using this iterator");
+        }
+      };
     }
   }
 

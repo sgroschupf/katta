@@ -69,6 +69,9 @@ public class QueryWritable implements Writable {
 
   @Override
   public boolean equals(Object obj) {
+    if (getClass() != obj.getClass()) {
+      return false;
+    }
     Query other = ((QueryWritable) obj).getQuery();
     return _query.equals(other);
   }
