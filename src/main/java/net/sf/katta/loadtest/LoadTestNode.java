@@ -171,7 +171,7 @@ public class LoadTestNode extends BaseRpcServer implements ILoadTestNode {
 
   @Override
   public void startTest(int queryRate, final String[] indexNames, final String queryString, final int count) {
-    int threads = Math.max(1, queryRate / 3);
+    int threads = Math.max(1, (queryRate - 1) / 3 + 1);
     int testDelay = 1000 * threads / queryRate;
 
     LOG.info("Requested to run test at " + queryRate + " queries per second using " + threads
