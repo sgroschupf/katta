@@ -19,6 +19,8 @@ import java.io.File;
 
 public class ZkConfiguration extends KattaConfiguration {
 
+  public static final String ZOOKEEPER_EMBEDDED = "zookeeper.embedded";
+  
   public static final String ZOOKEEPER_SERVERS = "zookeeper.servers";
 
   public static final String ZOOKEEPER_TIMEOUT = "zookeeper.timeout";
@@ -47,6 +49,17 @@ public class ZkConfiguration extends KattaConfiguration {
     super(file);
   }
 
+  public boolean isEmbedded(){
+    String property = getProperty(ZOOKEEPER_EMBEDDED);
+    if(property==null){
+      throw new IllegalArgumentException("Could not find property "+ZOOKEEPER_EMBEDDED);
+    }
+    return "true".equalsIgnoreCase(property);
+  }
+  public void setEmbedded(boolean embeddedZk){
+    setProperty(ZOOKEEPER_EMBEDDED, ""+embeddedZk);
+  }
+  
   public String getZKServers() {
     return getProperty(ZOOKEEPER_SERVERS);
   }

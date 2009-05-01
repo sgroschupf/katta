@@ -1,6 +1,7 @@
 Katta Change Log
 
 katta 0.6-dev
+ fix KATTA-14, Katta should be able to use an external zookeeper cluster.
  fix KATTA-53, fix spelling errors and other small issues in code, contributed by Ted Dunning. 
  fix KATTA-47, anaylzer is not required anymore, contributed by Vivek Magotra.
  fix KATTA-51, master hangs when reconnecting to zk during deployment of a index.
