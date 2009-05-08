@@ -27,7 +27,7 @@
 # export KATTA_NODES=${KATTA_HOME}/conf/nodes
 
 # host:path where hadoop code should be rsync'd from.  Unset by default.
-# export KATTA_MASTER=master:/home/$USER/src/hadoop
+# export KATTA_MASTER=master:/home/$USER/src/katta-version
 
 # Seconds to sleep between node commands.  Unset by default.  This
 # can be useful in large clusters, where, e.g., node rsyncs can
