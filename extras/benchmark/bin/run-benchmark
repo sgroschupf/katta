@@ -19,52 +19,36 @@
 
 
 if [ -z $1 ]; then
-  echo "App name required!"
+  echo "Must specify the number of Katta nodes to start."
   exit -1
 fi
 
 if [ -z $2 ]; then
-  echo "Must specify the number of nodes to start."
+  echo "Must specify the number of test clients to start."
   exit -1
 fi
 
-if [ -z $3 ]; then
-  echo "Must specify the number of clients to start."
-  exit -1
-fi
-
-
-APP=$1
-NO_INSTANCES=$2
-NO_CLIENTS=$3
+NO_NODES=$1
+NO_CLIENTS=$2
 
 # Import variables
 bin=`dirname "$0"`
 bin=`cd "$bin"; pwd`
 . "$bin"/benchmark-ec2-env.sh
 
-APP_CLUSTER="$APP-cluster"
-CLIENT_CLUSTER="grinder-cluster"
+CLUSTER_NAME=katta-benchmark-cluster
 
-# launch 
-echo "Starting clusters $APP_CLUSTER and $CLIENT_CLUSTER."
+echo "Starting cluster."
+let NO_INSTANCES=$NO_NODES+$NO_CLIENTS 
+
 echo "========================================="
-#. "$bin"/launch-cluster $CLIENT_CLUSTER $NO_CLIENTS
-#. "$bin"/launch-cluster $APP_CLUSTER $NO_INSTANCES
-# ec2-authorize $CLIENT_CLUSTER -o $APP_CLUSTER -u $AWS_ACCOUNT_ID > /dev/null
-# ec2-authorize $APP_CLUSTER -o $CLIENT_CLUSTER -u $AWS_ACCOUNT_ID > /dev/null
+. "$bin"/launch-cluster $CLUSTER_NAME $NO_INSTANCES 
 echo "========================================="
 
 
-echo "Installing grinder on $CLIENT_CLUSTER"
+echo "Installing katta on cluster"
 echo "========================================="
-. "$bin"/install-grinder $CLIENT_CLUSTER 
-echo "========================================="
-
-echo "Installing $APP cluster $APP_CLUSTER"
-echo "=========================================" 
- INSTALL_SCRIPT="install-$APP" $APP_CLUSTER $CLIENT_CLUSTER
-. "$bin"/"$INSTALL_SCRIPT"
+#. "$bin"/install-katta $CLLUSTER_NAME $NO_NODES $NO_CLIENTS 
 echo "========================================="
 
 

@@ -24,19 +24,11 @@ bin=`cd "$bin"; pwd`
 if [ $# = 0 ]; then
   echo "Usage: benchmark COMMAND"
   echo "where COMMAND is one of:"
-  echo "  list                                 list all running Katta EC2 clusters"
-  echo "  launch-cluster <group> <num nodes>   launch a cluster of  EC2 instances - runs launch-cluster"
-  echo "  terminate-cluster  <group>           terminate all Katta EC2 instances"
-  echo "  delete-cluster <group>               delete the group information for a terminated cluster"
-  echo "  run <app> <num nodes> <num clients>  run a benchmark with for app (e.g. katta) the number of app nodes plus 1 master and num of clients plus 1 master"
-
-#  echo "  login  <group|instance id>           login to the master node of the Katta EC2 cluster"
-#  echo "  screen <group|instance id>           start or attach 'screen' on the master node of the Katta EC2 cluster"
-#  echo "  proxy  <group|instance id>           start a socks proxy on localhost:6666 (use w/foxyproxy)"
-#  echo "  push   <group> <file>                scp a file to the master node of the Katta EC2 cluster"
-#  echo "  mount  <instance id> <path> <group>  shares the path of the instance with all instances in the given group with nfs"
-#  echo "  <shell cmd> <group|instance id>      execute any command remotely on the master"
-  echo "  create-image                         create a java AMI"
+  echo "  run                                   runs Katta benchmark on a EC2 clusters"
+ # echo "  list                                 list all running Katta EC2 clusters"
+ # echo "  launch-cluster <group> <num nodes>   launch a cluster of  EC2 instances - runs launch-cluster"
+ # echo "  terminate-cluster  <group>           terminate all Katta EC2 instances"
+ # echo "  delete-cluster <group>               delete the group information for a terminated cluster"
   exit 1
 fi
 
@@ -44,20 +36,8 @@ fi
 COMMAND="$1"
 shift
 
-if [ "$COMMAND" = "create-image" ] ; then
-  . "$bin"/create-java-image $*
-elif [ "$COMMAND" = "launch-cluster" ] ; then
-  . "$bin"/launch-cluster $*
-elif [ "$COMMAND" = "terminate-cluster" ] ; then
-  . "$bin"/terminate-benchmark-cluster $*
-elif [ "$COMMAND" = "list" ] ; then
-  . "$bin"/list-benchmark-clusters
-elif [ "$COMMAND" = "run" ] ; then
+if [ "$COMMAND" = "run" ] ; then
   . "$bin"/run-benchmark  $*
-
-
-elif [ "$COMMAND" = "mount" ] ; then
-  . "$bin"/create-nfs-share $* 
 else
   . "$bin"/cmd-katta-cluster "$COMMAND" $*
 fi

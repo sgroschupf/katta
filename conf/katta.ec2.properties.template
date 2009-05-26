@@ -1,0 +1,14 @@
+# configuration file to setup ec2 account
+
+# aws account id
+aws.accountId=
+# aws access id
+aws.accessKeyId=
+# aws secret access key
+aws.secretAccessKey=
+# name of the key pair that should be used to start ec2 instances.
+aws.keyPairName=katta-keypair
+#path to the scret key for the configured keyPairName
+aws.keyPath=
+# base image, an ec2 image id that at least has java installed.
+aws.aim=ami-45e7002c
