@@ -565,7 +565,7 @@ public class Katta {
     System.err.println("\tstartMaster\t\tStarts a local master.");
     System.err.println("\tstartNode\t\tStarts a local node.");
     System.err.println("\tstartLoadTestNode\tStarts a load test node.");
-    System.err.println("\tstartLoadTest <nodes> <start-query-rate> <end-query-rate> <step> <test-duration-ms> <query> <max hits>");
+    System.err.println("\tstartLoadTest <nodes> <start-query-rate> <end-query-rate> <step> <test-duration-ms> <index-name> <query> <max hits>");
     System.err.println("\t\t\t\tStarts a load test. The query rate is in queries per second.");
     System.err.println("\tshowStructure\t\tShows the structure of a Katta installation.");
     System.err.println("\tcheck\t\t\tAnalyze index/shard/node status.");
