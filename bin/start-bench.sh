@@ -18,6 +18,16 @@
 
 # Start all katta daemons.  Run this on master node.
 
+usage="Usage: start-bench.sh <num-test-clients>"
+
+# if no args specified, show usage
+if [ $# -le 0 ]; then
+  echo $usage
+  exit 1
+fi
+
+NUM_TEST_CLIENTS=$1
+
 bin=`dirname "$0"`
 bin=`cd "$bin"; pwd`
 
@@ -28,5 +38,8 @@ bin=`cd "$bin"; pwd`
 
 sleep 10
 
-# start slave daemons
-"$bin"/katta-daemons.sh start katta\ startNode --config $KATTA_CONF_DIR
+# start katta test clients
+"$bin"/katta-daemons.sh --num-nodes $NUM_TEST_CLIENTS start katta\ startLoadTestNode --config $KATTA_CONF_DIR
+
+# start katta nodes
+"$bin"/katta-daemons.sh --start-node $NUM_TEST_CLIENTS start katta\ startNode --config $KATTA_CONF_DIR

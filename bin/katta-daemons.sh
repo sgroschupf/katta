@@ -18,7 +18,7 @@
 
 # Run a Katta command on all node hosts.
 
-usage="Usage: katta-daemons.sh [--config confdir] [--hosts hostlistfile] [start|stop] command args..."
+usage="Usage: katta-daemons.sh [--start-node <start>] [--num-nodes <num>] [--config confdir] [--hosts hostlistfile] [start|stop] command args..."
 
 # if no args specified, show usage
 if [ $# -le 1 ]; then

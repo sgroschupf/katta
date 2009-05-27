@@ -27,7 +27,7 @@
 #   KATTA_SSH_OPTS Options passed to ssh when running remote commands.
 ##
 
-usage="Usage: nodes.sh [--config confdir] command..."
+usage="Usage: nodes.sh [--start-node <start>] [--num-nodes <num>] [--config <confdir>] command..."
 
 # if no args specified, show usage
 if [ $# -le 0 ]; then
@@ -38,7 +38,32 @@ fi
 bin=`dirname "$0"`
 bin=`cd "$bin"; pwd`
 
-. "$bin"/katta-config.sh
+# Start with node of given index (first node has index 0)
+START_NODE=0
+# Only execute command on given number of nodes
+NUM_NODES=99999999
+
+# check for number of nodes
+while test $# -gt 0; do
+    if [ "--start-node" = "$1" ]
+	  then
+	      START_NODE=$2
+	      shift 2
+    elif [ "--num-nodes" = "$1" ]
+	  then
+	      NUM_NODES=$2
+	      shift 2
+    elif [ "--config" = "$1" ]
+	  then
+	      CONFIG="--config $2"
+	      shift 2
+    else
+        params="$params ${1// /\\ }"
+        shift 
+    fi
+done
+
+. "$bin"/katta-config.sh $CONFIG
 
 # If the nodes file is specified in the command line,
 # then it takes precedence over the definition in 
@@ -58,10 +83,17 @@ if [ "$HOSTLIST" = "" ]; then
 fi
 
 for node in `cat "$HOSTLIST"`; do
- ssh $KATTA_SSH_OPTS $node $"${@// /\\ }" \
-   2>&1 | sed "s/^/$node: /" &
- if [ "$KATTA_NODE_SLEEP" != "" ]; then
-   sleep $KATTA_NODE_SLEEP
+ if test $START_NODE -gt 0; then
+     START_NODE=$(expr $START_NODE - 1)
+ else
+     if test $NUM_NODES -gt 0; then
+         NUM_NODES=$(expr $NUM_NODES - 1)
+         ssh $KATTA_SSH_OPTS $node $params \
+           2>&1 | sed "s/^/$node: /" &
+         if [ "$KATTA_NODE_SLEEP" != "" ]; then
+             sleep $KATTA_NODE_SLEEP
+         fi
+     fi
  fi
 done
 
