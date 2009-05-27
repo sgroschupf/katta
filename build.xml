@@ -59,8 +59,8 @@
 	<!-- Generate a distribution                                            -->
 	<!-- ================================================================== -->
 
-	<target name="dist" depends="coverage, jar, doc, checkstyle" description="--> builds the Katta distribution">
-
+	<target name="dist" depends="jar, doc, checkstyle" description="--> builds the Katta distribution">
+		<echo>====== Make sure you run 'ant coverage dist' for real distributions ====== </echo>
 		<delete dir="${build.dir.dist}" />
 		<!-- creating a fileset for pulling all libs from ivycache cuz disk space is cheap -->
 		<ivy:cachefileset conf="compile" setid="libs" />
