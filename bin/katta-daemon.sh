@@ -128,10 +128,10 @@ case $startStop in
         echo stopping $stopCommandDisplayName
         kill `cat "$pid"`
       else
-        echo no $stopCommandDisplayName to stop
+        echo No $stopCommandDisplayName to stop
       fi
     else
-      echo no $stopCommandDisplayName to stop
+      echo No $stopCommandDisplayName to stop
     fi
     ;;
 
