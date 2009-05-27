@@ -20,7 +20,7 @@
 #
 # Environment Variables
 #
-#   JAVA_HOME        The java implementation to use.  Overrides JAVA_HOME.
+#   JAVA_HOME        The java implementation to use.
 #
 #   KATTA_CLASSPATH Extra Java CLASSPATH entries.
 #
@@ -49,17 +49,14 @@ if [ -f "${KATTA_CONF_DIR}/katta-env.sh" ]; then
 fi
 
 # some Java parameters
-if [ "$JAVA_HOME" != "" ]; then
-  #echo "run java in $JAVA_HOME"
-  JAVA_HOME=$JAVA_HOME
+JAVA=`which java 2>/dev/null`
+if [[ $JAVA_HOME != "" ]]; then
+    JAVA=$JAVA_HOME/bin/java
 fi
-  
-if [ "$JAVA_HOME" = "" ]; then
-  echo "Error: JAVA_HOME is not set."
-  exit 1
+if test -z "$JAVA"; then
+    echo "No java found in the PATH. Please set JAVA_HOME."
+    exit 1
 fi
-
-JAVA=$JAVA_HOME/bin/java
 JAVA_HEAP_MAX=-Xmx1000m 
 
 # check envvars which might override default args
