@@ -262,43 +262,54 @@ public abstract class BaseNode extends BaseRpcServer implements IZkReconnectList
   }
 
   /**
-   * Loads a shard from the given URI. The uri is handled bye the hadoop file
-   * system. So all hadoop support file systems can be used, like local hdfs s3
+   * Loads a shard from the given URI. The uri is handled by the hadoop file
+   * system. So all hadoop support file systems can be used, like local, hdfs, s3
    * etc. In case the shard is compressed we also unzip the content.
    */
   private void download(AssignedShard shard, File localShardFolder) throws KattaException {
     final String shardPath = shard.getShardPath();
     String shardName = shard.getShardName();
     LOG.info("Downloading shard '" + shardName + "' from " + shardPath);
-    URI uri;
-    try {
-      uri = new URI(shardPath);
-      final FileSystem fileSystem = FileSystem.get(uri, new Configuration());
-      final Path path = new Path(shardPath);
-      boolean isZip = fileSystem.isFile(path) && shardPath.endsWith(".zip");
+    // TODO sg: to fix HADOOP-4422 we try to download the shard 5 times
+    int maxTries = 5;
+    for (int i = 0; i < maxTries; i++) {
+      URI uri;
+      try {
+        uri = new URI(shardPath);
+        final FileSystem fileSystem = FileSystem.get(uri, new Configuration());
+        final Path path = new Path(shardPath);
+        boolean isZip = fileSystem.isFile(path) && shardPath.endsWith(".zip");
 
-      File shardTmpFolder = new File(localShardFolder.getAbsolutePath() + "_tmp");
-      // we download extract first to tmp dir in case something went wrong
-      FileUtil.deleteFolder(localShardFolder);
-      FileUtil.deleteFolder(shardTmpFolder);
+        File shardTmpFolder = new File(localShardFolder.getAbsolutePath() + "_tmp");
+        // we download extract first to tmp dir in case something went wrong
+        FileUtil.deleteFolder(localShardFolder);
+        FileUtil.deleteFolder(shardTmpFolder);
 
-      if (isZip) {
-        final File shardZipLocal = new File(_shardsFolder, shardName + ".zip");
-        if (shardZipLocal.exists()) {
-          // make sure we overwrite cleanly
+        if (isZip) {
+          final File shardZipLocal = new File(_shardsFolder, shardName + ".zip");
+          if (shardZipLocal.exists()) {
+            // make sure we overwrite cleanly
+            shardZipLocal.delete();
+          }
+          fileSystem.copyToLocalFile(path, new Path(shardZipLocal.getAbsolutePath()));
+          FileUtil.unzip(shardZipLocal, shardTmpFolder);
           shardZipLocal.delete();
+        } else {
+          fileSystem.copyToLocalFile(path, new Path(shardTmpFolder.getAbsolutePath()));
         }
-        fileSystem.copyToLocalFile(path, new Path(shardZipLocal.getAbsolutePath()));
-        FileUtil.unzip(shardZipLocal, shardTmpFolder);
-        shardZipLocal.delete();
-      } else {
-        fileSystem.copyToLocalFile(path, new Path(shardTmpFolder.getAbsolutePath()));
+        shardTmpFolder.renameTo(localShardFolder);
+
+        // looks like we are successful.
+        return;
+      } catch (final URISyntaxException e) {
+        throw new KattaException("Can not parse uri for path: " + shardPath, e);
+      } catch (final Exception e) {
+        if(i == maxTries-1){
+          throw new KattaException("Can not load shard: " + shardPath, e);
+        } else {
+          LOG.error("Can not load shard: " + shardPath, e);
+        }
       }
-      shardTmpFolder.renameTo(localShardFolder);
-    } catch (final URISyntaxException e) {
-      throw new KattaException("Can not parse uri for path: " + shardPath, e);
-    } catch (final IOException e) {
-      throw new KattaException("Can not load shard: " + shardPath, e);
     }
   }
 
