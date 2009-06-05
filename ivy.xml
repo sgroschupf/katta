@@ -47,7 +47,7 @@
 		
 		<dependency org="jasper" name="jasper-compiler" rev="x" conf="compile" />
 		<dependency org="jasper" name="jasper-runtime" rev="x" conf="compile" />
-		<dependency org="jets3t" name="jets3t" rev="0.5.0" conf="compile" />
+		<dependency org="jets3t" name="jets3t" rev="0.6.1" conf="compile" />
 		<dependency org="jetty" name="jetty" rev="5.1.4" conf="compile" />
 		<dependency org="jsp-api" name="jsp-api" rev="2.0" conf="compile" />
 		<dependency org="servlet-api" name="servlet-api" rev="2.4" conf="compile" />

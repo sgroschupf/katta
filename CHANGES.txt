@@ -1,6 +1,7 @@
 Katta Change Log
 
 katta 0.6-dev
+ fix KATTA-66, Update jets3t jar from version 0.5.0 to 0.6.1
  fix KATTA-71, Katta hangs when deploying index from s3 since HADOOP-4422
  fix KATTA-70, When using an external Zookeeper master and secondary master don't terminate straight away anymore.
  fix KATTA-63, Use java found on the path, if JAVA_HOME is not set
