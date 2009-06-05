@@ -122,7 +122,7 @@ public class Master implements IZkReconnectListener {
         _zkClient.unsubscribeAll();
         _zkClient.delete(ZkPathes.MASTER);
       } catch (final KattaException e) {
-        LOG.error("could bot delete the master data from zk");
+        LOG.error("could not delete the master data from zk");
       }
       _zkClient.close();
     } finally {

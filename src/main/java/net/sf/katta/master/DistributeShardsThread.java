@@ -40,7 +40,6 @@ import net.sf.katta.node.BaseNode.NodeState;
 import net.sf.katta.util.CollectionUtil;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.zk.IZkChildListener;
-import net.sf.katta.zk.IZkReconnectListener;
 import net.sf.katta.zk.ZKClient;
 import net.sf.katta.zk.ZkPathes;
 
