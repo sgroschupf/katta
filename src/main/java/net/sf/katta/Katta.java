@@ -292,14 +292,11 @@ public class Katta {
     if (_zkServer != null) {
       _zkServer.join();
     } else {
-      // since we do not have a running zookeeper we need something to join
-      // in...
-      Thread thread = new Thread("keep a live");
-      thread.setDaemon(true);
-      thread.start();
+      // just wait until the JVM terminates
       try {
-        thread.join();
+        Thread.sleep(Integer.MAX_VALUE);
       } catch (InterruptedException e) {
+        // terminate
       }
     }
   }
