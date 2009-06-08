@@ -47,8 +47,8 @@ public class LoadTestNodeTest extends AbstractKattaTest {
     }
 
     // we should have executed 50 queries in 5s
-    assertTrue(results.length >= 45);
-    assertTrue("Queries per 500ms: " + results.length, results.length <= 55);
+    assertTrue(results.length >= 40);
+    assertTrue("Queries per 500ms: " + results.length, results.length <= 60);
 
     node.shutdown();
   }
