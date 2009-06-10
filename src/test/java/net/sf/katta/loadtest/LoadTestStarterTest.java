@@ -15,15 +15,18 @@
  */
 package net.sf.katta.loadtest;
 
-import org.apache.hadoop.ipc.VersionedProtocol;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
 
-public interface ILoadTestNode extends VersionedProtocol {
+import junit.framework.TestCase;
 
-  public void initTest(int queryRate, String[] indexNames, String[] queries, int count);
+public class LoadTestStarterTest extends TestCase {
 
-  public void startTest();
-
-  public void stopTest();
-
-  public LoadTestQueryResult[] getResults();
+  public void testReadQueries() throws IOException {
+    String[] queries = LoadTestStarter.readQueries(new ByteArrayInputStream("a\n\nb c\nd".getBytes()));
+    assertEquals(3, queries.length);
+    assertEquals("a", queries[0]);
+    assertEquals("b c", queries[1]);
+    assertEquals("d", queries[2]);
+  }
 }

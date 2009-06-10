@@ -55,17 +55,28 @@ public class LoadTestNode extends BaseRpcServer implements ILoadTestNode {
   private String _currentNodeName;
   private Random _random = new Random(System.currentTimeMillis());
 
+  private int _queryRate;
+
+  private int _count;
+
+  private String[] _indexNames;
+
+  private String[] _queryStrings;
+
   private final class TestSearcherRunnable implements Runnable {
     private int _count;
     private String[] _indexNames;
-    private String _queryString;
+    private String[] _queryStrings;
+    private int _queryIndex;
     private int _testDelay;
-
-    TestSearcherRunnable(int testDelay, int count, String[] indexNames, String queryString) {
+    
+    TestSearcherRunnable(int testDelay, int count, String[] indexNames, String[] queryStrings) {
       _count = count;
       _indexNames = indexNames;
-      _queryString = queryString;
+      _queryStrings = queryStrings;
       _testDelay = testDelay;
+      _queryIndex = _random.nextInt(_queryStrings.length);
+      LOG.info("Starting dictionary search at index " + _queryIndex);
     }
 
     @SuppressWarnings("deprecation")
@@ -73,13 +84,15 @@ public class LoadTestNode extends BaseRpcServer implements ILoadTestNode {
     public void run() {
       // TODO PVo search for different terms
       long startTime = System.currentTimeMillis();
+      String queryString = _queryStrings[_queryIndex];
+      _queryIndex = (_queryIndex + 1) % _queryStrings.length;
       try {
-        _client.search(new Query(_queryString), _indexNames, _count);
+        _client.search(new Query(queryString), _indexNames, _count);
         long endTime = System.currentTimeMillis();
-        _statistics.add(new LoadTestQueryResult(startTime, endTime, _queryString, getRpcHostName() + ":"
+        _statistics.add(new LoadTestQueryResult(startTime, endTime, queryString, getRpcHostName() + ":"
                 + getRpcServerPort()));
       } catch (KattaException e) {
-        _statistics.add(new LoadTestQueryResult(startTime, -1, _queryString, getRpcHostName() + ":"
+        _statistics.add(new LoadTestQueryResult(startTime, -1, queryString, getRpcHostName() + ":"
                 + getRpcServerPort()));
         LOG.error("Search failed.", e);
       }
@@ -170,18 +183,26 @@ public class LoadTestNode extends BaseRpcServer implements ILoadTestNode {
   }
 
   @Override
-  public void startTest(int queryRate, final String[] indexNames, final String queryString, final int count) {
-    int threads = Math.max(1, (queryRate - 1) / 3 + 1);
-    int testDelay = 1000 * threads / queryRate;
+  public void initTest(int queryRate, final String[] indexNames, final String[] queryStrings, final int count) {
+    _queryRate = queryRate;
+    _queryStrings = queryStrings;
+    _count = count;
+    _indexNames = indexNames;
+    unregisterNode();
+  }
 
-    LOG.info("Requested to run test at " + queryRate + " queries per second using " + threads
+  @Override
+  public void startTest() {
+    int threads = Math.max(1, (_queryRate - 1) / 3 + 1);
+    int testDelay = 1000 * threads / _queryRate;
+
+    LOG.info("Requested to run test at " + _queryRate + " queries per second using " + threads
             + " threads and a test delay of " + testDelay + "ms.");
 
     _executorService = Executors.newScheduledThreadPool(threads);
     _statistics = new Vector<LoadTestQueryResult>();
-    unregisterNode();
     for (int i = 0; i < threads; i++) {
-      _executorService.schedule(new TestSearcherRunnable(testDelay, count, indexNames, queryString), _random
+      _executorService.schedule(new TestSearcherRunnable(testDelay, _count, _indexNames, _queryStrings), _random
               .nextInt(testDelay), TimeUnit.MILLISECONDS);
     }
   }

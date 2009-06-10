@@ -37,7 +37,8 @@ public class LoadTestNodeTest extends AbstractKattaTest {
     deployClient.addIndex(INDEX1, TestResources.INDEX1.getAbsolutePath(), 1).joinDeployment();
 
     LoadTestNode node = startLoadTestNode();
-    node.startTest(10, new String[] { INDEX1 }, "test", 10);
+    node.initTest(10, new String[] { INDEX1 }, new String[] {"test"}, 10);
+    node.startTest();
     Thread.sleep(5000);
     node.stopTest();
 

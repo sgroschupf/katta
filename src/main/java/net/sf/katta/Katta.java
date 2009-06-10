@@ -98,9 +98,9 @@ public class Katta {
       int step = Integer.parseInt(args[4]);
       final int runTime = Integer.parseInt(args[5]);
       final String[] indexNames = args[6].split(",");
-      final String query = args[7];
+      final String queryFile = args[7];
       final int count = Integer.parseInt(args[8]);
-      startIntegrationTest(nodes, startRate, endRate, step, runTime, indexNames, query, count, conf);
+      startIntegrationTest(nodes, startRate, endRate, step, runTime, indexNames, queryFile, count, conf);
     } else if (command.endsWith("version")) {
       showVersion();
     } else if (command.endsWith("zk")) {
@@ -185,9 +185,9 @@ public class Katta {
   }
 
   public static void startIntegrationTest(int nodes, int startRate, int endRate, int step, int runTime, String[] indexNames,
-          String queryString, int count, ZkConfiguration conf) throws KattaException {
+          String queryFile, int count, ZkConfiguration conf) throws KattaException {
     final ZKClient client = new ZKClient(conf);
-    final LoadTestStarter integrationTester = new LoadTestStarter(client, nodes, startRate, endRate, step, runTime, indexNames, queryString, count);
+    final LoadTestStarter integrationTester = new LoadTestStarter(client, nodes, startRate, endRate, step, runTime, indexNames, queryFile, count);
     integrationTester.start();
     Runtime.getRuntime().addShutdownHook(new Thread() {
       @Override
@@ -562,7 +562,7 @@ public class Katta {
     System.err.println("\tstartMaster\t\tStarts a local master.");
     System.err.println("\tstartNode\t\tStarts a local node.");
     System.err.println("\tstartLoadTestNode\tStarts a load test node.");
-    System.err.println("\tstartLoadTest <nodes> <start-query-rate> <end-query-rate> <step> <test-duration-ms> <index-name> <query> <max hits>");
+    System.err.println("\tstartLoadTest <nodes> <start-query-rate> <end-query-rate> <step> <test-duration-ms> <index-name> <query-file> <max hits>");
     System.err.println("\t\t\t\tStarts a load test. The query rate is in queries per second.");
     System.err.println("\tshowStructure\t\tShows the structure of a Katta installation.");
     System.err.println("\tcheck\t\t\tAnalyze index/shard/node status.");

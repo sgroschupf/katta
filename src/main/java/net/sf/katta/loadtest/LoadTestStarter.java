@@ -15,9 +15,13 @@
  */
 package net.sf.katta.loadtest;
 
+import java.io.BufferedReader;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.net.InetSocketAddress;
@@ -56,7 +60,7 @@ public class LoadTestStarter {
   ChildListener _childListener;
 
   private String[] _indexNames;
-  private String _queryString;
+  private String _queryFile;
   private int _count;
   private int _runTime;
   private Writer _statisticsWriter;
@@ -86,14 +90,14 @@ public class LoadTestStarter {
   }
 
   public LoadTestStarter(final ZKClient zkClient, int nodes, int startRate, int endRate, int step, int runTime,
-          String[] indexNames, String queryString, int count) throws KattaException {
+          String[] indexNames, String queryFile, int count) throws KattaException {
     _zkClient = zkClient;
     _numberOfTesterNodes = nodes;
     _startRate = startRate;
     _endRate = endRate;
     _step = step;
     _indexNames = indexNames;
-    _queryString = queryString;
+    _queryFile = queryFile;
     _count = count;
     _runTime = runTime;
     try {
@@ -170,12 +174,22 @@ public class LoadTestStarter {
 
       int remainingQueryRate = queryRate;
       int remainingNodes = numberOfNodes;
+      String[] queries;
+      try {
+        queries = readQueries(new FileInputStream(_queryFile));
+      } catch (IOException e) {
+        throw new KattaException("Failed to read query file " + _queryFile + ".", e);
+      }
       for (ILoadTestNode testNode : nodesForTest) {
         int queryRateForNode = remainingQueryRate / remainingNodes;
-        LOG.info("Starting test on node using query rate: " + queryRateForNode + " queries per second.");
-        testNode.startTest(queryRateForNode, _indexNames, _queryString, _count);
+        LOG.info("Initializing test on node using query rate: " + queryRateForNode + " queries per second.");
+        testNode.initTest(queryRateForNode, _indexNames, queries, _count);
         --remainingNodes;
         remainingQueryRate -= queryRateForNode;
+      }
+      for (ILoadTestNode testNode : nodesForTest) {
+        LOG.info("Starting test on node.");
+        testNode.startTest();
       }
       try {
         Thread.sleep(_runTime);
@@ -224,6 +238,19 @@ public class LoadTestStarter {
       LOG.warn("Failed to close statistics file.");
     }
     shutdown();
+  }
+
+  static String[] readQueries(InputStream inputStream) throws IOException {
+    BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
+    List<String> lines = new ArrayList<String>();
+    String line;
+    while ((line = reader.readLine()) != null) {
+      line = line.trim();
+      if (!line.equals("")) {
+        lines.add(line);
+      }
+    }
+    return lines.toArray(new String[lines.size()]);
   }
 
   public void shutdown() {
