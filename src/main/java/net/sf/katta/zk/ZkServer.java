@@ -90,14 +90,6 @@ public class ZkServer {
         }
         LOG.info("data dir: " + dataDir.getAbsolutePath());
         LOG.info("data log dir: " + dataLogDir.getAbsolutePath());
-
-        // now if required we initialize our namespace
-        final ZKClient client = new ZKClient(conf);
-        client.start(300000);
-        client.createDefaultNameSpace();
-        client.close();
-        // TODO jz: do we initialize the client only for creating the namespaces
-        // ??
       } else {
         // TODO jz: shoudn't we better throw an exception
         LOG.error("Zookeeper port " + port + " was already in use. Running in single machine mode?");

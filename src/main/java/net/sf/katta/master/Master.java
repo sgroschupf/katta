@@ -60,7 +60,7 @@ public class Master implements IZkReconnectListener {
     _zkClient = zkClient;
     try {
       _zkClient.getEventLock().lock();
-      zkClient.subscribeReconnects(this);
+      _zkClient.subscribeReconnects(this);
     } finally {
       _zkClient.getEventLock().unlock();
     }
@@ -93,6 +93,8 @@ public class Master implements IZkReconnectListener {
       if (!_zkClient.isStarted()) {
         LOG.info("connecting with zookeeper");
         _zkClient.start(300000);
+      // now we need to create the default name space
+      _zkClient.createDefaultNameSpace();
       }
       becomeMasterOrSecondaryMaster();
       if (_isMaster) {
