@@ -15,8 +15,29 @@
  */
 package net.sf.katta.client;
 
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+
 import net.sf.katta.index.IndexMetaData;
-import net.sf.katta.node.*;
+import net.sf.katta.node.DocumentFrequencyWritable;
+import net.sf.katta.node.Hit;
+import net.sf.katta.node.Hits;
+import net.sf.katta.node.HitsMapWritable;
+import net.sf.katta.node.IQuery;
+import net.sf.katta.node.ISearch;
+import net.sf.katta.node.QueryWritable;
 import net.sf.katta.util.CollectionUtil;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.ZkConfiguration;
@@ -24,6 +45,7 @@ import net.sf.katta.zk.IZkChildListener;
 import net.sf.katta.zk.IZkDataListener;
 import net.sf.katta.zk.ZKClient;
 import net.sf.katta.zk.ZkPathes;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.MapWritable;
 import org.apache.hadoop.ipc.RPC;
@@ -32,11 +54,6 @@ import org.apache.lucene.analysis.KeywordAnalyzer;
 import org.apache.lucene.queryParser.ParseException;
 import org.apache.lucene.queryParser.QueryParser;
 import org.apache.lucene.search.Query;
-
-import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.util.*;
-import java.util.concurrent.*;
 
 /**
  * Default implementation of {@link IClient}.
@@ -252,7 +269,7 @@ public class Client implements IClient {
     return (float) _queryCount / time;
   }
 
-  private Map<String, List<String>> getNode2ShardsMap(final String[] indexNames) throws ShardAccessException {
+  private Map<String, List<String>> getNode2ShardsMap(final String[] indexNames) throws KattaException {
     String[] indexesToSearchIn = indexNames;
     for (String indexName : indexNames) {
       if ("*".equals(indexName)) {
@@ -278,10 +295,14 @@ public class Client implements IClient {
     }
   }
 
-  private List<String> getShardsToSearchIn(String[] indexNames) {
+  private List<String> getShardsToSearchIn(String[] indexNames) throws KattaException {
     List<String> shards = new ArrayList<String>();
     for (String index : indexNames) {
-      shards.addAll(_indexToShards.get(index));
+      List<String> shardsForIndex = _indexToShards.get(index);
+      if (shardsForIndex == null) {
+        throw new KattaException("Index '" + index + "' not deployed on any shard.");
+      }
+      shards.addAll(shardsForIndex);
     }
     return shards;
   }

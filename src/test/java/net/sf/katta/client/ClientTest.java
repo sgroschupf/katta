@@ -20,9 +20,9 @@ import java.util.Set;
 
 import net.sf.katta.AbstractKattaTest;
 import net.sf.katta.master.Master;
+import net.sf.katta.node.BaseNode;
 import net.sf.katta.node.Hit;
 import net.sf.katta.node.Hits;
-import net.sf.katta.node.BaseNode;
 import net.sf.katta.testutil.TestResources;
 import net.sf.katta.util.KattaException;
 
@@ -31,7 +31,6 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 import org.apache.log4j.Logger;
 import org.apache.lucene.analysis.KeywordAnalyzer;
-import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.queryParser.ParseException;
 import org.apache.lucene.queryParser.QueryParser;
 import org.apache.lucene.search.Query;
@@ -155,6 +154,16 @@ public class ClientTest extends AbstractKattaTest {
     assertEquals(1, hits.getHits().size());
     for (final Hit hit : hits.getHits()) {
       LOG.info(hit.getNode() + " -- " + hit.getScore() + " -- " + hit.getDocId());
+    }
+  }
+
+  public void testSearchIndexThatDoesntExist() throws ParseException {
+    final Query query = new QueryParser("", new KeywordAnalyzer()).parse("foo: bar");
+    try {
+      _client.search(query, new String[] { "doesNotExist" }, 1);
+      fail("expected exception");
+    } catch (KattaException e) {
+      assertEquals("Index 'doesNotExist' not deployed on any shard.", e.getMessage());
     }
   }
 
