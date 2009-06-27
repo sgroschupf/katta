@@ -29,6 +29,8 @@
         <dependency org="org.jmock" name="jmock" rev="2.4.0" conf="test" />
 		<dependency org="org.hamcrest" name="hamcrest-library" rev="1.1" conf="test" />
 		<dependency org="org.hamcrest" name="hamcrest-core" rev="1.1" conf="test" />
+		<dependency org="org.objenesis" name="objenesis" rev="1.0" conf="test" />
+		
 		
 		<dependency org="net.sourceforge.cobertura" name="cobertura" rev="1.9.1" conf="instrument" />
 		
