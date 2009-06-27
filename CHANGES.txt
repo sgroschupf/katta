@@ -1,6 +1,7 @@
 Katta Change Log
 
 katta 0.6-dev
+ remove maven repos from ivy configuration and add last missing libraries into lib folder
  fix KATTA-72, Give better error message when searching an index that doesn't exist.
  fix KATTA-67, Default namespace is not created when using external Katta
  fix KATTA-66, Update jets3t jar from version 0.5.0 to 0.6.1

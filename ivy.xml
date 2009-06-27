@@ -29,7 +29,7 @@
         <dependency org="org.jmock" name="jmock" rev="2.4.0" conf="test" />
 		<dependency org="org.hamcrest" name="hamcrest-library" rev="1.1" conf="test" />
 		
-		<dependency org="net.sourceforge.cobertura" name="cobertura" rev="1.9" conf="instrument" />
+		<dependency org="net.sourceforge.cobertura" name="cobertura" rev="1.9.1" conf="instrument" />
 		
 		<!-- checkstyle -->
 		<dependency org="net.sf.checkstyle" name="checkstyle-all" rev="5.0-beta2" conf="checkstyle" />
