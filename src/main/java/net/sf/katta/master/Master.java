@@ -23,11 +23,11 @@ import java.util.UUID;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.MasterConfiguration;
 import net.sf.katta.util.NetworkUtil;
+import net.sf.katta.util.ZkConfiguration;
 import net.sf.katta.zk.IZkChildListener;
 import net.sf.katta.zk.IZkDataListener;
 import net.sf.katta.zk.IZkReconnectListener;
 import net.sf.katta.zk.ZKClient;
-import net.sf.katta.zk.ZkPathes;
 
 import org.apache.log4j.Logger;
 import org.apache.zookeeper.Watcher.Event.KeeperState;
@@ -37,6 +37,7 @@ public class Master implements IZkReconnectListener {
   protected final static Logger LOG = Logger.getLogger(Master.class);
 
   protected DistributeShardsThread _manageShardThread;
+  protected ZkConfiguration _conf;
   protected ZKClient _zkClient;
 
   protected List<String> _nodes = new ArrayList<String>();
@@ -52,11 +53,16 @@ public class Master implements IZkReconnectListener {
 
   private MasterListener _masterLister;
 
+  @SuppressWarnings("unchecked")
   public Master(final ZKClient zkClient) throws KattaException {
     _masterName = NetworkUtil.getLocalhostName() + "_" + UUID.randomUUID().toString();
     _indexListener = new IndexListener();
-    _nodeListener =  new NodeListener();
+    _nodeListener = new NodeListener();
     _masterLister = new MasterListener();
+    _conf = zkClient.getConfig();
+    if (!_conf.getZKRootPath().equals(ZkConfiguration.DEFAULT_ROOT_PATH)) {
+      LOG.info("Using ZK root path: " + _conf.getZKRootPath());
+    }
     _zkClient = zkClient;
     try {
       _zkClient.getEventLock().lock();
@@ -64,7 +70,6 @@ public class Master implements IZkReconnectListener {
     } finally {
       _zkClient.getEventLock().unlock();
     }
-
     final MasterConfiguration masterConfiguration = new MasterConfiguration();
     final String deployPolicyClassName = masterConfiguration.getDeployPolicy();
     IDeployPolicy deployPolicy;
@@ -84,7 +89,7 @@ public class Master implements IZkReconnectListener {
     } else {
       safeModeMaxTime = masterConfiguration.getInt(MasterConfiguration.SAFE_MODE_MAX_TIME);
     }
-    _manageShardThread = new DistributeShardsThread(_zkClient, deployPolicy, safeModeMaxTime);
+    _manageShardThread = new DistributeShardsThread(_zkClient, deployPolicy, safeModeMaxTime, false);
   }
 
   public void start() throws KattaException {
@@ -93,11 +98,12 @@ public class Master implements IZkReconnectListener {
       if (!_zkClient.isStarted()) {
         LOG.info("connecting with zookeeper");
         _zkClient.start(300000);
-      // now we need to create the default name space
-      _zkClient.createDefaultNameSpace();
+        // now we need to create the default name space
+        _zkClient.createDefaultNameSpace();
       }
       becomeMasterOrSecondaryMaster();
       if (_isMaster) {
+        _zkClient.createDefaultNameSpace();
         startNodeManagement();
         startIndexManagement();
         _manageShardThread.start();
@@ -122,9 +128,9 @@ public class Master implements IZkReconnectListener {
       _zkClient.getEventLock().lock();
       try {
         _zkClient.unsubscribeAll();
-        _zkClient.delete(ZkPathes.MASTER);
+        _zkClient.delete(_conf.getZKMasterPath());
       } catch (final KattaException e) {
-        LOG.error("could not delete the master data from zk");
+        LOG.error("Could not delete the master data from zk");
       }
       _zkClient.close();
     } finally {
@@ -136,37 +142,37 @@ public class Master implements IZkReconnectListener {
     cleanupOldMasterData(_masterName);
 
     final MasterMetaData freshMaster = new MasterMetaData(_masterName, System.currentTimeMillis());
-    if (!_zkClient.exists(ZkPathes.MASTER)) {
+    if (!_zkClient.exists(_conf.getZKMasterPath())) {
       LOG.info(_masterName + " starting as master...");
       _isMaster = true;
-      _zkClient.createEphemeral(ZkPathes.MASTER, freshMaster);
+      _zkClient.createEphemeral(_conf.getZKMasterPath(), freshMaster);
     } else {
       LOG.info(_masterName + " starting as secondary master...");
       _isMaster = false;
-      _zkClient.subscribeDataChanges(ZkPathes.MASTER, _masterLister);
+      _zkClient.subscribeDataChanges(_conf.getZKMasterPath(), _masterLister);
     }
   }
 
   private void cleanupOldMasterData(final String masterName) throws KattaException {
-    if (_zkClient.exists(ZkPathes.MASTER)) {
+    if (_zkClient.exists(_conf.getZKMasterPath())) {
       final MasterMetaData existingMaster = new MasterMetaData("", System.currentTimeMillis());
-      _zkClient.readData(ZkPathes.MASTER, existingMaster);
+      _zkClient.readData(_conf.getZKMasterPath(), existingMaster);
       if (existingMaster.getMasterName().equals(masterName)) {
         LOG.warn("detected old master entry pointing to this host - deleting it..");
-        _zkClient.delete(ZkPathes.MASTER);
+        _zkClient.delete(_conf.getZKMasterPath());
       }
     }
   }
 
   private void startIndexManagement() throws KattaException {
     LOG.debug("Loading indexes...");
-    _indexes = _zkClient.subscribeChildChanges(ZkPathes.INDEXES, _indexListener);
+    _indexes = _zkClient.subscribeChildChanges(_conf.getZKIndicesPath(), _indexListener);
     _manageShardThread.updateIndexes(_indexes);
   }
 
   private void startNodeManagement() throws KattaException {
     LOG.info("start managing nodes...");
-    _nodes = _zkClient.subscribeChildChanges(ZkPathes.NODES, _nodeListener);
+    _nodes = _zkClient.subscribeChildChanges(_conf.getZKNodesPath(), _nodeListener);
     if (!_nodes.isEmpty()) {
       LOG.info("found following nodes connected: " + _nodes);
     }
@@ -220,11 +226,11 @@ public class Master implements IZkReconnectListener {
   }
 
   protected List<String> readNodes() throws KattaException {
-    return _zkClient.getChildren(ZkPathes.NODES);
+    return _zkClient.getChildren(_conf.getZKNodesPath());
   }
 
   protected List<String> readIndexes() throws KattaException {
-    return _zkClient.getChildren(ZkPathes.INDEXES);
+    return _zkClient.getChildren(_conf.getZKIndicesPath());
   }
 
   public boolean isMaster() {

@@ -28,7 +28,6 @@ import org.apache.hadoop.io.Writable;
  */
 public class Hit implements Writable, Comparable<Hit> {
 
-  @SuppressWarnings({"UnusedDeclaration"})
   private static final long serialVersionUID = -4098882107088103222L;
 
   private Text _shard;

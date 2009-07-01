@@ -20,7 +20,6 @@ import java.util.List;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.ZkConfiguration;
 import net.sf.katta.zk.ZKClient;
-import net.sf.katta.zk.ZkPathes;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -33,18 +32,20 @@ import org.apache.commons.cli.ParseException;
 
 public class ZkTool {
 
+  private ZkConfiguration _conf;
   private ZKClient _zkClient;
 
   public ZkTool() throws KattaException {
-    _zkClient = new ZKClient(new ZkConfiguration());
+    _conf = new ZkConfiguration();
+    _zkClient = new ZKClient(_conf);
     _zkClient.start(5000);
   }
 
   public void ls(String path) throws KattaException {
     List<String> children = _zkClient.getChildren(path);
     System.out.println(String.format("Found %s items", children.size()));
-    if (path.charAt(path.length() - 1) != ZkPathes.SEPERATOR) {
-      path += ZkPathes.SEPERATOR;
+    if (path.charAt(path.length() - 1) != _conf.getSeparator()) {
+      path += _conf.getSeparator();
     }
     for (String child : children) {
       System.out.println(path + child);

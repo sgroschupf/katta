@@ -75,4 +75,10 @@ public class QueryWritable implements Writable {
     Query other = ((QueryWritable) obj).getQuery();
     return _query.equals(other);
   }
+  
+  @Override
+  public String toString() {
+    return _query != null ? _query.toString() : "null";
+  }
+  
 }

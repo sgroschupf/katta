@@ -23,7 +23,7 @@ import org.apache.hadoop.io.Writable;
 
 public class ShardError implements Writable {
 
-  private String _errorMsg;
+  private String _errorMsg = "";
   private long _timestamp = System.currentTimeMillis();
 
   public ShardError() {
@@ -31,7 +31,7 @@ public class ShardError implements Writable {
   }
 
   public ShardError(String errorMsg) {
-    _errorMsg = errorMsg;
+    _errorMsg = errorMsg != null ? errorMsg : "";
   }
 
   public String getErrorMsg() {

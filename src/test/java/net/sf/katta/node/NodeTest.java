@@ -30,9 +30,7 @@ import net.sf.katta.index.AssignedShard;
 import net.sf.katta.index.IndexMetaData;
 import net.sf.katta.index.IndexMetaData.IndexState;
 import net.sf.katta.testutil.TestResources;
-import net.sf.katta.util.NodeConfiguration;
 import net.sf.katta.zk.ZKClient;
-import net.sf.katta.zk.ZkPathes;
 
 import org.apache.lucene.analysis.KeywordAnalyzer;
 import org.apache.lucene.queryParser.QueryParser;
@@ -43,17 +41,17 @@ public class NodeTest extends AbstractKattaTest {
 
   public void testShardStatusSuccess() throws Exception {
     MasterStartThread masterThread = startMaster();
-    NodeStartThread nodeThread = startNode();
+    NodeStartThread nodeThread = startNode(new LuceneServer());
     masterThread.join();
     nodeThread.join();
-    waitForChilds(masterThread.getZkClient(), ZkPathes.NODES, 1);
+    waitForChilds(masterThread.getZkClient(), _conf.getZKNodesPath(), 1);
 
     // deploy index
-    Katta katta = new Katta();
+    Katta katta = new Katta(_conf);
     katta.addIndex("index", TestResources.INDEX1.getAbsolutePath(), 1);
 
     // test
-    final String indexPath = ZkPathes.INDEXES + "/index";
+    final String indexPath = _conf.getZKIndicesPath() + "/index";
     IndexMetaData indexMetaData = new IndexMetaData();
     masterThread.getZkClient().readData(indexPath, indexMetaData);
     assertEquals(IndexMetaData.IndexState.DEPLOYED, indexMetaData.getState());
@@ -66,17 +64,17 @@ public class NodeTest extends AbstractKattaTest {
 
   public void testShardStatusNoSuccessNoIndexGiven() throws Exception {
     MasterStartThread masterThread = startMaster();
-    NodeStartThread nodeThread = startNode();
+    NodeStartThread nodeThread = startNode(new LuceneServer());
     masterThread.join();
     nodeThread.join();
-    waitForChilds(masterThread.getZkClient(), ZkPathes.NODES, 1);
+    waitForChilds(masterThread.getZkClient(), _conf.getZKNodesPath(), 1);
 
     // deploy index
-    Katta katta = new Katta();
+    Katta katta = new Katta(_conf);
     katta.addIndex("index", "src/test/testIndexNotHere/", 1);
 
     // test
-    final String indexPath = ZkPathes.INDEXES + "/index";
+    final String indexPath = _conf.getZKIndicesPath() + "/index";
     IndexMetaData indexMetaData = new IndexMetaData();
     masterThread.getZkClient().readData(indexPath, indexMetaData);
     assertEquals(IndexState.ERROR, indexMetaData.getState());
@@ -90,26 +88,26 @@ public class NodeTest extends AbstractKattaTest {
 
   public void testDeployShardAfterRestart() throws Exception {
     MasterStartThread masterThread = startMaster();
-    NodeStartThread nodeThread = startNode();
+    NodeStartThread nodeThread = startNode(new LuceneServer());
     masterThread.join();
     nodeThread.join();
-    waitForChilds(masterThread.getZkClient(), ZkPathes.NODES, 1);
+    waitForChilds(masterThread.getZkClient(), _conf.getZKNodesPath(), 1);
 
     // deploy index
-    BaseNode node = nodeThread.getNode();
+    Node node = nodeThread.getNode();
     assertEquals(0, node.getDeployedShards().size());
-    Katta katta = new Katta();
+    Katta katta = new Katta(_conf);
     String index = "index";
     katta.addIndex(index, TestResources.INDEX1.getAbsolutePath(), 1);
 
     // test
     assertTrue(node.getDeployedShards().size() > 0);
     IndexMetaData indexMetaData = new IndexMetaData();
-    masterThread.getZkClient().readData(ZkPathes.getIndexPath(index), indexMetaData);
+    masterThread.getZkClient().readData(_conf.getZKIndexPath(index), indexMetaData);
     assertEquals(IndexMetaData.IndexState.DEPLOYED, indexMetaData.getState());
 
     nodeThread.shutdown();
-    nodeThread = startNode();
+    nodeThread = startNode(new LuceneServer());
     nodeThread.join();
     node = nodeThread.getNode();
     assertTrue(node.getDeployedShards().size() > 0);
@@ -124,8 +122,10 @@ public class NodeTest extends AbstractKattaTest {
 
     ZKClient zkClient = Mockito.mock(ZKClient.class);
     Mockito.when(zkClient.getEventLock()).thenReturn(new ZKClient.ZkLock());
+    Mockito.when(zkClient.getConfig()).thenReturn(_conf);
 
-    LuceneNode node = new LuceneNode(zkClient, new NodeConfiguration());
+    LuceneServer server = new LuceneServer();
+    Node node = new Node(zkClient, server);
     node.start();
 
     List<AssignedShard> shards = new ArrayList<AssignedShard>();
@@ -134,7 +134,7 @@ public class NodeTest extends AbstractKattaTest {
     shards.add(new AssignedShard("index", "src/test/testIndexA/cIndex"));
     shards.add(new AssignedShard("index", "src/test/testIndexA/dIndex"));
 
-    node.deploy(shards);
+    node.deployShards(shards);
 
     ArrayList<String> shardNames = new ArrayList<String>();
     for (AssignedShard assignedShard : shards) {
@@ -146,12 +146,12 @@ public class NodeTest extends AbstractKattaTest {
     QueryWritable writable = new QueryWritable(query);
 
     String[] shardArray = shardNames.toArray(new String[shardNames.size()]);
-    DocumentFrequencyWritable freqs = node.getDocFreqs(writable, shardArray);
+    DocumentFrequencyWritable freqs = server.getDocFreqs(writable, shardArray);
 
     ExecutorService es = Executors.newFixedThreadPool(100);
     List<Future<HitsMapWritable>> tasks = new ArrayList<Future<HitsMapWritable>>();
     for (int i = 0; i < 10000; i++) {
-      QueryClient client = new QueryClient(node, freqs, writable, shardArray);
+      QueryClient client = new QueryClient(server, freqs, writable, shardArray);
       Future<HitsMapWritable> future = es.submit(client);
       tasks.add(future);
     }
@@ -172,8 +172,9 @@ public class NodeTest extends AbstractKattaTest {
   public void testUndeployShards() throws Exception {
     ZKClient zkClient = Mockito.mock(ZKClient.class);
     Mockito.when(zkClient.getEventLock()).thenReturn(new ZKClient.ZkLock());
+    Mockito.when(zkClient.getConfig()).thenReturn(_conf);
 
-    LuceneNode node = new LuceneNode(zkClient, new NodeConfiguration());
+    Node node = new Node(zkClient, new LuceneServer());
     node.start();
 
     List<AssignedShard> shards = new ArrayList<AssignedShard>();
@@ -182,26 +183,26 @@ public class NodeTest extends AbstractKattaTest {
     shards.add(new AssignedShard("index", "src/test/testIndexA/cIndex"));
     shards.add(new AssignedShard("index", "src/test/testIndexA/dIndex"));
 
-    node.deploy(shards);
+    node.deployShards(shards);
 
     File workingFolder = node._shardsFolder;
     assertEquals(4, workingFolder.list().length);
     // we should have 4 folders in our working folder now.
     ArrayList<String> list = new ArrayList<String>();
     list.add(shards.get(0).getShardName());
-    node.undeploy(list);
+    node.undeployShards(list);
     assertEquals(3, workingFolder.list().length);
   }
 
   private class QueryClient implements Callable<HitsMapWritable> {
 
-    private LuceneNode _node;
+    private LuceneServer _server;
     private QueryWritable _query;
     private DocumentFrequencyWritable _freqs;
     private String[] _shards;
 
-    public QueryClient(LuceneNode node, DocumentFrequencyWritable freqs, QueryWritable query, String[] shards) {
-      _node = node;
+    public QueryClient(LuceneServer server, DocumentFrequencyWritable freqs, QueryWritable query, String[] shards) {
+      _server = server;
       _freqs = freqs;
       _query = query;
       _shards = shards;
@@ -209,7 +210,7 @@ public class NodeTest extends AbstractKattaTest {
 
     @Override
     public HitsMapWritable call() throws Exception {
-      return _node.search(_query, _freqs, _shards, 2);
+      return _server.search(_query, _freqs, _shards, 2);
     }
 
   }
@@ -236,7 +237,7 @@ public class NodeTest extends AbstractKattaTest {
   // final AssignedShard shard1 = new AssignedShard("bla2",
   // "src/test/testIndexA/bIndex");
   // searchServer.addShard(shard1);
-  // final DocumentFrequencyWritable docFreqs =
+  // final DocumentFrequenceWritable docFreqs =
   // searchServer.getDocFreqs(query,
   // new String[] { shard1.getName() });
   // searchServer.setSimilarityDocFreqs(docFreqs);
@@ -272,7 +273,7 @@ public class NodeTest extends AbstractKattaTest {
   // AssignedShard shard = new AssignedShard("bla2",
   // "src/test/testIndexA/bIndex");
   // searchServer.addShard(shard);
-  // DocumentFrequencyWritable docFreqs = searchServer.getDocFreqs(query, new
+  // DocumentFrequenceWritable docFreqs = searchServer.getDocFreqs(query, new
   // String[] { shard.getName() });
   // searchServer.setSimilarityDocFreqs(docFreqs);
   // HitsMapWritable searchHits = searchServer.search(new Query("foo: bar"),
@@ -332,7 +333,7 @@ public class NodeTest extends AbstractKattaTest {
   // final AssignedShard shard = new AssignedShard("bla2",
   // "src/test/testIndexA/bIndex");
   // searchServer.addShard(shard);
-  // DocumentFrequencyWritable docFreqs = searchServer.getDocFreqs(query, new
+  // DocumentFrequenceWritable docFreqs = searchServer.getDocFreqs(query, new
   // String[] { shard.getName() });
   // searchServer.setSimilarityDocFreqs(docFreqs);
   // HitsMapWritable searchHits = searchServer.search(query, new String[] {
@@ -411,10 +412,10 @@ public class NodeTest extends AbstractKattaTest {
   //
   // final Query query = new Query("foo: bar");
   //
-  // final DocumentFrequencyWritable docFreqs =
+  // final DocumentFrequenceWritable docFreqs =
   // searchServer1.getDocFreqs(query,
   // new String[] { shard.getName() });
-  // final DocumentFrequencyWritable docFreqs2 =
+  // final DocumentFrequenceWritable docFreqs2 =
   // searchServer2.getDocFreqs(query, new String[] { shard2.getName() });
   // docFreqs.putAll(docFreqs2.getAll());
   // docFreqs.addNumDocs(docFreqs2.getNumDocs());
@@ -468,7 +469,7 @@ public class NodeTest extends AbstractKattaTest {
   // searchServer.addShard(shard);
   //
   // final Query query = new Query("content: the");
-  // final DocumentFrequencyWritable docFreqs =
+  // final DocumentFrequenceWritable docFreqs =
   // searchServer.getDocFreqs(query,
   // new String[] { shard.getName() });
   // searchServer.setSimilarityDocFreqs(docFreqs);
@@ -508,7 +509,7 @@ public class NodeTest extends AbstractKattaTest {
   // searchServer.addShard(shard);
   //
   // final Query query = new Query("content: the");
-  // final DocumentFrequencyWritable docFreqs =
+  // final DocumentFrequenceWritable docFreqs =
   // searchServer.getDocFreqs(query,
   // new String[] { shard.getName() });
   // searchServer.setSimilarityDocFreqs(docFreqs);
@@ -591,7 +592,7 @@ public class NodeTest extends AbstractKattaTest {
   // searchServer.addShard(shard);
   //
   // final Query query = new Query("content: the");
-  // final DocumentFrequencyWritable docFreqs =
+  // final DocumentFrequenceWritable docFreqs =
   // searchServer.getDocFreqs(query,
   // new String[] { shard.getName() });
   // searchServer.setSimilarityDocFreqs(docFreqs);

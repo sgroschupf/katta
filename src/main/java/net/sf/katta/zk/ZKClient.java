@@ -22,17 +22,12 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
-import net.sf.katta.index.IndexMetaData;
-import net.sf.katta.index.ShardError;
-import net.sf.katta.master.MasterMetaData;
-import net.sf.katta.node.NodeMetaData;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.ZkConfiguration;
 
@@ -47,6 +42,7 @@ import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.Watcher.Event.KeeperState;
 import org.apache.zookeeper.ZooDefs.Ids;
+import org.apache.zookeeper.data.Stat;
 
 /**
  * Abstracts the interation with zookeeper and allows permanent (not just one
@@ -57,6 +53,9 @@ public class ZKClient implements Watcher {
 
   private final static Logger LOG = Logger.getLogger(ZKClient.class);
 
+  private static final int MAX_RETRIES = 5;
+
+  private ZkConfiguration _conf;
   private ZooKeeper _zk = null;
   private final ZkLock _zkEventLock = new ZkLock();
 
@@ -70,12 +69,14 @@ public class ZKClient implements Watcher {
   private boolean _shutdownTriggered;
 
   public ZKClient(String servers, int port, int timeout) {
+    _conf = new ZkConfiguration();
     _servers = servers;
     _port = port;
     _timeOut = timeout;
   }
 
   public ZKClient(final ZkConfiguration configuration) {
+    _conf = configuration;
     _servers = configuration.getZKServers();
     _port = configuration.getZKClientPort();
     _timeOut = configuration.getZKTimeOut();
@@ -90,12 +91,15 @@ public class ZKClient implements Watcher {
    * zookeeper servers.
    * 
    * @param maxMsToWaitUntilConnected
-   *            the milliseconds a method call will wait until the zookeeper
-   *            client is connected with the server
+   *          the milliseconds a method call will wait until the zookeeper
+   *          client is connected with the server
    * @throws KattaException
-   *             if connection fails or default namespaces could not be created
+   *           if connection fails or default namespaces could not be created
    */
   public void start(final long maxMsToWaitUntilConnected) throws KattaException {
+    if (!_conf.getZKRootPath().equals(ZkConfiguration.DEFAULT_ROOT_PATH)) {
+      LOG.info("Using Katta root path: " + _conf.getZKRootPath());
+    }
     if (_zk != null) {
       throw new IllegalStateException("zk client has already been started");
     }
@@ -184,14 +188,14 @@ public class ZKClient implements Watcher {
    * @param listener
    * @return list of children nodes for given path.
    * @throws KattaException
-   *             Thrown in case we can't read the children nodes. Note that we
-   *             also remove the notification listener.
+   *           Thrown in case we can't read the children nodes. Note that we
+   *           also remove the notification listener.
    */
   public List<String> subscribeChildChanges(final String path, final IZkChildListener listener) throws KattaException {
     ensureZkRunning();
     addChildListener(path, listener);
     try {
-      return _zk.getChildren(path, true);
+      return getChildren(path, true);
     } catch (final Exception e) {
       removeChildListener(path, listener);
       throw new KattaException("unable to subscribe child changes for path: " + path, e);
@@ -301,17 +305,64 @@ public class ZKClient implements Watcher {
     create(path, writable, CreateMode.PERSISTENT);
   }
 
-  public String create(final String path, final Writable writable, CreateMode mode) throws KattaException {
+  private String create(final String path, final Writable writable, CreateMode mode) throws KattaException {
     ensureZkRunning();
     assert path != null;
     final byte[] data = writableToByteArray(writable);
+    char sep = _conf.getSeparator();
     try {
-      return _zk.create(path, data, Ids.OPEN_ACL_UNSAFE, mode);
+      // First create elements on path down to leaf node (if missing).
+      String[] elements = path.split(new String(new char[] { sep }));
+      String dirPath = "";
+      for (int i = 0; i < elements.length - 1; i++) {
+        if (elements[i].length() == 0) {
+          continue;
+        }
+        dirPath += sep + elements[i];
+        if (!exists(dirPath)) {
+          createOne(dirPath, new byte[0], CreateMode.PERSISTENT);
+        }
+      }
+      // Now create leaf.
+      return createOne(path, data, mode);
     } catch (final Exception e) {
-      throw new KattaException("unable to create path '" + path + "' in ZK", e);
+      throw new KattaException("Unable to create path '" + path + "' in ZK", e);
     }
   }
 
+  private String createOne(final String path, final byte[] bytes, CreateMode mode) throws KattaException {
+    boolean warned = false;
+    for (int t = 0; t < MAX_RETRIES; t++) {
+      try {
+        String s = _zk.create(path, bytes, Ids.OPEN_ACL_UNSAFE, mode);
+        if (warned) {
+          LOG.warn(String.format("Created intermediate node: %s", path));
+        }
+        return s;
+      } catch (KeeperException.NodeExistsException e) {
+        // Some one must have created it just now.
+        return path;
+      } catch (InterruptedException e) {
+        // Ignore. Try again.
+      } catch (KeeperException.ConnectionLossException e) {
+        LOG.warn(String.format(
+                "KeeperException.ConnectionLossException during attempt %d of %d to create intermediate node: %s",
+                t + 1, MAX_RETRIES, path));
+        warned = true;
+        // Should try again after a very short time.
+        try {
+          Thread.sleep(10);
+        } catch (InterruptedException ie) {
+          // Ignore.
+        }
+      } catch (KeeperException e) {
+        LOG.error(String.format("Error creating intermediate node: %s", path), e);
+        throw new KattaException(String.format("Unable to create intermediate node: %s", path), e);
+      }
+    }
+    throw new KattaException("Unable to create intermediate node: " + path);
+  }
+  
   private byte[] writableToByteArray(final Writable writable) throws KattaException {
     byte[] data = new byte[0];
     if (writable != null) {
@@ -381,18 +432,20 @@ public class ZKClient implements Watcher {
   }
 
   /**
-   * Deletes a path and all children recursivly.
+   * Deletes a path and all children recursively.
    * 
    * @param path
-   * @return
+   *          The path to delete.
+   * @return true if successful.
    * @throws KattaException
    */
   public boolean deleteRecursive(final String path) throws KattaException {
     ensureZkRunning();
     try {
       final List<String> children = _zk.getChildren(path, false);
-      for (final String subPath : children) {
-        if (!deleteRecursive(path + "/" + subPath)) {
+      for (final String child : children) {
+        String subPath = path + (path.endsWith("/") ? "" : _conf.getSeparator()) + child;
+        if (!deleteRecursive(subPath)) {
           return false;
         }
       }
@@ -402,6 +455,10 @@ public class ZKClient implements Watcher {
       throw new KattaException("retrieving children was interruppted", e);
     }
 
+    if (path.equals("/") || path.equals("/zookeeper") || path.startsWith("/zookeeper/")) {
+      // Special case when root path = /. Can't delete these.
+      return true;
+    }
     try {
       _zk.delete(path, -1);
     } catch (final KeeperException e) {
@@ -422,11 +479,44 @@ public class ZKClient implements Watcher {
    * @throws KattaException
    */
   public boolean exists(final String path) throws KattaException {
+    boolean warned = false;
+    for (int i = 0; i < MAX_RETRIES; i++) {
+      ensureZkRunning();
+      try {
+        try {
+          boolean exists = _zk.exists(path, false) != null;
+          if (warned) {
+            LOG.warn(String.format("Path %s %s", path, exists ? "exists" : "does not exist"));
+          }
+          return exists;
+        } catch (KeeperException.ConnectionLossException e) {
+          LOG.warn(String.format(
+                  "KeeperException.ConnectionLossException during attempt %d of %d to check node: %s for existence",
+                  i + 1, MAX_RETRIES, path));
+          warned = true;
+          // should try again after a very short time
+          Thread.sleep(10);
+        } catch (KeeperException e) {
+          throw new KattaException(String.format("Unable to check path: %s", path), e);
+        }
+      } catch (InterruptedException e1) {
+        // ignore this since it just made us wake up a little early
+      }
+    }
+    throw new KattaException(String.format("Unable to check path %s after %d retries", path, MAX_RETRIES));
+  }
+
+  public long getCreateTime(final String path) throws KattaException {
     ensureZkRunning();
     try {
-      return _zk.exists(path, false) != null;
+      Stat stat = _zk.exists(path, false);
+      if (stat != null) {
+        return stat.getCtime();
+      } else {
+        return -1;
+      }
     } catch (final Exception e) {
-      throw new KattaException("unable to check path: " + path, e);
+      throw new KattaException("unable to get create time: " + path, e);
     }
   }
 
@@ -444,11 +534,44 @@ public class ZKClient implements Watcher {
     if (listeners != null && listeners.size() > 0) {
       watch = true;
     }
-    try {
-      return _zk.getChildren(path, watch);
-    } catch (final Exception e) {
-      throw new KattaException("warn unable to retrieve children: " + path, e);
+    return getChildren(path, watch);
+  }
+
+  /**
+   * Helper method to eliminate Connection Loss related exceptions
+   * 
+   * @param path
+   * @param isToLeaveWatch
+   * @return
+   * @throws KattaException
+   */
+  private List<String> getChildren(final String path, boolean isToLeaveWatch) throws KattaException {
+    boolean warned = false;
+    for (int i = 0; i < MAX_RETRIES; i++) {
+      ensureZkRunning();
+      try {
+        List<String> children = _zk.getChildren(path, isToLeaveWatch);
+        if (warned) {
+          LOG.warn("Got children for path: " + path);
+        }
+        return children;
+      } catch (KeeperException.ConnectionLossException e) {
+        LOG.warn(String.format(
+                "Lost connection to ZK while trying to get children of: %s. Attempt %d of %d. Reconnecting.", path,
+                i + 1, MAX_RETRIES), e);
+        warned = true;
+        try {
+          Thread.sleep(10);
+        } catch (InterruptedException e1) {
+          // Ignore this one.
+        }
+      } catch (InterruptedException e1) {
+        // Ignore this since it just made us wake up a little early .
+      } catch (final Exception e) {
+        throw new KattaException("Warning: unable to retrieve children: " + path, e);
+      }
     }
+    throw new KattaException("Warning: unable to retrieve children: " + path);
   }
 
   public int countChildren(String path) throws KattaException {
@@ -468,7 +591,7 @@ public class ZKClient implements Watcher {
     // // prohibit nullpointer (See ZOOKEEPER-77)
     // event.setPath("null");
     // }
-    boolean stateChanged = event.getPath() == null;
+    boolean stateChanged = event.getState() == KeeperState.Disconnected || event.getState() == KeeperState.Expired;
     boolean dataChanged = event.getType() == Watcher.Event.EventType.NodeDataChanged
             || event.getType() == Watcher.Event.EventType.NodeChildrenChanged
             || event.getType() == Watcher.Event.EventType.NodeDeleted;
@@ -478,8 +601,8 @@ public class ZKClient implements Watcher {
         LOG.debug("ignoring event '{" + event.getType() + " | " + event.getPath() + "}' since shutdown triggered");
         return;
       }
-      if (stateChanged) {
-        processStateChanged(event);
+      if (event.getState() == KeeperState.Expired) {
+        processExpiration(event);
       }
       if (dataChanged) {
         processDataOrChildChange(event);
@@ -495,53 +618,14 @@ public class ZKClient implements Watcher {
     }
   }
 
-  private void processStateChanged(WatchedEvent event) {
-    if (event.getState() == KeeperState.SyncConnected) {
-      LOG.debug("zookeeper state changed (" + event.getState() + ")");
-    } else {
-      LOG.warn("zookeeper state changed (" + event.getState() + ")");
-    }
+  private void processExpiration(WatchedEvent event) {
+    // we do a reconnect
+    LOG.warn("Zookeeper session expired (" + event + ")");
     if (_shutdownTriggered) {
-      return;
-    }
-    for (IZkReconnectListener listener : _reconnectListener) {
-      try {
-        listener.handleStateChanged(event.getState());
-      } catch (Exception e) {
-        LOG.error("Failed to trigger handleStateChanged on "+listener, e);
-      }
-    }
-    if (event.getState() == KeeperState.Expired) {
-      close();
-      try {
-        start(1000 * 60 * 10);
-      } catch (KattaException e) {
-        throw new RuntimeException("Exception while restarting zk client", e);
-      }
-      for (IZkReconnectListener listener : _reconnectListener) {
-        try {
-          listener.handleNewSession();
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-          LOG.warn("Failed to trigger handleNewSession on "+listener, e);
-        } catch (Throwable t) {
-          LOG.error("Failed to trigger handleNewSession on "+listener, t);
-        }
-      }
-
-      if (event.getState() == KeeperState.SyncConnected) {
-        // re-register all subscriptions
-        synchronized (_path2ChildListenersMap) {
-          for (Entry<String, Set<IZkChildListener>> entry : _path2ChildListenersMap.entrySet()) {
-            resubscribeChildPath(entry.getKey(), entry.getValue());
-          }
-        }
-        synchronized (_path2DataListenersMap) {
-          for (Entry<String, Set<IZkDataListener>> entry : _path2DataListenersMap.entrySet()) {
-            resubscribeDataPath(entry.getKey(), entry.getValue());
-          }
-        }
-      }
+      // already closing
+    } else {
+      LOG.warn("Reconnecting to Zookeeper");
+      reconnect();
     }
   }
 
@@ -596,7 +680,7 @@ public class ZKClient implements Watcher {
     }
   }
 
-  private byte[] resubscribeDataPath(String path, Set<IZkDataListener> listeners) {
+  private byte[] resubscribeDataPath(final String path, final Set<IZkDataListener> listeners) {
     byte[] data = null;
     try {
       data = _zk.getData(path, true, null);
@@ -609,16 +693,28 @@ public class ZKClient implements Watcher {
     return data;
   }
 
-  private List<String> resubscribeChildPath(String path, Set<IZkChildListener> childListeners) {
+  private List<String> resubscribeChildPath(final String path, final Set<IZkChildListener> childListeners) {
     List<String> children;
     try {
-      children = _zk.getChildren(path, true);
+      children = getChildren(path, true);
     } catch (final Exception e) {
       LOG.fatal("re-subscription for child changes on path '" + path + "' failed. removing listeners", e);
       children = Collections.emptyList();
       // childListeners.clear();
     }
     return children;
+  }
+
+  private void reconnect() {
+    try {
+      close();
+      start(1000 * 60 * 10);
+      for (IZkReconnectListener reconnectListener : _reconnectListener) {
+        reconnectListener.handleNewSession();
+      }
+    } catch (final Throwable t) {
+      throw new RuntimeException("Exception while restarting zk client", t);
+    }
   }
 
   /**
@@ -680,48 +776,33 @@ public class ZKClient implements Watcher {
    * 
    * @throws KattaException
    */
-  public void showFolders(OutputStream output) throws KattaException {
+  public void showFolders(boolean all, OutputStream output) throws KattaException {
     final int level = 1;
     final StringBuilder builder = new StringBuilder();
-    final String startPath = "/";
+    final String startPath = all ? new String(new char[] { _conf.getSeparator() }) : _conf.getZKRootPath();
+    builder.append(startPath + "\n");
     addChildren(level, builder, startPath);
     try {
       output.write(builder.toString().getBytes());
     } catch (final IOException e) {
       e.printStackTrace();
     }
-
   }
 
   private void addChildren(final int level, final StringBuilder builder, final String startPath) throws KattaException {
-    final List<String> children = getChildren(startPath);
-    for (final String node : children) {
-      builder.append(getSpaces(level - 1) + "'-" + "+" + node + "(" + getNodeAsText(startPath + "/" + node) + ")\n");
-
-      String nestedPath;
-      if (startPath.endsWith("/")) {
-        nestedPath = startPath + node;
-      } else {
-        nestedPath = startPath + "/" + node;
-      }
-
-      addChildren(level + 1, builder, nestedPath);
-    }
-  }
-
-  private String getNodeAsText(String path) {
-
-    Class[] classes = new Class[] { IndexMetaData.class, NodeMetaData.class, MasterMetaData.class, ShardError.class };
+    List<String> children = Collections.emptyList();
     try {
-      for (int i = 0; i < classes.length; i++) {
-        Writable newInstance = (Writable) classes[i].newInstance();
-        readData(path, newInstance);
-        return newInstance.toString();
-      }
-
-    } catch (Exception e) {
+      children = getChildren(startPath);
+    } catch (KattaException e) {
     }
-    return "";
+    for (final String node : children) {
+      String childPath = startPath + (startPath.endsWith("/") ? "" : "/") + node;
+      boolean hasKids = !getChildren(childPath).isEmpty();
+      char connector = hasKids ? '+' : '-';
+      builder.append(getSpaces(level - 1) + "'-" + connector + node + "\n");
+
+      addChildren(level + 1, builder, (startPath + "/" + node).replaceAll("//", "/"));
+    }
   }
 
   private String getSpaces(final int level) {
@@ -769,26 +850,26 @@ public class ZKClient implements Watcher {
   public void createDefaultNameSpace() throws KattaException {
     LOG.debug("Creating default File structure if required....");
     try {
-      if (!exists(ZkPathes.ROOT_PATH)) {
-        create(ZkPathes.ROOT_PATH);
+      if (!exists(_conf.getZKRootPath())) {
+        create(_conf.getZKRootPath());
       }
-      if (!exists(ZkPathes.INDEXES)) {
-        create(ZkPathes.INDEXES);
+      if (!exists(_conf.getZKIndicesPath())) {
+        create(_conf.getZKIndicesPath());
       }
-      if (!exists(ZkPathes.NODES)) {
-        create(ZkPathes.NODES);
+      if (!exists(_conf.getZKNodesPath())) {
+        create(_conf.getZKNodesPath());
       }
-      if (!exists(ZkPathes.NODE_TO_SHARD)) {
-        create(ZkPathes.NODE_TO_SHARD);
+      if (!exists(_conf.getZKNodeToShardPath())) {
+        create(_conf.getZKNodeToShardPath());
       }
-      if (!exists(ZkPathes.SHARD_TO_NODE)) {
-        create(ZkPathes.SHARD_TO_NODE);
+      if (!exists(_conf.getZKShardToNodePath())) {
+        create(_conf.getZKShardToNodePath());
       }
-      if (!exists(ZkPathes.SHARD_TO_ERROR)) {
-        create(ZkPathes.SHARD_TO_ERROR);
+      if (!exists(_conf.getZKShardToErrorPath())) {
+        create(_conf.getZKShardToErrorPath());
       }
-      if (!exists(ZkPathes.LOADTEST_NODES)) {
-        create(ZkPathes.LOADTEST_NODES);
+      if (!exists(_conf.getZKLoadTestPath())) {
+        create(_conf.getZKLoadTestPath());
       }
     } catch (KattaException e) {
       if (e.getCause() instanceof KeeperException && e.getCause().getMessage().contains("KeeperErrorCode = NodeExists")) {
@@ -804,14 +885,18 @@ public class ZKClient implements Watcher {
    * @return all nodes known to the system, also if currently disconnected
    */
   public List<String> getKnownNodes() throws KattaException {
-    return getChildren(ZkPathes.NODE_TO_SHARD);
+    return getChildren(_conf.getZKNodeToShardPath());
   }
 
   /**
    * @return all nodes connected to th zk system
    */
   public List<String> getAliveNodes() throws KattaException {
-    return getChildren(ZkPathes.NODES);
+    return getChildren(_conf.getZKNodesPath());
+  }
+
+  public ZkConfiguration getConfig() {
+    return _conf;
   }
 
   public static class ZkLock extends ReentrantLock {

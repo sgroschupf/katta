@@ -17,13 +17,12 @@ package net.sf.katta.node;
 
 import junit.framework.Assert;
 import junit.framework.TestCase;
-import net.sf.katta.node.KattaMultiSearcher.KattaHitQueue;
 
 public class KattaMultiSearcherTest extends TestCase {
 
   public void testPriorityQueue() throws Exception {
     // tests some simple PriorityQueue behaviro
-    KattaHitQueue queue = new KattaMultiSearcher("node").new KattaHitQueue(2);
+    LuceneServer.KattaHitQueue queue = new LuceneServer().new KattaHitQueue(2);
     Assert.assertTrue(queue.insert(new Hit("sahrd", "node", 1f, 1)));
     Assert.assertTrue(queue.insert(new Hit("sahrd", "node", 2f, 1)));
     Assert.assertTrue(queue.insert(new Hit("sahrd", "node", 3f, 1)));

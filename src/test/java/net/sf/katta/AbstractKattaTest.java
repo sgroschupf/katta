@@ -18,19 +18,16 @@ package net.sf.katta;
 import java.io.File;
 import java.util.concurrent.TimeUnit;
 
-import net.sf.katta.loadtest.LoadTestNode;
 import net.sf.katta.master.Master;
-import net.sf.katta.node.BaseNode;
-import net.sf.katta.node.LuceneNode;
+import net.sf.katta.node.INodeManaged;
+import net.sf.katta.node.Node;
 import net.sf.katta.testutil.ExtendedTestCase;
 import net.sf.katta.util.FileUtil;
 import net.sf.katta.util.KattaException;
-import net.sf.katta.util.LoadTestNodeConfiguration;
 import net.sf.katta.util.NetworkUtil;
 import net.sf.katta.util.NodeConfiguration;
 import net.sf.katta.util.ZkConfiguration;
 import net.sf.katta.zk.ZKClient;
-import net.sf.katta.zk.ZkPathes;
 import net.sf.katta.zk.ZkServer;
 import net.sf.katta.zk.ZKClient.ZkLock;
 
@@ -45,7 +42,7 @@ import org.apache.zookeeper.ZooKeeper.States;
 public abstract class AbstractKattaTest extends ExtendedTestCase {
 
   private static ZkServer _zkServer;
-  protected final ZkConfiguration _conf = new ZkConfiguration();
+  protected final ZkConfiguration _conf;
   private final boolean _resetZkNamespaceBetweenTests;
 
   public AbstractKattaTest() {
@@ -53,7 +50,27 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
   }
 
   public AbstractKattaTest(boolean resetZkNamespaceBetweenTests) {
+    String confPath = getZkConfigurationResourceName();
+    if (confPath == null) {
+      _conf = new ZkConfiguration();
+    } else {
+      System.out.println("Using config file " + confPath);
+      _conf = new ZkConfiguration(confPath);
+    }
     _resetZkNamespaceBetweenTests = resetZkNamespaceBetweenTests;
+  }
+
+  /**
+   * Test cases may optionally override this to use an alternate config file for
+   * the ZkConfiguration to use. If null is returned, the zero args constructor
+   * is used, which defaults to /katta.zk.properties. If non-null then
+   * Class.getResourceAsStream() is used to read a Properties file from the
+   * path. Returns null.
+   * 
+   * @return The resource path to use, or null for default.
+   */
+  protected String getZkConfigurationResourceName() {
+    return null;
   }
 
   @Override
@@ -82,8 +99,8 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
   private void resetZkNamespace() throws KattaException {
     ZKClient zkClient = new ZKClient(_conf);
     zkClient.start(10000);
-    if (zkClient.exists(ZkPathes.ROOT_PATH)) {
-      zkClient.deleteRecursive(ZkPathes.ROOT_PATH);
+    if (zkClient.exists(_conf.getZKRootPath())) {
+      zkClient.deleteRecursive(_conf.getZKRootPath());
     }
     zkClient.createDefaultNameSpace();
     zkClient.close();
@@ -119,7 +136,7 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
     }
     if (!NetworkUtil.isPortFree(ZkServer.DEFAULT_PORT)) {
       throw new IllegalStateException("port " + ZkServer.DEFAULT_PORT
-          + " blocked. Probably other zk server is running.");
+              + " blocked. Probably other zk server is running.");
     }
     _zkServer = new ZkServer(_conf);
   }
@@ -147,44 +164,54 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
   }
 
   protected MasterStartThread startMaster() throws KattaException {
-    ZKClient zkMasterClient = new ZKClient(_conf);
+    return startMaster(_conf);
+  }
+
+  protected MasterStartThread startMaster(ZkConfiguration conf) throws KattaException {
+    ZKClient zkMasterClient = new ZKClient(conf);
     Master master = new Master(zkMasterClient);
     MasterStartThread masterStartThread = new MasterStartThread(master, zkMasterClient);
     masterStartThread.start();
     return masterStartThread;
   }
 
-  protected NodeStartThread startNode() {
-    return startNode(new NodeConfiguration().getShardFolder().getAbsolutePath());
+  protected NodeStartThread startNode(INodeManaged server) {
+    return startNode(server, new NodeConfiguration().getShardFolder().getAbsolutePath());
   }
 
-  protected NodeStartThread startNode(int port) {
-    return startNode(new NodeConfiguration().getShardFolder().getAbsolutePath(), port);
+  protected NodeStartThread startNode(INodeManaged server, int port) {
+    return startNode(server, port, new NodeConfiguration().getShardFolder().getAbsolutePath());
   }
 
-  protected NodeStartThread startNode(String shardFolder) {
+  protected NodeStartThread startNode(INodeManaged server, String shardFolder) {
     NodeConfiguration nodeConf = new NodeConfiguration();
-    return startNode(shardFolder, nodeConf.getStartPort());
+    return startNode(server, nodeConf.getStartPort(), shardFolder);
   }
 
-  protected NodeStartThread startNode(String shardFolder, int port) {
-    ZKClient zkNodeClient = new ZKClient(_conf);
+  protected NodeStartThread startNode(INodeManaged server, int port, String shardFolder) {
+    return startNode(server, port, shardFolder, _conf);
+  }
+
+  protected NodeStartThread startNode(INodeManaged server, int port, String shardFolder, ZkConfiguration conf) {
+    ZKClient zkNodeClient = new ZKClient(conf);
     NodeConfiguration nodeConf = new NodeConfiguration();
     nodeConf.setShardFolder(shardFolder);
     nodeConf.setStartPort(port);
-    BaseNode node = new LuceneNode(zkNodeClient, nodeConf);
+    Node node = new Node(zkNodeClient, nodeConf, server);
     NodeStartThread nodeStartThread = new NodeStartThread(node, zkNodeClient);
     nodeStartThread.start();
     return nodeStartThread;
   }
 
-  protected LoadTestNode startLoadTestNode() throws KattaException {
-    ZKClient zkNodeClient = new ZKClient(_conf);
-    LoadTestNodeConfiguration nodeConf = new LoadTestNodeConfiguration();
-    LoadTestNode node = new LoadTestNode(zkNodeClient, nodeConf);
-    node.start();
-    return node;
-  }
+// TODO: port load test to new client/server model.
+//
+//  protected LoadTestNode startLoadTestNode() throws KattaException {
+//    ZKClient zkNodeClient = new ZKClient(_conf);
+//    LoadTestNodeConfiguration nodeConf = new LoadTestNodeConfiguration();
+//    LoadTestNode node = new LoadTestNode(zkNodeClient, nodeConf);
+//    node.start();
+//    return node;
+//  }
 
   protected void waitForStatus(ZKClient client, ZooKeeper.States state) throws Exception {
     waitForStatus(client, state, _conf.getZKTimeOut());
@@ -193,7 +220,7 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
   protected void waitForStatus(ZKClient client, States state, long timeout) throws Exception {
     long maxWait = System.currentTimeMillis() + timeout;
     while ((maxWait > System.currentTimeMillis())
-        && (client.getZookeeperState() == null || client.getZookeeperState() != state)) {
+            && (client.getZookeeperState() == null || client.getZookeeperState() != state)) {
       Thread.sleep(500);
     }
     assertEquals(state, client.getZookeeperState());
@@ -209,7 +236,7 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
   }
 
   public static void waitForChilds(final ZKClient client, final String path, final int childCount)
-      throws InterruptedException, KattaException {
+          throws InterruptedException, KattaException {
     int tryCount = 0;
     while (client.getChildren(path).size() != childCount && tryCount++ < 100) {
       Thread.sleep(500);
@@ -280,16 +307,16 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
 
   protected class NodeStartThread extends Thread {
 
-    private final BaseNode _node;
+    private final Node _node;
     private final ZKClient _client;
 
-    public NodeStartThread(BaseNode node, ZKClient client) {
+    public NodeStartThread(Node node, ZKClient client) {
       _node = node;
       _client = client;
       setName(getClass().getSimpleName());
     }
 
-    public BaseNode getNode() {
+    public Node getNode() {
       return _node;
     }
 
@@ -307,7 +334,7 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
 
     public void shutdown() {
       _node.shutdown();
-      waitUntilPortFree(_node.getSearchServerPort(), 5000);
+      waitUntilPortFree(_node.getRPCServerPort(), 5000);
     }
 
   }

@@ -20,13 +20,11 @@ import java.util.List;
 import net.sf.katta.AbstractKattaTest;
 import net.sf.katta.Katta;
 import net.sf.katta.node.Hits;
+import net.sf.katta.node.LuceneServer;
 import net.sf.katta.node.Query;
 import net.sf.katta.zk.ZKClient;
-import net.sf.katta.zk.ZkPathes;
 
-import org.apache.lucene.analysis.standard.StandardAnalyzer;
-
-public class ClientFailoverTest extends AbstractKattaTest {
+public class LuceneClientFailoverTest extends AbstractKattaTest {
 
   MasterStartThread masterThread;
   NodeStartThread nodeThread1;
@@ -39,15 +37,15 @@ public class ClientFailoverTest extends AbstractKattaTest {
   @Override
   protected void onSetUp2() throws Exception {
     masterThread = startMaster();
-    nodeThread1 = startNode(nodePort1);
-    nodeThread2 = startNode("/tmp/kattaShards2", nodePort2);
+    nodeThread1 = startNode(new LuceneServer(), nodePort1);
+    nodeThread2 = startNode(new LuceneServer(), nodePort2, "/tmp/kattaShards2");
 
     masterThread.join();
     nodeThread1.join();
     nodeThread2.join();
 
     // distribute index over 2 nodes
-    Katta katta = new Katta();
+    Katta katta = new Katta(_conf);
     katta.addIndex(index, "src/test/testIndexA", 2);
     katta.close();
   }
@@ -64,7 +62,7 @@ public class ClientFailoverTest extends AbstractKattaTest {
 
   public void testSearch_NodeProxyDownAfterClientInitialization() throws Exception {
     // start search client
-    Client searchClient = new Client();
+    LuceneClient searchClient = new LuceneClient(_conf);
 
     // shutdown proxy of node1
     nodeThread1.getNode().getRpcServer().stop();
@@ -83,7 +81,7 @@ public class ClientFailoverTest extends AbstractKattaTest {
 
   public void testCount_NodeProxyDownAfterClientInitialization() throws Exception {
     // start search client
-    Client searchClient = new Client();
+    LuceneClient searchClient = new LuceneClient(_conf);
 
     // shutdown proxy of node1
     nodeThread1.getNode().getRpcServer().stop();
@@ -102,7 +100,7 @@ public class ClientFailoverTest extends AbstractKattaTest {
 
   public void testGetDetails_NodeProxyDownAfterClientInitialization() throws Exception {
     // start search client
-    Client searchClient = new Client();
+    LuceneClient searchClient = new LuceneClient(_conf);
     final Query query = new Query("content:the");
     Hits hits = searchClient.search(query, new String[] { index }, 10);
 
@@ -125,7 +123,7 @@ public class ClientFailoverTest extends AbstractKattaTest {
 
   public void testAllNodeProxyDownAfterClientInitialization() throws Exception {
     // start search client
-    Client searchClient = new Client();
+    LuceneClient searchClient = new LuceneClient(_conf);
     final Query query = new Query("content:the");
     nodeThread1.getNode().getRpcServer().stop();
     nodeThread2.getNode().getRpcServer().stop();
@@ -157,21 +155,21 @@ public class ClientFailoverTest extends AbstractKattaTest {
     // simulate 2nd node alive and serving shard
     String node2Name = nodeThread2.getNode().getName();
     ZKClient zkClient = masterThread.getZkClient();
-    List<String> shards = zkClient.getChildren(ZkPathes.getIndexPath(index));
-    zkClient.create(ZkPathes.getNodePath(node2Name));
+    List<String> shards = zkClient.getChildren(_conf.getZKIndexPath(index));
+    zkClient.create(_conf.getZKNodePath(node2Name));
     for (String shard : shards) {
-      zkClient.create(ZkPathes.getShard2NodePath(shard, node2Name));
+      zkClient.create(_conf.getZKShardToNodePath(shard, node2Name));
     }
     waitOnNodes(masterThread, 2);
 
     // start search client
-    Client searchClient = new Client();
+    LuceneClient searchClient = new LuceneClient(_conf);
     final Query query = new Query("content:the");
     assertSearchResults(10, searchClient.search(query, new String[] { index }, 10));
     assertSearchResults(10, searchClient.search(query, new String[] { index }, 10));
 
     // flip node1/node2 alive status
-    nodeThread2 = startNode("/tmp/kattaShards2", nodePort2);
+    nodeThread2 = startNode(new LuceneServer(), nodePort2, "/tmp/kattaShards2");
     nodeThread2.join();
     nodeThread1.shutdown();
     waitOnNodes(masterThread, 1);

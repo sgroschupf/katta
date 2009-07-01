@@ -15,12 +15,12 @@
  */
 package net.sf.katta.node;
 
-import junit.framework.TestCase;
-
 import java.util.ArrayList;
 import java.util.List;
 
-public class DocumentFrequenceWritableTest extends TestCase {
+import junit.framework.TestCase;
+
+public class DocumentFrequencyWritableTest extends TestCase {
 
   public void testAddNumDocsMultiThreading() throws InterruptedException {
     final DocumentFrequencyWritable writable = new DocumentFrequencyWritable();

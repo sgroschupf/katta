@@ -16,6 +16,7 @@
 package net.sf.katta.util;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -40,7 +41,7 @@ public class CircularList<E> {
    * @param initialCapacity
    */
   public CircularList(int initialCapacity) {
-    this(new ArrayList(initialCapacity));
+    this(new ArrayList<E>(initialCapacity));
   }
 
   /**
@@ -52,6 +53,10 @@ public class CircularList<E> {
 
   public CircularList(List<E> list) {
     _elements = list;
+  }
+
+  public CircularList(Collection<E> list) {
+    _elements = new ArrayList<E>(list);
   }
 
   /**

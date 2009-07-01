@@ -63,7 +63,7 @@ public class IndexConfiguration extends KattaConfiguration {
 
   public static final String INDEXER_ANALYZER = "indexer.analyzer";
 
-  /**
+ /**
    * Path Related *
    */
   public static final String INDEX_TMP_DIRECTORY = "index.tmp.directory";
@@ -103,6 +103,7 @@ public class IndexConfiguration extends KattaConfiguration {
     return analyzer;
   }
 
+  @SuppressWarnings("unchecked")
   public JobConf createJobConf(final Configuration configuration) {
     JobConf jobConf = new JobConf(configuration);
     jobConf.setJobName("Index Xml");

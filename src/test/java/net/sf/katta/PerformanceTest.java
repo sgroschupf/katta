@@ -19,15 +19,17 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-import net.sf.katta.client.Client;
-import net.sf.katta.client.IClient;
+import org.apache.lucene.analysis.standard.StandardAnalyzer;
+
+import net.sf.katta.client.ILuceneClient;
+import net.sf.katta.client.LuceneClient;
 import net.sf.katta.node.Hit;
 import net.sf.katta.node.Hits;
+import net.sf.katta.node.LuceneServer;
 import net.sf.katta.node.Query;
 import net.sf.katta.testutil.TestResources;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.zk.ZKClient;
-import net.sf.katta.zk.ZkPathes;
 
 public class PerformanceTest extends AbstractKattaTest {
 
@@ -42,18 +44,18 @@ public class PerformanceTest extends AbstractKattaTest {
     MasterStartThread masterStartThread = startMaster();
     final ZKClient zkClientMaster = masterStartThread.getZkClient();
 
-    NodeStartThread nodeStartThread1 = startNode();
-    NodeStartThread nodeStartThread2 = startNode();
+    NodeStartThread nodeStartThread1 = startNode(new LuceneServer());
+    NodeStartThread nodeStartThread2 = startNode(new LuceneServer());
     masterStartThread.join();
     nodeStartThread1.join();
     nodeStartThread2.join();
-    waitForChilds(zkClientMaster, ZkPathes.NODES, 2);
+    waitForChilds(zkClientMaster, _conf.getZKNodesPath(), 2);
 
-    final Katta katta = new Katta();
+    final Katta katta = new Katta(_conf);
     katta.addIndex("index1", TestResources.INDEX1.getAbsolutePath(), 1);
     katta.addIndex("index2", TestResources.INDEX2.getAbsolutePath(), 1);
 
-    final IClient client = new Client();
+    final ILuceneClient client = new LuceneClient(_conf);
     final Query query = new Query("foo: bar");
     long start = System.currentTimeMillis();
     for (int i = 0; i < 10000; i++) {

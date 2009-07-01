@@ -19,7 +19,7 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
-import net.sf.katta.node.BaseNode.NodeState;
+import net.sf.katta.node.Node.NodeState;
 import net.sf.katta.util.DefaultDateFormat;
 
 import org.apache.hadoop.io.Text;

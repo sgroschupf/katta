@@ -20,9 +20,10 @@ import java.util.Set;
 
 import net.sf.katta.AbstractKattaTest;
 import net.sf.katta.master.Master;
-import net.sf.katta.node.BaseNode;
 import net.sf.katta.node.Hit;
 import net.sf.katta.node.Hits;
+import net.sf.katta.node.LuceneServer;
+import net.sf.katta.node.Node;
 import net.sf.katta.testutil.TestResources;
 import net.sf.katta.util.KattaException;
 
@@ -36,23 +37,23 @@ import org.apache.lucene.queryParser.QueryParser;
 import org.apache.lucene.search.Query;
 
 /**
- * Test for {@link Client}.
+ * Test for {@link LuceneClient}.
  */
-public class ClientTest extends AbstractKattaTest {
+public class LuceneClientTest extends AbstractKattaTest {
 
-  private static Logger LOG = Logger.getLogger(ClientTest.class);
+  private static Logger LOG = Logger.getLogger(LuceneClientTest.class);
 
   private static final String INDEX1 = "index1";
   private static final String INDEX2 = "index2";
   private static final String INDEX3 = "index3";
 
-  private static BaseNode _node1;
-  private static BaseNode _node2;
+  private static Node _node1;
+  private static Node _node2;
   private static Master _master;
   private static IDeployClient _deployClient;
-  private static IClient _client;
+  private static ILuceneClient _client;
 
-  public ClientTest() {
+  public LuceneClientTest() {
     super(false);
   }
 
@@ -61,8 +62,8 @@ public class ClientTest extends AbstractKattaTest {
     MasterStartThread masterStartThread = startMaster();
     _master = masterStartThread.getMaster();
 
-    NodeStartThread nodeStartThread1 = startNode();
-    NodeStartThread nodeStartThread2 = startNode();
+    NodeStartThread nodeStartThread1 = startNode(new LuceneServer());
+    NodeStartThread nodeStartThread2 = startNode(new LuceneServer());
     _node1 = nodeStartThread1.getNode();
     _node2 = nodeStartThread2.getNode();
     masterStartThread.join();
@@ -77,7 +78,7 @@ public class ClientTest extends AbstractKattaTest {
         .joinDeployment();
     _deployClient.addIndex(INDEX3, TestResources.INDEX1.getAbsolutePath(), 1)
         .joinDeployment();
-    _client = new Client();
+    _client = new LuceneClient(new DefaultNodeSelectionPolicy(), _conf);
   }
 
   @Override
@@ -129,10 +130,8 @@ public class ClientTest extends AbstractKattaTest {
 
   public void testSearch() throws KattaException, ParseException {
     final Query query = new QueryParser("", new KeywordAnalyzer()).parse("foo: bar");
-    float currentQueryPerMinute = _client.getQueryPerMinute();
     final Hits hits = _client.search(query, new String[] { INDEX3, INDEX2 });
     assertNotNull(hits);
-    assertEquals(currentQueryPerMinute + 1, _client.getQueryPerMinute());
     for (final Hit hit : hits.getHits()) {
       writeToLog(hit);
     }
@@ -157,16 +156,6 @@ public class ClientTest extends AbstractKattaTest {
     }
   }
 
-  public void testSearchIndexThatDoesntExist() throws ParseException {
-    final Query query = new QueryParser("", new KeywordAnalyzer()).parse("foo: bar");
-    try {
-      _client.search(query, new String[] { "doesNotExist" }, 1);
-      fail("expected exception");
-    } catch (KattaException e) {
-      assertEquals("Index 'doesNotExist' not deployed on any shard.", e.getMessage());
-    }
-  }
-
   public void testKatta20SearchLimitMaxNumberOfHits() throws KattaException, ParseException {
     final Query query = new QueryParser("", new KeywordAnalyzer()).parse("foo: bar");
     final Hits expectedHits = _client.search(query, new String[] { INDEX1 }, 4);
@@ -177,7 +166,7 @@ public class ClientTest extends AbstractKattaTest {
     }
     assertEquals(4, expectedHits.getHits().size());
 
-    for (int i = 0; i < 1000; i++) {
+    for (int i = 0; i < 100; i++) {
       // Now we redo the search, but limit the max number of hits. We expect the same
       // ordering of hits.
       for (int maxHits = 1; maxHits < expectedHits.size() + 1; maxHits++) {
@@ -206,5 +195,16 @@ public class ClientTest extends AbstractKattaTest {
       LOG.info(hit.getNode() + " -- " + hit.getScore() + " -- " + hit.getDocId());
     }
   }
+
+  public void testNonExistantShard() throws Exception {
+    final Query query = new QueryParser("", new KeywordAnalyzer()).parse("foo: bar");
+    try {
+      _client.search(query, new String[] { "doesNotExist" });
+      fail("Should have failed.");
+    } catch (KattaException e) {
+      assertEquals("No shards for indices: [doesNotExist]", e.getMessage());
+    }
+  }
+
 
 }

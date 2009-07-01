@@ -62,10 +62,10 @@ public class IndexMetaData implements Writable {
     }
   }
 
+  
   public String getPath() {
     return _path.toString();
   }
-
 
   public IndexState getState() {
     return _state;

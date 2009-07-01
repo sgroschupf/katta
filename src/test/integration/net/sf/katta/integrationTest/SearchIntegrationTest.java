@@ -19,8 +19,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import junit.framework.TestCase;
-import net.sf.katta.client.Client;
-import net.sf.katta.client.IClient;
+import net.sf.katta.client.ILuceneClient;
+import net.sf.katta.client.LuceneClient;
 import net.sf.katta.node.Hits;
 import net.sf.katta.node.Query;
 import net.sf.katta.testutil.TestResources;
@@ -31,7 +31,6 @@ import net.sf.katta.util.StringUtil;
 import net.sf.katta.util.ZkConfiguration;
 
 import org.apache.log4j.Logger;
-import org.apache.lucene.analysis.KeywordAnalyzer;
 
 public class SearchIntegrationTest extends TestCase {
 
@@ -119,7 +118,7 @@ public class SearchIntegrationTest extends TestCase {
     // start search threads
     int expectedHitCount = 12;
     SearchThread[] searchThreads = new SearchThread[25];
-    IClient searchClient = new Client();
+    ILuceneClient searchClient = new LuceneClient();
     for (int i = 0; i < searchThreads.length; i++) {
       searchThreads[i] = new SearchThread(searchClient, expectedHitCount);
       searchThreads[i].start();
@@ -181,7 +180,7 @@ public class SearchIntegrationTest extends TestCase {
     miniCluster.start();
 
     // deploy indexes
-    miniCluster.deployTestIndexes(TestResources.INDEX1, KeywordAnalyzer.class, indexCount, replicationCount);
+    miniCluster.deployTestIndexes(TestResources.INDEX1, indexCount, replicationCount);
     return miniCluster;
   }
 
@@ -196,13 +195,13 @@ public class SearchIntegrationTest extends TestCase {
     private long _firedQueryCount;
     private long _unexpectedResultCount;
 
-    private IClient _client;
+    private ILuceneClient _client;
 
     public SearchThread(long expectedTotalHitCount) {
       _expectedTotalHitCount = expectedTotalHitCount;
     }
 
-    public SearchThread(IClient client, long expectedTotalHitCount) {
+    public SearchThread(ILuceneClient client, long expectedTotalHitCount) {
       _client = client;
       _expectedTotalHitCount = expectedTotalHitCount;
     }
@@ -210,9 +209,9 @@ public class SearchIntegrationTest extends TestCase {
     @Override
     public void run() {
       try {
-        IClient client;
+        ILuceneClient client;
         if (_client == null) {
-          client = new Client();
+          client = new LuceneClient();
         } else {
           client = _client;
         }

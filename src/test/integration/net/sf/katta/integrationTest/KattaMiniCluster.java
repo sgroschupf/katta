@@ -20,8 +20,8 @@ import java.io.File;
 import net.sf.katta.client.DeployClient;
 import net.sf.katta.client.IDeployClient;
 import net.sf.katta.master.Master;
-import net.sf.katta.node.BaseNode;
-import net.sf.katta.node.LuceneNode;
+import net.sf.katta.node.LuceneServer;
+import net.sf.katta.node.Node;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.NodeConfiguration;
 import net.sf.katta.util.ZkConfiguration;
@@ -39,15 +39,15 @@ public class KattaMiniCluster {
   private final ZkConfiguration _zkConfiguration;
   private ZkServer _zkServer;
   private final Master _master;
-  private final BaseNode[] _nodes;
+  private final Node[] _nodes;
 
   public KattaMiniCluster(ZkConfiguration zkConfiguration, int nodeCount) throws KattaException {
     _zkConfiguration = zkConfiguration;
-    _nodes = new BaseNode[nodeCount];
+    _nodes = new Node[nodeCount];
     for (int i = 0; i < _nodes.length; i++) {
       NodeConfiguration nodeConf = new NodeConfiguration();
       nodeConf.setShardFolder(new File(nodeConf.getShardFolder(), "" + i).getAbsolutePath());
-      _nodes[i] = new LuceneNode(new ZKClient(_zkConfiguration), nodeConf);
+      _nodes[i] = new Node(new ZKClient(_zkConfiguration), nodeConf, new LuceneServer());
     }
     _master = new Master(new ZKClient(zkConfiguration));
   }
@@ -55,25 +55,25 @@ public class KattaMiniCluster {
   public void start() throws KattaException {
     _zkServer = new ZkServer(_zkConfiguration);
     _master.start();
-    for (BaseNode node : _nodes) {
+    for (Node node : _nodes) {
       node.start();
     }
   }
 
   public void stop() {
     _master.shutdown();
-    for (BaseNode node : _nodes) {
+    for (Node node : _nodes) {
       node.shutdown();
     }
     _zkServer.shutdown();
   }
 
-  public BaseNode getNode(int i) {
+  public Node getNode(int i) {
     return _nodes[i];
   }
 
-  public void deployTestIndexes(File indexFile, Class<?> analyzerClass, int deployCount, int replicationCount)
-      throws KattaException, InterruptedException {
+  public void deployTestIndexes(File indexFile, int deployCount, int replicationCount) throws KattaException,
+          InterruptedException {
     IDeployClient deployClient = new DeployClient(_zkConfiguration);
     for (int i = 0; i < deployCount; i++) {
       deployClient.addIndex(indexFile.getName() + i, indexFile.getAbsolutePath(), replicationCount).joinDeployment();

@@ -36,7 +36,6 @@ import net.sf.katta.util.IndexConfiguration;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.ZkConfiguration;
 import net.sf.katta.zk.ZKClient;
-import net.sf.katta.zk.ZkPathes;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -79,16 +78,16 @@ public class IndexMergeApplication {
     List<IndexMetaData> deployedIndexes = new ArrayList<IndexMetaData>();
     for (String indexName : indexNames) {
       IndexMetaData indexMetaData = new IndexMetaData();
-      _zkClient.readData(ZkPathes.getIndexPath(indexName), indexMetaData);
+      _zkClient.readData(_zkClient.getConfig().getZKIndexPath(indexName), indexMetaData);
       deployedIndexes.add(indexMetaData);
     }
 
-    Set<Path> indexPathes = new HashSet<Path>();
+    Set<Path> indexPaths = new HashSet<Path>();
     for (IndexMetaData indexMetaData : deployedIndexes) {
       Path indexPath = new Path(indexMetaData.getPath());
-      indexPathes.add(indexPath);
+      indexPaths.add(indexPath);
     }
-    LOG.info("found following indexes for potential merge: " + indexPathes);
+    LOG.info("found following indexes for potential merge: " + indexPaths);
 
     IndexConfiguration indexConfiguration = new IndexConfiguration();
     indexConfiguration.enrichJobConf(_jobConf, DfsIndexInputFormat.DOCUMENT_INFORMATION);
@@ -116,7 +115,7 @@ public class IndexMergeApplication {
     FileSystem fileSystem = FileSystem.get(_jobConf);
     LOG.debug("using file system: " + fileSystem.getUri());
     try {
-      indexMergeJob.merge(indexPathes.toArray(new Path[indexPathes.size()]), mergedIndex);
+      indexMergeJob.merge(indexPaths.toArray(new Path[indexPaths.size()]), mergedIndex);
 
       if (!fileSystem.exists(mergedIndex)) {
         throw new IllegalStateException("merged index '" + mergedIndex + "' does not exists");
@@ -148,7 +147,7 @@ public class IndexMergeApplication {
           + "-originals");
       fileSystem.mkdirs(archiveRootPath);
       LOG.info("moving old merged indices to archive: " + archiveRootPath);
-      for (Path indexPath : indexPathes) {
+      for (Path indexPath : indexPaths) {
         Path parentPath = indexPath.getParent();// parent of /indexes
         Path indexArchivePath = new Path(archiveRootPath, parentPath.getName());
         LOG.debug("moving " + parentPath + " to " + indexArchivePath);
@@ -163,7 +162,7 @@ public class IndexMergeApplication {
   private int countShards(List<String> indexNames) throws KattaException {
     int shardCount = 0;
     for (String index : indexNames) {
-      shardCount += _zkClient.countChildren(ZkPathes.getIndexPath(index));
+      shardCount += _zkClient.countChildren(_zkClient.getConfig().getZKIndexPath(index));
     }
     return shardCount;
   }

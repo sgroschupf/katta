@@ -16,11 +16,14 @@
 package net.sf.katta.util;
 
 import java.io.File;
+import java.util.Properties;
 
 public class ZkConfiguration extends KattaConfiguration {
 
+  public static final String KATTA_PROPERTY_NAME = "katta.zk.propertyName";
+
   public static final String ZOOKEEPER_EMBEDDED = "zookeeper.embedded";
-  
+
   public static final String ZOOKEEPER_SERVERS = "zookeeper.servers";
 
   public static final String ZOOKEEPER_TIMEOUT = "zookeeper.timeout";
@@ -37,8 +40,12 @@ public class ZkConfiguration extends KattaConfiguration {
 
   public static final String ZOOKEEPER_CLIENT_PORT = "zookeeper.clientPort";
 
+  public static final String ZOOKEEPER_ROOT_PATH = "zookeeper.root-path";
+
+  public static final String ZK_PATH_SEPERATOR = "zookeeper.path-separator";
+
   public ZkConfiguration() {
-    super("/katta.zk.properties");
+    super(System.getProperty(KATTA_PROPERTY_NAME, "/katta.zk.properties"));
   }
 
   public ZkConfiguration(final String path) {
@@ -49,17 +56,22 @@ public class ZkConfiguration extends KattaConfiguration {
     super(file);
   }
 
-  public boolean isEmbedded(){
+  public boolean isEmbedded() {
     String property = getProperty(ZOOKEEPER_EMBEDDED);
-    if(property==null){
-      throw new IllegalArgumentException("Could not find property "+ZOOKEEPER_EMBEDDED);
+    if (property == null) {
+      throw new IllegalArgumentException("Could not find property " + ZOOKEEPER_EMBEDDED);
     }
     return "true".equalsIgnoreCase(property);
   }
-  public void setEmbedded(boolean embeddedZk){
-    setProperty(ZOOKEEPER_EMBEDDED, ""+embeddedZk);
+
+  public void setEmbedded(boolean embeddedZk) {
+    setProperty(ZOOKEEPER_EMBEDDED, "" + embeddedZk);
   }
-  
+
+  public ZkConfiguration(Properties properties, String filePath) {
+    super(properties, filePath);
+  }
+
   public String getZKServers() {
     return getProperty(ZOOKEEPER_SERVERS);
   }
@@ -95,4 +107,137 @@ public class ZkConfiguration extends KattaConfiguration {
   public int getZKClientPort() {
     return getInt(ZOOKEEPER_CLIENT_PORT);
   }
+
+  /*
+   * The following methods have to do Zookeeper paths. These setting used to be
+   * static fields of ZkPaths.
+   */
+
+  private Character sep;
+
+  public char getSeparator() {
+    if (sep == null) {
+      String s = getProperty(ZK_PATH_SEPERATOR, "/");
+      sep = new Character(s.length() > 0 ? s.charAt(0) : '/');
+    }
+    return sep.charValue();
+  }
+
+  public static final String DEFAULT_ROOT_PATH = "/katta";
+  private static final String MASTER = "master";
+  private static final String NODES = "nodes";
+  private static final String INDEXES = "indexes";
+  private static final String NODE_TO_SHARD = "node-to-shard";
+  private static final String SHARD_TO_NODE = "shard-to-node";
+  private static final String SHARD_TO_ERROR = "shard-to-error";
+  private static final String LOADTEST_NODES = "loadtest-nodes";
+
+  /**
+   * Look up the path of the root node to use. This is an optional setting.
+   * Returns null if not found.
+   * 
+   * @return The root path, or null if not found.
+   */
+
+  private String _rootPath;
+
+  public String getZKRootPath() {
+    if (_rootPath == null) {
+      _rootPath = getProperty(ZOOKEEPER_ROOT_PATH, DEFAULT_ROOT_PATH).trim();
+      if (_rootPath.endsWith("/")) {
+        _rootPath = _rootPath.substring(0, _rootPath.length() - 1);
+      }
+      if (!_rootPath.startsWith("/")) {
+        _rootPath = "/" + _rootPath;
+      }
+    }
+    return _rootPath;
+  }
+
+  public void setZKRootPath(String rootPath) {
+    setProperty(ZOOKEEPER_ROOT_PATH, rootPath != null ? rootPath : DEFAULT_ROOT_PATH);
+    _rootPath = null;
+  }
+
+  public String getZKMasterPath() {
+    return buildPath(getZKRootPath(), MASTER);
+  }
+
+  public String getZKNodesPath() {
+    return buildPath(getZKRootPath(), NODES);
+  }
+
+  public String getZKNodePath(String node) {
+    return buildPath(getZKRootPath(), NODES, node);
+  }
+
+  public String getZKIndicesPath() {
+    return buildPath(getZKRootPath(), INDEXES);
+  }
+
+  public String getZKIndexPath(String index) {
+    return buildPath(getZKRootPath(), INDEXES, index);
+  }
+
+  public String getZKShardPath(String index, String shard) {
+    return buildPath(getZKRootPath(), INDEXES, index, shard);
+  }
+
+  public String getZKNodeToShardPath() {
+    return buildPath(getZKRootPath(), NODE_TO_SHARD);
+  }
+
+  public String getZKNodeToShardPath(String node) {
+    return buildPath(getZKRootPath(), NODE_TO_SHARD, node);
+  }
+
+  public String getZKNodeToShardPath(String node, String shard) {
+    return buildPath(getZKRootPath(), NODE_TO_SHARD, node, shard);
+  }
+
+  public String getZKShardToNodePath() {
+    return buildPath(getZKRootPath(), SHARD_TO_NODE);
+  }
+
+  public String getZKShardToNodePath(String shard) {
+    return buildPath(getZKRootPath(), SHARD_TO_NODE, shard);
+  }
+
+  public String getZKShardToNodePath(String shard, String node) {
+    return buildPath(getZKRootPath(), SHARD_TO_NODE, shard, node);
+  }
+
+  public String getZKShardToErrorPath() {
+    return buildPath(getZKRootPath(), SHARD_TO_ERROR);
+  }
+
+  public String getZKShardToErrorPath(String shard) {
+    return buildPath(getZKRootPath(), SHARD_TO_ERROR, shard);
+  }
+
+  public String getZKShardToErrorPath(String shard, String node) {
+    return buildPath(getZKRootPath(), SHARD_TO_ERROR, shard, node);
+  }
+
+  public String getZKLoadTestPath() {
+    return buildPath(getZKRootPath(), LOADTEST_NODES);
+  }
+
+  private String buildPath(String... folders) {
+    StringBuilder builder = new StringBuilder();
+    char sep = getSeparator();
+    for (String folder : folders) {
+      builder.append(folder);
+      builder.append(sep);
+    }
+    if (builder.length() > 0) {
+      builder.deleteCharAt(builder.length() - 1);
+    }
+    return builder.toString();
+  }
+
+  public String getZKName(String path) {
+    return path.substring(path.lastIndexOf(getSeparator()) + 1);
+  }
+
 }

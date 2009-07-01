@@ -1,5 +1,5 @@
 /**
- * Copyright 2008 the original author or authors.
+ * Copyright 2009 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,11 @@ import org.apache.hadoop.io.MapWritable;
 import org.apache.hadoop.ipc.VersionedProtocol;
 import org.apache.lucene.queryParser.ParseException;
 
-public interface ISearch extends VersionedProtocol {
+/**
+ * The public interface to the back end LuceneServer. These are all the
+ * methods that the Hadoop RPC will call.
+ */
+public interface ILuceneServer extends VersionedProtocol {
 
   /**
    * Returns all Hits that match the query. This might be significant slower as
@@ -35,6 +39,7 @@ public interface ISearch extends VersionedProtocol {
    * @throws IOException     If the search had a problem reading files.
    */
   public HitsMapWritable search(QueryWritable query, DocumentFrequencyWritable freqs, String[] shardNames) throws IOException;
+
 
   /**
    * @param query         The query to run.
@@ -71,7 +76,7 @@ public interface ISearch extends VersionedProtocol {
    * @return             TODO what does this return?  A map?
    * @throws IOException
    */
-  public MapWritable getDetails(String shard, int docId, String[] fields) throws IOException;
+  public MapWritable getDetails(String[] shards, int docId, String[] fields) throws IOException;
 
   /**
    * Returns the lucene document. Each field:value tuple of the lucene document
@@ -84,7 +89,7 @@ public interface ISearch extends VersionedProtocol {
    * @return
    * @throws IOException
    */
-  public MapWritable getDetails(String shard, int docId) throws IOException;
+  public MapWritable getDetails(String[] shards, int docId) throws IOException;
 
   /**
    * Returns the number of documents that match the given query. This the
@@ -92,9 +97,9 @@ public interface ISearch extends VersionedProtocol {
    * number of matching documents is also included in HitsMapWritable.
    * 
    * @param query
-   * @param strings
+   * @param shards
    * @return
    * @throws IOException
    */
-  public int getResultCount(QueryWritable query, String[] strings) throws IOException;
+  public int getResultCount(QueryWritable query, String[] shards) throws IOException;
 }

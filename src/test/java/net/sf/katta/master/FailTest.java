@@ -17,27 +17,26 @@ package net.sf.katta.master;
 
 import junit.framework.Assert;
 import net.sf.katta.AbstractKattaTest;
-import net.sf.katta.client.Client;
 import net.sf.katta.client.DeployClient;
 import net.sf.katta.client.IDeployClient;
 import net.sf.katta.client.IIndexDeployFuture;
+import net.sf.katta.client.LuceneClient;
 import net.sf.katta.index.IndexMetaData.IndexState;
-import net.sf.katta.node.BaseNode;
-import net.sf.katta.node.LuceneNode;
+import net.sf.katta.node.LuceneServer;
+import net.sf.katta.node.Node;
 import net.sf.katta.node.Query;
 import net.sf.katta.testutil.TestResources;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.NodeConfiguration;
 import net.sf.katta.util.ZkConfiguration;
 import net.sf.katta.zk.ZKClient;
-import net.sf.katta.zk.ZkPathes;
 
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher.Event.EventType;
 import org.apache.zookeeper.Watcher.Event.KeeperState;
 import org.apache.zookeeper.proto.WatcherEvent;
 
-
+@SuppressWarnings("deprecation")
 public class FailTest extends AbstractKattaTest {
 
   public void testMasterFail() throws Exception {
@@ -51,15 +50,15 @@ public class FailTest extends AbstractKattaTest {
     final Master secMaster = new Master(secMasterClient);
     secMaster.start();
 
-    waitForPath(masterClient, ZkPathes.MASTER);
+    waitForPath(masterClient, _conf.getZKMasterPath());
 
     MasterMetaData masterData = new MasterMetaData();
-    masterClient.readData(ZkPathes.MASTER, masterData);
+    masterClient.readData(_conf.getZKMasterPath(), masterData);
 
     // kill master
     master.shutdown();
     // just make sure we can read the file
-    waitForPath(secMasterClient, ZkPathes.MASTER);
+    waitForPath(secMasterClient, _conf.getZKMasterPath());
     assertTrue(secMaster.isMaster());
 
     secMasterClient.close();
@@ -86,15 +85,15 @@ public class FailTest extends AbstractKattaTest {
     final String defaulFolder3 = sconf3.getShardFolder().getAbsolutePath();
     sconf3.setShardFolder(defaulFolder3 + "/" + 3);
     final DummyNode node3 = new DummyNode(_conf, sconf3);
-    waitForChilds(zkClientMaster, ZkPathes.NODES, 3);
+    waitForChilds(zkClientMaster, _conf.getZKNodesPath(), 3);
     masterThread.join();
-    waitForPath(zkClientMaster, ZkPathes.MASTER);
+    waitForPath(zkClientMaster, _conf.getZKMasterPath());
 
     // deploy index
     final IDeployClient deployClient = new DeployClient(_conf);
     final String indexName = "index";
     deployClient.addIndex(indexName, TestResources.UNZIPPED_INDEX.getAbsolutePath(), 3).joinDeployment();
-    final Client client = new Client();
+    final LuceneClient client = new LuceneClient(_conf);
     assertEquals(2, client.count(new Query("foo:bar"), new String[] { indexName }));
     assertEquals(1, node1.countShards());
     assertEquals(1, node2.countShards());
@@ -128,7 +127,7 @@ public class FailTest extends AbstractKattaTest {
     final NodeConfiguration sconf1 = new NodeConfiguration();
     final String defaulFolder = sconf1.getShardFolder().getAbsolutePath();
     sconf1.setShardFolder(defaulFolder + "/" + 1);
-    final DummyNode node1 = new DummyNode(_conf, sconf1);
+    /* final DummyNode node1 = */ new DummyNode(_conf, sconf1);
 
     final IDeployClient deployClient = new DeployClient(_conf);
 
@@ -150,14 +149,15 @@ public class FailTest extends AbstractKattaTest {
 
   }
 
+
   private class DummyNode {
 
     private final ZKClient _client;
-    private final BaseNode _node;
+    private final Node _node;
 
     public DummyNode(final ZkConfiguration conf, final NodeConfiguration nodeConfiguration) throws KattaException {
       _client = new ZKClient(conf);
-      _node = new LuceneNode(_client, nodeConfiguration);
+      _node = new Node(_client, nodeConfiguration, new LuceneServer());
       _node.start();
     }
 

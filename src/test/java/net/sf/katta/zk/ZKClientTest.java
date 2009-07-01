@@ -54,10 +54,10 @@ public class ZKClientTest extends AbstractKattaTest {
     final ZKClient client = new ZKClient(_conf);
     client.start(10000);
     ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-    client.showFolders(outputStream);
+    client.showFolders(true, outputStream);
     String output = new String(outputStream.toByteArray());
     assertTrue(output.contains("+katta"));
-    assertTrue(output.contains("+node-to-shard"));
+    assertTrue(output.contains("'--node-to-shard"));
   }
 
   public void testCreateFolder() throws KattaException {

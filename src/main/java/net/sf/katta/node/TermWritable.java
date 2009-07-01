@@ -23,7 +23,7 @@ import org.apache.hadoop.io.Writable;
 
 public class TermWritable implements Writable {
 
-  private String _text;
+  private String _term;
 
   private String _field;
 
@@ -33,17 +33,25 @@ public class TermWritable implements Writable {
 
   public TermWritable(final String field, final String text) {
     _field = field;
-    _text = text;
+    _term = text;
+  }
+
+  public String getTerm() {
+    return _term;
+  }
+
+  public String getField() {
+    return _field;
   }
 
   public void readFields(final DataInput in) throws IOException {
     _field = in.readUTF();
-    _text = in.readUTF();
+    _term = in.readUTF();
   }
 
   public void write(final DataOutput out) throws IOException {
     out.writeUTF(_field);
-    out.writeUTF(_text);
+    out.writeUTF(_term);
   }
 
   @Override
@@ -51,7 +59,7 @@ public class TermWritable implements Writable {
     final int prime = 31;
     int result = 1;
     result = prime * result + ((_field == null) ? 0 : _field.hashCode());
-    result = prime * result + ((_text == null) ? 0 : _text.hashCode());
+    result = prime * result + ((_term == null) ? 0 : _term.hashCode());
     return result;
   }
 
@@ -65,10 +73,10 @@ public class TermWritable implements Writable {
       return false;
     final TermWritable other = (TermWritable) obj;
 
-    if (_text == null) {
-      if (other._text != null)
+    if (_term == null) {
+      if (other._term != null)
         return false;
-    } else if (!_text.equals(other._text))
+    } else if (!_term.equals(other._term))
       return false;
 
     if (_field == null) {
@@ -82,7 +90,7 @@ public class TermWritable implements Writable {
 
   @Override
   public String toString() {
-    return _field + ":" + _text;
+    return _field + ":" + _term;
   }
 
 }

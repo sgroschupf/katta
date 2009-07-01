@@ -30,7 +30,6 @@ import org.apache.hadoop.io.Writable;
 
 public class Hits implements Writable {
 
-  @SuppressWarnings({"UnusedDeclaration"})
   private static final long serialVersionUID = -732226190122340208L;
 
   private List<List<Hit>> _hitsList = new Vector<List<Hit>>();
@@ -94,6 +93,7 @@ public class Hits implements Writable {
     sortCollection(count);
   }
 
+  @SuppressWarnings("unchecked")
   public void sortMerge() {
     final List<Hit>[] array = _hitsList.toArray(new List[_hitsList.size()]);
     _hitsList = new ArrayList<List<Hit>>();
@@ -184,6 +184,12 @@ public class Hits implements Writable {
 
   @Override
   public String toString() {
-    return getHits().toString();
+    /*
+     * Don't modify data structure just by viewing it, otherwise
+     * running in a debugger modifies the behavior of the code!
+     */
+    return "Hits: total=" + _totalHits + ", queue=" + (_hitsList != null ? _hitsList.toString() : "null") +
+      ", sorted=" + (_sortedList != null ? _sortedList.toString() : "null");
   }
+  
 }

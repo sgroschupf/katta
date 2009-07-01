@@ -26,16 +26,16 @@ import org.apache.hadoop.io.Writable;
 
 public class DeployedShard implements Writable {
 
-  private String _shardName;
-  private Map<String, String> _metaData;
+  private String _shardName = "";
+  private Map<String, String> _metaData = new HashMap<String, String>();
 
   public DeployedShard() {
     // for serialization
   }
 
   public DeployedShard(final String shardName, final Map<String, String> metaData) {
-    _shardName = shardName;
-    _metaData = metaData;
+    _shardName = shardName != null ? shardName : "";
+    _metaData = metaData != null ? metaData : new HashMap<String, String>();
   }
 
   public void readFields(final DataInput in) throws IOException {

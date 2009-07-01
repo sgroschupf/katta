@@ -1,5 +1,5 @@
 /**
- * Copyright 2008 the original author or authors.
+ * Copyright 2009 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,13 +15,14 @@
  */
 package net.sf.katta.node;
 
-import org.apache.hadoop.io.Writable;
+/**
+ * Run all the tests in NodeTest, but with /test/katta20090510153800
+ * specified as the Katta root in the config file.
+ */
+public class AlternateRootCfgNodeTest extends NodeTest {
 
-public interface IRequestHandler {
-
-  /**
-   * Handle requests from the client, for example a search query or a getDetails request
-   */
-  Writable handle(Writable request);
-
+  protected String getZkConfigurationResourceName() {
+    return("/katta.zk.properties_alt_root");
+  }
+  
 }

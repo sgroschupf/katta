@@ -35,6 +35,11 @@ public class KattaConfiguration {
     _resourcePath = file.getAbsolutePath();
   }
 
+  public KattaConfiguration(Properties properties, String filePath) {
+    _properties = properties;
+    _resourcePath = filePath;
+  }
+  
   public String getResourcePath() {
     return _resourcePath;
   }
@@ -65,6 +70,16 @@ public class KattaConfiguration {
 
   public int getInt(final String key) {
     return Integer.parseInt(getProperty(key));
+  }
+
+  public int getInt(final String key, final int defaultValue) {
+    try {
+      return Integer.parseInt(getProperty(key));
+    } catch (NumberFormatException e) {
+      return defaultValue;
+    } catch (IllegalStateException e) {
+      return defaultValue;
+    }
   }
 
   public File getFile(final String key) {
