@@ -1,0 +1,34 @@
+from net.grinder.common import GrinderProperties
+from net.grinder.console.client import ConsoleConnectionFactory
+from net.grinder.console.client import ConsoleConnectionException
+from java.lang import Thread
+
+
+print "Hello, World!"
+# Connect to the console
+connection = ConsoleConnectionFactory().connect("localhost", 6372)
+
+gp = GrinderProperties()
+gp.setInt("grinder.runs", 0)
+gp.setInt("grinder.threads", 3)
+gp.setInt("grinder.processes", 3)
+gp.setProperty("grinder.script", "/opt/grinder-3.1/scripts/katta-stress-test.jy")
+gp.setProperty("grinder.consoleHost", "domU-12-31-39-03-7C-92.compute-1.internal");
+# Do initialisation here.
+
+connection.startWorkerProcesses(gp)
+
+# Unfortunately, the console API doesn't provide a way to determine
+# how many worker processes are running. Instead, we run for a minute,
+# stop recording, then tidy up.
+
+# Run for a minute
+Thread.sleep(60000)
+
+connection.stopRecording()
+
+connection.resetWorkerProcesses()
+
+# Do tidy up here.
+
+# start java -cp ../lib/jython.jar:../lib/grinder.jar org.python.util.jython grinderStart.jy 

@@ -39,7 +39,7 @@ this="$bin/$script"
 # the root of the Katta installation
 export KATTA_HOME=`dirname "$this"`/..
 
-#check to see if the conf dir is given as an optional argument
+# check to see if the conf dir is given as an optional argument
 if [ $# -gt 1 ]
 then
     if [ "--config" = "$1" ]
@@ -54,7 +54,7 @@ fi
 # Allow alternate conf dir location.
 KATTA_CONF_DIR="${KATTA_CONF_DIR:-$KATTA_HOME/conf}"
 
-# check to see it is specified whether to use the nodes or the
+#check to see it is specified whether to use the nodes or the
 # masters file
 if [ $# -gt 1 ]
 then
