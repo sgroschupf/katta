@@ -1,5 +1,5 @@
 /**
- * Copyright 2008 the original author or authors.
+ * Copyright 2009 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,14 +15,29 @@
  */
 package net.sf.katta.client;
 
+import java.io.IOException;
+import java.util.List;
+
 import net.sf.katta.util.KattaException;
 
-public class ShardAccessException extends KattaException {
+/**
+ * The public interface to the front end of the MapFile server.
+ */
+public interface IMapFileClient {
 
-  private static final long serialVersionUID = 1L;
+  /**
+   * Get all entries with the given key.
+   * 
+   * @param key The entry(s) to look up.
+   * @param indexNames The MapFiles to search.
+   * @return All the entries with the given key.
+   * @throws IOException
+   */
+  public List<String> get(String key, final String[] indexNames) throws KattaException;
 
-  public ShardAccessException(String shard) {
-    super("Shard '" + shard + "' is currently not reachable");
-  }
+  /**
+   * Closes down the client.
+   */
+  public void close();
 
 }

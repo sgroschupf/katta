@@ -15,6 +15,7 @@
  */
 package net.sf.katta.client;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -39,14 +40,14 @@ public class DefaultNodeSelectionPolicy implements INodeSelectionPolicy {
   // _shardsToNodeMap = newShard2NodesMap;
   // }
 
-  public void update(String shard, List<String> nodes) {
+  public void update(String shard, Collection<String> nodes) {
     _shardsToNodeMap.put(shard, new CircularList<String>(nodes));
   }
 
   public List<String> remove(String shard) {
     CircularList<String> nodes = _shardsToNodeMap.remove(shard);
     if (nodes == null) {
-      return Collections.EMPTY_LIST;
+      return Collections.emptyList();
     }
     return nodes.asList();
   }
@@ -59,11 +60,11 @@ public class DefaultNodeSelectionPolicy implements INodeSelectionPolicy {
     }
   }
 
-  public Map<String, List<String>> createNode2ShardsMap(List<String> shards) throws ShardAccessException {
+  public Map<String, List<String>> createNode2ShardsMap(Collection<String> shards) throws ShardAccessException {
     One2ManyListMap<String, String> node2ShardsMap = new One2ManyListMap<String, String>();
     for (String shard : shards) {
       CircularList<String> nodeList = _shardsToNodeMap.get(shard);
-      if (nodeList.isEmpty()) {
+      if (nodeList == null || nodeList.isEmpty()) {
         throw new ShardAccessException(shard);
       }
       String node;
@@ -73,6 +74,20 @@ public class DefaultNodeSelectionPolicy implements INodeSelectionPolicy {
       node2ShardsMap.add(node, shard);
     }
     return node2ShardsMap.asMap();
+  }
+  
+  public String toString() {
+    StringBuffer buf = new StringBuffer();
+    buf.append("DefaultNodeSelectionPolicy: ");
+    String sep = "";
+    for (Map.Entry<String, CircularList<String>> e : _shardsToNodeMap.entrySet()) {
+      buf.append(sep);
+      buf.append(e.getKey());
+      buf.append(" --> ");
+      buf.append(e.getValue());
+      sep = " ";
+    }
+    return buf.toString();
   }
 
 }

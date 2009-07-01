@@ -42,7 +42,7 @@ import org.apache.lucene.search.Query;
  * @see Hits
  * @see IQuery
  */
-public interface IClient {
+public interface ILuceneClient {
 
   /**
    * Searches with a given query in the supplied indexes for an almost unlimited
@@ -58,12 +58,10 @@ public interface IClient {
    * @return A object that capsulates all results.
    * @throws KattaException
    */
-  public abstract Hits search(Query query, String[] indexNames) throws KattaException;
+  public Hits search(Query query, String[] indexNames) throws KattaException;
 
   @Deprecated
-  public abstract Hits search(IQuery query, String[] indexNames) throws KattaException;
-  
-  
+  public Hits search(IQuery query, String[] indexNames) throws KattaException;
 
   /**
    * Searches with a given query in the supplied indexes for a limited amount of
@@ -78,10 +76,10 @@ public interface IClient {
    * @return A object that capsulates all results.
    * @throws KattaException
    */
-  public abstract Hits search(Query query, String[] indexNames, int count) throws KattaException;
-  
+  public Hits search(Query query, String[] indexNames, int count) throws KattaException;
+
   @Deprecated
-  public abstract Hits search(IQuery query, String[] indexNames, int count) throws KattaException;
+  public Hits search(IQuery query, String[] indexNames, int count) throws KattaException;
 
   /**
    * Gets all the details to a hit.
@@ -92,7 +90,7 @@ public interface IClient {
    * @throws KattaException
    *           If indexes can't be searched.
    */
-  public abstract MapWritable getDetails(Hit hit) throws KattaException;
+  public MapWritable getDetails(Hit hit) throws KattaException;
 
   /**
    * Gets a specific details to a hit.
@@ -106,12 +104,12 @@ public interface IClient {
    * @throws KattaException
    *           If indexes can't be searched.
    */
-  public abstract MapWritable getDetails(Hit hit, String[] fields) throws KattaException;
+  public MapWritable getDetails(Hit hit, String[] fields) throws KattaException;
 
   /**
-   * Gets list of all details for the given list of hits. The details are retrieved in
-   * parallel rather than getting them one by one. Thus using this method is the preferred
-   * way of getting the details of multiple hits.
+   * Gets list of all details for the given list of hits. The details are
+   * retrieved in parallel rather than getting them one by one. Thus using this
+   * method is the preferred way of getting the details of multiple hits.
    * 
    * @param hits
    *          The list of hits from that all fields should be returned.
@@ -124,9 +122,9 @@ public interface IClient {
   public List<MapWritable> getDetails(List<Hit> hits) throws KattaException, InterruptedException;
 
   /**
-   * Gets list of details for the given list of hits. The details are retrieved in
-   * parallel rather than getting them one by one. Thus using this method is the preferred
-   * way of getting the details of multiple hits.
+   * Gets list of details for the given list of hits. The details are retrieved
+   * in parallel rather than getting them one by one. Thus using this method is
+   * the preferred way of getting the details of multiple hits.
    * 
    * @param hits
    *          The list of hits from that all fields should be returned.
@@ -138,14 +136,15 @@ public interface IClient {
    * @throws InterruptedException
    *           If the current thread got interrupted.
    */
-  public List<MapWritable> getDetails(List<Hit> hits, final String[] fields) throws KattaException, InterruptedException;
+  public List<MapWritable> getDetails(List<Hit> hits, final String[] fields) throws KattaException,
+          InterruptedException;
 
   /**
    * The overall queries per minute.
    * 
    * @return A number that represents the queries per minute in the last minute.
    */
-  public abstract float getQueryPerMinute();
+  public double getQueryPerMinute();
 
   /**
    * Gets only the result count to a query.
@@ -157,14 +156,14 @@ public interface IClient {
    * @return A number that represents the overall result count to a query.
    * @throws KattaException
    */
-  public abstract int count(Query query, String[] indexNames) throws KattaException;
-  
+  public int count(Query query, String[] indexNames) throws KattaException;
+
   @Deprecated
-  public abstract int count(IQuery query, String[] indexNames) throws KattaException;
+  public int count(IQuery query, String[] indexNames) throws KattaException;
 
   /**
    * Closes down the client.
    */
-  public abstract void close();
+  public void close();
 
 }

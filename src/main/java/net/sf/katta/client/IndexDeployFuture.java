@@ -21,7 +21,6 @@ import net.sf.katta.util.KattaException;
 import net.sf.katta.zk.IZkDataListener;
 import net.sf.katta.zk.IZkReconnectListener;
 import net.sf.katta.zk.ZKClient;
-import net.sf.katta.zk.ZkPathes;
 
 import org.apache.log4j.Logger;
 import org.apache.zookeeper.Watcher.Event.KeeperState;
@@ -29,14 +28,15 @@ import org.apache.zookeeper.Watcher.Event.KeeperState;
 public class IndexDeployFuture implements IIndexDeployFuture, IZkDataListener<IndexMetaData>, IZkReconnectListener {
 
   private static Logger LOG = Logger.getLogger(IndexDeployFuture.class);
+
   private final ZKClient _zkClient;
   private final String _indexZkPath;
   private IndexMetaData _indexMetaData;
 
-  public IndexDeployFuture(ZKClient zkClient, String index, IndexMetaData indexMetaData) throws KattaException {
+  public IndexDeployFuture(ZKClient zkClient, String index, String indexZkPath, IndexMetaData indexMetaData) throws KattaException {
     _zkClient = zkClient;
     _indexMetaData = indexMetaData;
-    _indexZkPath = ZkPathes.getIndexPath(index);
+    _indexZkPath = indexZkPath;
 
     // subscribe index
     _zkClient.getEventLock().lock();

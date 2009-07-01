@@ -15,6 +15,7 @@
  */
 package net.sf.katta.client;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
@@ -39,7 +40,7 @@ public interface INodeSelectionPolicy {
    * @param nodes
    *          all the nodes which serve the shard
    */
-  void update(String shard, List<String> nodes);
+  void update(String shard, Collection<String> nodes);
 
   /**
    * If an index is undeployed, this method is called for each of it shards.
@@ -65,6 +66,6 @@ public interface INodeSelectionPolicy {
    * @throws ShardAccessException
    *           if one of the shards could not be accessed
    */
-  Map<String, List<String>> createNode2ShardsMap(List<String> shards) throws ShardAccessException;
+  Map<String, List<String>> createNode2ShardsMap(Collection<String> shards) throws ShardAccessException;
 
 }
