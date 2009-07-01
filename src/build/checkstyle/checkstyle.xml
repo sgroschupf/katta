@@ -29,6 +29,7 @@ SOFTWARE.
     <property name="headerFile" value="src/build/checkstyle/java.header"/>
     <property name="fileExtensions" value="java"/>
     <property name="id" value="header"/>
+    <property name="ignoreLines" value="2"/>
   </module>
 
 </module>
