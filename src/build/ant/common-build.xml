@@ -58,7 +58,7 @@
 	<!-- Build sources                                                      -->
 	<!-- ================================================================== -->
 
-	<target name="compile" depends="resolve" description="--> compile main classes">
+	<target name="compile-katta" depends="resolve" description="--> compile main classes">
 		<mkdir dir="${build.dir.main-classes}" />
 		<ivy:cachepath pathid="build.path.id" conf="compile" />
 		<javac encoding="${build.encoding}" srcdir="${main.src.dir}" includes="**/*.java" destdir="${build.dir.main-classes}" debug="${javac.debug}" optimize="${javac.optimize}" target="${javac.version}" source="${javac.version}" deprecation="${javac.deprecation}">
@@ -71,7 +71,7 @@
 	<!-- Tests                                                              -->
 	<!-- ================================================================== -->
 
-	<target name="compile-test" depends="compile" description="--> compile test classes">
+	<target name="compile-test" depends="compile-katta" description="--> compile test classes">
 		<echo>*** Building Tests Sources ***</echo>
 		<mkdir dir="${build.dir.test-classes}" />
 		<ivy:cachepath pathid="test.path.id" conf="test" />
@@ -139,7 +139,7 @@
 	<!-- Cobertura Section                                                  -->
 	<!-- ================================================================== -->
 
-	<target name="instrument" depends="compile">
+	<target name="instrument" depends="compile-katta">
 		<ivy:cachepath pathid="instrument.path.id" conf="instrument" />
 		<taskdef classpathref="instrument.path.id" resource="tasks.properties" />
 		<delete file="${reports.dir}/katta_coverage.ser" />
@@ -161,14 +161,14 @@
 		<cobertura-report datafile="${reports.dir}/katta_coverage.ser" srcdir="${main.src.dir}" destdir="${coverage.html.dir}" />
 	</target>
 
-	<target name="coverage" depends="compile,instrument,test,coverage-report" description="--> create coverage reports" />
+	<target name="coverage" depends="compile-katta,instrument,test,coverage-report" description="--> create coverage reports" />
 
 	<!-- ================================================================== -->
 	<!-- Build jar of sources                                               -->
 	<!-- ================================================================== -->
 
 
-	<target name="jar" depends="compile">
+	<target name="jar" depends="compile-katta">
 		<ivy:cachepath pathid="svnant.path.id" conf="ant" />
 		<typedef resource="org/tigris/subversion/svnant/svnantlib.xml" classpathref="svnant.path.id" />
 		<svn>
@@ -197,7 +197,7 @@
 	<!-- Build sources                                                      -->
 	<!-- ================================================================== -->
 
-	<target name="job" depends="compile" description="--> creates a hadop job jar">
+	<target name="job" depends="compile-katta" description="--> creates a hadop job jar">
 		<property name="job.dir" value="${build.dir}/${ant.project.name}-${version}" />
 		<mkdir dir="${job.dir}" />
 		<mkdir dir="${job.dir}/lib" />
@@ -229,7 +229,7 @@
 	<!-- ================================================================== -->
 
 
-	<target name="doc" depends="compile" description="--> create javadoc">
+	<target name="doc" depends="compile-katta" description="--> create javadoc">
 		<mkdir dir="${build.javadoc}" />
 		<ivy:cachepath pathid="build.path.id" conf="compile" />
 		<javadoc packagenames="sf.net.katta" destdir="${build.javadoc}" author="true" version="true" use="true" windowtitle="${name} ${version} API" doctitle="${name} ${version} API" bottom="Copyright &amp;copy; ${year} 101tec Inc.">

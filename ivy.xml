@@ -60,6 +60,7 @@
 
 		<dependency org="xmlenc" name="xmlenc" rev="0.52" conf="compile" />
 		<dependency org="zookeeper" name="zookeeper" rev="3.1.1" conf="compile" />
+        <dependency org="com.101tec" name="zkclient" rev="0.1-dev" conf="compile->compile, master" />
 
 		<!-- AWS -->
 		<dependency org="jets3t" name="jets3t" rev="0.6.1" conf="compile" />

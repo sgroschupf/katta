@@ -5,6 +5,10 @@
  	 <filesystem name="libraries">
         <artifact pattern="${basedir}/lib/[artifact]-[revision].[type]" />
       </filesystem>
+      <filesystem checkmodified="true" name="zkclient">
+        <artifact pattern="${root.dir}/modules/zkclient/build/install/[artifact]-[revision].[ext]" />
+        <ivy pattern="${root.dir}/modules/zkclient/build/install/[module]-[revision].xml" />
+      </filesystem>
     </chain>
   </resolvers>
 </ivysettings>
