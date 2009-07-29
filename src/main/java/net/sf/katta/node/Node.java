@@ -59,7 +59,7 @@ public class Node implements IZkReconnectListener {
 
   public static final long _protocolVersion = 0;
 
-  protected ZkConfiguration _conf;
+  protected ZkConfiguration _zkConfiguration;
   protected ZKClient _zkClient;
   private Server _rpcServer;
   private INodeManaged _server;
@@ -74,7 +74,7 @@ public class Node implements IZkReconnectListener {
   protected final long _startTime = System.currentTimeMillis();
   protected long _queryCounter;
 
-  private final NodeConfiguration _configuration;
+  private final NodeConfiguration _nodeConfiguration;
   private NodeState _currentState;
 
   public static enum NodeState {
@@ -89,9 +89,9 @@ public class Node implements IZkReconnectListener {
     if (server == null) {
       throw new IllegalArgumentException("Null server passed to Node()");
     }
-    _conf = zkClient.getConfig();
+    _zkConfiguration = zkClient.getConfig();
     _zkClient = zkClient;
-    _configuration = configuration;
+    _nodeConfiguration = configuration;
     _server = server;
     _zkClient.subscribeReconnects(this);
     LOG.info("Starting node, server class = " + server.getClass().getCanonicalName());
@@ -108,12 +108,12 @@ public class Node implements IZkReconnectListener {
     try {
       _zkClient.getEventLock().lock();
       LOG.debug("Starting rpc server...");
-      _nodeName = startRPCServer(_configuration.getStartPort());
+      _nodeName = startRPCServer(_nodeConfiguration.getStartPort());
       _server.setNodeName(_nodeName);
 
       // we add hostName and port to the shardFolder to allow multiple nodes per
       // server with the same configuration
-      _shardsFolder = new File(_configuration.getShardFolder(), _nodeName.replaceAll(":", "@"));
+      _shardsFolder = new File(_nodeConfiguration.getShardFolder(), _nodeName.replaceAll(":", "@"));
 
       if (!_shardsFolder.exists()) {
         _shardsFolder.mkdirs();
@@ -151,7 +151,7 @@ public class Node implements IZkReconnectListener {
   }
 
   private void cleanupLocalShardFolder() throws KattaException {
-    String node2ShardRootPath = _conf.getZKNodeToShardPath(_nodeName);
+    String node2ShardRootPath = _zkConfiguration.getZKNodeToShardPath(_nodeName);
     List<String> shardsToServe = Collections.emptyList();
     if (_zkClient.exists(node2ShardRootPath)) {
       shardsToServe = _zkClient.getChildren(node2ShardRootPath);
@@ -175,13 +175,13 @@ public class Node implements IZkReconnectListener {
   private void announceNode(NodeState nodeState) throws KattaException {
     LOG.info("Announce node '" + _nodeName + "'...");
     final NodeMetaData metaData = new NodeMetaData(_nodeName, nodeState);
-    final String nodePath = _conf.getZKNodePath(_nodeName);
+    final String nodePath = _zkConfiguration.getZKNodePath(_nodeName);
     if (_zkClient.exists(nodePath)) {
       LOG.warn("Old node path '" + nodePath + "' for this node detected, deleting it...");
       _zkClient.delete(nodePath);
     }
 
-    final String nodeToShardPath = _conf.getZKNodeToShardPath(_nodeName);
+    final String nodeToShardPath = _zkConfiguration.getZKNodeToShardPath(_nodeName);
     if (!_zkClient.exists(nodeToShardPath)) {
       _zkClient.create(nodeToShardPath);
     }
@@ -191,7 +191,7 @@ public class Node implements IZkReconnectListener {
 
   private void startShardServing(boolean restart) throws KattaException {
     LOG.info("Start serving shards...");
-    final String nodeToShardPath = _conf.getZKNodeToShardPath(_nodeName);
+    final String nodeToShardPath = _zkConfiguration.getZKNodeToShardPath(_nodeName);
     List<String> shardsNames = _zkClient.subscribeChildChanges(nodeToShardPath, new ShardListener());
 
     if (restart) {
@@ -218,7 +218,7 @@ public class Node implements IZkReconnectListener {
       } catch (Throwable t) {
         LOG.error(_nodeName + ": could not deploy shard '" + shard + "'", t);
         ShardError shardError = new ShardError(t.getMessage());
-        String shard2ErrorPath = _conf.getZKShardToErrorPath(shardName, _nodeName);
+        String shard2ErrorPath = _zkConfiguration.getZKShardToErrorPath(shardName, _nodeName);
         if (_zkClient.exists(shard2ErrorPath)) {
           LOG.warn("detected old shard-to-error entry - deleting it..");
           // must be an old ephemeral
@@ -235,7 +235,7 @@ public class Node implements IZkReconnectListener {
       try {
         LOG.info("Undeploying shard: " + shard);
         _server.removeShard(shard);
-        String shard2NodePath = _conf.getZKShardToNodePath(shard, _nodeName);
+        String shard2NodePath = _zkConfiguration.getZKShardToNodePath(shard, _nodeName);
         if (_zkClient.exists(shard2NodePath)) {
           _zkClient.delete(shard2NodePath);
         }
@@ -253,7 +253,7 @@ public class Node implements IZkReconnectListener {
     String shardName = shard.getShardName();
     LOG.info("announce shard '" + shardName + "'");
     // announce that this node serves this shard now...
-    final String shard2NodePath = _conf.getZKShardToNodePath(shardName, _nodeName);
+    final String shard2NodePath = _zkConfiguration.getZKShardToNodePath(shardName, _nodeName);
     if (_zkClient.exists(shard2NodePath)) {
       LOG.warn("detected old shard-to-node entry - deleting it..");
       // must be an old ephemeral
@@ -331,10 +331,10 @@ public class Node implements IZkReconnectListener {
       try {
         // we deleting the ephemeral's since this is the fastest and the safest
         // way, but if this does not work, it shouldn't be too bad
-        _zkClient.delete(_conf.getZKNodePath(_nodeName));
+        _zkClient.delete(_zkConfiguration.getZKNodePath(_nodeName));
         for (String shard : _deployedShards) {
-          String shard2NodePath = _conf.getZKShardToNodePath(shard, _nodeName);
-          String shard2ErrorPath = _conf.getZKShardToErrorPath(shard, _nodeName);
+          String shard2NodePath = _zkConfiguration.getZKShardToNodePath(shard, _nodeName);
+          String shard2ErrorPath = _zkConfiguration.getZKShardToErrorPath(shard, _nodeName);
           _zkClient.deleteIfExists(shard2NodePath);
           _zkClient.deleteIfExists(shard2ErrorPath);
         }
@@ -434,7 +434,7 @@ public class Node implements IZkReconnectListener {
 
   private void updateStatus(NodeState state) throws KattaException {
     _currentState = state;
-    final String nodePath = _conf.getZKNodePath(_nodeName);
+    final String nodePath = _zkConfiguration.getZKNodePath(_nodeName);
     final NodeMetaData metaData = new NodeMetaData();
     _zkClient.readData(nodePath, metaData);
     metaData.setState(state);
@@ -445,7 +445,7 @@ public class Node implements IZkReconnectListener {
     ArrayList<AssignedShard> newShards = new ArrayList<AssignedShard>();
     for (String shardName : shardsToDeploy) {
       AssignedShard assignedShard = new AssignedShard();
-      _zkClient.readData(_conf.getZKNodeToShardPath(_nodeName, shardName), assignedShard);  
+      _zkClient.readData(_zkConfiguration.getZKNodeToShardPath(_nodeName, shardName), assignedShard);  
       newShards.add(assignedShard);
     }
     return newShards;
@@ -487,7 +487,7 @@ public class Node implements IZkReconnectListener {
       time = Math.max(time, 1);
       final float qpm = (float) _queryCounter / time;
       final NodeMetaData metaData = new NodeMetaData();
-      final String nodePath = _conf.getZKNodePath(_nodeName);
+      final String nodePath = _zkConfiguration.getZKNodePath(_nodeName);
       try {
         if (_zkClient.exists(nodePath)) {
           _zkClient.readData(nodePath, metaData);
