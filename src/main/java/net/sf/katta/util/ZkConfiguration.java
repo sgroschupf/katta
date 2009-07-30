@@ -45,7 +45,7 @@ public class ZkConfiguration extends KattaConfiguration {
   public static final String ZK_PATH_SEPERATOR = "zookeeper.path-separator";
 
   public ZkConfiguration() {
-    super(System.getProperty(KATTA_PROPERTY_NAME, "/katta.zk.properties"));
+    super("/katta.zk.properties");
   }
 
   public ZkConfiguration(final String path) {
