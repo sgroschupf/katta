@@ -126,15 +126,15 @@ public class MultiInstanceTest extends AbstractKattaTest {
     _deployClient2 = new DeployClient(conf2);
     _deployClient2.addIndex(INDEX2, TestResources.EMPTY2_INDEX.getAbsolutePath(), 1).joinDeployment();
 
-//     Verify setup.
-//     System.out.println("\n\nPOOL 1 STRUCTURE:\n");
-//     ZKClient tmpClient = new ZKClient(conf1);
-//     tmpClient.start(10000);
-//     tmpClient.showFolders(false, System.out);
-//     System.out.println("\n\nPOOL 2 STRUCTURE:\n");
-//     tmpClient = new ZKClient(conf2);
-//     tmpClient.start(10000);
-//     tmpClient.showFolders(false, System.out);
+    // Verify setup.
+    // System.out.println("\n\nPOOL 1 STRUCTURE:\n");
+    // ZKClient tmpClient = new ZKClient(conf1);
+    // tmpClient.start(10000);
+    // tmpClient.showFolders(false, System.out);
+    // System.out.println("\n\nPOOL 2 STRUCTURE:\n");
+    // tmpClient = new ZKClient(conf2);
+    // tmpClient.start(10000);
+    // tmpClient.showFolders(false, System.out);
 
     // Back end ready to run. Create clients.
     System.out.println("Creating clients");
@@ -143,8 +143,10 @@ public class MultiInstanceTest extends AbstractKattaTest {
   }
 
   private void setupIndex(File index, int size) {
-    for (File f : index.listFiles()) {
-      deleteFiles(f);
+    if (index.exists() && index.isDirectory()) {
+      for (File f : index.listFiles()) {
+        deleteFiles(f);
+      }
     }
     for (int i = 0; i < size; i++) {
       File f = new File(index, "shard" + i);
