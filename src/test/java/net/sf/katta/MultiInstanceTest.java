@@ -150,7 +150,9 @@ public class MultiInstanceTest extends AbstractKattaTest {
     }
     for (int i = 0; i < size; i++) {
       File f = new File(index, "shard" + i);
-      f.mkdir();
+      if(!f.mkdirs()){
+        throw new RuntimeException("unable to create folder: "+ f.getAbsolutePath());
+      }
     }
   }
 
