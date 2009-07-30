@@ -38,7 +38,7 @@ public class LuceneClientFailoverTest extends AbstractKattaTest {
   protected void onSetUp2() throws Exception {
     masterThread = startMaster();
     nodeThread1 = startNode(new LuceneServer(), nodePort1);
-    nodeThread2 = startNode(new LuceneServer(), nodePort2, "/tmp/kattaShards2");
+    nodeThread2 = startNode(new LuceneServer(), nodePort2, "./buid/data/LuceneClientFailoverTest/kattaShards2");
 
     masterThread.join();
     nodeThread1.join();
@@ -169,7 +169,7 @@ public class LuceneClientFailoverTest extends AbstractKattaTest {
     assertSearchResults(10, searchClient.search(query, new String[] { index }, 10));
 
     // flip node1/node2 alive status
-    nodeThread2 = startNode(new LuceneServer(), nodePort2, "/tmp/kattaShards2");
+    nodeThread2 = startNode(new LuceneServer(), nodePort2, "./build/data/LuceneClientFailoverTest/kattaShards2");
     nodeThread2.join();
     nodeThread1.shutdown();
     waitOnNodes(masterThread, 1);
