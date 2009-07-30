@@ -19,20 +19,20 @@ import java.io.File;
 
 public class TestResources {
 
-  public final static File INDEX1 = new File("src/test/testIndexA");
-  public final static File INDEX2 = new File("src/test/testIndexB");
+  public final static File INDEX1 = new File("./build/data/TestResources/testIndexA");
+  public final static File INDEX2 = new File("./build/data/TestResources/testIndexB");
 
-  public final static File UNZIPPED_INDEX = new File("src/test/testIndexC");
-  public final static File INVALID_INDEX = new File("src/test/testIndexInvalid");
+  public final static File UNZIPPED_INDEX = new File("./build/data/TestResources/testIndexC");
+  public final static File INVALID_INDEX = new File("./build/data/TestResources/testIndexInvalid");
 
   public final static File SHARD1 = new File(INDEX2, "aIndex.zip");
 
-  public final static File MAP_FILE_A = new File("src/test/testMapFileA");
-  public final static File MAP_FILE_B = new File("src/test/testMapFileB");
+  public final static File MAP_FILE_A = new File("./build/data/TestResources/testMapFileA");
+  public final static File MAP_FILE_B = new File("./build/data/TestResources/testMapFileB");
   
   /** The shards will be created at run time. */
-  public final static File EMPTY1_INDEX = new File("src/test/empty1");
+  public final static File EMPTY1_INDEX = new File("./build/data/TestResources/empty1");
   /** The shards will be created at run time. */
-  public final static File EMPTY2_INDEX = new File("src/test/empty2");
+  public final static File EMPTY2_INDEX = new File("./build/data/TestResources/empty2");
   
 }
