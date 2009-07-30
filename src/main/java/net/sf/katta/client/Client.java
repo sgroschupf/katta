@@ -30,7 +30,6 @@ import java.util.Map;
 import java.util.Set;
 
 import net.sf.katta.index.IndexMetaData;
-import net.sf.katta.inmemory.IInMemoryLuceneServer;
 import net.sf.katta.util.CollectionUtil;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.ZkConfiguration;
@@ -81,6 +80,10 @@ public class Client implements IShardProxyManager {
   public Client(Class<? extends VersionedProtocol> serverClass, final ZkConfiguration config) throws KattaException {
     this(serverClass, new DefaultNodeSelectionPolicy(), new ZKClient(config));
   }
+  
+  public Client(Class<? extends VersionedProtocol> serverClass, INodeSelectionPolicy policy, ZkConfiguration config) throws KattaException {
+    this(serverClass, policy, new ZKClient(config));
+  }
 
   public Client(Class<? extends VersionedProtocol> serverClass, final INodeSelectionPolicy nodeSelectionPolicy)
           throws KattaException {
@@ -110,6 +113,9 @@ public class Client implements IShardProxyManager {
   }
 
   // --------------- Proxy handling ----------------------
+
+  
+
 
   protected void updateSelectionPolicy(final String shardName, List<String> nodes) {
     List<String> connectedNodes = eastablishNodeProxiesIfNecessary(nodes);
