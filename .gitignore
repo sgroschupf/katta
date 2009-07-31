@@ -1,4 +1,6 @@
+zookeeper-data/
+zookeeper-log-data/
 .project
 .classpath
 .settings
-build
+build/

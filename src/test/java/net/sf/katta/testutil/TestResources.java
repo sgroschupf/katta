@@ -27,8 +27,8 @@ public class TestResources {
 
   public final static File SHARD1 = new File(INDEX2, "aIndex.zip");
 
-  public final static File MAP_FILE_A = new File("./build/data/TestResources/testMapFileA");
-  public final static File MAP_FILE_B = new File("./build/data/TestResources/testMapFileB");
+  public final static File MAP_FILE_A = new File("./src/test/testMapFileA");
+  public final static File MAP_FILE_B = new File("./src/test/testMapFileB");
   
   /** The shards will be created at run time. */
   public final static File EMPTY1_INDEX = new File("./build/data/TestResources/empty1");
