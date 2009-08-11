@@ -37,7 +37,6 @@ import net.sf.katta.index.ShardError;
 import net.sf.katta.index.IndexMetaData.IndexState;
 import net.sf.katta.index.indexer.SampleIndexGenerator;
 import net.sf.katta.index.indexer.merge.IndexMergeApplication;
-import net.sf.katta.loadtest.LoadTestStarter;
 import net.sf.katta.master.Master;
 import net.sf.katta.node.Hit;
 import net.sf.katta.node.Hits;
@@ -284,9 +283,11 @@ public class Katta {
   }
 
   private static void showVersion() {
-    System.out.println("Katta '" + VersionInfo.VERSION + "'");
-    System.out.println("Subversion '" + VersionInfo.SVN_URL + "'");
-    System.out.println("Compiled by '" + VersionInfo.COMPILED_BY + "' on '" + VersionInfo.COMPILE_TIME + "'");
+    System.out.println("WTF");
+    VersionInfo versionInfo = new VersionInfo();
+    System.out.println("Katta '" + versionInfo.getVersion()+ "'");
+    System.out.println("Git-Revision '" + versionInfo.getRevision() + "'");
+    System.out.println("Compiled by '" + versionInfo.getCompiledBy() + "' on '" + versionInfo.getCompileTime() + "'");
   }
 
   public static void startMaster(final ZkConfiguration conf) throws KattaException {

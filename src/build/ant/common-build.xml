@@ -120,7 +120,7 @@
 		<fail if="tests.failed">Tests failed!</fail>
 	</target>
 
-	
+
 	<target name="checkstyle" depends="resolve">
 		<ivy:cachepath pathid="checkstyle.path.id" conf="checkstyle" />
 		<taskdef resource="checkstyletask.properties" classpathref="checkstyle.path.id" />
@@ -134,7 +134,7 @@
 
 	</target>
 
-		
+
 	<!-- ================================================================== -->
 	<!-- Cobertura Section                                                  -->
 	<!-- ================================================================== -->
@@ -169,14 +169,14 @@
 
 
 	<target name="jar" depends="compile-katta">
-		<ivy:cachepath pathid="svnant.path.id" conf="ant" />
-		<typedef resource="org/tigris/subversion/svnant/svnantlib.xml" classpathref="svnant.path.id" />
-		<svn>
-			<wcVersion path="." />
-		</svn>
 		<tstamp>
 			<format property="timestamp" pattern="MMM dd yyyy, HH:mm:ss" />
 		</tstamp>
+		<!-- git version -->
+		<exec outputproperty="build.current.revision" command="git">
+			<arg line=" log -1 --pretty=format:%h" />
+		</exec>
+		<echo>Reversion: ${build.current.revision}</echo>
 
 		<jar jarfile="${build.dir}/${jar.name}" basedir="${build.dir.main-classes}">
 			<manifest>
@@ -186,8 +186,7 @@
 					<attribute name="Implementation-Version" value="${version}" />
 					<attribute name="Compile-Time" value="${timestamp}" />
 					<attribute name="Compiled-By" value="${user.name}" />
-					<attribute name="SVN-URL" value="${repository.url}" />
-					<attribute name="SVN-Revision" value="${revision.max-with-flags}" />
+					<attribute name="Git-Revision" value="${build.current.revision}" />
 				</section>
 			</manifest>
 		</jar>

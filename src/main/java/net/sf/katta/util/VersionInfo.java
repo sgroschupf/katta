@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.net.URL;
 import java.net.URLDecoder;
 import java.util.Enumeration;
+import java.util.Map;
 import java.util.jar.Attributes;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
@@ -32,37 +33,35 @@ public class VersionInfo {
   /**
    * The version of Katta.
    */
-  public static final String VERSION;
+  private String _version;
 
-  public static final String SVN_URL;
-  public static final String SVN_REVISION;
+  private String _revision;
 
-  public static final String COMPILED_BY;
-  public static final String COMPILE_TIME;
+  private String _compiledBy;
+  private String _compileTime;
 
-  static {
+  public VersionInfo() {
     String jar = findContainingJar(VersionInfo.class);
     if (jar != null) {
       LOG.debug("load version info from '" + jar + "'");
       final Manifest manifest = getManifest(jar);
 
-      final Attributes mainAttributes = manifest.getMainAttributes();
-      VERSION = mainAttributes.getValue("Implementation-Version");
-      SVN_URL = mainAttributes.getValue("SVN-URL");
-      SVN_REVISION = mainAttributes.getValue("SVN-Revision");
-      COMPILED_BY = mainAttributes.getValue("Compiled-By");
-      COMPILE_TIME = mainAttributes.getValue("Compile-Time");
+      final Map<String, Attributes> attrs = manifest.getEntries();
+      Attributes attr = attrs.get("net/sf/katta");
+      _version = (String) attr.getValue("Implementation-Version");
+      _revision = (String) attr.getValue("Git-Revision");
+      _compiledBy = (String) attr.getValue("Compiled-By");
+      _compileTime = (String) attr.getValue("Compile-Time");
     } else {
       LOG.debug("could not find katta jar - setting version infos to unknown");
-      VERSION = "Unknown";
-      SVN_URL = "Unknown";
-      SVN_REVISION = "Unknown";
-      COMPILED_BY = "Unknown";
-      COMPILE_TIME = "Unknown";
+      _version = "Unknown";
+      _revision = "Unknown";
+      _compiledBy = "Unknown";
+      _compileTime = "Unknown";
     }
   }
 
-  private static Manifest getManifest(String jar) {
+  private Manifest getManifest(String jar) {
     try {
       final JarFile jarFile = new JarFile(jar);
       final Manifest manifest = jarFile.getManifest();
@@ -72,7 +71,7 @@ public class VersionInfo {
     }
   }
 
-  private static String findContainingJar(Class my_class) {
+  private String findContainingJar(Class my_class) {
     ClassLoader loader = my_class.getClassLoader();
     String class_file = my_class.getName().replaceAll("\\.", "/") + ".class";
     try {
@@ -91,6 +90,22 @@ public class VersionInfo {
       throw new RuntimeException(e);
     }
     return null;
+  }
+
+  public String getVersion() {
+    return _version;
+  }
+
+  public String getRevision() {
+    return _revision;
+  }
+
+  public String getCompiledBy() {
+    return _compiledBy;
+  }
+
+  public String getCompileTime() {
+    return _compileTime;
   }
 
 }
