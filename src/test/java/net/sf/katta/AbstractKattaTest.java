@@ -95,14 +95,13 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
     onSetUp2();
   }
 
-  private void resetZkNamespace() throws KattaException {
-    ZkClient ZkClient = new ZkClient(_conf);
-    ZkClient.start(10000);
-    if (ZkClient.exists(_conf.getZKRootPath())) {
-      ZkClient.deleteRecursive(_conf.getZKRootPath());
+  private void resetZkNamespace() {
+    ZkClient zkClient = new ZkClient(_conf.getZKServers(), _conf.getZKTimeOut(), 10000);
+    if (zkClient.exists(_conf.getZKRootPath())) {
+      zkClient.deleteRecursive(_conf.getZKRootPath());
     }
-    ZkClient.createDefaultNameSpace();
-    ZkClient.close();
+    new DefaultNameSpaceImpl(_conf).createDefaultNameSpace(zkClient);
+    zkClient.close();
   }
 
   protected void onBeforeClass() throws Exception {
@@ -118,26 +117,27 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
   }
 
   protected static void cleanZookeeperData(final ZkConfiguration configuration) {
-    File dataDir = configuration.getZKDataDir();
-    File dataLogDir = configuration.getZKDataLogDir();
+    String dataDir = configuration.getZKDataDir();
+    String dataLogDir = configuration.getZKDataLogDir();
     File shardFolder = new NodeConfiguration().getShardFolder();
-    FileUtil.deleteFolder(dataDir);
-    FileUtil.deleteFolder(dataLogDir);
+    FileUtil.deleteFolder(new File(dataDir));
+    FileUtil.deleteFolder(new File(dataLogDir));
     FileUtil.deleteFolder(shardFolder);
-    assertFalse(dataDir.exists());
-    assertFalse(dataLogDir.exists());
+    assertFalse(new File(dataDir).exists());
+    assertFalse(new File(dataLogDir).exists());
     assertFalse(shardFolder.exists());
   }
 
-  protected void startZkServer() throws KattaException {
+  protected void startZkServer() {
     if (_zkServer != null) {
       throw new IllegalStateException("zk server already running");
     }
-    if (!NetworkUtil.isPortFree(ZkServer.DEFAULT_PORT)) {
-      throw new IllegalStateException("port " + ZkServer.DEFAULT_PORT
-              + " blocked. Probably other zk server is running.");
+    int port = _conf.getZKClientPort();
+    if (!NetworkUtil.isPortFree(port)) {
+      throw new IllegalStateException("port " + port + " blocked. Probably other zk server is running.");
     }
-    _zkServer = new ZkServer(_conf);
+    _zkServer = new ZkServer(_conf.getZKDataDir(), _conf.getZKDataLogDir(), new DefaultNameSpaceImpl(_conf), _conf.getZKClientPort(), _conf.getZKTickTime());
+    _zkServer.start();
   }
 
   protected void stopZkServer() {
@@ -167,8 +167,8 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
   }
 
   protected MasterStartThread startMaster(ZkConfiguration conf) throws KattaException {
-    ZkClient zkMasterClient = new ZkClient(conf);
-    Master master = new Master(zkMasterClient);
+    ZkClient zkMasterClient = new ZkClient(conf.getZKServers(), conf.getZKTimeOut());
+    Master master = new Master(conf, zkMasterClient);
     MasterStartThread masterStartThread = new MasterStartThread(master, zkMasterClient);
     masterStartThread.start();
     return masterStartThread;
@@ -192,11 +192,11 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
   }
 
   protected NodeStartThread startNode(INodeManaged server, int port, String shardFolder, ZkConfiguration conf) {
-    ZkClient zkNodeClient = new ZkClient(conf);
+    ZkClient zkNodeClient = new ZkClient(conf.getZKServers(), conf.getZKTimeOut());
     NodeConfiguration nodeConf = new NodeConfiguration();
     nodeConf.setShardFolder(shardFolder);
     nodeConf.setStartPort(port);
-    Node node = new Node(zkNodeClient, nodeConf, server);
+    Node node = new Node(conf, zkNodeClient, nodeConf, server);
     NodeStartThread nodeStartThread = new NodeStartThread(node, zkNodeClient);
     nodeStartThread.start();
     return nodeStartThread;

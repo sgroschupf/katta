@@ -44,17 +44,16 @@ public class MasterTest extends AbstractKattaTest {
 
   public void testNodes() throws Exception {
     final MasterStartThread masterStartThread = startMaster();
-    final ZKClient zkClientMaster = masterStartThread.getZkClient();
-    final ZKClient zkClient = new ZKClient(_conf);
-    zkClient.start(5000);
+    final ZkClient zkClientMaster = masterStartThread.getZkClient();
+    final ZkClient zkClient = new ZkClient(_conf.getZKServers(), _conf.getZKTimeOut(), 5000);
     final Master master = masterStartThread.getMaster();
 
     final String node1 = "node1";
     final String node2 = "node2";
     zkClient.createEphemeral(_conf.getZKNodePath(node1), new NodeMetaData(node1, NodeState.IN_SERVICE));
-    zkClient.create(_conf.getZKNodeToShardPath(node1));
+    zkClient.createPersistent(_conf.getZKNodeToShardPath(node1));
     zkClient.createEphemeral(_conf.getZKNodePath(node2), new NodeMetaData(node2, NodeState.IN_SERVICE));
-    zkClient.create(_conf.getZKNodeToShardPath(node2));
+    zkClient.createPersistent(_conf.getZKNodeToShardPath(node2));
 
     masterStartThread.join();
     waitForChilds(zkClientMaster, _conf.getZKNodesPath(), 2);
@@ -109,7 +108,7 @@ public class MasterTest extends AbstractKattaTest {
 
   public void testDeployAndRemoveIndex() throws Exception {
     final MasterStartThread masterStartThread = startMaster();
-    final ZKClient zkClientMaster = masterStartThread.getZkClient();
+    final ZkClient zkClientMaster = masterStartThread.getZkClient();
 
     final NodeStartThread nodeStartThread1 = startNode(new LuceneServer());
     final NodeStartThread nodeStartThread2 = startNode(new LuceneServer(), SECOND_SHARD_FOLDER);
@@ -139,8 +138,7 @@ public class MasterTest extends AbstractKattaTest {
       assertEquals(2, zkClientMaster.getChildren(_conf.getZKShardToNodePath(shard)).size());
     }
 
-    final IndexMetaData metaData = new IndexMetaData();
-    zkClientMaster.readData(_conf.getZKIndexPath(index), metaData);
+    final IndexMetaData metaData = zkClientMaster.readData(_conf.getZKIndexPath(index));
     assertEquals(IndexMetaData.IndexState.DEPLOYED, metaData.getState());
 
     katta.removeIndex(index);
@@ -190,8 +188,7 @@ public class MasterTest extends AbstractKattaTest {
       assertEquals(1, zkClientMaster.getChildren(_conf.getZKShardToNodePath(shard)).size());
     }
 
-    final IndexMetaData metaData = new IndexMetaData();
-    zkClientMaster.readData(_conf.getZKIndexPath(index), metaData);
+    final IndexMetaData metaData = zkClientMaster.readData(_conf.getZKIndexPath(index));
     assertEquals(IndexMetaData.IndexState.DEPLOYED, metaData.getState());
     node2.shutdown();
 

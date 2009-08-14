@@ -21,6 +21,7 @@ package net.sf.katta.master;
  */
 public class AlternateRootCfgMasterTest extends MasterTest {
 
+  @Override
   protected String getZkConfigurationResourceName() {
     return("/katta.zk.properties_alt_root");
   }

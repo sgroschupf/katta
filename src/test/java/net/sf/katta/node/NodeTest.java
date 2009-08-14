@@ -30,8 +30,9 @@ import net.sf.katta.index.AssignedShard;
 import net.sf.katta.index.IndexMetaData;
 import net.sf.katta.index.IndexMetaData.IndexState;
 import net.sf.katta.testutil.TestResources;
-import net.sf.katta.zk.ZKClient;
 
+import org.I0Itec.zkclient.ZkClient;
+import org.I0Itec.zkclient.ZkLock;
 import org.apache.lucene.analysis.KeywordAnalyzer;
 import org.apache.lucene.queryParser.QueryParser;
 import org.apache.lucene.search.Query;
@@ -52,8 +53,7 @@ public class NodeTest extends AbstractKattaTest {
 
     // test
     final String indexPath = _conf.getZKIndicesPath() + "/index";
-    IndexMetaData indexMetaData = new IndexMetaData();
-    masterThread.getZkClient().readData(indexPath, indexMetaData);
+    IndexMetaData indexMetaData = masterThread.getZkClient().readData(indexPath);
     assertEquals(IndexMetaData.IndexState.DEPLOYED, indexMetaData.getState());
 
     // close all
@@ -120,12 +120,11 @@ public class NodeTest extends AbstractKattaTest {
 
   public void testMultiThreadSearch() throws Exception {
 
-    ZKClient zkClient = Mockito.mock(ZKClient.class);
-    Mockito.when(zkClient.getEventLock()).thenReturn(new ZKClient.ZkLock());
-    Mockito.when(zkClient.getConfig()).thenReturn(_conf);
+    ZkClient zkClient = Mockito.mock(ZkClient.class);
+    Mockito.when(zkClient.getEventLock()).thenReturn(new ZkLock());
 
     LuceneServer server = new LuceneServer();
-    Node node = new Node(zkClient, server);
+    Node node = new Node(_conf, zkClient, server);
     node.start();
 
     List<AssignedShard> shards = new ArrayList<AssignedShard>();
@@ -170,11 +169,10 @@ public class NodeTest extends AbstractKattaTest {
   }
 
   public void testUndeployShards() throws Exception {
-    ZKClient zkClient = Mockito.mock(ZKClient.class);
-    Mockito.when(zkClient.getEventLock()).thenReturn(new ZKClient.ZkLock());
-    Mockito.when(zkClient.getConfig()).thenReturn(_conf);
+    ZkClient zkClient = Mockito.mock(ZkClient.class);
+    Mockito.when(zkClient.getEventLock()).thenReturn(new ZkLock());
 
-    Node node = new Node(zkClient, new LuceneServer());
+    Node node = new Node(_conf, zkClient, new LuceneServer());
     node.start();
 
     List<AssignedShard> shards = new ArrayList<AssignedShard>();

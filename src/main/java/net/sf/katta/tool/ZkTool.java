@@ -19,8 +19,8 @@ import java.util.List;
 
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.ZkConfiguration;
-import net.sf.katta.zk.ZKClient;
 
+import org.I0Itec.zkclient.ZkClient;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.GnuParser;
@@ -33,7 +33,7 @@ import org.apache.commons.cli.ParseException;
 public class ZkTool {
 
   private ZkConfiguration _conf;
-  private ZKClient _zkClient;
+  private ZkClient _zkClient;
 
   public ZkTool() throws KattaException {
     _conf = new ZkConfiguration();

@@ -17,6 +17,7 @@ package net.sf.katta.integrationTest;
 
 import java.io.File;
 
+import net.sf.katta.DefaultNameSpaceImpl;
 import net.sf.katta.client.DeployClient;
 import net.sf.katta.client.IDeployClient;
 import net.sf.katta.master.Master;
@@ -53,7 +54,8 @@ public class KattaMiniCluster {
   }
 
   public void start() throws KattaException {
-    _zkServer = new ZkServer(_zkConfiguration);
+    _zkServer = new ZkServer(_zkConfiguration.getZKDataDir(), _zkConfiguration.getZKDataLogDir(), new DefaultNameSpaceImpl(_zkConfiguration), _zkConfiguration.getZKTickTime());
+    _zkServer.start();
     _master.start();
     for (Node node : _nodes) {
       node.start();

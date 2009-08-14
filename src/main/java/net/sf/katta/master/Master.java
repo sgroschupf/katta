@@ -15,6 +15,7 @@
  */
 package net.sf.katta.master;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -54,12 +55,12 @@ public class Master implements IZkStateListener {
   private MasterListener _masterLister;
 
   @SuppressWarnings("unchecked")
-  public Master(final ZkClient zkClient) {
+  public Master(ZkConfiguration conf, final ZkClient zkClient) {
     _masterName = NetworkUtil.getLocalhostName() + "_" + UUID.randomUUID().toString();
     _indexListener = new IndexListener();
     _nodeListener = new NodeListener();
     _masterLister = new MasterListener();
-    _conf = zkClient.getConfig();
+    _conf = conf;
     if (!_conf.getZKRootPath().equals(ZkConfiguration.DEFAULT_ROOT_PATH)) {
       LOG.info("Using ZK root path: " + _conf.getZKRootPath());
     }
@@ -89,7 +90,7 @@ public class Master implements IZkStateListener {
     } else {
       safeModeMaxTime = masterConfiguration.getInt(MasterConfiguration.SAFE_MODE_MAX_TIME);
     }
-    _manageShardThread = new DistributeShardsThread(_zkClient, deployPolicy, safeModeMaxTime, false);
+    _manageShardThread = new DistributeShardsThread(_conf, _zkClient, deployPolicy, safeModeMaxTime, false);
   }
 
   public void start() {
@@ -197,39 +198,27 @@ public class Master implements IZkStateListener {
     }
   }
 
-  protected class MasterListener implements IZkDataListener<MasterMetaData> {
-
-    public void handleDataAdded(final String dataPath, final MasterMetaData data) throws KattaException {
-      // nothing todo
-    }
-
-    public void handleDataChange(final String dataPath, final MasterMetaData data) throws KattaException {
-      // nothing todo
-    }
+  protected class MasterListener implements IZkDataListener {
 
     public void handleDataDeleted(final String dataPath) throws KattaException {
       if (!_isMaster) {
         // start from scratch again...
         LOG.info("An master failure was detected...");
-        try {
-          start();
-        } catch (final KattaException e) {
-          LOG.error("Faild to process Master change notificaiton.", e);
-        }
+        start();
       }
     }
 
-    public MasterMetaData createWritable() {
-      return new MasterMetaData();
+    @Override
+    public void handleDataChange(String dataPath, Serializable data) throws Exception {
+      // do nothing
     }
-
   }
 
-  protected List<String> readNodes() throws KattaException {
+  protected List<String> readNodes() {
     return _zkClient.getChildren(_conf.getZKNodesPath());
   }
 
-  protected List<String> readIndexes() throws KattaException {
+  protected List<String> readIndexes() {
     return _zkClient.getChildren(_conf.getZKIndicesPath());
   }
 

@@ -288,15 +288,16 @@ public class Katta {
   public static void startMaster(final ZkConfiguration conf) throws InterruptedException {
     // ZkServer zkServer = null;
     if (conf.isEmbedded()) {
-      // TODO sg: we should get this values as strings not as files.
-      String dataDir = conf.getZKDataDir().getAbsolutePath();
-      String logDir = conf.getZKDataLogDir().getAbsolutePath();
-      _zkServer = new ZkServer(dataDir, logDir, new DefaultNameSpaceImpl());
+      String dataDir = conf.getZKDataDir();
+      String logDir = conf.getZKDataLogDir();
+      _zkServer = new ZkServer(dataDir, logDir, new DefaultNameSpaceImpl(conf), conf.getZKTickTime());
+      _zkServer.start();
     }
-    final ZkClient client = new ZkClient(conf.getZKServers());
-    final Master master = new Master(client);
+    final ZkClient client = _zkServer.getZkClient();
+    final Master master = new Master(conf, client);
     master.start();
     Runtime.getRuntime().addShutdownHook(new Thread() {
+      @Override
       public void run() {
         master.shutdown();
       }
@@ -304,12 +305,13 @@ public class Katta {
 
     // Just wait until the JVM terminates.
     Thread waiter = new Thread() {
+      @Override
       public void run() {
         try {
           sleep(Long.MAX_VALUE);
         } catch (InterruptedException e) {
         }
-      };
+      }
     };
     waiter.setDaemon(true);
     waiter.start();
@@ -341,8 +343,8 @@ public class Katta {
     } catch (Throwable t) {
       throw new RuntimeException("Error getting server instance for " + serverClassName, t);
     }
-    final ZkClient client = new ZkClient(conf.getZKServers());
-    final Node node = new Node(client, server);
+    final ZkClient client = new ZkClient(conf.getZKServers(), conf.getZKTimeOut());
+    final Node node = new Node(conf, client, server);
     node.start();
     Runtime.getRuntime().addShutdownHook(new Thread() {
       @Override

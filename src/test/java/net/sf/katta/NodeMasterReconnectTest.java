@@ -22,8 +22,8 @@ import net.sf.katta.node.LuceneServer;
 import net.sf.katta.node.Node;
 import net.sf.katta.testutil.Gateway;
 import net.sf.katta.util.ZkConfiguration;
-import net.sf.katta.zk.ZKClient;
 
+import org.I0Itec.zkclient.ZkClient;
 import org.apache.zookeeper.ZooKeeper;
 
 public class NodeMasterReconnectTest extends AbstractKattaTest {
@@ -41,7 +41,7 @@ public class NodeMasterReconnectTest extends AbstractKattaTest {
 
     final MasterStartThread masterStartThread = startMaster();
     final Master master = masterStartThread.getMaster();
-    final ZKClient zkNodeClient = new ZKClient(gatewayConf);
+    final ZkClient zkNodeClient = new ZkClient(gatewayConf);
     final Node node = new Node(zkNodeClient, new LuceneServer());
     node.start();
     masterStartThread.join();

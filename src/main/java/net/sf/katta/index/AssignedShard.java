@@ -15,13 +15,9 @@
  */
 package net.sf.katta.index;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
+import java.io.Serializable;
 
-import org.apache.hadoop.io.Writable;
-
-public class AssignedShard implements Writable {
+public class AssignedShard implements Serializable {
 
   private String _indexName;
   private String _shardPath;
@@ -33,17 +29,6 @@ public class AssignedShard implements Writable {
   public AssignedShard(final String indexName, final String shardPath) {
     _indexName = indexName;
     _shardPath = shardPath;
-  }
-
-  public void readFields(final DataInput in) throws IOException {
-    _indexName = in.readUTF();
-    _shardPath = in.readUTF();
-
-  }
-
-  public void write(final DataOutput out) throws IOException {
-    out.writeUTF(_indexName);
-    out.writeUTF(_shardPath);
   }
 
   public String getShardName() {

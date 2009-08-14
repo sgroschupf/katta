@@ -19,8 +19,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-import org.apache.lucene.analysis.standard.StandardAnalyzer;
-
 import net.sf.katta.client.ILuceneClient;
 import net.sf.katta.client.LuceneClient;
 import net.sf.katta.node.Hit;
@@ -29,7 +27,8 @@ import net.sf.katta.node.LuceneServer;
 import net.sf.katta.node.Query;
 import net.sf.katta.testutil.TestResources;
 import net.sf.katta.util.KattaException;
-import net.sf.katta.zk.ZKClient;
+
+import org.I0Itec.zkclient.ZkClient;
 
 public class PerformanceTest extends AbstractKattaTest {
 
@@ -42,7 +41,7 @@ public class PerformanceTest extends AbstractKattaTest {
 
   private void start() throws InterruptedException, KattaException {
     MasterStartThread masterStartThread = startMaster();
-    final ZKClient zkClientMaster = masterStartThread.getZkClient();
+    final ZkClient zkClientMaster = masterStartThread.getZkClient();
 
     NodeStartThread nodeStartThread1 = startNode(new LuceneServer());
     NodeStartThread nodeStartThread2 = startNode(new LuceneServer());

@@ -157,9 +157,9 @@ public class LuceneClientFailoverTest extends AbstractKattaTest {
     String node2Name = nodeThread2.getNode().getName();
     ZkClient zkClient = masterThread.getZkClient();
     List<String> shards = zkClient.getChildren(_conf.getZKIndexPath(index));
-    zkClient.create(_conf.getZKNodePath(node2Name));
+    zkClient.createPersistent(_conf.getZKNodePath(node2Name));
     for (String shard : shards) {
-      zkClient.create(_conf.getZKShardToNodePath(shard, node2Name));
+      zkClient.createPersistent(_conf.getZKShardToNodePath(shard, node2Name));
     }
     waitOnNodes(masterThread, 2);
 

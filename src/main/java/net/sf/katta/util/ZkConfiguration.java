@@ -96,13 +96,11 @@ public class ZkConfiguration extends KattaConfiguration {
     return getInt(ZOOKEEPER_SYNC_LIMIT);
   }
 
-  //TODO sg this should be a string since we only use it as strings
-  public File getZKDataDir() {
+  public String getZKDataDir() {
     return getFile(ZOOKEEPER_DATA_DIR);
   }
   
-  //TODO sg this should be a string since we only use it as strings
-  public File getZKDataLogDir() {
+  public String getZKDataLogDir() {
     return getFile(ZOOKEEPER_LOG_DATA_DIR);
   }
 

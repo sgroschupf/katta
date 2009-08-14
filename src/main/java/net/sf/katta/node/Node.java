@@ -81,15 +81,15 @@ public class Node implements IZkStateListener {
     STARTING, RECONNECTING, IN_SERVICE, LOST;
   }
 
-  public Node(final ZkClient zkClient, INodeManaged server) {
-    this(zkClient, new NodeConfiguration(), server);
+  public Node(ZkConfiguration conf, ZkClient zkClient, INodeManaged server) {
+    this(conf, zkClient, new NodeConfiguration(), server);
   }
 
-  public Node(final ZKClient zkClient, final NodeConfiguration configuration, INodeManaged server) {
+  public Node(ZkConfiguration conf, ZkClient zkClient, final NodeConfiguration configuration, INodeManaged server) {
     if (server == null) {
       throw new IllegalArgumentException("Null server passed to Node()");
     }
-    _conf = zkClient.getConfig();
+    _conf = conf;
     _zkClient = zkClient;
     _configuration = configuration;
     _server = server;
@@ -172,7 +172,7 @@ public class Node implements IZkStateListener {
   /*
    * Writes node ephemeral data into zookeeper
    */
-  private void announceNode(NodeState nodeState) throws KattaException {
+  private void announceNode(NodeState nodeState) {
     LOG.info("Announce node '" + _nodeName + "'...");
     final NodeMetaData metaData = new NodeMetaData(_nodeName, nodeState);
     final String nodePath = _conf.getZKNodePath(_nodeName);
@@ -183,7 +183,7 @@ public class Node implements IZkStateListener {
 
     final String nodeToShardPath = _conf.getZKNodeToShardPath(_nodeName);
     if (!_zkClient.exists(nodeToShardPath)) {
-      _zkClient.create(nodeToShardPath);
+      _zkClient.createPersistent(nodeToShardPath);
     }
     _zkClient.createEphemeral(nodePath, metaData);
     LOG.info("Node '" + _nodeName + "' announced");
@@ -335,8 +335,8 @@ public class Node implements IZkStateListener {
         for (String shard : _deployedShards) {
           String shard2NodePath = _conf.getZKShardToNodePath(shard, _nodeName);
           String shard2ErrorPath = _conf.getZKShardToErrorPath(shard, _nodeName);
-          _zkClient.deleteIfExists(shard2NodePath);
-          _zkClient.deleteIfExists(shard2ErrorPath);
+          _zkClient.delete(shard2NodePath);
+          _zkClient.delete(shard2ErrorPath);
         }
       } catch (Throwable t) {
         LOG.warn("could'nt cleanup zk ephemeral Paths: " + t.getMessage());
@@ -444,8 +444,7 @@ public class Node implements IZkStateListener {
   private ArrayList<AssignedShard> readAssignedShards(final List<String> shardsToDeploy) throws KattaException {
     ArrayList<AssignedShard> newShards = new ArrayList<AssignedShard>();
     for (String shardName : shardsToDeploy) {
-      AssignedShard assignedShard = new AssignedShard();
-      _zkClient.readData(_conf.getZKNodeToShardPath(_nodeName, shardName), assignedShard);  
+      AssignedShard assignedShard = _zkClient.readData(_conf.getZKNodeToShardPath(_nodeName, shardName));  
       newShards.add(assignedShard);
     }
     return newShards;
