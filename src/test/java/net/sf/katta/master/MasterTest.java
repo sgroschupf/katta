@@ -30,7 +30,8 @@ import net.sf.katta.node.NodeMetaData;
 import net.sf.katta.node.Node.NodeState;
 import net.sf.katta.testutil.TestResources;
 import net.sf.katta.util.FileUtil;
-import net.sf.katta.zk.ZKClient;
+
+import org.I0Itec.zkclient.ZkClient;
 
 public class MasterTest extends AbstractKattaTest {
 
@@ -159,7 +160,7 @@ public class MasterTest extends AbstractKattaTest {
 
   public void testRebalanceIndexAfterNodeCrash() throws Exception {
     final MasterStartThread masterStartThread = startMaster();
-    final ZKClient zkClientMaster = masterStartThread.getZkClient();
+    final ZkClient zkClientMaster = masterStartThread.getZkClient();
 
     final NodeStartThread nodeStartThread1 = startNode(new LuceneServer());
     final NodeStartThread nodeStartThread2 = startNode(new LuceneServer(), SECOND_SHARD_FOLDER);
@@ -172,7 +173,7 @@ public class MasterTest extends AbstractKattaTest {
     waitForChilds(zkClientMaster, _conf.getZKNodesPath(), 2);
 
     final File indexFile = TestResources.INDEX1;
-    DeployClient deployClient = new DeployClient(_conf);
+    DeployClient deployClient = new DeployClient(zkClientMaster, _conf);
     final String index = "indexA";
     IIndexDeployFuture deployFuture = deployClient.addIndex(index, "file://" + indexFile.getAbsolutePath(), 1);
     deployFuture.joinDeployment();

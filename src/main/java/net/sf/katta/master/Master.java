@@ -27,11 +27,12 @@ import net.sf.katta.util.ZkConfiguration;
 
 import org.I0Itec.zkclient.IZkChildListener;
 import org.I0Itec.zkclient.IZkDataListener;
+import org.I0Itec.zkclient.IZkStateListener;
 import org.I0Itec.zkclient.ZkClient;
 import org.apache.log4j.Logger;
 import org.apache.zookeeper.Watcher.Event.KeeperState;
 
-public class Master implements IZkReconnectListener {
+public class Master implements IZkStateListener {
 
   protected final static Logger LOG = Logger.getLogger(Master.class);
 
@@ -65,7 +66,7 @@ public class Master implements IZkReconnectListener {
     _zkClient = zkClient;
     try {
       _zkClient.getEventLock().lock();
-      _zkClient.subscribeReconnects(this);
+      _zkClient.subscribeStateChanges(this);
     } finally {
       _zkClient.getEventLock().unlock();
     }

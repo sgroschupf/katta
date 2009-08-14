@@ -620,8 +620,10 @@ public class DistributeShardsThread extends Thread {
         for (final String shard : shards) {
           final String shard2NodeRootPath = _conf.getZKShardToNodePath(shard);
           final String shard2ErrorPath = _conf.getZKShardToErrorPath(shard);
-          _shardToReplicaCount.put(shard, _zkClient.subscribeChildChanges(shard2NodeRootPath, this).size());
-          _shardToErrorCount.put(shard, _zkClient.subscribeChildChanges(shard2ErrorPath, this).size());
+          _zkClient.subscribeChildChanges(shard2NodeRootPath, this);
+          _zkClient.subscribeChildChanges(shard2ErrorPath, this);
+          _shardToReplicaCount.put(shard, _zkClient.getChildren(shard2NodeRootPath).size());
+          _shardToErrorCount.put(shard, _zkClient.getChildren(shard2ErrorPath).size());
         }
         checkForIndexStateSwitch();
       } finally {

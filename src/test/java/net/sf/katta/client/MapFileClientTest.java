@@ -70,7 +70,7 @@ public class MapFileClientTest extends AbstractKattaTest {
     nodeStartThread2.join();
     waitOnNodes(masterStartThread, 2);
 
-    _deployClient = new DeployClient(_conf);
+    _deployClient = new DeployClient(masterStartThread.getZkClient(), _conf);
     _deployClient.addIndex(INDEX1, TestResources.MAP_FILE_A.getAbsolutePath(), 1).joinDeployment();
     _deployClient.addIndex(INDEX2, TestResources.MAP_FILE_B.getAbsolutePath(), 1).joinDeployment();
     _client = new MapFileClient(_conf);

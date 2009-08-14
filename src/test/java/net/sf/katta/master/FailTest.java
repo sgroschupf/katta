@@ -29,8 +29,8 @@ import net.sf.katta.testutil.TestResources;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.NodeConfiguration;
 import net.sf.katta.util.ZkConfiguration;
-import net.sf.katta.zk.ZKClient;
 
+import org.I0Itec.zkclient.ZkClient;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher.Event.EventType;
 import org.apache.zookeeper.Watcher.Event.KeeperState;
@@ -68,7 +68,7 @@ public class FailTest extends AbstractKattaTest {
 
   public void testNodeFailure() throws Exception {
     final MasterStartThread masterThread = startMaster();
-    final ZKClient zkClientMaster = masterThread.getZkClient();
+    final ZkClient zkClientMaster = masterThread.getZkClient();
 
     // create 3 nodes
     final NodeConfiguration sconf1 = new NodeConfiguration();
@@ -90,7 +90,7 @@ public class FailTest extends AbstractKattaTest {
     waitForPath(zkClientMaster, _conf.getZKMasterPath());
 
     // deploy index
-    final IDeployClient deployClient = new DeployClient(_conf);
+    final IDeployClient deployClient = new DeployClient(zkClientMaster, _conf);
     final String indexName = "index";
     deployClient.addIndex(indexName, TestResources.UNZIPPED_INDEX.getAbsolutePath(), 3).joinDeployment();
     final LuceneClient client = new LuceneClient(_conf);
@@ -122,14 +122,14 @@ public class FailTest extends AbstractKattaTest {
   public void testZkReconnectDuringDeployment() throws KattaException, InterruptedException {
 
     final MasterStartThread masterThread = startMaster();
-    final ZKClient masterZkClient = masterThread.getZkClient();
+    final ZkClient masterZkClient = masterThread.getZkClient();
 
     final NodeConfiguration sconf1 = new NodeConfiguration();
     final String defaulFolder = sconf1.getShardFolder().getAbsolutePath();
     sconf1.setShardFolder(defaulFolder + "/" + 1);
     /* final DummyNode node1 = */ new DummyNode(_conf, sconf1);
 
-    final IDeployClient deployClient = new DeployClient(_conf);
+    final IDeployClient deployClient = new DeployClient(masterZkClient, _conf);
 
     WatchedEvent event = new WatchedEvent(new WatcherEvent(EventType.None.getIntValue(), KeeperState.Expired
             .getIntValue(), null));
@@ -152,11 +152,11 @@ public class FailTest extends AbstractKattaTest {
 
   private class DummyNode {
 
-    private final ZKClient _client;
+    private final ZkClient _client;
     private final Node _node;
 
     public DummyNode(final ZkConfiguration conf, final NodeConfiguration nodeConfiguration) throws KattaException {
-      _client = new ZKClient(conf);
+      _client = new ZkClient(conf);
       _node = new Node(_client, nodeConfiguration, new LuceneServer());
       _node.start();
     }

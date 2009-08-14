@@ -118,12 +118,12 @@ public class MultiInstanceTest extends AbstractKattaTest {
 
     // Deploy shards to pool1.
     System.out.println("Deploying index 1");
-    _deployClient1 = new DeployClient(conf1);
+    _deployClient1 = new DeployClient(masterStartThread1.getZkClient(), conf1);
     _deployClient1.addIndex(INDEX1, TestResources.EMPTY1_INDEX.getAbsolutePath(), 1).joinDeployment();
 
     // Deploy shards to pool2.
     System.out.println("Deploying index 2");
-    _deployClient2 = new DeployClient(conf2);
+    _deployClient2 = new DeployClient(masterStartThread2.getZkClient(), conf2);
     _deployClient2.addIndex(INDEX2, TestResources.EMPTY2_INDEX.getAbsolutePath(), 1).joinDeployment();
 
     // Verify setup.

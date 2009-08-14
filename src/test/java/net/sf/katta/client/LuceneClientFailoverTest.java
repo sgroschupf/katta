@@ -22,7 +22,8 @@ import net.sf.katta.Katta;
 import net.sf.katta.node.Hits;
 import net.sf.katta.node.LuceneServer;
 import net.sf.katta.node.Query;
-import net.sf.katta.zk.ZKClient;
+
+import org.I0Itec.zkclient.ZkClient;
 
 public class LuceneClientFailoverTest extends AbstractKattaTest {
 
@@ -154,7 +155,7 @@ public class LuceneClientFailoverTest extends AbstractKattaTest {
 
     // simulate 2nd node alive and serving shard
     String node2Name = nodeThread2.getNode().getName();
-    ZKClient zkClient = masterThread.getZkClient();
+    ZkClient zkClient = masterThread.getZkClient();
     List<String> shards = zkClient.getChildren(_conf.getZKIndexPath(index));
     zkClient.create(_conf.getZKNodePath(node2Name));
     for (String shard : shards) {

@@ -41,10 +41,9 @@ import net.sf.katta.util.KattaException;
 import net.sf.katta.util.NetworkUtil;
 import net.sf.katta.util.NodeConfiguration;
 import net.sf.katta.util.ZkConfiguration;
-import net.sf.katta.zk.IZkChildListener;
-import net.sf.katta.zk.IZkReconnectListener;
-import net.sf.katta.zk.ZKClient;
 
+import org.I0Itec.zkclient.IZkChildListener;
+import org.I0Itec.zkclient.IZkStateListener;
 import org.I0Itec.zkclient.ZkClient;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -54,7 +53,7 @@ import org.apache.hadoop.ipc.RPC.Server;
 import org.apache.log4j.Logger;
 import org.apache.zookeeper.Watcher.Event.KeeperState;
 
-public class Node implements IZkReconnectListener {
+public class Node implements IZkStateListener {
 
   protected final static Logger LOG = Logger.getLogger(Node.class);
 
@@ -474,7 +473,7 @@ public class Node implements IZkReconnectListener {
 
   }
 
-  /*
+  /**
    * A Thread that updates the status of the node within zookeeper.
    */
   protected class StatusUpdater extends TimerTask {

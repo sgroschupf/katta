@@ -25,8 +25,8 @@ import net.sf.katta.node.Node;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.NodeConfiguration;
 import net.sf.katta.util.ZkConfiguration;
-import net.sf.katta.zk.ZKClient;
-import net.sf.katta.zk.ZkServer;
+
+import org.I0Itec.zkclient.ZkServer;
 
 /**
  * A container class for a whole katta cluster including:<br>
@@ -72,9 +72,8 @@ public class KattaMiniCluster {
     return _nodes[i];
   }
 
-  public void deployTestIndexes(File indexFile, int deployCount, int replicationCount) throws KattaException,
-          InterruptedException {
-    IDeployClient deployClient = new DeployClient(_zkConfiguration);
+  public void deployTestIndexes(File indexFile, int deployCount, int replicationCount) throws InterruptedException {
+    IDeployClient deployClient = new DeployClient(_zkServer.getZkClient(), _zkConfiguration);
     for (int i = 0; i < deployCount; i++) {
       deployClient.addIndex(indexFile.getName() + i, indexFile.getAbsolutePath(), replicationCount).joinDeployment();
     }

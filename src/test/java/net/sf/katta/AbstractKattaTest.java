@@ -27,10 +27,9 @@ import net.sf.katta.util.KattaException;
 import net.sf.katta.util.NetworkUtil;
 import net.sf.katta.util.NodeConfiguration;
 import net.sf.katta.util.ZkConfiguration;
-import net.sf.katta.zk.ZKClient;
-import net.sf.katta.zk.ZkServer;
-import net.sf.katta.zk.ZKClient.ZkLock;
 
+import org.I0Itec.zkclient.ZkClient;
+import org.I0Itec.zkclient.ZkServer;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.ZooKeeper.States;
 
@@ -97,13 +96,13 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
   }
 
   private void resetZkNamespace() throws KattaException {
-    ZKClient zkClient = new ZKClient(_conf);
-    zkClient.start(10000);
-    if (zkClient.exists(_conf.getZKRootPath())) {
-      zkClient.deleteRecursive(_conf.getZKRootPath());
+    ZkClient ZkClient = new ZkClient(_conf);
+    ZkClient.start(10000);
+    if (ZkClient.exists(_conf.getZKRootPath())) {
+      ZkClient.deleteRecursive(_conf.getZKRootPath());
     }
-    zkClient.createDefaultNameSpace();
-    zkClient.close();
+    ZkClient.createDefaultNameSpace();
+    ZkClient.close();
   }
 
   protected void onBeforeClass() throws Exception {
@@ -168,7 +167,7 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
   }
 
   protected MasterStartThread startMaster(ZkConfiguration conf) throws KattaException {
-    ZKClient zkMasterClient = new ZKClient(conf);
+    ZkClient zkMasterClient = new ZkClient(conf);
     Master master = new Master(zkMasterClient);
     MasterStartThread masterStartThread = new MasterStartThread(master, zkMasterClient);
     masterStartThread.start();
@@ -193,7 +192,7 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
   }
 
   protected NodeStartThread startNode(INodeManaged server, int port, String shardFolder, ZkConfiguration conf) {
-    ZKClient zkNodeClient = new ZKClient(conf);
+    ZkClient zkNodeClient = new ZkClient(conf);
     NodeConfiguration nodeConf = new NodeConfiguration();
     nodeConf.setShardFolder(shardFolder);
     nodeConf.setStartPort(port);
@@ -206,18 +205,18 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
 // TODO: port load test to new client/server model.
 //
 //  protected LoadTestNode startLoadTestNode() throws KattaException {
-//    ZKClient zkNodeClient = new ZKClient(_conf);
+//    ZkClient zkNodeClient = new ZkClient(_conf);
 //    LoadTestNodeConfiguration nodeConf = new LoadTestNodeConfiguration();
 //    LoadTestNode node = new LoadTestNode(zkNodeClient, nodeConf);
 //    node.start();
 //    return node;
 //  }
 
-  protected void waitForStatus(ZKClient client, ZooKeeper.States state) throws Exception {
+  protected void waitForStatus(ZkClient client, ZooKeeper.States state) throws Exception {
     waitForStatus(client, state, _conf.getZKTimeOut());
   }
 
-  protected void waitForStatus(ZKClient client, States state, long timeout) throws Exception {
+  protected void waitForStatus(ZkClient client, States state, long timeout) throws Exception {
     long maxWait = System.currentTimeMillis() + timeout;
     while ((maxWait > System.currentTimeMillis())
             && (client.getZookeeperState() == null || client.getZookeeperState() != state)) {
@@ -227,7 +226,7 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
 
   }
 
-  public static void waitForPath(final ZKClient client, final String path) throws KattaException, InterruptedException {
+  public static void waitForPath(final ZkClient client, final String path) throws KattaException, InterruptedException {
     int tryCount = 0;
     while (!client.exists(path) && tryCount++ < 100) {
       Thread.sleep(500);
@@ -235,7 +234,7 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
     assertTrue("path '" + path + "' does not exists", client.exists(path));
   }
 
-  public static void waitForChilds(final ZKClient client, final String path, final int childCount)
+  public static void waitForChilds(final ZkClient client, final String path, final int childCount)
           throws InterruptedException, KattaException {
     int tryCount = 0;
     while (client.getChildren(path).size() != childCount && tryCount++ < 100) {
@@ -256,8 +255,8 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
 
   protected void waitOnNodes(MasterStartThread masterThread, int nodeCount) throws InterruptedException {
     long startWait = System.currentTimeMillis();
-    ZKClient zkClient = masterThread.getZkClient();
-    ZkLock eventLock = zkClient.getEventLock();
+    ZkClient ZkClient = masterThread.getZkClient();
+    ZkLock eventLock = ZkClient.getEventLock();
     eventLock.lock();
     try {
       while (masterThread.getMaster().getNodes().size() != nodeCount) {
@@ -275,9 +274,9 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
   protected class MasterStartThread extends Thread {
 
     private final Master _master;
-    private final ZKClient _zkMasterClient;
+    private final ZkClient _zkMasterClient;
 
-    public MasterStartThread(Master master, ZKClient zkMasterClient) {
+    public MasterStartThread(Master master, ZkClient zkMasterClient) {
       _master = master;
       _zkMasterClient = zkMasterClient;
       setName(getClass().getSimpleName());
@@ -287,7 +286,7 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
       return _master;
     }
 
-    public ZKClient getZkClient() {
+    public ZkClient getZkClient() {
       return _zkMasterClient;
     }
 
@@ -308,9 +307,9 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
   protected class NodeStartThread extends Thread {
 
     private final Node _node;
-    private final ZKClient _client;
+    private final ZkClient _client;
 
-    public NodeStartThread(Node node, ZKClient client) {
+    public NodeStartThread(Node node, ZkClient client) {
       _node = node;
       _client = client;
       setName(getClass().getSimpleName());
@@ -320,7 +319,7 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
       return _node;
     }
 
-    public ZKClient getZkClient() {
+    public ZkClient getZkClient() {
       return _client;
     }
 

@@ -19,7 +19,6 @@ import junit.framework.TestCase;
 import net.sf.katta.Katta;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.ZkConfiguration;
-import net.sf.katta.zk.ZKClient;
 
 public class EmbeddedZookeeperTest extends TestCase {
   public void testEmbeddedZK() throws Exception {
