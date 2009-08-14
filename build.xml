@@ -120,13 +120,14 @@
 	<!-- Generating eclipse file                                            -->
 	<!-- ================================================================== -->
 
-	<target name="eclipse" depends="resolve, clean-eclipse" description="--> generates the eclipse project files">
+	<target name="eclipse" depends="clean-eclipse, install-ivy" description="--> generates the eclipse project files">
+		<subant target="install" buildpath="modules/zkclient" />
 		<subant target="eclipse" buildpath="modules/zkclient" />
 		
 		<path id="dependend-projects">
 			<pathelement path="/zkclient" />
 		</path>
-		
+		<ivy:resolve useorigin="true" conf="eclipse, test"/>
 		<ivy:cachepath pathid="eclipse.path.id" conf="eclipse" />
 		<ivy:cachepath pathid="test.path.id" conf="test" />
 		<taskdef name="eclipse" classname="prantl.ant.eclipse.EclipseTask" classpathref="eclipse.path.id" />
@@ -164,7 +165,8 @@
 		</concat>
 	</target>
 
-	<target name="clean-eclipse" depends="resolve" description="--> cleans the eclipse project files">
+	<target name="clean-eclipse" depends="install-ivy" description="--> cleans the eclipse project files">
+		
 		<subant target="clean-eclipse" buildpath="modules/zkclient" />
 		<delete file=".classpath" />
 		<delete file=".eclipse" />
