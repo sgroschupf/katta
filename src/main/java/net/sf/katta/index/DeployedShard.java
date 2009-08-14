@@ -15,16 +15,11 @@
  */
 package net.sf.katta.index;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
+import java.io.Serializable;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 
-import org.apache.hadoop.io.Writable;
-
-public class DeployedShard implements Writable {
+public class DeployedShard implements Serializable {
 
   private String _shardName = "";
   private Map<String, String> _metaData = new HashMap<String, String>();
@@ -36,32 +31,6 @@ public class DeployedShard implements Writable {
   public DeployedShard(final String shardName, final Map<String, String> metaData) {
     _shardName = shardName != null ? shardName : "";
     _metaData = metaData != null ? metaData : new HashMap<String, String>();
-  }
-
-  public void readFields(final DataInput in) throws IOException {
-    _shardName = in.readUTF();
-    int keyCount = in.readInt();
-    _metaData = new HashMap<String, String>();
-    for (int i = 0; i < keyCount; i++) {
-      String key = in.readUTF();
-      String value = in.readUTF();
-      _metaData.put(key, value);
-    }
-  }
-
-  public void write(final DataOutput out) throws IOException {
-    out.writeUTF(_shardName);
-    out.writeInt(_metaData.size());
-    Iterator<String> iterator = _metaData.keySet().iterator();
-    while (iterator.hasNext()) {
-      String key = (String) iterator.next();
-      String value = _metaData.get(key);
-      if (value == null) {
-        throw new IllegalArgumentException("null values in meta data not supported");
-      }
-      out.writeUTF(key);
-      out.writeUTF(value);
-    }
   }
 
   public String getShardName() {

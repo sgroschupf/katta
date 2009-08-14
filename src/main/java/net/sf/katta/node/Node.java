@@ -45,6 +45,7 @@ import net.sf.katta.zk.IZkChildListener;
 import net.sf.katta.zk.IZkReconnectListener;
 import net.sf.katta.zk.ZKClient;
 
+import org.I0Itec.zkclient.ZkClient;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -60,7 +61,7 @@ public class Node implements IZkReconnectListener {
   public static final long _protocolVersion = 0;
 
   protected ZkConfiguration _conf;
-  protected ZKClient _zkClient;
+  protected ZkClient _zkClient;
   private Server _rpcServer;
   private INodeManaged _server;
 
@@ -81,7 +82,7 @@ public class Node implements IZkReconnectListener {
     STARTING, RECONNECTING, IN_SERVICE, LOST;
   }
 
-  public Node(final ZKClient zkClient, INodeManaged server) {
+  public Node(final ZkClient zkClient, INodeManaged server) {
     this(zkClient, new NodeConfiguration(), server);
   }
 

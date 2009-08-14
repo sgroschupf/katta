@@ -33,10 +33,10 @@ import net.sf.katta.index.IndexMetaData;
 import net.sf.katta.util.CollectionUtil;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.ZkConfiguration;
-import net.sf.katta.zk.IZkChildListener;
-import net.sf.katta.zk.IZkDataListener;
-import net.sf.katta.zk.ZKClient;
 
+import org.I0Itec.zkclient.IZkChildListener;
+import org.I0Itec.zkclient.IZkDataListener;
+import org.I0Itec.zkclient.ZkClient;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.ipc.RPC;
 import org.apache.hadoop.ipc.VersionedProtocol;
@@ -51,7 +51,7 @@ public class Client implements IShardProxyManager {
   private static final String[] ALL_INDICES = new String[] { "*" };
 
   protected final ZkConfiguration _zkConfig;
-  protected final ZKClient _zkClient;
+  protected final ZkClient _zkClient;
   protected final Class<? extends VersionedProtocol> _serverClass;
 
   private final IndexStateListener _indexStateListener = new IndexStateListener();
@@ -76,7 +76,7 @@ public class Client implements IShardProxyManager {
   }
 
   public Client(Class<? extends VersionedProtocol> serverClass, final INodeSelectionPolicy nodeSelectionPolicy)
-  throws KattaException {
+          throws KattaException {
     this(serverClass, nodeSelectionPolicy, new ZkConfiguration());
   }
 
@@ -89,13 +89,12 @@ public class Client implements IShardProxyManager {
     _serverClass = serverClass;
     _selectionPolicy = policy;
     _zkConfig = config;
-    _zkClient = new ZKClient(config);
+    _zkClient = new ZkClient(config.getZKServers());
     try {
       _zkClient.getEventLock().lock();
-      _zkClient.start(30000);
-
-      List<String> indexes = _zkClient.subscribeChildChanges(config.getZKIndicesPath(), _indexPathChangeListener);
-      addOrWatchNewIndexes(indexes);
+      String indicesPath = config.getZKIndicesPath();
+      _zkClient.subscribeChildChanges(indicesPath, _indexPathChangeListener);
+      addOrWatchNewIndexes(_zkClient.getChildren(indicesPath));
     } finally {
       _zkClient.getEventLock().unlock();
     }
@@ -153,7 +152,7 @@ public class Client implements IShardProxyManager {
   protected void addOrWatchNewIndexes(List<String> indexes) throws KattaException {
     for (String index : indexes) {
       String indexZkPath = _zkConfig.getZKIndexPath(index);
-      IndexMetaData indexMetaData = _zkClient.readData(indexZkPath, IndexMetaData.class);
+      IndexMetaData indexMetaData = _zkClient.readData(indexZkPath);
       if (isIndexSearchable(indexMetaData)) {
         addIndexForSearching(index, indexZkPath);
       } else {
@@ -170,15 +169,16 @@ public class Client implements IShardProxyManager {
     final List<String> shards = _zkClient.getChildren(indexZkPath);
     _indexToShards.put(indexName, shards);
     for (final String shardName : shards) {
-      List<String> nodes = _zkClient.subscribeChildChanges(_zkConfig.getZKShardToNodePath(shardName),
-              _shardNodeListener);
+      String shardToNodePath = _zkConfig.getZKShardToNodePath(shardName);
+      _zkClient.subscribeChildChanges(shardToNodePath, _shardNodeListener);
+      List<String> nodes = _zkClient.getChildren(shardToNodePath);
       updateSelectionPolicy(shardName, nodes);
     }
   }
 
   protected boolean isIndexSearchable(final IndexMetaData indexMetaData) {
     return indexMetaData.getState() == IndexMetaData.IndexState.DEPLOYED
-    || indexMetaData.getState() == IndexMetaData.IndexState.REPLICATING;
+            || indexMetaData.getState() == IndexMetaData.IndexState.REPLICATING;
   }
 
   // --------------- Distributed calls to servers ----------------------
@@ -199,50 +199,53 @@ public class Client implements IShardProxyManager {
    * @return
    * @throws KattaException
    */
-  public <T> ClientResult<T> broadcastToAll(long timeout, boolean shutdown, Method method, int shardArrayParamIndex, Object... args) throws KattaException {
+  public <T> ClientResult<T> broadcastToAll(long timeout, boolean shutdown, Method method, int shardArrayParamIndex,
+          Object... args) throws KattaException {
     return broadcastToAll(new ResultCompletePolicy<T>(timeout, shutdown), method, shardArrayParamIndex, args);
   }
 
-  public <T> ClientResult<T> broadcastToAll(IResultPolicy<T> resultPolicy, Method method, int shardArrayParamIndex, Object... args) throws KattaException {
+  public <T> ClientResult<T> broadcastToAll(IResultPolicy<T> resultPolicy, Method method, int shardArrayParamIndex,
+          Object... args) throws KattaException {
     return broadcastToShards(resultPolicy, method, shardArrayParamIndex, null, args);
   }
 
-  
-  public <T> ClientResult<T> broadcastToIndices(long timeout, boolean shutdown, Method method, int shardArrayIndex, String[] indices, Object... args)
-  throws KattaException {
+  public <T> ClientResult<T> broadcastToIndices(long timeout, boolean shutdown, Method method, int shardArrayIndex,
+          String[] indices, Object... args) throws KattaException {
     return broadcastToIndices(new ResultCompletePolicy<T>(timeout, shutdown), method, shardArrayIndex, indices, args);
   }
 
-  public <T> ClientResult<T> broadcastToIndices(IResultPolicy<T> resultPolicy, Method method, int shardArrayIndex, String[] indices, Object... args)
-  throws KattaException {
+  public <T> ClientResult<T> broadcastToIndices(IResultPolicy<T> resultPolicy, Method method, int shardArrayIndex,
+          String[] indices, Object... args) throws KattaException {
     if (indices == null) {
       indices = ALL_INDICES;
     }
     Map<String, List<String>> nodeShardsMap = getNode2ShardsMap(indices);
     if (nodeShardsMap.values().isEmpty()) {
-      throw new KattaException("No shards for indices: " + (indices != null ? Arrays.asList(indices).toString() : "null"));
+      throw new KattaException("No shards for indices: "
+              + (indices != null ? Arrays.asList(indices).toString() : "null"));
     }
     return broadcastInternal(resultPolicy, method, shardArrayIndex, nodeShardsMap, args);
   }
 
-
-  public <T> ClientResult<T> singlecast(long timeout, boolean shutdown, Method method, int shardArrayParamIndex, String shard, Object... args) throws KattaException {
+  public <T> ClientResult<T> singlecast(long timeout, boolean shutdown, Method method, int shardArrayParamIndex,
+          String shard, Object... args) throws KattaException {
     return singlecast(new ResultCompletePolicy<T>(timeout, shutdown), method, shardArrayParamIndex, shard, args);
   }
 
-  public <T> ClientResult<T> singlecast(IResultPolicy<T> resultPolicy, Method method, int shardArrayParamIndex, String shard, Object... args) throws KattaException {
+  public <T> ClientResult<T> singlecast(IResultPolicy<T> resultPolicy, Method method, int shardArrayParamIndex,
+          String shard, Object... args) throws KattaException {
     List<String> shards = new ArrayList<String>();
     shards.add(shard);
     return broadcastToShards(resultPolicy, method, shardArrayParamIndex, shards, args);
   }
 
-  public <T> ClientResult<T> broadcastToShards(long timeout, boolean shutdown, Method method, int shardArrayParamIndex, List<String> shards,
-          Object... args) throws KattaException {
+  public <T> ClientResult<T> broadcastToShards(long timeout, boolean shutdown, Method method, int shardArrayParamIndex,
+          List<String> shards, Object... args) throws KattaException {
     return broadcastToShards(new ResultCompletePolicy<T>(timeout, shutdown), method, shardArrayParamIndex, shards, args);
   }
 
-  public <T> ClientResult<T> broadcastToShards(IResultPolicy<T> resultPolicy, Method method, int shardArrayParamIndex, List<String> shards,
-          Object... args) throws KattaException {
+  public <T> ClientResult<T> broadcastToShards(IResultPolicy<T> resultPolicy, Method method, int shardArrayParamIndex,
+          List<String> shards, Object... args) throws KattaException {
     if (shards == null) {
       // If no shards specified, search all shards.
       shards = new ArrayList<String>();
@@ -257,8 +260,8 @@ public class Client implements IShardProxyManager {
     return broadcastInternal(resultPolicy, method, shardArrayParamIndex, nodeShardsMap, args);
   }
 
-  private <T> ClientResult<T>  broadcastInternal(IResultPolicy<T> resultPolicy, Method method, int shardArrayParamIndex, Map<String, List<String>> nodeShardsMap,
-          Object... args) throws KattaException {
+  private <T> ClientResult<T> broadcastInternal(IResultPolicy<T> resultPolicy, Method method, int shardArrayParamIndex,
+          Map<String, List<String>> nodeShardsMap, Object... args) throws KattaException {
     _queryCount++;
     /*
      * Validate inputs.

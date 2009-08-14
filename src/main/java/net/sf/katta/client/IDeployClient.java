@@ -19,22 +19,20 @@ import java.util.List;
 
 import net.sf.katta.index.IndexMetaData;
 import net.sf.katta.index.IndexMetaData.IndexState;
-import net.sf.katta.util.KattaException;
 
 public interface IDeployClient {
 
-  IIndexDeployFuture addIndex(final String name, final String path,
-      final int replicationLevel) throws KattaException;
+  IIndexDeployFuture addIndex(final String name, final String path, final int replicationLevel);
 
-  void removeIndex(final String name) throws KattaException;
+  void removeIndex(final String name);
 
-  boolean existsIndex(String name) throws KattaException;
+  boolean existsIndex(String name);
 
-  List<IndexMetaData> getIndexes(IndexState indexState) throws KattaException;
+  List<IndexMetaData> getIndexes(IndexState indexState);
 
-  List<String> getIndexNames(IndexState indexState) throws KattaException;
+  List<String> getIndexNames(IndexState indexState);
 
-  IndexMetaData getIndexMetaData(String name) throws KattaException;
+  IndexMetaData getIndexMetaData(String name);
 
   void disconnect();
 

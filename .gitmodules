@@ -1,4 +1,5 @@
 [submodule "modules/zkclient"]
 	path = modules/zkclient
 	#url = http://github.com/joa23/zkclient.git
-	url = git://github.com/joa23/zkclient.git
+	#url = git://github.com/joa23/zkclient.git
+	url = git@github.com:joa23/zkclient.git

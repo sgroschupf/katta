@@ -15,14 +15,11 @@
  */
 package net.sf.katta.index;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
+import java.io.Serializable;
 
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.io.Writable;
 
-public class IndexMetaData implements Writable {
+public class IndexMetaData implements Serializable {
 
   private Text _path = new Text();
   private int _replicationLevel;
@@ -44,25 +41,6 @@ public class IndexMetaData implements Writable {
     // for serialization
   }
 
-  public void readFields(final DataInput in) throws IOException {
-    _path.readFields(in);
-    _replicationLevel = in.readInt();
-    _state = IndexState.values()[in.readByte()];
-    if (_state == IndexState.ERROR) {
-      _errorMessage.readFields(in);
-    }
-  }
-
-  public void write(final DataOutput out) throws IOException {
-    _path.write(out);
-    out.writeInt(_replicationLevel);
-    out.writeByte(_state.ordinal());
-    if (_state == IndexState.ERROR) {
-      _errorMessage.write(out);
-    }
-  }
-
-  
   public String getPath() {
     return _path.toString();
   }
@@ -92,10 +70,10 @@ public class IndexMetaData implements Writable {
   public int getReplicationLevel() {
     return _replicationLevel;
   }
-  
+
   @Override
   public String toString() {
-   return "state: "+_state + " replication: "+_replicationLevel + " path: "+_path + " error: "+_errorMessage;
+    return "state: " + _state + " replication: " + _replicationLevel + " path: " + _path + " error: " + _errorMessage;
   }
-  
+
 }

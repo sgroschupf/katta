@@ -35,8 +35,8 @@ import net.sf.katta.util.IHadoopConstants;
 import net.sf.katta.util.IndexConfiguration;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.ZkConfiguration;
-import net.sf.katta.zk.ZKClient;
 
+import org.I0Itec.zkclient.ZkClient;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapred.JobConf;
@@ -49,13 +49,15 @@ public class IndexMergeApplication {
   private static final DateFormat DATE_FORMAT = new SimpleDateFormat("yyyyMMdd.hhmmss");
 
   private final JobConf _jobConf;
-  private final ZKClient _zkClient;
+  private final ZkClient _zkClient;
 
-  public IndexMergeApplication(ZKClient zkClient) {
-    this(zkClient, new JobConf());
+  private ZkConfiguration _config;
+
+  public IndexMergeApplication(ZkClient zkClient, ZkConfiguration config) {
+    this(zkClient, config, new JobConf());
   }
 
-  public IndexMergeApplication(ZKClient zkClient, JobConf jobConf) {
+  public IndexMergeApplication(ZkClient zkClient, ZkConfiguration zkConfiguration, JobConf jobConf) {
     _zkClient = zkClient;
     _jobConf = jobConf;
     if (_jobConf.getJar() == null && !_jobConf.get(IHadoopConstants.JOBTRACKER).equals("local")) {
@@ -65,11 +67,11 @@ public class IndexMergeApplication {
   }
 
   public void merge(String[] indexesToMerge) throws Exception {
-    mergeIndices(new DeployClient(_zkClient), Arrays.asList(indexesToMerge));
+    mergeIndices(new DeployClient(_zkClient, _config), Arrays.asList(indexesToMerge));
   }
 
   public void mergeDeployedIndices() throws Exception {
-    IDeployClient deployClient = new DeployClient(_zkClient);
+    IDeployClient deployClient = new DeployClient(_zkClient, _config);
     List<String> deployedIndexNames = deployClient.getIndexNames(IndexState.DEPLOYED);
     mergeIndices(deployClient, deployedIndexNames);
   }
@@ -77,8 +79,7 @@ public class IndexMergeApplication {
   private void mergeIndices(IDeployClient deployClient, List<String> indexNames) throws Exception {
     List<IndexMetaData> deployedIndexes = new ArrayList<IndexMetaData>();
     for (String indexName : indexNames) {
-      IndexMetaData indexMetaData = new IndexMetaData();
-      _zkClient.readData(_zkClient.getConfig().getZKIndexPath(indexName), indexMetaData);
+      IndexMetaData indexMetaData = _zkClient.readData(_config.getZKIndexPath(indexName));
       deployedIndexes.add(indexMetaData);
     }
 
@@ -108,7 +109,7 @@ public class IndexMergeApplication {
     }
     if (currentShardCount <= optimalShardCount) {
       LOG.warn("shard count is " + currentShardCount + ", optimal shard count is " + optimalShardCount
-          + ". No need for merging shards.");
+              + ". No need for merging shards.");
       return;
     }
 
@@ -125,14 +126,14 @@ public class IndexMergeApplication {
       mergedIndex = mergedIndex.makeQualified(fileSystem);
       LOG.info("deploying new merged index: " + mergedIndex);
       IIndexDeployFuture deployFuture = deployClient.addIndex(mergedIndex.getName(), mergedIndex.toString()
-          + "/indexes", deployedIndexes.get(0).getReplicationLevel());
+              + "/indexes", deployedIndexes.get(0).getReplicationLevel());
       // TODO jz: just taking the analyzer and replication level from the
       // first is unclean
       // TODO jz: appending / indexes is suboptimal
       IndexState indexState = deployFuture.joinDeployment();
       if (indexState == IndexState.ERROR) {
         throw new IllegalStateException("could not deploy merged index '" + mergedIndex.getName() + "': "
-            + deployClient.getIndexMetaData(mergedIndex.getName()).getErrorMessage());
+                + deployClient.getIndexMetaData(mergedIndex.getName()).getErrorMessage());
       }
 
       // now undeploy the old indices
@@ -143,8 +144,8 @@ public class IndexMergeApplication {
 
       // now move the old indexes to archive
       Path archiveRootPath = new Path(indexConfiguration.getPath(IndexConfiguration.INDEX_ARCHIVE_PATH), mergedIndex
-          .getName()
-          + "-originals");
+              .getName()
+              + "-originals");
       fileSystem.mkdirs(archiveRootPath);
       LOG.info("moving old merged indices to archive: " + archiveRootPath);
       for (Path indexPath : indexPaths) {
@@ -162,7 +163,7 @@ public class IndexMergeApplication {
   private int countShards(List<String> indexNames) throws KattaException {
     int shardCount = 0;
     for (String index : indexNames) {
-      shardCount += _zkClient.countChildren(_zkClient.getConfig().getZKIndexPath(index));
+      shardCount += _zkClient.countChildren(_config.getZKIndexPath(index));
     }
     return shardCount;
   }
@@ -190,8 +191,8 @@ public class IndexMergeApplication {
   public static void main(String[] args) throws Exception {
     JobConf jobConf = new JobConf();
     jobConf.set(IHadoopConstants.IO_SORT_MB, "20");
-    ZKClient zkcClient = new ZKClient(new ZkConfiguration());
-    zkcClient.start(3000);
-    new IndexMergeApplication(zkcClient, jobConf).mergeDeployedIndices();
+    ZkConfiguration zkConfiguration = new ZkConfiguration();
+    ZkClient zkcClient = new ZkClient(zkConfiguration.getZKServers());
+    new IndexMergeApplication(zkcClient, zkConfiguration, jobConf).mergeDeployedIndices();
   }
 }

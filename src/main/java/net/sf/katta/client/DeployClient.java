@@ -20,43 +20,29 @@ import java.util.List;
 
 import net.sf.katta.index.IndexMetaData;
 import net.sf.katta.index.IndexMetaData.IndexState;
-import net.sf.katta.util.KattaException;
 import net.sf.katta.util.ZkConfiguration;
-import net.sf.katta.zk.ZKClient;
+
+import org.I0Itec.zkclient.ZkClient;
 
 public class DeployClient implements IDeployClient {
 
   private ZkConfiguration _conf;
-  private ZKClient _zkClient;
+  private ZkClient _zkClient;
 
-  public DeployClient(String servers, int port, int timeout) throws KattaException {
-    this(new ZKClient(servers, port, timeout));
-  }
-  
-  public DeployClient(ZkConfiguration zkConfiguration) throws KattaException {
-    this(new ZKClient(zkConfiguration));
-  }
-
-  public DeployClient(ZKClient zkClient) throws KattaException {
-    _conf = zkClient.getConfig();
+  public DeployClient(ZkClient zkClient, ZkConfiguration configuration) {
+    _conf = configuration;
     _zkClient = zkClient;
-    if (!_zkClient.isStarted()) {
-      _zkClient.start(30000);
-    }
   }
 
-  public IIndexDeployFuture addIndex(String name, String path, int replicationLevel)
-      throws KattaException {
+  public IIndexDeployFuture addIndex(String name, String path, int replicationLevel) {
     final String indexPath = _conf.getZKIndexPath(name);
     validateIndexName(name, indexPath);
-
-    final IndexMetaData indexMetaData = new IndexMetaData(path, replicationLevel,
-        IndexMetaData.IndexState.ANNOUNCED);
-    _zkClient.create(indexPath, indexMetaData);
+    final IndexMetaData indexMetaData = new IndexMetaData(path, replicationLevel, IndexMetaData.IndexState.ANNOUNCED);
+    _zkClient.createPersistent(indexPath, indexMetaData);
     return new IndexDeployFuture(_zkClient, name, indexPath, indexMetaData);
   }
 
-  private void validateIndexName(String name, String indexPath) throws KattaException {
+  private void validateIndexName(String name, String indexPath) {
     if (name.trim().equals("*")) {
       throw new IllegalArgumentException("invalid index name: " + name);
     }
@@ -66,7 +52,7 @@ public class DeployClient implements IDeployClient {
     }
   }
 
-  public void removeIndex(String name) throws KattaException {
+  public void removeIndex(String name) {
     final String indexPath = _conf.getZKIndexPath(name);
     if (!_zkClient.exists(indexPath)) {
       throw new IllegalArgumentException("index not exists: " + name);
@@ -74,15 +60,15 @@ public class DeployClient implements IDeployClient {
     _zkClient.deleteRecursive(indexPath);
   }
 
-  public boolean existsIndex(String indexName) throws KattaException {
+  public boolean existsIndex(String indexName) {
     return _zkClient.exists(_conf.getZKIndexPath(indexName));
   }
 
-  public List<IndexMetaData> getIndexes(IndexState indexState) throws KattaException {
+  public List<IndexMetaData> getIndexes(IndexState indexState) {
     final List<String> indexes = _zkClient.getChildren(_conf.getZKIndicesPath());
     final List<IndexMetaData> returnIndexes = new ArrayList<IndexMetaData>();
     for (final String index : indexes) {
-      final IndexMetaData metaData = _zkClient.readData(_conf.getZKIndexPath(index), IndexMetaData.class);
+      final IndexMetaData metaData = _zkClient.readData(_conf.getZKIndexPath(index));
       if (metaData.getState() == indexState) {
         returnIndexes.add(metaData);
       }
@@ -91,11 +77,11 @@ public class DeployClient implements IDeployClient {
   }
 
   // TODO jz: if IndexMetaData would contain index name, we could avoid that
-  public List<String> getIndexNames(IndexState indexState) throws KattaException {
+  public List<String> getIndexNames(IndexState indexState) {
     final List<String> indexes = _zkClient.getChildren(_conf.getZKIndicesPath());
     final List<String> returnIndexes = new ArrayList<String>();
     for (final String index : indexes) {
-      final IndexMetaData metaData = _zkClient.readData(_conf.getZKIndexPath(index), IndexMetaData.class);
+      final IndexMetaData metaData = _zkClient.readData(_conf.getZKIndexPath(index));
       if (metaData.getState() == indexState) {
         returnIndexes.add(index);
       }
@@ -107,8 +93,8 @@ public class DeployClient implements IDeployClient {
     _zkClient.close();
   }
 
-  public IndexMetaData getIndexMetaData(String name) throws KattaException {
-    return _zkClient.readData(_conf.getZKIndexPath(name), IndexMetaData.class);
+  public IndexMetaData getIndexMetaData(String name) {
+    return _zkClient.readData(_conf.getZKIndexPath(name));
   }
 
 }

@@ -40,9 +40,9 @@ import net.sf.katta.node.Node.NodeState;
 import net.sf.katta.util.CollectionUtil;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.ZkConfiguration;
-import net.sf.katta.zk.IZkChildListener;
-import net.sf.katta.zk.ZKClient;
 
+import org.I0Itec.zkclient.IZkChildListener;
+import org.I0Itec.zkclient.ZkClient;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -56,7 +56,7 @@ public class DistributeShardsThread extends Thread {
   protected final static Logger LOG = Logger.getLogger(DistributeShardsThread.class);
 
   private final ZkConfiguration _conf;
-  private final ZKClient _zkClient;
+  private final ZkClient _zkClient;
   private final IDeployPolicy _deployPolicy;
   private final long _safeModeMaxTime;
 
@@ -67,11 +67,11 @@ public class DistributeShardsThread extends Thread {
 
   protected final List<IndexStateListener> _indexStateListeners = new CopyOnWriteArrayList<IndexStateListener>();
 
-  public DistributeShardsThread(final ZKClient zkClient, final IDeployPolicy deployPolicy, final long safeModeMaxTime) {
+  public DistributeShardsThread(final ZkClient zkClient, final IDeployPolicy deployPolicy, final long safeModeMaxTime) {
     this(zkClient, deployPolicy, safeModeMaxTime, true);
   }
 
-  public DistributeShardsThread(final ZKClient zkClient, final IDeployPolicy deployPolicy, final long safeModeMaxTime,
+  public DistributeShardsThread(final ZkClient zkClient, final IDeployPolicy deployPolicy, final long safeModeMaxTime,
           boolean isDaemon) {
     setDaemon(true);
     setName(getClass().getSimpleName());
@@ -459,7 +459,7 @@ public class DistributeShardsThread extends Thread {
     indexStateListener.subscribeShardEvents();
   }
 
-  private static Map<String, List<String>> readShard2NodesMapFromZk(final ZKClient zkClient,
+  private static Map<String, List<String>> readShard2NodesMapFromZk(final ZkClient zkClient,
           final Set<String> indexShards) throws KattaException {
     final Map<String, List<String>> shard2NodeNames = new HashMap<String, List<String>>();
     for (final String shard : indexShards) {
@@ -473,7 +473,7 @@ public class DistributeShardsThread extends Thread {
     return shard2NodeNames;
   }
 
-  private Map<String, List<String>> readNode2ShardsMapFromZk(final ZKClient zkClient) throws KattaException {
+  private Map<String, List<String>> readNode2ShardsMapFromZk(final ZkClient zkClient) throws KattaException {
     final Map<String, List<String>> node2ShardNames = new HashMap<String, List<String>>();
     final List<String> nodes = zkClient.getChildren(_conf.getZKNodeToShardPath());
     for (final String node : nodes) {

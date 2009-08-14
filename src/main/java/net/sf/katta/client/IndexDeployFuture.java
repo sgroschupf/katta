@@ -18,22 +18,22 @@ package net.sf.katta.client;
 import net.sf.katta.index.IndexMetaData;
 import net.sf.katta.index.IndexMetaData.IndexState;
 import net.sf.katta.util.KattaException;
-import net.sf.katta.zk.IZkDataListener;
-import net.sf.katta.zk.IZkReconnectListener;
-import net.sf.katta.zk.ZKClient;
 
+import org.I0Itec.zkclient.IZkDataListener;
+import org.I0Itec.zkclient.IZkStateListener;
+import org.I0Itec.zkclient.ZkClient;
 import org.apache.log4j.Logger;
 import org.apache.zookeeper.Watcher.Event.KeeperState;
 
-public class IndexDeployFuture implements IIndexDeployFuture, IZkDataListener<IndexMetaData>, IZkReconnectListener {
+public class IndexDeployFuture implements IIndexDeployFuture, IZkDataListener<IndexMetaData>, IZkStateListener {
 
   private static Logger LOG = Logger.getLogger(IndexDeployFuture.class);
 
-  private final ZKClient _zkClient;
+  private final ZkClient _zkClient;
   private final String _indexZkPath;
   private IndexMetaData _indexMetaData;
 
-  public IndexDeployFuture(ZKClient zkClient, String index, String indexZkPath, IndexMetaData indexMetaData) throws KattaException {
+  public IndexDeployFuture(ZkClient zkClient, String index, String indexZkPath, IndexMetaData indexMetaData) {
     _zkClient = zkClient;
     _indexMetaData = indexMetaData;
     _indexZkPath = indexZkPath;
@@ -41,9 +41,9 @@ public class IndexDeployFuture implements IIndexDeployFuture, IZkDataListener<In
     // subscribe index
     _zkClient.getEventLock().lock();
     try {
-      _zkClient.subscribeReconnects(this);
+      _zkClient.subscribeStateChanges(this);
       _zkClient.subscribeDataChanges(_indexZkPath, this);
-      _zkClient.readData(_indexZkPath, _indexMetaData);
+      _indexMetaData = _zkClient.readData(_indexZkPath);
     } finally {
       _zkClient.getEventLock().unlock();
     }
@@ -110,11 +110,12 @@ public class IndexDeployFuture implements IIndexDeployFuture, IZkDataListener<In
   @Override
   public void handleStateChanged(KeeperState state) throws Exception {
     if (state == KeeperState.SyncConnected) {
-      // sg: we just want to make sure we get the very latest state of the index,
+      // sg: we just want to make sure we get the very latest state of the
+      // index,
       // since we might missed a event. With zookeeper 3.x we should still have
       // subcribed notifcatins and dont need to resubscribe
       LOG.warn("Reconnecting IndexDeployFuture");
-      _zkClient.readData(_indexZkPath, _indexMetaData);
+      _indexMetaData = _zkClient.readData(_indexZkPath);
     }
   }
 }

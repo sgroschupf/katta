@@ -15,17 +15,14 @@
  */
 package net.sf.katta.node;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
+import java.io.Serializable;
 
 import net.sf.katta.node.Node.NodeState;
 import net.sf.katta.util.DefaultDateFormat;
 
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.io.Writable;
 
-public class NodeMetaData implements Writable {
+public class NodeMetaData implements Serializable {
 
   private Text _name = new Text();
   private NodeState _state;
@@ -63,20 +60,6 @@ public class NodeMetaData implements Writable {
 
   public void setQueriesPerMinute(final float queriesPerMinute) {
     _queriesPerMinute = queriesPerMinute;
-  }
-
-  public void readFields(final DataInput in) throws IOException {
-    _name.readFields(in);
-    _startTimeStamp = in.readLong();
-    _state = NodeState.values()[in.readByte()];
-    _queriesPerMinute = in.readFloat();
-  }
-
-  public void write(final DataOutput out) throws IOException {
-    _name.write(out);
-    out.writeLong(_startTimeStamp);
-    out.writeByte(_state.ordinal());
-    out.writeFloat(_queriesPerMinute);
   }
 
   @Override

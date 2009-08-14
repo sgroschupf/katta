@@ -15,12 +15,15 @@
  */
 package net.sf.katta;
 
-import net.sf.katta.util.KattaException;
+import java.io.IOException;
+
+import org.I0Itec.zkclient.InMemoryConnection;
+import org.I0Itec.zkclient.ZkClient;
 
 public class KattaTest extends AbstractKattaTest {
 
-  public void testShowStructure() throws KattaException {
+  public void testShowStructure() throws IOException {
     Katta katta = new Katta();
-    katta.showStructure(null);
+    katta.showStructure(new ZkClient(new InMemoryConnection()));
   }
 }

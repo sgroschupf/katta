@@ -24,11 +24,10 @@ import net.sf.katta.util.KattaException;
 import net.sf.katta.util.MasterConfiguration;
 import net.sf.katta.util.NetworkUtil;
 import net.sf.katta.util.ZkConfiguration;
-import net.sf.katta.zk.IZkChildListener;
-import net.sf.katta.zk.IZkDataListener;
-import net.sf.katta.zk.IZkReconnectListener;
-import net.sf.katta.zk.ZKClient;
 
+import org.I0Itec.zkclient.IZkChildListener;
+import org.I0Itec.zkclient.IZkDataListener;
+import org.I0Itec.zkclient.ZkClient;
 import org.apache.log4j.Logger;
 import org.apache.zookeeper.Watcher.Event.KeeperState;
 
@@ -38,7 +37,7 @@ public class Master implements IZkReconnectListener {
 
   protected DistributeShardsThread _manageShardThread;
   protected ZkConfiguration _conf;
-  protected ZKClient _zkClient;
+  protected ZkClient _zkClient;
 
   protected List<String> _nodes = new ArrayList<String>();
   protected List<String> _indexes = new ArrayList<String>();
@@ -54,7 +53,7 @@ public class Master implements IZkReconnectListener {
   private MasterListener _masterLister;
 
   @SuppressWarnings("unchecked")
-  public Master(final ZKClient zkClient) throws KattaException {
+  public Master(final ZkClient zkClient) {
     _masterName = NetworkUtil.getLocalhostName() + "_" + UUID.randomUUID().toString();
     _indexListener = new IndexListener();
     _nodeListener = new NodeListener();
@@ -92,7 +91,7 @@ public class Master implements IZkReconnectListener {
     _manageShardThread = new DistributeShardsThread(_zkClient, deployPolicy, safeModeMaxTime, false);
   }
 
-  public void start() throws KattaException {
+  public void start() {
     try {
       _zkClient.getEventLock().lock();
       if (!_zkClient.isStarted()) {

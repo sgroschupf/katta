@@ -18,10 +18,11 @@ package net.sf.katta.index;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.io.Serializable;
 
 import org.apache.hadoop.io.Writable;
 
-public class ShardError implements Writable {
+public class ShardError implements Writable, Serializable{
 
   private String _errorMsg = "";
   private long _timestamp = System.currentTimeMillis();
