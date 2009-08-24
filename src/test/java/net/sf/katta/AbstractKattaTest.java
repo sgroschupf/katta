@@ -29,9 +29,8 @@ import net.sf.katta.util.NodeConfiguration;
 import net.sf.katta.util.ZkConfiguration;
 
 import org.I0Itec.zkclient.ZkClient;
+import org.I0Itec.zkclient.ZkLock;
 import org.I0Itec.zkclient.ZkServer;
-import org.apache.zookeeper.ZooKeeper;
-import org.apache.zookeeper.ZooKeeper.States;
 
 /**
  * Basic katta test which provides some methods for starting master and nodes.
@@ -212,21 +211,7 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
 //    return node;
 //  }
 
-  protected void waitForStatus(ZkClient client, ZooKeeper.States state) throws Exception {
-    waitForStatus(client, state, _conf.getZKTimeOut());
-  }
-
-  protected void waitForStatus(ZkClient client, States state, long timeout) throws Exception {
-    long maxWait = System.currentTimeMillis() + timeout;
-    while ((maxWait > System.currentTimeMillis())
-            && (client.getZookeeperState() == null || client.getZookeeperState() != state)) {
-      Thread.sleep(500);
-    }
-    assertEquals(state, client.getZookeeperState());
-
-  }
-
-  public static void waitForPath(final ZkClient client, final String path) throws KattaException, InterruptedException {
+  public static void waitForPath(final ZkClient client, final String path) throws InterruptedException {
     int tryCount = 0;
     while (!client.exists(path) && tryCount++ < 100) {
       Thread.sleep(500);
@@ -235,7 +220,7 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
   }
 
   public static void waitForChilds(final ZkClient client, final String path, final int childCount)
-          throws InterruptedException, KattaException {
+          throws InterruptedException {
     int tryCount = 0;
     while (client.getChildren(path).size() != childCount && tryCount++ < 100) {
       Thread.sleep(500);
@@ -290,6 +275,7 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
       return _zkMasterClient;
     }
 
+    @Override
     public void run() {
       try {
         _master.start();
@@ -323,12 +309,9 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
       return _client;
     }
 
+    @Override
     public void run() {
-      try {
-        _node.start();
-      } catch (KattaException e) {
-        e.printStackTrace();
-      }
+      _node.start();
     }
 
     public void shutdown() {

@@ -93,16 +93,14 @@ public class Node implements IZkStateListener {
     _zkClient = zkClient;
     _configuration = configuration;
     _server = server;
-    _zkClient.subscribeReconnects(this);
+    _zkClient.subscribeStateChanges(this);
     LOG.info("Starting node, server class = " + server.getClass().getCanonicalName());
   }
 
   /**
    * Boots the node
-   * 
-   * @throws KattaException
    */
-  public void start() throws KattaException {
+  public void start() {
     LOG.debug("Starting node...");
 
     try {
@@ -122,10 +120,11 @@ public class Node implements IZkStateListener {
         throw new IllegalStateException("could not create local shard folder '" + _shardsFolder.getAbsolutePath() + "'");
       }
 
-      LOG.debug("Starting zk client...");
-      if (!_zkClient.isStarted()) {
-        _zkClient.start(30000);
-      }
+      //TODO PVo review this (I don't think this is needed anymore)
+//      LOG.debug("Starting zk client...");
+//      if (!_zkClient.isStarted()) {
+//        _zkClient.start(30000);
+//      }
       cleanupLocalShardFolder();
       announceNode(NodeState.STARTING);
       startShardServing(false);
@@ -150,7 +149,7 @@ public class Node implements IZkStateListener {
     // do nothing
   }
 
-  private void cleanupLocalShardFolder() throws KattaException {
+  private void cleanupLocalShardFolder() {
     String node2ShardRootPath = _conf.getZKNodeToShardPath(_nodeName);
     List<String> shardsToServe = Collections.emptyList();
     if (_zkClient.exists(node2ShardRootPath)) {
@@ -189,7 +188,7 @@ public class Node implements IZkStateListener {
     LOG.info("Node '" + _nodeName + "' announced");
   }
 
-  private void startShardServing(boolean restart) throws KattaException {
+  private void startShardServing(boolean restart) {
     LOG.info("Start serving shards...");
     final String nodeToShardPath = _conf.getZKNodeToShardPath(_nodeName);
     List<String> shardsNames = _zkClient.subscribeChildChanges(nodeToShardPath, new ShardListener());
@@ -205,7 +204,7 @@ public class Node implements IZkStateListener {
     _deployedShards.addAll(shardsNames);
   }
 
-  protected void deployShards(final List<AssignedShard> newShards) throws KattaException {
+  protected void deployShards(final List<AssignedShard> newShards) {
     for (AssignedShard shard : newShards) {
       String shardName = shard.getShardName();
       File localShardFolder = getLocalShardFolder(shardName);
@@ -432,16 +431,15 @@ public class Node implements IZkStateListener {
     return _nodeName;
   }
 
-  private void updateStatus(NodeState state) throws KattaException {
+  private void updateStatus(NodeState state) {
     _currentState = state;
     final String nodePath = _conf.getZKNodePath(_nodeName);
-    final NodeMetaData metaData = new NodeMetaData();
-    _zkClient.readData(nodePath, metaData);
+    final NodeMetaData metaData = _zkClient.readData(nodePath);
     metaData.setState(state);
     _zkClient.writeData(nodePath, metaData);
   }
   
-  private ArrayList<AssignedShard> readAssignedShards(final List<String> shardsToDeploy) throws KattaException {
+  private ArrayList<AssignedShard> readAssignedShards(final List<String> shardsToDeploy) {
     ArrayList<AssignedShard> newShards = new ArrayList<AssignedShard>();
     for (String shardName : shardsToDeploy) {
       AssignedShard assignedShard = _zkClient.readData(_conf.getZKNodeToShardPath(_nodeName, shardName));  
@@ -485,11 +483,10 @@ public class Node implements IZkStateListener {
       long time = (System.currentTimeMillis() - _startTime) / (60 * 1000);
       time = Math.max(time, 1);
       final float qpm = (float) _queryCounter / time;
-      final NodeMetaData metaData = new NodeMetaData();
       final String nodePath = _conf.getZKNodePath(_nodeName);
       try {
         if (_zkClient.exists(nodePath)) {
-          _zkClient.readData(nodePath, metaData);
+          NodeMetaData metaData = _zkClient.readData(nodePath);
           metaData.setQueriesPerMinute(qpm);
           _zkClient.writeData(nodePath, metaData);
         }

@@ -22,9 +22,9 @@ import net.sf.katta.node.LuceneServer;
 import net.sf.katta.node.Node;
 import net.sf.katta.testutil.Gateway;
 import net.sf.katta.util.ZkConfiguration;
+import net.sf.katta.util.ZkKattaUtil;
 
 import org.I0Itec.zkclient.ZkClient;
-import org.apache.zookeeper.ZooKeeper;
 
 public class NodeMasterReconnectTest extends AbstractKattaTest {
 
@@ -41,14 +41,15 @@ public class NodeMasterReconnectTest extends AbstractKattaTest {
 
     final MasterStartThread masterStartThread = startMaster();
     final Master master = masterStartThread.getMaster();
-    final ZkClient zkNodeClient = new ZkClient(gatewayConf);
-    final Node node = new Node(zkNodeClient, new LuceneServer());
+    final ZkClient zkNodeClient = ZkKattaUtil.startZkClient(gatewayConf, 30000);
+    final Node node = new Node(gatewayConf, zkNodeClient, new LuceneServer());
     node.start();
     masterStartThread.join();
-    final ZKClient zkMasterClient = masterStartThread.getZkClient();
+    final ZkClient zkMasterClient = masterStartThread.getZkClient();
 
-    assertTrue(zkMasterClient.getZookeeperState().equals(ZooKeeper.States.CONNECTED));
-    assertTrue(zkNodeClient.getZookeeperState().equals(ZooKeeper.States.CONNECTED));
+    fail("Review the following two lines");
+//    assertTrue(zkMasterClient.getZookeeperState().equals(ZooKeeper.States.CONNECTED));
+//    assertTrue(zkNodeClient.getZookeeperState().equals(ZooKeeper.States.CONNECTED));
 
     // check node-master link
     waitOnNodes(masterStartThread, 1);

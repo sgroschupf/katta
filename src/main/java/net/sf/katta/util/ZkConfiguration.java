@@ -97,11 +97,11 @@ public class ZkConfiguration extends KattaConfiguration {
   }
 
   public String getZKDataDir() {
-    return getFile(ZOOKEEPER_DATA_DIR);
+    return getProperty(ZOOKEEPER_DATA_DIR);
   }
   
   public String getZKDataLogDir() {
-    return getFile(ZOOKEEPER_LOG_DATA_DIR);
+    return getProperty(ZOOKEEPER_LOG_DATA_DIR);
   }
 
   public int getZKClientPort() {

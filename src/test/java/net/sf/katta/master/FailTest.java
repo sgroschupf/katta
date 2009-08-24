@@ -29,6 +29,7 @@ import net.sf.katta.testutil.TestResources;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.NodeConfiguration;
 import net.sf.katta.util.ZkConfiguration;
+import net.sf.katta.util.ZkKattaUtil;
 
 import org.I0Itec.zkclient.ZkClient;
 import org.apache.zookeeper.WatchedEvent;
@@ -40,20 +41,19 @@ import org.apache.zookeeper.proto.WatcherEvent;
 public class FailTest extends AbstractKattaTest {
 
   public void testMasterFail() throws Exception {
-    final ZKClient masterClient = new ZKClient(_conf);
-    final ZKClient secMasterClient = new ZKClient(_conf);
+    final ZkClient masterClient = ZkKattaUtil.startZkClient(_conf, 30000);
+    final ZkClient secMasterClient = ZkKattaUtil.startZkClient(_conf, 30000);
 
-    final Master master = new Master(masterClient);
+    final Master master = new Master(_conf, masterClient);
     master.start();
 
     // start secondary master..
-    final Master secMaster = new Master(secMasterClient);
+    final Master secMaster = new Master(_conf, secMasterClient);
     secMaster.start();
 
     waitForPath(masterClient, _conf.getZKMasterPath());
 
-    MasterMetaData masterData = new MasterMetaData();
-    masterClient.readData(_conf.getZKMasterPath(), masterData);
+    MasterMetaData masterData = masterClient.readData(_conf.getZKMasterPath());
 
     // kill master
     master.shutdown();
@@ -119,7 +119,7 @@ public class FailTest extends AbstractKattaTest {
     masterThread.shutdown();
   }
 
-  public void testZkReconnectDuringDeployment() throws KattaException, InterruptedException {
+  public void testZkReconnectDuringDeployment() throws InterruptedException, KattaException {
 
     final MasterStartThread masterThread = startMaster();
     final ZkClient masterZkClient = masterThread.getZkClient();
@@ -155,7 +155,7 @@ public class FailTest extends AbstractKattaTest {
     private final ZkClient _client;
     private final Node _node;
 
-    public DummyNode(final ZkConfiguration conf, final NodeConfiguration nodeConfiguration) throws KattaException {
+    public DummyNode(final ZkConfiguration conf, final NodeConfiguration nodeConfiguration) {
       _client = new ZkClient(conf.getZKServers(), conf.getZKTimeOut());
       _node = new Node(conf, _client, nodeConfiguration, new LuceneServer());
       _node.start();

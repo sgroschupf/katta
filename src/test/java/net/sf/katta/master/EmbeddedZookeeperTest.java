@@ -17,8 +17,10 @@ package net.sf.katta.master;
 
 import junit.framework.TestCase;
 import net.sf.katta.Katta;
-import net.sf.katta.util.KattaException;
 import net.sf.katta.util.ZkConfiguration;
+import net.sf.katta.util.ZkKattaUtil;
+
+import org.I0Itec.zkclient.ZkClient;
 
 public class EmbeddedZookeeperTest extends TestCase {
   public void testEmbeddedZK() throws Exception {
@@ -32,7 +34,7 @@ public class EmbeddedZookeeperTest extends TestCase {
         public void run() {
           try {
             Katta.startMaster(conf);
-          } catch (KattaException e) {
+          } catch (Exception e) {
             e.printStackTrace();
           }
         }
@@ -40,8 +42,7 @@ public class EmbeddedZookeeperTest extends TestCase {
       Thread thread = new Thread(r);
       thread.setDaemon(true);
       thread.start();
-      ZKClient client = new ZKClient(conf);
-      client.start(10000);
+      ZkClient client = ZkKattaUtil.startZkClient(conf, 10000);
       client.close();
     } finally {
       // TODO sg: the way we access zookeeper here is almost painful, but I had
@@ -61,7 +62,7 @@ public class EmbeddedZookeeperTest extends TestCase {
         try {
           Katta.startMaster(conf);
           fail("master start should fail, since we expect no zkserver");
-        } catch (KattaException e) {
+        } catch (Exception e) {
           // 
         }
       }
@@ -70,7 +71,7 @@ public class EmbeddedZookeeperTest extends TestCase {
     thread.setDaemon(true);
     thread.start();
     try {
-      new ZKClient(conf).start(5000);
+      ZkKattaUtil.startZkClient(conf, 5000);
       fail("this should fail, since we expect no zkserver");
     } catch (Exception e) {
     }

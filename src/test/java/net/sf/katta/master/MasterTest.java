@@ -30,6 +30,7 @@ import net.sf.katta.node.NodeMetaData;
 import net.sf.katta.node.Node.NodeState;
 import net.sf.katta.testutil.TestResources;
 import net.sf.katta.util.FileUtil;
+import net.sf.katta.util.ZkKattaUtil;
 
 import org.I0Itec.zkclient.ZkClient;
 
@@ -72,14 +73,13 @@ public class MasterTest extends AbstractKattaTest {
 
   public void testNodesReconnect() throws Exception {
     final MasterStartThread masterStartThread = startMaster();
-    final ZKClient zkClient = new ZKClient(_conf);
-    zkClient.start(5000);
+    final ZkClient zkClient = ZkKattaUtil.startZkClient(_conf, 5000);
     final Master master = masterStartThread.getMaster();
-    final ZKClient masterZkClient = masterStartThread.getZkClient();
+    final ZkClient masterZkClient = masterStartThread.getZkClient();
 
     final String nodePath = _conf.getZKNodePath("node1");
-    zkClient.create(_conf.getZKNodeToShardPath("node1"));
-    zkClient.create(nodePath, new NodeMetaData("node1", NodeState.IN_SERVICE));
+    zkClient.createPersistent(_conf.getZKNodeToShardPath("node1"));
+    zkClient.createPersistent(nodePath, new NodeMetaData("node1", NodeState.IN_SERVICE));
 
     masterStartThread.join();
     waitForChilds(zkClient, _conf.getZKNodesPath(), 1);
@@ -97,7 +97,7 @@ public class MasterTest extends AbstractKattaTest {
 
     // reconnect
     masterZkClient.getEventLock().lock();
-    zkClient.create(nodePath, new NodeMetaData("node1", NodeState.IN_SERVICE));
+    zkClient.createPersistent(nodePath, new NodeMetaData("node1", NodeState.IN_SERVICE));
     masterZkClient.getEventLock().getDataChangedCondition().await();
     masterZkClient.getEventLock().unlock();
 
@@ -188,14 +188,14 @@ public class MasterTest extends AbstractKattaTest {
       assertEquals(1, zkClientMaster.getChildren(_conf.getZKShardToNodePath(shard)).size());
     }
 
-    final IndexMetaData metaData = zkClientMaster.readData(_conf.getZKIndexPath(index));
+    IndexMetaData metaData = zkClientMaster.readData(_conf.getZKIndexPath(index));
     assertEquals(IndexMetaData.IndexState.DEPLOYED, metaData.getState());
     node2.shutdown();
 
     final long time = System.currentTimeMillis();
     IndexState indexState;
     do {
-      zkClientMaster.readData(_conf.getZKIndexPath(index), metaData);
+      metaData = zkClientMaster.readData(_conf.getZKIndexPath(index));
       indexState = metaData.getState();
       if (System.currentTimeMillis() - time > 1000 * 60) {
         fail("index is not in deployed state again");
@@ -209,7 +209,7 @@ public class MasterTest extends AbstractKattaTest {
 
   public void testDeployError() throws Exception {
     final MasterStartThread masterStartThread = startMaster();
-    final ZKClient zkClientMaster = masterStartThread.getZkClient();
+    final ZkClient zkClientMaster = masterStartThread.getZkClient();
 
     final NodeStartThread nodeStartThread1 = startNode(new LuceneServer());
     final NodeStartThread nodeStartThread2 = startNode(new LuceneServer(), SECOND_SHARD_FOLDER);
@@ -225,7 +225,7 @@ public class MasterTest extends AbstractKattaTest {
     katta.addIndex(index, "file://" + indexFile.getAbsolutePath(), 2);
 
     final IndexMetaData metaData = new IndexMetaData();
-    zkClientMaster.readData(_conf.getZKIndexPath(index), metaData);
+    metaData = zkClientMaster.readData(_conf.getZKIndexPath(index));
     assertEquals(IndexMetaData.IndexState.ERROR, metaData.getState());
 
     nodeStartThread1.shutdown();
@@ -235,7 +235,7 @@ public class MasterTest extends AbstractKattaTest {
 
   public void testIndexPickupAfterMasterRestart() throws Exception {
     MasterStartThread masterStartThread = startMaster();
-    final ZKClient zkClientMaster = masterStartThread.getZkClient();
+    final ZkClient zkClientMaster = masterStartThread.getZkClient();
 
     final NodeStartThread nodeStartThread = startNode(new LuceneServer());
     masterStartThread.join();
@@ -264,9 +264,8 @@ public class MasterTest extends AbstractKattaTest {
 
   public void testReplicateUnderreplicatedIndexesAfterNodeAdding() throws Exception {
     final MasterStartThread masterStartThread = startMaster();
-    final ZKClient zkClientMaster = masterStartThread.getZkClient();
-    final ZKClient zkClient = new ZKClient(_conf);
-    zkClient.start(5000);
+    final ZkClient zkClientMaster = masterStartThread.getZkClient();
+    final ZkClient zkClient = ZkKattaUtil.startZkClient(_conf, 5000);
     final Master master = masterStartThread.getMaster();
 
     // start one node
@@ -277,7 +276,7 @@ public class MasterTest extends AbstractKattaTest {
     // add index with replication level of 2
     final File indexFile = TestResources.INDEX1;
     final String index = "indexA";
-    final DeployClient deployClient = new DeployClient(zkClient);
+    final DeployClient deployClient = new DeployClient(zkClient, _conf);
     final IIndexDeployFuture deployFuture = deployClient.addIndex(index, "file://" + indexFile.getAbsolutePath(), 2);
     deployFuture.joinDeployment();
     assertEquals(1, deployClient.getIndexes(IndexState.DEPLOYED).size());

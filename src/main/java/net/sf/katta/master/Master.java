@@ -21,6 +21,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
+import net.sf.katta.DefaultNameSpaceImpl;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.MasterConfiguration;
 import net.sf.katta.util.NetworkUtil;
@@ -55,7 +56,7 @@ public class Master implements IZkStateListener {
   private MasterListener _masterLister;
 
   @SuppressWarnings("unchecked")
-  public Master(ZkConfiguration conf, final ZkClient zkClient) {
+  public Master(ZkConfiguration conf, final ZkClient zkClient) throws KattaException {
     _masterName = NetworkUtil.getLocalhostName() + "_" + UUID.randomUUID().toString();
     _indexListener = new IndexListener();
     _nodeListener = new NodeListener();
@@ -96,15 +97,16 @@ public class Master implements IZkStateListener {
   public void start() {
     try {
       _zkClient.getEventLock().lock();
-      if (!_zkClient.isStarted()) {
-        LOG.info("connecting with zookeeper");
-        _zkClient.start(300000);
-        // now we need to create the default name space
-        _zkClient.createDefaultNameSpace();
-      }
+      // TODO PVo review this code
+//      if (!_zkClient.isStarted()) {
+//        LOG.info("connecting with zookeeper");
+//        _zkClient.start(300000);
+//        // it's now safe to create the namespace
+//        createDefaultNamespace();
+//      }
       becomeMasterOrSecondaryMaster();
       if (_isMaster) {
-        _zkClient.createDefaultNameSpace();
+        createDefaultNamespace();
         startNodeManagement();
         startIndexManagement();
         _manageShardThread.start();
@@ -112,6 +114,10 @@ public class Master implements IZkStateListener {
     } finally {
       _zkClient.getEventLock().unlock();
     }
+  }
+
+  private void createDefaultNamespace() {
+    new DefaultNameSpaceImpl(_conf).createDefaultNameSpace(_zkClient);
   }
 
   public boolean isInSafeMode() {
@@ -127,19 +133,15 @@ public class Master implements IZkStateListener {
         // proceed
       }
       _zkClient.getEventLock().lock();
-      try {
-        _zkClient.unsubscribeAll();
-        _zkClient.delete(_conf.getZKMasterPath());
-      } catch (final KattaException e) {
-        LOG.error("Could not delete the master data from zk");
-      }
+      _zkClient.unsubscribeAll();
+      _zkClient.delete(_conf.getZKMasterPath());
       _zkClient.close();
     } finally {
       _zkClient.getEventLock().unlock();
     }
   }
 
-  private void becomeMasterOrSecondaryMaster() throws KattaException {
+  private void becomeMasterOrSecondaryMaster() {
     cleanupOldMasterData(_masterName);
 
     final MasterMetaData freshMaster = new MasterMetaData(_masterName, System.currentTimeMillis());
@@ -154,10 +156,9 @@ public class Master implements IZkStateListener {
     }
   }
 
-  private void cleanupOldMasterData(final String masterName) throws KattaException {
+  private void cleanupOldMasterData(final String masterName) {
     if (_zkClient.exists(_conf.getZKMasterPath())) {
-      final MasterMetaData existingMaster = new MasterMetaData("", System.currentTimeMillis());
-      _zkClient.readData(_conf.getZKMasterPath(), existingMaster);
+      final MasterMetaData existingMaster = _zkClient.readData(_conf.getZKMasterPath());
       if (existingMaster.getMasterName().equals(masterName)) {
         LOG.warn("detected old master entry pointing to this host - deleting it..");
         _zkClient.delete(_conf.getZKMasterPath());
@@ -165,13 +166,13 @@ public class Master implements IZkStateListener {
     }
   }
 
-  private void startIndexManagement() throws KattaException {
+  private void startIndexManagement() {
     LOG.debug("Loading indexes...");
     _indexes = _zkClient.subscribeChildChanges(_conf.getZKIndicesPath(), _indexListener);
     _manageShardThread.updateIndexes(_indexes);
   }
 
-  private void startNodeManagement() throws KattaException {
+  private void startNodeManagement() {
     LOG.info("start managing nodes...");
     _nodes = _zkClient.subscribeChildChanges(_conf.getZKNodesPath(), _nodeListener);
     if (!_nodes.isEmpty()) {

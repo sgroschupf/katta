@@ -285,7 +285,7 @@ public class Katta {
     System.out.println("Compiled by '" + versionInfo.getCompiledBy() + "' on '" + versionInfo.getCompileTime() + "'");
   }
 
-  public static void startMaster(final ZkConfiguration conf) throws InterruptedException {
+  public static void startMaster(final ZkConfiguration conf) throws InterruptedException, KattaException {
     // ZkServer zkServer = null;
     if (conf.isEmbedded()) {
       String dataDir = conf.getZKDataDir();

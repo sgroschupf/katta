@@ -16,6 +16,7 @@
 package net.sf.katta.client;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.net.InetSocketAddress;
@@ -67,21 +68,20 @@ public class Client implements IShardProxyManager {
 
   private Configuration _hadoopConf = new Configuration();
 
-  public Client(Class<? extends VersionedProtocol> serverClass) throws KattaException {
+  public Client(Class<? extends VersionedProtocol> serverClass) {
     this(serverClass, new DefaultNodeSelectionPolicy(), new ZkConfiguration());
   }
 
-  public Client(Class<? extends VersionedProtocol> serverClass, final ZkConfiguration config) throws KattaException {
+  public Client(Class<? extends VersionedProtocol> serverClass, final ZkConfiguration config) {
     this(serverClass, new DefaultNodeSelectionPolicy(), config);
   }
 
-  public Client(Class<? extends VersionedProtocol> serverClass, final INodeSelectionPolicy nodeSelectionPolicy)
-          throws KattaException {
+  public Client(Class<? extends VersionedProtocol> serverClass, final INodeSelectionPolicy nodeSelectionPolicy) {
     this(serverClass, nodeSelectionPolicy, new ZkConfiguration());
   }
 
   public Client(Class<? extends VersionedProtocol> serverClass, final INodeSelectionPolicy policy,
-          final ZkConfiguration config) throws KattaException {
+          final ZkConfiguration config) {
     _hadoopConf.set("ipc.client.timeout", "2500");
     _hadoopConf.set("ipc.client.connect.max.retries", "2");
     // TODO jz: make configurable
@@ -149,7 +149,7 @@ public class Client implements IShardProxyManager {
     }
   }
 
-  protected void addOrWatchNewIndexes(List<String> indexes) throws KattaException {
+  protected void addOrWatchNewIndexes(List<String> indexes) {
     for (String index : indexes) {
       String indexZkPath = _zkConfig.getZKIndexPath(index);
       IndexMetaData indexMetaData = _zkClient.readData(indexZkPath);
@@ -161,11 +161,11 @@ public class Client implements IShardProxyManager {
     }
   }
 
-  protected void addIndexForWatching(final String indexZkPath) throws KattaException {
+  protected void addIndexForWatching(final String indexZkPath) {
     _zkClient.subscribeDataChanges(indexZkPath, _indexStateListener);
   }
 
-  protected void addIndexForSearching(String indexName, String indexZkPath) throws KattaException {
+  protected void addIndexForSearching(String indexName, String indexZkPath) {
     final List<String> shards = _zkClient.getChildren(indexZkPath);
     _indexToShards.put(indexName, shards);
     for (final String shardName : shards) {
@@ -261,7 +261,7 @@ public class Client implements IShardProxyManager {
   }
 
   private <T> ClientResult<T> broadcastInternal(IResultPolicy<T> resultPolicy, Method method, int shardArrayParamIndex,
-          Map<String, List<String>> nodeShardsMap, Object... args) throws KattaException {
+          Map<String, List<String>> nodeShardsMap, Object... args) {
     _queryCount++;
     /*
      * Validate inputs.
@@ -410,19 +410,7 @@ public class Client implements IShardProxyManager {
     }
   }
 
-  protected class IndexStateListener implements IZkDataListener<IndexMetaData> {
-
-    public void handleDataAdded(String dataPath, IndexMetaData data) throws KattaException {
-      // handled through IndexPathListener
-    }
-
-    public void handleDataChange(String dataPath, IndexMetaData metaData) throws KattaException {
-      final String indexName = _zkConfig.getZKName(dataPath);
-      if (isIndexSearchable(metaData)) {
-        addIndexForSearching(indexName, dataPath);
-        _zkClient.unsubscribeDataChanges(dataPath, this);
-      }
-    }
+  protected class IndexStateListener implements IZkDataListener {
 
     public void handleDataDeleted(String dataPath) throws KattaException {
       // handled through IndexPathListener
@@ -430,6 +418,16 @@ public class Client implements IShardProxyManager {
 
     public IndexMetaData createWritable() {
       return new IndexMetaData();
+    }
+
+    @Override
+    public void handleDataChange(String dataPath, Serializable data) throws Exception {
+      IndexMetaData metaData = (IndexMetaData) data;
+      final String indexName = _zkConfig.getZKName(dataPath);
+      if (isIndexSearchable(metaData)) {
+        addIndexForSearching(indexName, dataPath);
+        _zkClient.unsubscribeDataChanges(dataPath, this);
+      }
     }
 
   }

@@ -26,6 +26,7 @@ import net.sf.katta.node.Node;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.NodeConfiguration;
 import net.sf.katta.util.ZkConfiguration;
+import net.sf.katta.util.ZkKattaUtil;
 
 import org.I0Itec.zkclient.ZkServer;
 
@@ -48,12 +49,12 @@ public class KattaMiniCluster {
     for (int i = 0; i < _nodes.length; i++) {
       NodeConfiguration nodeConf = new NodeConfiguration();
       nodeConf.setShardFolder(new File(nodeConf.getShardFolder(), "" + i).getAbsolutePath());
-      _nodes[i] = new Node(new ZKClient(_zkConfiguration), nodeConf, new LuceneServer());
+      _nodes[i] = new Node(zkConfiguration, ZkKattaUtil.startZkClient(zkConfiguration, 30000), nodeConf, new LuceneServer());
     }
-    _master = new Master(new ZKClient(zkConfiguration));
+    _master = new Master(zkConfiguration, ZkKattaUtil.startZkClient(zkConfiguration, 30000));
   }
 
-  public void start() throws KattaException {
+  public void start() {
     _zkServer = new ZkServer(_zkConfiguration.getZKDataDir(), _zkConfiguration.getZKDataLogDir(), new DefaultNameSpaceImpl(_zkConfiguration), _zkConfiguration.getZKTickTime());
     _zkServer.start();
     _master.start();

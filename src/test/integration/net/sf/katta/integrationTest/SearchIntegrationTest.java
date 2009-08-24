@@ -15,6 +15,7 @@
  */
 package net.sf.katta.integrationTest;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -171,8 +172,8 @@ public class SearchIntegrationTest extends TestCase {
   private KattaMiniCluster startMiniCluster(int nodeCount, int indexCount, int replicationCount) throws KattaException,
       InterruptedException {
     ZkConfiguration conf = new ZkConfiguration();
-    FileUtil.deleteFolder(conf.getZKDataDir());
-    FileUtil.deleteFolder(conf.getZKDataLogDir());
+    FileUtil.deleteFolder(new File(conf.getZKDataDir()));
+    FileUtil.deleteFolder(new File(conf.getZKDataLogDir()));
     FileUtil.deleteFolder(new NodeConfiguration().getShardFolder());
 
     // start katta cluster

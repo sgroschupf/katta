@@ -15,9 +15,10 @@
  */
 package net.sf.katta.client;
 
+import java.io.Serializable;
+
 import net.sf.katta.index.IndexMetaData;
 import net.sf.katta.index.IndexMetaData.IndexState;
-import net.sf.katta.util.KattaException;
 
 import org.I0Itec.zkclient.IZkDataListener;
 import org.I0Itec.zkclient.IZkStateListener;
@@ -25,7 +26,7 @@ import org.I0Itec.zkclient.ZkClient;
 import org.apache.log4j.Logger;
 import org.apache.zookeeper.Watcher.Event.KeeperState;
 
-public class IndexDeployFuture implements IIndexDeployFuture, IZkDataListener<IndexMetaData>, IZkStateListener {
+public class IndexDeployFuture implements IIndexDeployFuture, IZkDataListener, IZkStateListener {
 
   private static Logger LOG = Logger.getLogger(IndexDeployFuture.class);
 
@@ -76,15 +77,12 @@ public class IndexDeployFuture implements IIndexDeployFuture, IZkDataListener<In
     return _indexMetaData.getState() != IndexState.DEPLOYED && _indexMetaData.getState() != IndexState.ERROR;
   }
 
-  public synchronized void handleDataAdded(String dataPath, IndexMetaData data) throws KattaException {
-    updateIndexMetaData(data);
+  @Override
+  public void handleDataChange(String dataPath, Serializable data) {
+    updateIndexMetaData((IndexMetaData) data);
   }
-
-  public synchronized void handleDataChange(String dataPath, IndexMetaData data) throws KattaException {
-    updateIndexMetaData(data);
-  }
-
-  public synchronized void handleDataDeleted(String dataPath) throws KattaException {
+  
+  public synchronized void handleDataDeleted(String dataPath) {
     // index got deleted
     this.notifyAll();
   }

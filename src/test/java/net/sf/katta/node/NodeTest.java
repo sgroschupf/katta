@@ -75,8 +75,7 @@ public class NodeTest extends AbstractKattaTest {
 
     // test
     final String indexPath = _conf.getZKIndicesPath() + "/index";
-    IndexMetaData indexMetaData = new IndexMetaData();
-    masterThread.getZkClient().readData(indexPath, indexMetaData);
+    IndexMetaData indexMetaData = masterThread.getZkClient().readData(indexPath);
     assertEquals(IndexState.ERROR, indexMetaData.getState());
     assertNotNull(indexMetaData.getErrorMessage());
 
@@ -102,8 +101,7 @@ public class NodeTest extends AbstractKattaTest {
 
     // test
     assertTrue(node.getDeployedShards().size() > 0);
-    IndexMetaData indexMetaData = new IndexMetaData();
-    masterThread.getZkClient().readData(_conf.getZKIndexPath(index), indexMetaData);
+    IndexMetaData indexMetaData = masterThread.getZkClient().readData(_conf.getZKIndexPath(index));
     assertEquals(IndexMetaData.IndexState.DEPLOYED, indexMetaData.getState());
 
     nodeThread.shutdown();

@@ -17,8 +17,8 @@ package net.sf.katta.tool;
 
 import java.util.List;
 
-import net.sf.katta.util.KattaException;
 import net.sf.katta.util.ZkConfiguration;
+import net.sf.katta.util.ZkKattaUtil;
 
 import org.I0Itec.zkclient.ZkClient;
 import org.apache.commons.cli.CommandLine;
@@ -35,13 +35,12 @@ public class ZkTool {
   private ZkConfiguration _conf;
   private ZkClient _zkClient;
 
-  public ZkTool() throws KattaException {
+  public ZkTool() {
     _conf = new ZkConfiguration();
-    _zkClient = new ZKClient(_conf);
-    _zkClient.start(5000);
+    _zkClient = ZkKattaUtil.startZkClient(_conf, 5000);
   }
 
-  public void ls(String path) throws KattaException {
+  public void ls(String path) {
     List<String> children = _zkClient.getChildren(path);
     System.out.println(String.format("Found %s items", children.size()));
     if (path.charAt(path.length() - 1) != _conf.getSeparator()) {
@@ -52,7 +51,7 @@ public class ZkTool {
     }
   }
 
-  public void rm(String path, boolean recursiv) throws KattaException {
+  public void rm(String path, boolean recursiv) {
     if (recursiv) {
       _zkClient.deleteRecursive(path);
     } else {
@@ -64,7 +63,7 @@ public class ZkTool {
     _zkClient.close();
   }
 
-  public static void main(String[] args) throws KattaException {
+  public static void main(String[] args) {
     final Options options = new Options();
 
     Option lsOption = new Option("ls", true, "list zp path contents");
