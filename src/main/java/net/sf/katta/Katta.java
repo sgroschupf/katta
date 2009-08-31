@@ -72,17 +72,17 @@ public class Katta {
   // tests, any suggestion how to solve that better is welcome.
   public static ZkServer _zkServer;
 
-  // private ZkClient _zkClient;
-  // private ZkConfiguration _conf;
+  private ZkClient _zkClient;
+  private ZkConfiguration _conf;
 
   public Katta() throws IOException {
-    // this(new ZkConfiguration());
+    this(new ZkConfiguration());
   }
 
-  // public Katta(final ZkConfiguration configuration) {
-  // // _conf = configuration;
-  // // _zkClient = new ZkClient(configuration.getZKServers());
-  // }
+  public Katta(final ZkConfiguration configuration) {
+    _conf = configuration;
+    _zkClient = new ZkClient(configuration.getZKServers());
+  }
 
   public static void main(final String[] args) throws Exception {
     if (args.length < 1) {
@@ -139,14 +139,14 @@ public class Katta {
         if (args.length == 4) {
           replication = Integer.parseInt(args[3]);
         }
-        katta.addIndex(args[1], args[2], replication, configuration, zkClient);
+        katta.addIndex(args[1], args[2], replication);
       } else if (command.endsWith("setState")) {
         if (args.length < 3) {
           printUsageAndExit();
         }
         katta.setState(args[1], args[2], zkClient, configuration);
       } else if (command.endsWith("removeIndex")) {
-        katta.removeIndex(args[1], zkClient, configuration);
+        katta.removeIndex(args[1]);
       } else if (command.endsWith("mergeIndexes") || command.endsWith("mergeIndices")) {
         katta.mergeIndexes(zkClient, configuration, args);
       } else if (command.endsWith("listIndexes") || command.endsWith("listIndices")) {
@@ -184,7 +184,7 @@ public class Katta {
         printUsageAndExit();
       }
       if (katta != null) {
-        katta.close(zkClient);
+        katta.close();
       }
     }
   }
@@ -241,9 +241,9 @@ public class Katta {
 
     IndexMetaData indexMetaData = zkClient.readData(indexPath);
     try {
-      removeIndex(indexName, zkClient, configuration);
+      removeIndex(indexName);
       Thread.sleep(5000);
-      addIndex(indexName, indexMetaData.getPath(), indexMetaData.getReplicationLevel(), configuration, zkClient);
+      addIndex(indexName, indexMetaData.getPath(), indexMetaData.getReplicationLevel());
     } catch (InterruptedException e) {
       printError("Redeployment of index '" + indexName + "' interrupted.");
     }
@@ -356,8 +356,8 @@ public class Katta {
   }
 
   // TODO sg: does this need to throw a katta exception?
-  public void removeIndex(final String indexName, ZkClient zkClient, ZkConfiguration config) {
-    IDeployClient deployClient = new DeployClient(zkClient, config);
+  public void removeIndex(final String indexName) {
+    IDeployClient deployClient = new DeployClient(_zkClient, _conf);
     if (!deployClient.existsIndex(indexName)) {
       printError("index '" + indexName + "' does not exist");
       return;
@@ -544,20 +544,19 @@ public class Katta {
     return docCount;
   }
 
-  public void addIndex(final String name, final String path, final int replicationLevel, ZkConfiguration config,
-          ZkClient zkClient) {
-    final String indexZkPath = config.getZKIndexPath(name);
+  public void addIndex(final String name, final String path, final int replicationLevel) {
+    final String indexZkPath = _conf.getZKIndexPath(name);
     if (name.trim().equals("*")) {
       printError("Index with name " + name + " isn't allowed.");
       return;
     }
-    if (zkClient.exists(indexZkPath)) {
+    if (_zkClient.exists(indexZkPath)) {
       printError("Index with name " + name + " already exists.");
       return;
     }
 
     try {
-      IDeployClient deployClient = new DeployClient(zkClient, config);
+      IDeployClient deployClient = new DeployClient(_zkClient, _conf);
       IIndexDeployFuture deployFuture = deployClient.addIndex(name, path, replicationLevel);
       while (true) {
         if (deployFuture.getState() == IndexState.DEPLOYED) {
@@ -630,9 +629,10 @@ public class Katta {
     System.out.println(hitsSize + " Hits found in " + ((end - start) / 1000.0) + "sec.");
   }
 
-  public void close(ZkClient zkClient) {
-    if (zkClient != null) {
-      zkClient.close();
+  public void close() {
+    if (_zkClient != null) {
+      _zkClient.close();
+      _zkClient = null;
     }
   }
 

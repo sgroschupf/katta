@@ -224,8 +224,7 @@ public class MasterTest extends AbstractKattaTest {
     final String index = "indexA";
     katta.addIndex(index, "file://" + indexFile.getAbsolutePath(), 2);
 
-    final IndexMetaData metaData = new IndexMetaData();
-    metaData = zkClientMaster.readData(_conf.getZKIndexPath(index));
+    final IndexMetaData metaData = zkClientMaster.readData(_conf.getZKIndexPath(index));
     assertEquals(IndexMetaData.IndexState.ERROR, metaData.getState());
 
     nodeStartThread1.shutdown();
