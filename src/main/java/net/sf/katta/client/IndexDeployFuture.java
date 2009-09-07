@@ -78,7 +78,7 @@ public class IndexDeployFuture implements IIndexDeployFuture, IZkDataListener, I
   }
 
   @Override
-  public void handleDataChange(String dataPath, Serializable data) {
+  public synchronized void handleDataChange(String dataPath, Serializable data) {
     updateIndexMetaData((IndexMetaData) data);
   }
   

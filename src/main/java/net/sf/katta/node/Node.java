@@ -341,6 +341,8 @@ public class Node implements IZkStateListener {
         LOG.warn("could'nt cleanup zk ephemeral Paths: " + t.getMessage());
       }
       _timer.cancel();
+      
+      //TODO PVo don't shutdown the zkClient here
       _zkClient.unsubscribeAll();
       _zkClient.close();
       _rpcServer.stop();

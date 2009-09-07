@@ -191,7 +191,8 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
   }
 
   protected NodeStartThread startNode(INodeManaged server, int port, String shardFolder, ZkConfiguration conf) {
-    ZkClient zkNodeClient = _zkServer.getZkClient();
+    // reuse ZkClient instance
+    ZkClient zkNodeClient = ZkKattaUtil.startZkClient(conf, 30000);
     NodeConfiguration nodeConf = new NodeConfiguration();
     nodeConf.setShardFolder(shardFolder);
     nodeConf.setStartPort(port);

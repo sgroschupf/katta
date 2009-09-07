@@ -120,19 +120,14 @@ public class Master implements IZkStateListener {
   }
 
   public void shutdown() {
+    _manageShardThread.interrupt();
     try {
-      _manageShardThread.interrupt();
-      try {
-        _manageShardThread.join();
-      } catch (final InterruptedException e1) {
-        // proceed
-      }
-      _zkClient.getEventLock().lock();
-      _zkClient.unsubscribeAll();
-      _zkClient.delete(_conf.getZKMasterPath());
-    } finally {
-      _zkClient.getEventLock().unlock();
+      _manageShardThread.join();
+    } catch (final InterruptedException e1) {
+      // proceed
     }
+    _zkClient.unsubscribeAll();
+    _zkClient.delete(_conf.getZKMasterPath());
   }
 
   private void becomeMasterOrSecondaryMaster() {
