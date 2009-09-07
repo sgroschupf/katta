@@ -34,6 +34,7 @@ import net.sf.katta.index.IndexMetaData;
 import net.sf.katta.util.CollectionUtil;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.ZkConfiguration;
+import net.sf.katta.util.ZkKattaUtil;
 
 import org.I0Itec.zkclient.IZkChildListener;
 import org.I0Itec.zkclient.IZkDataListener;
@@ -89,7 +90,9 @@ public class Client implements IShardProxyManager {
     _serverClass = serverClass;
     _selectionPolicy = policy;
     _zkConfig = config;
-    _zkClient = new ZkClient(config.getZKServers());
+    
+    // TODO PVo should we really start a new ZkClient here?
+    _zkClient = ZkKattaUtil.startZkClient(config, 60000);
     try {
       _zkClient.getEventLock().lock();
       String indicesPath = config.getZKIndicesPath();
