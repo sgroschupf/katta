@@ -56,7 +56,7 @@ public class Master implements IZkStateListener {
   private MasterListener _masterLister;
 
   @SuppressWarnings("unchecked")
-  public Master(ZkConfiguration conf, final ZkClient zkClient) throws KattaException {
+  public Master(ZkConfiguration conf, ZkClient zkClient) throws KattaException {
     _masterName = NetworkUtil.getLocalhostName() + "_" + UUID.randomUUID().toString();
     _indexListener = new IndexListener();
     _nodeListener = new NodeListener();
@@ -66,12 +66,7 @@ public class Master implements IZkStateListener {
       LOG.info("Using ZK root path: " + _conf.getZKRootPath());
     }
     _zkClient = zkClient;
-    try {
-      _zkClient.getEventLock().lock();
-      _zkClient.subscribeStateChanges(this);
-    } finally {
-      _zkClient.getEventLock().unlock();
-    }
+    _zkClient.subscribeStateChanges(this);
     final MasterConfiguration masterConfiguration = new MasterConfiguration();
     final String deployPolicyClassName = masterConfiguration.getDeployPolicy();
     IDeployPolicy deployPolicy;
@@ -98,12 +93,12 @@ public class Master implements IZkStateListener {
     try {
       _zkClient.getEventLock().lock();
       // TODO PVo review this code
-//      if (!_zkClient.isStarted()) {
-//        LOG.info("connecting with zookeeper");
-//        _zkClient.start(300000);
-//        // it's now safe to create the namespace
-//        createDefaultNamespace();
-//      }
+      // if (!_zkClient.isStarted()) {
+      // LOG.info("connecting with zookeeper");
+      // _zkClient.start(300000);
+      // // it's now safe to create the namespace
+      // createDefaultNamespace();
+      // }
       becomeMasterOrSecondaryMaster();
       if (_isMaster) {
         createDefaultNamespace();
@@ -135,7 +130,6 @@ public class Master implements IZkStateListener {
       _zkClient.getEventLock().lock();
       _zkClient.unsubscribeAll();
       _zkClient.delete(_conf.getZKMasterPath());
-      _zkClient.close();
     } finally {
       _zkClient.getEventLock().unlock();
     }

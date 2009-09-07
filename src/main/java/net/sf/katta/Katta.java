@@ -76,7 +76,7 @@ public class Katta {
   private ZkClient _zkClient;
   private ZkConfiguration _conf;
 
-  public Katta() throws IOException {
+  public Katta() {
     this(new ZkConfiguration());
   }
 
@@ -287,15 +287,16 @@ public class Katta {
   }
 
   public static void startMaster(final ZkConfiguration conf) throws InterruptedException, KattaException {
-    // ZkServer zkServer = null;
+    _zkServer = null;
+    
+    ZkClient zkClient;
     if (conf.isEmbedded()) {
-      String dataDir = conf.getZKDataDir();
-      String logDir = conf.getZKDataLogDir();
-      _zkServer = new ZkServer(dataDir, logDir, new DefaultNameSpaceImpl(conf), conf.getZKTickTime());
-      _zkServer.start();
+      _zkServer = ZkKattaUtil.startZkServer(conf);
+      zkClient = _zkServer.getZkClient();
+    } else {
+      zkClient = ZkKattaUtil.startZkClient(conf, 30000);
     }
-    final ZkClient client = _zkServer.getZkClient();
-    final Master master = new Master(conf, client);
+    final Master master = new Master(conf, zkClient);
     master.start();
     Runtime.getRuntime().addShutdownHook(new Thread() {
       @Override
@@ -319,8 +320,7 @@ public class Katta {
     waiter.join();
   }
 
-  public static void startNode(String serverClassName, final ZkConfiguration conf) throws KattaException,
-          InterruptedException {
+  public static void startNode(String serverClassName, final ZkConfiguration conf) throws InterruptedException {
     INodeManaged server = null;
     try {
       if (serverClassName == null) {

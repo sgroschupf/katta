@@ -25,7 +25,9 @@ public class ZkKattaUtil {
   }
 
   public static ZkServer startZkServer(ZkConfiguration conf) {
-    return new ZkServer(conf.getZKDataDir(), conf.getZKDataLogDir(), new DefaultNameSpaceImpl(conf), DEFAULT_PORT, conf
+    ZkServer zkServer = new ZkServer(conf.getZKDataDir(), conf.getZKDataLogDir(), new DefaultNameSpaceImpl(conf), DEFAULT_PORT, conf
             .getZKTickTime());
+    zkServer.start();
+    return zkServer;
   }
 }

@@ -21,6 +21,7 @@ import net.sf.katta.util.ZkConfiguration;
 import net.sf.katta.util.ZkKattaUtil;
 
 import org.I0Itec.zkclient.ZkClient;
+import org.I0Itec.zkclient.ZkServer;
 
 public class EmbeddedZookeeperTest extends TestCase {
   public void testEmbeddedZK() throws Exception {
@@ -47,8 +48,9 @@ public class EmbeddedZookeeperTest extends TestCase {
     } finally {
       // TODO sg: the way we access zookeeper here is almost painful, but I had
       // not other idea, I guess we need to clean this up in a 2.0 version.
-      if (Katta._zkServer != null) {
-        Katta._zkServer.shutdown();
+      ZkServer zkServer = Katta._zkServer;
+      if (zkServer != null) {
+        zkServer.shutdown();
       }
     }
   }
