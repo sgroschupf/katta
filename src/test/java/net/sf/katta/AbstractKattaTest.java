@@ -137,7 +137,6 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
       throw new IllegalStateException("port " + port + " blocked. Probably other zk server is running.");
     }
     _zkServer = ZkKattaUtil.startZkServer(_conf);
-    _zkServer.start();
   }
 
   protected void stopZkServer() {
