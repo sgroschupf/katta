@@ -17,22 +17,22 @@ package net.sf.katta.index;
 
 import java.io.Serializable;
 
-import org.apache.hadoop.io.Text;
-
 public class IndexMetaData implements Serializable {
 
-  private Text _path = new Text();
+  private static final long serialVersionUID = 1L;
+  
+  private String _path;
   private int _replicationLevel;
 
   private IndexState _state;
-  private Text _errorMessage = new Text();
+  private String _errorMessage = "";
 
   public enum IndexState {
     ANNOUNCED, DEPLOYED, ERROR, DEPLOYING, REPLICATING;
   }
 
-  public IndexMetaData(final String path, final int replicationLevel, final IndexState state) {
-    _path.set(path);
+  public IndexMetaData(String path, int replicationLevel, IndexState state) {
+    _path = path;
     _replicationLevel = replicationLevel;
     _state = state;
   }
@@ -42,7 +42,7 @@ public class IndexMetaData implements Serializable {
   }
 
   public String getPath() {
-    return _path.toString();
+    return _path;
   }
 
   public IndexState getState() {
@@ -56,15 +56,15 @@ public class IndexMetaData implements Serializable {
     _state = state;
   }
 
-  public void setState(final IndexState state, String errorMsg) {
+  public void setState(final IndexState state, String errorMessage) {
     _state = state;
-    if (errorMsg != null) {
-      _errorMessage.set(errorMsg);
+    if (errorMessage != null) {
+      _errorMessage = errorMessage;
     }
   }
 
   public String getErrorMessage() {
-    return _errorMessage.toString();
+    return _errorMessage;
   }
 
   public int getReplicationLevel() {

@@ -51,6 +51,7 @@ import net.sf.katta.util.KattaException;
 import net.sf.katta.util.SymlinkResourceLoader;
 import net.sf.katta.util.VersionInfo;
 import net.sf.katta.util.ZkConfiguration;
+import net.sf.katta.util.ZkKattaUtil;
 
 import org.I0Itec.zkclient.ZkClient;
 import org.I0Itec.zkclient.ZkServer;
@@ -81,7 +82,7 @@ public class Katta {
 
   public Katta(final ZkConfiguration configuration) {
     _conf = configuration;
-    _zkClient = new ZkClient(configuration.getZKServers());
+    _zkClient = ZkKattaUtil.startZkClient(configuration, 10000);
   }
 
   public static void main(final String[] args) throws Exception {

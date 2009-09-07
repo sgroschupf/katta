@@ -17,7 +17,6 @@ package net.sf.katta.integrationTest;
 
 import java.io.File;
 
-import net.sf.katta.DefaultNameSpaceImpl;
 import net.sf.katta.client.DeployClient;
 import net.sf.katta.client.IDeployClient;
 import net.sf.katta.master.Master;
@@ -40,23 +39,23 @@ public class KattaMiniCluster {
 
   private final ZkConfiguration _zkConfiguration;
   private ZkServer _zkServer;
-  private final Master _master;
-  private final Node[] _nodes;
+  private Master _master;
+  private Node[] _nodes;
 
-  public KattaMiniCluster(ZkConfiguration zkConfiguration, int nodeCount) throws KattaException {
+  public KattaMiniCluster(ZkConfiguration zkConfiguration, int nodeCount) {
     _zkConfiguration = zkConfiguration;
     _nodes = new Node[nodeCount];
+  }
+
+  public void start() throws KattaException {
+    _zkServer = ZkKattaUtil.startZkServer(_zkConfiguration);
+    _zkServer.start();
     for (int i = 0; i < _nodes.length; i++) {
       NodeConfiguration nodeConf = new NodeConfiguration();
       nodeConf.setShardFolder(new File(nodeConf.getShardFolder(), "" + i).getAbsolutePath());
-      _nodes[i] = new Node(zkConfiguration, ZkKattaUtil.startZkClient(zkConfiguration, 30000), nodeConf, new LuceneServer());
+      _nodes[i] = new Node(_zkConfiguration, ZkKattaUtil.startZkClient(_zkConfiguration, 30000), nodeConf, new LuceneServer());
     }
-    _master = new Master(zkConfiguration, ZkKattaUtil.startZkClient(zkConfiguration, 30000));
-  }
-
-  public void start() {
-    _zkServer = new ZkServer(_zkConfiguration.getZKDataDir(), _zkConfiguration.getZKDataLogDir(), new DefaultNameSpaceImpl(_zkConfiguration), _zkConfiguration.getZKTickTime());
-    _zkServer.start();
+    _master = new Master(_zkConfiguration, ZkKattaUtil.startZkClient(_zkConfiguration, 30000));
     _master.start();
     for (Node node : _nodes) {
       node.start();

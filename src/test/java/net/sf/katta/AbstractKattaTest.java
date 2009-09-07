@@ -27,6 +27,7 @@ import net.sf.katta.util.KattaException;
 import net.sf.katta.util.NetworkUtil;
 import net.sf.katta.util.NodeConfiguration;
 import net.sf.katta.util.ZkConfiguration;
+import net.sf.katta.util.ZkKattaUtil;
 
 import org.I0Itec.zkclient.ZkClient;
 import org.I0Itec.zkclient.ZkLock;
@@ -95,12 +96,12 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
   }
 
   private void resetZkNamespace() {
-    ZkClient zkClient = new ZkClient(_conf.getZKServers(), _conf.getZKTimeOut(), 10000);
+    ZkClient zkClient = _zkServer.getZkClient();
     if (zkClient.exists(_conf.getZKRootPath())) {
       zkClient.deleteRecursive(_conf.getZKRootPath());
     }
     new DefaultNameSpaceImpl(_conf).createDefaultNameSpace(zkClient);
-    zkClient.close();
+//    zkClient.close();
   }
 
   protected void onBeforeClass() throws Exception {
@@ -135,7 +136,7 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
     if (!NetworkUtil.isPortFree(port)) {
       throw new IllegalStateException("port " + port + " blocked. Probably other zk server is running.");
     }
-    _zkServer = new ZkServer(_conf.getZKDataDir(), _conf.getZKDataLogDir(), new DefaultNameSpaceImpl(_conf), _conf.getZKClientPort(), _conf.getZKTickTime());
+    _zkServer = ZkKattaUtil.startZkServer(_conf);
     _zkServer.start();
   }
 
@@ -166,7 +167,7 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
   }
 
   protected MasterStartThread startMaster(ZkConfiguration conf) throws KattaException {
-    ZkClient zkMasterClient = new ZkClient(conf.getZKServers(), conf.getZKTimeOut());
+    ZkClient zkMasterClient = _zkServer.getZkClient();
     Master master = new Master(conf, zkMasterClient);
     MasterStartThread masterStartThread = new MasterStartThread(master, zkMasterClient);
     masterStartThread.start();
@@ -191,7 +192,7 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
   }
 
   protected NodeStartThread startNode(INodeManaged server, int port, String shardFolder, ZkConfiguration conf) {
-    ZkClient zkNodeClient = new ZkClient(conf.getZKServers(), conf.getZKTimeOut());
+    ZkClient zkNodeClient = _zkServer.getZkClient();
     NodeConfiguration nodeConf = new NodeConfiguration();
     nodeConf.setShardFolder(shardFolder);
     nodeConf.setStartPort(port);

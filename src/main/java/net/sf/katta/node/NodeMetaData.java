@@ -20,11 +20,9 @@ import java.io.Serializable;
 import net.sf.katta.node.Node.NodeState;
 import net.sf.katta.util.DefaultDateFormat;
 
-import org.apache.hadoop.io.Text;
-
 public class NodeMetaData implements Serializable {
 
-  private Text _name = new Text();
+  private String _name;
   private NodeState _state;
   private float _queriesPerMinute = 0f;
   private long _startTimeStamp = System.currentTimeMillis();
@@ -34,7 +32,7 @@ public class NodeMetaData implements Serializable {
   }
 
   public NodeMetaData(final String name, NodeState nodeState) {
-    _name = new Text(name);
+    _name = name;
     _state = nodeState;
   }
 
