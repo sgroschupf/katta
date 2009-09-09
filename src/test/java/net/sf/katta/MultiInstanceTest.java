@@ -203,7 +203,7 @@ public class MultiInstanceTest extends AbstractKattaTest {
     }
   }
 
-  public void testParallel() throws KattaException, InterruptedException {
+  public void testParallel() throws InterruptedException {
     System.out.println("Testing multithreaded access to multiple Katta instances...");
     Long start = System.currentTimeMillis();
     Random rand = new Random("Multi katta2".hashCode());
