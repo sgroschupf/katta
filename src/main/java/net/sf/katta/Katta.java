@@ -69,10 +69,6 @@ import org.apache.zookeeper.KeeperException;
 @SuppressWarnings("deprecation")
 public class Katta {
 
-  // TODO sg we have that just to access it in
-  // tests, any suggestion how to solve that better is welcome.
-  public static ZkServer _zkServer;
-
   private ZkClient _zkClient;
   private ZkConfiguration _conf;
 
@@ -96,7 +92,7 @@ public class Katta {
     if (command.endsWith("startNode")) {
       startNode(args.length > 1 ? args[1] : null, configuration);
     } else if (command.endsWith("startMaster")) {
-      startMaster(configuration);
+      runMaster(configuration);
     } else if (command.endsWith("startLoadTestNode")) {
       startLoadTestNode(configuration);
     } else if (command.endsWith("startLoadTest")) {
@@ -286,25 +282,29 @@ public class Katta {
     System.out.println("Compiled by '" + versionInfo.getCompiledBy() + "' on '" + versionInfo.getCompileTime() + "'");
   }
 
-  public static void startMaster(final ZkConfiguration conf) throws InterruptedException, KattaException {
-    _zkServer = null;
-    
-    ZkClient zkClient;
-    if (conf.isEmbedded()) {
-      _zkServer = ZkKattaUtil.startZkServer(conf);
-      zkClient = _zkServer.getZkClient();
-    } else {
-      zkClient = ZkKattaUtil.startZkClient(conf, 30000);
+  public static void runMaster(final ZkConfiguration conf) throws KattaException {
+    Master master = startMaster(conf);
+    try {
+      waitUntilJvmTerminates();
+    } finally {
+      master.shutdown();
     }
-    final Master master = new Master(conf, zkClient);
-    master.start();
-    Runtime.getRuntime().addShutdownHook(new Thread() {
-      @Override
-      public void run() {
-        master.shutdown();
-      }
-    });
+  }
 
+  public static Master startMaster(final ZkConfiguration conf) throws KattaException {
+    Master master;
+    if (conf.isEmbedded()) {
+      ZkServer zkServer = ZkKattaUtil.startZkServer(conf);
+      master = new Master(conf, zkServer);
+    } else {
+      ZkClient zkClient = ZkKattaUtil.startZkClient(conf, 30000);
+      master = new Master(conf, zkClient);
+    }
+    master.start();
+    return master;
+  }
+  
+  private static void waitUntilJvmTerminates() {
     // Just wait until the JVM terminates.
     Thread waiter = new Thread() {
       @Override
@@ -312,12 +312,17 @@ public class Katta {
         try {
           sleep(Long.MAX_VALUE);
         } catch (InterruptedException e) {
+          // terminate
         }
       }
     };
     waiter.setDaemon(true);
     waiter.start();
-    waiter.join();
+    try {
+      waiter.join();
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+    }
   }
 
   public static void startNode(String serverClassName, final ZkConfiguration conf) throws InterruptedException {

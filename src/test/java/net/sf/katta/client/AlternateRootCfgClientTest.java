@@ -21,6 +21,7 @@ package net.sf.katta.client;
  */
 public class AlternateRootCfgClientTest extends LuceneClientTest {
 
+  @Override
   protected String getZkConfigurationResourceName() {
     return("/katta.zk.properties_alt_root");
   }
