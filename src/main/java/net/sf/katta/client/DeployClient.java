@@ -90,7 +90,8 @@ public class DeployClient implements IDeployClient {
   }
 
   public void disconnect() {
-    _zkClient.close();
+    //TODO PVo we should do this from outside when we pass in a ZkClient
+//    _zkClient.close();
   }
 
   public IndexMetaData getIndexMetaData(String name) {
