@@ -15,10 +15,13 @@
  */
 package net.sf.katta;
 
+import java.io.File;
+
 import net.sf.katta.util.ZkConfiguration;
 
 import org.I0Itec.zkclient.IDefaultNameSpace;
 import org.I0Itec.zkclient.ZkClient;
+import org.I0Itec.zkclient.exception.ZkNodeExistsException;
 import org.apache.log4j.Logger;
 
 /**
@@ -37,26 +40,26 @@ public class DefaultNameSpaceImpl implements IDefaultNameSpace {
   @Override
   public void createDefaultNameSpace(ZkClient zkClient) {
     LOG.debug("Creating default File structure if required....");
-    if (!zkClient.exists(_conf.getZKRootPath())) {
-      zkClient.createPersistent(_conf.getZKRootPath());
-    }
-    if (!zkClient.exists(_conf.getZKIndicesPath())) {
-      zkClient.createPersistent(_conf.getZKIndicesPath());
-    }
-    if (!zkClient.exists(_conf.getZKNodesPath())) {
-      zkClient.createPersistent(_conf.getZKNodesPath());
-    }
-    if (!zkClient.exists(_conf.getZKNodeToShardPath())) {
-      zkClient.createPersistent(_conf.getZKNodeToShardPath());
-    }
-    if (!zkClient.exists(_conf.getZKShardToNodePath())) {
-      zkClient.createPersistent(_conf.getZKShardToNodePath());
-    }
-    if (!zkClient.exists(_conf.getZKShardToErrorPath())) {
-      zkClient.createPersistent(_conf.getZKShardToErrorPath());
-    }
-    if (!zkClient.exists(_conf.getZKLoadTestPath())) {
-      zkClient.createPersistent(_conf.getZKLoadTestPath());
+    safeCreate(zkClient, _conf.getZKRootPath());
+    safeCreate(zkClient, _conf.getZKIndicesPath());
+    safeCreate(zkClient, _conf.getZKNodesPath());
+    safeCreate(zkClient, _conf.getZKNodeToShardPath());
+    safeCreate(zkClient, _conf.getZKShardToNodePath());
+    safeCreate(zkClient, _conf.getZKShardToErrorPath());
+    safeCreate(zkClient, _conf.getZKLoadTestPath());
+  }
+
+  private void safeCreate(ZkClient zkClient, String path) {
+    try {
+      // first create parent directories
+      String parent = new File(path).getParent();
+      if (parent != null && !zkClient.exists(parent)) {
+        safeCreate(zkClient, parent);
+      }
+
+      zkClient.createPersistent(path);
+    } catch (ZkNodeExistsException e) {
+      // Ignore if the node already exists.
     }
   }
 }

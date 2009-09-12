@@ -20,6 +20,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import net.sf.katta.DefaultNameSpaceImpl;
 import net.sf.katta.util.KattaException;
@@ -31,6 +33,7 @@ import org.I0Itec.zkclient.IZkChildListener;
 import org.I0Itec.zkclient.IZkDataListener;
 import org.I0Itec.zkclient.IZkStateListener;
 import org.I0Itec.zkclient.ZkClient;
+import org.I0Itec.zkclient.ZkServer;
 import org.apache.log4j.Logger;
 import org.apache.zookeeper.Watcher.Event.KeeperState;
 
@@ -54,6 +57,9 @@ public class Master implements IZkStateListener {
   private NodeListener _nodeListener;
 
   private MasterListener _masterLister;
+  private Lock _shutdownLock = new ReentrantLock();
+
+  private ZkServer _zkServer;
 
   @SuppressWarnings("unchecked")
   public Master(ZkConfiguration conf, ZkClient zkClient) throws KattaException {
@@ -89,6 +95,11 @@ public class Master implements IZkStateListener {
     _manageShardThread = new DistributeShardsThread(_conf, _zkClient, deployPolicy, safeModeMaxTime, false);
   }
 
+  public Master(ZkConfiguration conf, ZkServer zkServer) throws KattaException {
+    this(conf, zkServer.getZkClient());
+    _zkServer = zkServer;
+  }
+
   public void start() {
     try {
       _zkClient.getEventLock().lock();
@@ -120,14 +131,26 @@ public class Master implements IZkStateListener {
   }
 
   public void shutdown() {
-    _manageShardThread.interrupt();
+    _shutdownLock.lock();
     try {
-      _manageShardThread.join();
-    } catch (final InterruptedException e1) {
-      // proceed
+      if (_zkClient != null) {
+        _manageShardThread.interrupt();
+        try {
+          _manageShardThread.join();
+        } catch (final InterruptedException e1) {
+          // proceed
+        }
+        _zkClient.unsubscribeAll();
+        _zkClient.delete(_conf.getZKMasterPath());
+        _zkClient = null;
+      }
+      if (_zkServer != null) {
+        _zkServer.shutdown();
+        _zkServer = null;
+      }
+    } finally {
+      _shutdownLock.unlock();
     }
-    _zkClient.unsubscribeAll();
-    _zkClient.delete(_conf.getZKMasterPath());
   }
 
   private void becomeMasterOrSecondaryMaster() {

@@ -196,7 +196,7 @@ public class LuceneClientTest extends AbstractKattaTest {
     }
   }
 
-  public void testNonExistantShard() throws Exception {
+  public void testNonExistentShard() throws Exception {
     final Query query = new QueryParser("", new KeywordAnalyzer()).parse("foo: bar");
     try {
       _client.search(query, new String[] { "doesNotExist" });

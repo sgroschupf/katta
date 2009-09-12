@@ -35,9 +35,19 @@ import org.apache.log4j.Logger;
 
 public class SearchIntegrationTest extends TestCase {
 
+  private KattaMiniCluster _miniCluster;
+
+  @Override
+  protected void tearDown() throws Exception {
+    if (_miniCluster != null) {
+      _miniCluster.stop();
+    }
+    super.tearDown();
+  }
+  
   public void testSearch() throws Exception {
     long startTime = System.currentTimeMillis();
-    KattaMiniCluster miniCluster = startMiniCluster(5, 3, 3);
+    _miniCluster = startMiniCluster(5, 3, 3);
 
     // start search threads
     int expectedHitCount = 12;
@@ -49,7 +59,6 @@ public class SearchIntegrationTest extends TestCase {
     Thread.sleep(queryTime);
     searchThread.interrupt();
     searchThread.join();
-    miniCluster.stop();
 
     checkResults(startTime, queryTime, searchThread.getFiredQueryCount(), searchThread.getUnexpectedResultCount(),
         searchThread.getThrownExceptions().size());
@@ -57,7 +66,7 @@ public class SearchIntegrationTest extends TestCase {
 
   public void testMultithreadedSearchWithMultipleClients() throws Exception {
     long startTime = System.currentTimeMillis();
-    KattaMiniCluster miniCluster = startMiniCluster(5, 3, 3);
+    _miniCluster = startMiniCluster(5, 3, 3);
 
     // start search threads
     int expectedHitCount = 12;
@@ -80,14 +89,13 @@ public class SearchIntegrationTest extends TestCase {
       unexpectedResultCount += searchThread.getUnexpectedResultCount();
       exceptionCount += searchThread.getThrownExceptions().size();
     }
-    miniCluster.stop();
 
     checkResults(startTime, queryTime, firedQueries, unexpectedResultCount, exceptionCount);
   }
 
   public void testSearchWhileStartingAndStoppingNodes() throws Exception {
     long startTime = System.currentTimeMillis();
-    KattaMiniCluster miniCluster = startMiniCluster(3, 3, 3);
+    _miniCluster = startMiniCluster(3, 3, 3);
 
     // start search threads
     int expectedHitCount = 12;
@@ -96,17 +104,17 @@ public class SearchIntegrationTest extends TestCase {
 
     long queryTime = 20000;
     Thread.sleep(queryTime / 4);
-    miniCluster.getNode(0).shutdown();
+    _miniCluster.getNode(0).shutdown();
     Thread.sleep(queryTime / 4);
-    miniCluster.getNode(1).getRpcServer().stop();
+    _miniCluster.getNode(1).getRpcServer().stop();
     Thread.sleep(queryTime / 4);
-    miniCluster.getNode(0).start();
+    _miniCluster.getNode(0).start();
     Thread.sleep(queryTime / 4);
 
     // stop everything
     searchThread.interrupt();
     searchThread.join();
-    miniCluster.stop();
+    _miniCluster.stop();
 
     checkResults(startTime, queryTime, searchThread.getFiredQueryCount(), searchThread.getUnexpectedResultCount(),
         searchThread.getThrownExceptions().size());
@@ -114,7 +122,7 @@ public class SearchIntegrationTest extends TestCase {
 
   public void testMultithreadedSearchWithOneClientWhileStartingAndStoppingNodes() throws Exception {
     long startTime = System.currentTimeMillis();
-    KattaMiniCluster miniCluster = startMiniCluster(3, 3, 3);
+    _miniCluster = startMiniCluster(3, 3, 3);
 
     // start search threads
     int expectedHitCount = 12;
@@ -127,11 +135,11 @@ public class SearchIntegrationTest extends TestCase {
 
     long queryTime = 20000;
     Thread.sleep(queryTime / 4);
-    miniCluster.getNode(0).shutdown();
+    _miniCluster.getNode(0).shutdown();
     Thread.sleep(queryTime / 4);
-    miniCluster.getNode(1).getRpcServer().stop();
+    _miniCluster.getNode(1).getRpcServer().stop();
     Thread.sleep(queryTime / 4);
-    miniCluster.getNode(0).start();
+    _miniCluster.getNode(0).start();
     Thread.sleep(queryTime / 4);
 
     // stop everything
@@ -146,7 +154,6 @@ public class SearchIntegrationTest extends TestCase {
       exceptionCount += searchThread.getThrownExceptions().size();
     }
     searchClient.close();
-    miniCluster.stop();
 
     checkResults(startTime, queryTime, firedQueries, unexpectedResultCount, exceptionCount);
   }

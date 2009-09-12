@@ -24,33 +24,18 @@ import org.I0Itec.zkclient.ZkClient;
 import org.I0Itec.zkclient.ZkServer;
 
 public class EmbeddedZookeeperTest extends TestCase {
+
   public void testEmbeddedZK() throws Exception {
     // by default there need to be a zkserver
+    final ZkConfiguration conf = new ZkConfiguration();
+
+    Master master = Katta.startMaster(conf);
     try {
-
-      final ZkConfiguration conf = new ZkConfiguration();
-
-      Runnable r = new Runnable() {
-        @Override
-        public void run() {
-          try {
-            Katta.startMaster(conf);
-          } catch (Exception e) {
-            e.printStackTrace();
-          }
-        }
-      };
-      Thread thread = new Thread(r);
-      thread.setDaemon(true);
-      thread.start();
       ZkClient client = ZkKattaUtil.startZkClient(conf, 10000);
       client.close();
     } finally {
-      // TODO sg: the way we access zookeeper here is almost painful, but I had
-      // not other idea, I guess we need to clean this up in a 2.0 version.
-      ZkServer zkServer = Katta._zkServer;
-      if (zkServer != null) {
-        zkServer.shutdown();
+      if (master != null) {
+        master.shutdown();
       }
     }
   }
@@ -58,25 +43,16 @@ public class EmbeddedZookeeperTest extends TestCase {
   public void testNoEmbeddedZK() throws Exception {
     final ZkConfiguration conf = new ZkConfiguration();
     conf.setEmbedded(false);
-    Runnable r = new Runnable() {
-      @Override
-      public void run() {
-        try {
-          Katta.startMaster(conf);
-          fail("master start should fail, since we expect no zkserver");
-        } catch (Exception e) {
-          // 
-        }
-      }
-    };
-    Thread thread = new Thread(r);
-    thread.setDaemon(true);
-    thread.start();
+
+    // we start our own zkServer that the master will connect to
+    ZkServer zkServer = ZkKattaUtil.startZkServer(conf);
     try {
-      ZkKattaUtil.startZkClient(conf, 5000);
-      fail("this should fail, since we expect no zkserver");
-    } catch (Exception e) {
+      // this would fail if this would try to start another ZkServer on the same
+      // port
+      Master master = Katta.startMaster(conf);
+      master.shutdown();
+    } finally {
+      zkServer.shutdown();
     }
   }
-
 }
