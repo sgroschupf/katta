@@ -103,39 +103,29 @@ public class Node implements IZkStateListener {
   public void start() {
     LOG.debug("Starting node...");
 
-    try {
-      _zkClient.getEventLock().lock();
-      LOG.debug("Starting rpc server...");
-      _nodeName = startRPCServer(_configuration.getStartPort());
-      _server.setNodeName(_nodeName);
+    LOG.debug("Starting rpc server...");
+    _nodeName = startRPCServer(_configuration.getStartPort());
+    _server.setNodeName(_nodeName);
 
-      // we add hostName and port to the shardFolder to allow multiple nodes per
-      // server with the same configuration
-      _shardsFolder = new File(_configuration.getShardFolder(), _nodeName.replaceAll(":", "@"));
+    // we add hostName and port to the shardFolder to allow multiple nodes per
+    // server with the same configuration
+    _shardsFolder = new File(_configuration.getShardFolder(), _nodeName.replaceAll(":", "@"));
 
-      if (!_shardsFolder.exists()) {
-        _shardsFolder.mkdirs();
-      }
-      if (!_shardsFolder.exists()) {
-        throw new IllegalStateException("could not create local shard folder '" + _shardsFolder.getAbsolutePath() + "'");
-      }
-
-      //TODO PVo review this (I don't think this is needed anymore)
-//      LOG.debug("Starting zk client...");
-//      if (!_zkClient.isStarted()) {
-//        _zkClient.start(30000);
-//      }
-      cleanupLocalShardFolder();
-      announceNode(NodeState.STARTING);
-      startShardServing(false);
-
-      LOG.info("Started node: " + _nodeName + "...");
-      updateStatus(NodeState.IN_SERVICE);
-      _timer = new Timer("QueryCounter", true);
-      _timer.schedule(new StatusUpdater(), new Date(), 60 * 1000);
-    } finally {
-      _zkClient.getEventLock().unlock();
+    if (!_shardsFolder.exists()) {
+      _shardsFolder.mkdirs();
     }
+    if (!_shardsFolder.exists()) {
+      throw new IllegalStateException("could not create local shard folder '" + _shardsFolder.getAbsolutePath() + "'");
+    }
+
+    cleanupLocalShardFolder();
+    announceNode(NodeState.STARTING);
+    startShardServing(false);
+
+    LOG.info("Started node: " + _nodeName + "...");
+    updateStatus(NodeState.IN_SERVICE);
+    _timer = new Timer("QueryCounter", true);
+    _timer.schedule(new StatusUpdater(), new Date(), 60 * 1000);
   }
 
   public void handleNewSession() throws Exception {
