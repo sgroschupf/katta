@@ -120,6 +120,9 @@ public class NodeTest extends AbstractKattaTest {
 
     ZkClient zkClient = Mockito.mock(ZkClient.class);
     Mockito.when(zkClient.getEventLock()).thenReturn(new ZkLock());
+    
+    NodeMetaData nodeMetaData = new NodeMetaData();
+    Mockito.when(zkClient.readData(Mockito.anyString())).thenReturn(nodeMetaData);
 
     LuceneServer server = new LuceneServer();
     Node node = new Node(_conf, zkClient, server);
@@ -169,6 +172,9 @@ public class NodeTest extends AbstractKattaTest {
   public void testUndeployShards() throws Exception {
     ZkClient zkClient = Mockito.mock(ZkClient.class);
     Mockito.when(zkClient.getEventLock()).thenReturn(new ZkLock());
+
+    NodeMetaData nodeMetaData = new NodeMetaData();
+    Mockito.when(zkClient.readData(Mockito.anyString())).thenReturn(nodeMetaData);
 
     Node node = new Node(_conf, zkClient, new LuceneServer());
     node.start();
