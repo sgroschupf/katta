@@ -40,7 +40,7 @@ public class LuceneClientFailoverTest extends AbstractKattaTest {
   protected void onSetUp2() throws Exception {
     _masterThread = startMaster();
     _nodeThread1 = startNode(new LuceneServer(), nodePort1);
-    _nodeThread2 = startNode(new LuceneServer(), nodePort2, "./buid/data/LuceneClientFailoverTest/kattaShards2");
+    _nodeThread2 = startNode(new LuceneServer(), nodePort2, "./build/data/LuceneClientFailoverTest/kattaShards2");
 
     _masterThread.join();
     _nodeThread1.join();
