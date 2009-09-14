@@ -150,13 +150,13 @@ public class FailTest extends AbstractKattaTest {
   }
 
 
-  private class DummyNode {
+  private static class DummyNode {
 
     private final ZkClient _client;
     private final Node _node;
 
     public DummyNode(final ZkConfiguration conf, final NodeConfiguration nodeConfiguration) {
-      _client = new ZkClient(conf.getZKServers(), conf.getZKTimeOut());
+      _client = ZkKattaUtil.startZkClient(conf, 30000);
       _node = new Node(conf, _client, nodeConfiguration, new LuceneServer());
       _node.start();
     }
@@ -166,9 +166,7 @@ public class FailTest extends AbstractKattaTest {
     }
 
     void close() {
-      _client.close();
       _node.shutdown();
     }
   }
-
 }
