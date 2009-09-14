@@ -15,13 +15,24 @@
  */
 package net.sf.katta;
 
-import org.I0Itec.zkclient.InMemoryConnection;
-import org.I0Itec.zkclient.ZkClient;
 
 public class KattaTest extends AbstractKattaTest {
 
+  private Katta _katta;
+
+  @Override
+  protected void onSetUp2() throws Exception {
+    super.onSetUp2();
+    _katta = new Katta();
+  }
+  
+  @Override
+  protected void onTearDown() throws Exception {
+    _katta.close();
+    super.onTearDown();
+  }
+  
   public void testShowStructure() {
-    Katta katta = new Katta();
-    katta.showStructure(new ZkClient(new InMemoryConnection()));
+    _katta.showStructure();
   }
 }

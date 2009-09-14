@@ -157,7 +157,7 @@ public class Katta {
       } else if (command.endsWith("listNodes")) {
         katta.listNodes(configuration, zkClient, configuration);
       } else if (command.endsWith("showStructure")) {
-        katta.showStructure(zkClient);
+        katta.showStructure();
       } else if (command.endsWith("check")) {
         katta.check(zkClient, configuration);
       } else if (command.endsWith("listErrors")) {
@@ -376,8 +376,8 @@ public class Katta {
   // _zkClient.showFolders(arg != null && arg.startsWith("-a"), System.out);
   // }
 
-  public void showStructure(ZkClient zkClient) {
-    zkClient.showFolders(System.out);
+  public void showStructure() {
+    _zkClient.showFolders(System.out);
   }
 
   private void check(ZkClient zkClient, ZkConfiguration config) throws KattaException {
