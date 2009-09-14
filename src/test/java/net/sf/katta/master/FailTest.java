@@ -44,11 +44,11 @@ public class FailTest extends AbstractKattaTest {
     final ZkClient masterClient = ZkKattaUtil.startZkClient(_conf, 30000);
     final ZkClient secMasterClient = ZkKattaUtil.startZkClient(_conf, 30000);
 
-    final Master master = new Master(_conf, masterClient);
+    final Master master = new Master(_conf, masterClient, true);
     master.start();
 
     // start secondary master..
-    final Master secMaster = new Master(_conf, secMasterClient);
+    final Master secMaster = new Master(_conf, secMasterClient, true);
     secMaster.start();
 
     waitForPath(masterClient, _conf.getZKMasterPath());
@@ -61,8 +61,7 @@ public class FailTest extends AbstractKattaTest {
     waitForPath(secMasterClient, _conf.getZKMasterPath());
     assertTrue(secMaster.isMaster());
 
-    masterClient.close();
-    secMasterClient.close();
+    secMaster.shutdown();
   }
 
   // TODO test zk disconnect

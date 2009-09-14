@@ -298,7 +298,7 @@ public class Katta {
       master = new Master(conf, zkServer);
     } else {
       ZkClient zkClient = ZkKattaUtil.startZkClient(conf, 30000);
-      master = new Master(conf, zkClient);
+      master = new Master(conf, zkClient, true);
     }
     master.start();
     return master;

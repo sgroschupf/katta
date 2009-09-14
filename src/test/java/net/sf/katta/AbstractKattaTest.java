@@ -97,11 +97,8 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
 
   private void resetZkNamespace() {
     ZkClient zkClient = _zkServer.getZkClient();
-    if (zkClient.exists(_conf.getZKRootPath())) {
-      zkClient.deleteRecursive(_conf.getZKRootPath());
-    }
+    zkClient.deleteRecursive(_conf.getZKRootPath());
     new DefaultNameSpaceImpl(_conf).createDefaultNameSpace(zkClient);
-//    zkClient.close();
   }
 
   protected void onBeforeClass() throws Exception {
@@ -166,9 +163,8 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
   }
 
   protected MasterStartThread startMaster(ZkConfiguration conf) throws KattaException {
-    ZkClient zkMasterClient = _zkServer.getZkClient();
-    Master master = new Master(conf, zkMasterClient);
-    MasterStartThread masterStartThread = new MasterStartThread(master, zkMasterClient);
+    Master master = new Master(conf, _zkServer.getZkClient(), false);
+    MasterStartThread masterStartThread = new MasterStartThread(master, _zkServer.getZkClient());
     masterStartThread.start();
     return masterStartThread;
   }

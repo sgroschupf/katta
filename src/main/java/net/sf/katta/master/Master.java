@@ -61,12 +61,15 @@ public class Master implements IZkStateListener {
 
   private ZkServer _zkServer;
 
+  private boolean _shutdownClient;
+
   @SuppressWarnings("unchecked")
-  public Master(ZkConfiguration conf, ZkClient zkClient) throws KattaException {
+  public Master(ZkConfiguration conf, ZkClient zkClient, boolean shutdownClient) throws KattaException {
     _masterName = NetworkUtil.getLocalhostName() + "_" + UUID.randomUUID().toString();
     _indexListener = new IndexListener();
     _nodeListener = new NodeListener();
     _masterLister = new MasterListener();
+    _shutdownClient = shutdownClient;
     _conf = conf;
     if (!_conf.getZKRootPath().equals(ZkConfiguration.DEFAULT_ROOT_PATH)) {
       LOG.info("Using ZK root path: " + _conf.getZKRootPath());
@@ -96,7 +99,7 @@ public class Master implements IZkStateListener {
   }
 
   public Master(ZkConfiguration conf, ZkServer zkServer) throws KattaException {
-    this(conf, zkServer.getZkClient());
+    this(conf, zkServer.getZkClient(), false);
     _zkServer = zkServer;
   }
 
@@ -142,6 +145,9 @@ public class Master implements IZkStateListener {
         }
         _zkClient.unsubscribeAll();
         _zkClient.delete(_conf.getZKMasterPath());
+        if (_shutdownClient) {
+          _zkClient.close();
+        }
         _zkClient = null;
       }
       if (_zkServer != null) {
