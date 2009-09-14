@@ -324,38 +324,37 @@ public class Node implements IZkStateListener {
   }
 
   public void shutdown() {
+    if (_server == null) {
+      return;
+    }
+    
     LOG.info("shutdown " + _nodeName + " ...");
     try {
-      _zkClient.getEventLock().lock();
-      try {
-        // we deleting the ephemeral's since this is the fastest and the safest
-        // way, but if this does not work, it shouldn't be too bad
-        _zkClient.delete(_conf.getZKNodePath(_nodeName));
-        for (String shard : _deployedShards) {
-          String shard2NodePath = _conf.getZKShardToNodePath(shard, _nodeName);
-          String shard2ErrorPath = _conf.getZKShardToErrorPath(shard, _nodeName);
-          _zkClient.delete(shard2NodePath);
-          _zkClient.delete(shard2ErrorPath);
-        }
-      } catch (Throwable t) {
-        LOG.warn("could'nt cleanup zk ephemeral Paths: " + t.getMessage());
+      // we deleting the ephemeral's since this is the fastest and the safest
+      // way, but if this does not work, it shouldn't be too bad
+      _zkClient.delete(_conf.getZKNodePath(_nodeName));
+      for (String shard : _deployedShards) {
+        String shard2NodePath = _conf.getZKShardToNodePath(shard, _nodeName);
+        String shard2ErrorPath = _conf.getZKShardToErrorPath(shard, _nodeName);
+        _zkClient.delete(shard2NodePath);
+        _zkClient.delete(shard2ErrorPath);
       }
-      _timer.cancel();
-      
-      //TODO PVo don't shutdown the zkClient here
-      _zkClient.unsubscribeAll();
-      _zkClient.close();
-      _rpcServer.stop();
-      _rpcServer = null;
-      try {
-        _server.shutdown();
-      } catch (Throwable t) {
-        LOG.error("Error shutting down server", t);
-      }
-      _server = null;
-    } finally {
-      _zkClient.getEventLock().unlock();
+    } catch (Throwable t) {
+      LOG.warn("could'nt cleanup zk ephemeral Paths: " + t.getMessage());
     }
+    _timer.cancel();
+
+    // TODO PVo don't shutdown the zkClient here
+    _zkClient.unsubscribeAll();
+    _zkClient.close();
+    _rpcServer.stop();
+    _rpcServer = null;
+    try {
+      _server.shutdown();
+    } catch (Throwable t) {
+      LOG.error("Error shutting down server", t);
+    }
+    _server = null;
     LOG.info("shutdown " + _nodeName + " finished");
   }
 
