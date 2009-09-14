@@ -47,10 +47,6 @@ public class NodeMasterReconnectTest extends AbstractKattaTest {
     masterStartThread.join();
     final ZkClient zkMasterClient = masterStartThread.getZkClient();
 
-    fail("Review the following two lines");
-//    assertTrue(zkMasterClient.getZookeeperState().equals(ZooKeeper.States.CONNECTED));
-//    assertTrue(zkNodeClient.getZookeeperState().equals(ZooKeeper.States.CONNECTED));
-
     // check node-master link
     waitOnNodes(masterStartThread, 1);
     assertTrue(master.getNodes().contains(node.getName()));
