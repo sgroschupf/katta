@@ -34,6 +34,7 @@ public class LuceneClientFailoverTest extends AbstractKattaTest {
 
   static int nodePort1 = 20000;
   static int nodePort2 = 20001;
+  private LuceneClient _searchClient;
 
   @Override
   protected void onSetUp2() throws Exception {
@@ -53,6 +54,9 @@ public class LuceneClientFailoverTest extends AbstractKattaTest {
 
   @Override
   protected void onTearDown() throws Exception {
+    if (_searchClient != null) {
+      _searchClient.close();
+    }
     _nodeThread1.shutdown();
     _nodeThread2.shutdown();
     _masterThread.shutdown();
@@ -65,43 +69,39 @@ public class LuceneClientFailoverTest extends AbstractKattaTest {
 
   public void testSearch_NodeProxyDownAfterClientInitialization() throws Exception {
     // start search client
-    LuceneClient searchClient = new LuceneClient(_conf);
+    _searchClient = new LuceneClient(_conf);
 
     // shutdown proxy of node1
     _nodeThread1.getNode().getRpcServer().stop();
 
     final Query query = new Query("content:the");
     System.out.println("=========================");
-    assertSearchResults(10, searchClient.search(query, new String[] { index }, 10));
-    assertSearchResults(10, searchClient.search(query, new String[] { index }, 10));
+    assertSearchResults(10, _searchClient.search(query, new String[] { index }, 10));
+    assertSearchResults(10, _searchClient.search(query, new String[] { index }, 10));
     // search 2 time to ensure we get all availible nodes
     System.out.println("=========================");
-
-    searchClient.close();
   }
 
   public void testCount_NodeProxyDownAfterClientInitialization() throws Exception {
     // start search client
-    LuceneClient searchClient = new LuceneClient(_conf);
+    _searchClient = new LuceneClient(_conf);
 
     // shutdown proxy of node1
     _nodeThread1.getNode().getRpcServer().stop();
 
     final Query query = new Query("content:the");
     System.out.println("=========================");
-    assertEquals(937, searchClient.count(query, new String[] { index }));
-    assertEquals(937, searchClient.count(query, new String[] { index }));
+    assertEquals(937, _searchClient.count(query, new String[] { index }));
+    assertEquals(937, _searchClient.count(query, new String[] { index }));
     // search 2 time to ensure we get all availible nodes
     System.out.println("=========================");
-
-    searchClient.close();
   }
 
   public void testGetDetails_NodeProxyDownAfterClientInitialization() throws Exception {
     // start search client
-    LuceneClient searchClient = new LuceneClient(_conf);
+    _searchClient = new LuceneClient(_conf);
     final Query query = new Query("content:the");
-    Hits hits = searchClient.search(query, new String[] { index }, 10);
+    Hits hits = _searchClient.search(query, new String[] { index }, 10);
 
     // shutdown proxy of node1
     System.out.println("=========================");
@@ -110,31 +110,27 @@ public class LuceneClientFailoverTest extends AbstractKattaTest {
     } else {
       _nodeThread2.getNode().getRpcServer().stop();
     }
-    assertFalse(searchClient.getDetails(hits.getHits().get(0)).isEmpty());
-    assertFalse(searchClient.getDetails(hits.getHits().get(0)).isEmpty());
+    assertFalse(_searchClient.getDetails(hits.getHits().get(0)).isEmpty());
+    assertFalse(_searchClient.getDetails(hits.getHits().get(0)).isEmpty());
     // search 2 time to ensure we get all availible nodes
     System.out.println("=========================");
-
-    searchClient.close();
   }
 
   public void testAllNodeProxyDownAfterClientInitialization() throws Exception {
     // start search client
-    LuceneClient searchClient = new LuceneClient(_conf);
+    _searchClient = new LuceneClient(_conf);
     final Query query = new Query("content:the");
     _nodeThread1.getNode().getRpcServer().stop();
     _nodeThread2.getNode().getRpcServer().stop();
 
     System.out.println("=========================");
     try {
-      searchClient.search(query, new String[] { index }, 10);
+      _searchClient.search(query, new String[] { index }, 10);
       fail("should throw exception");
     } catch (ShardAccessException e) {
       // expected
     }
     System.out.println("=========================");
-
-    searchClient.close();
   }
 
   private void assertSearchResults(int expectedResults, Hits hits) {
@@ -157,11 +153,10 @@ public class LuceneClientFailoverTest extends AbstractKattaTest {
     }
     waitOnNodes(_masterThread, 2);
 
-    // start search client
-    LuceneClient searchClient = new LuceneClient(_conf);
+    _searchClient = new LuceneClient(_conf);
     final Query query = new Query("content:the");
-    assertSearchResults(10, searchClient.search(query, new String[] { index }, 10));
-    assertSearchResults(10, searchClient.search(query, new String[] { index }, 10));
+    assertSearchResults(10, _searchClient.search(query, new String[] { index }, 10));
+    assertSearchResults(10, _searchClient.search(query, new String[] { index }, 10));
 
     // flip node1/node2 alive status
     _nodeThread2 = startNode(new LuceneServer(), nodePort2, "./build/data/LuceneClientFailoverTest/kattaShards2");
@@ -170,7 +165,7 @@ public class LuceneClientFailoverTest extends AbstractKattaTest {
     waitOnNodes(_masterThread, 1);
 
     // search again
-    assertSearchResults(10, searchClient.search(query, new String[] { index }, 10));
-    searchClient.close();
+    assertSearchResults(10, _searchClient.search(query, new String[] { index }, 10));
+    _searchClient.close();
   }
 }
