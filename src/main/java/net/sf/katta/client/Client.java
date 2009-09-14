@@ -53,7 +53,7 @@ public class Client implements IShardProxyManager {
   private static final String[] ALL_INDICES = new String[] { "*" };
 
   protected final ZkConfiguration _zkConfig;
-  protected final ZkClient _zkClient;
+  protected ZkClient _zkClient;
   protected final Class<? extends VersionedProtocol> _serverClass;
 
   private final IndexStateListener _indexStateListener = new IndexStateListener();
@@ -410,6 +410,7 @@ public class Client implements IShardProxyManager {
       for (VersionedProtocol search : proxies) {
         RPC.stopProxy(search);
       }
+      _zkClient = null;
     }
   }
 
