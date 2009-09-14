@@ -151,6 +151,7 @@ public class MasterTest extends AbstractKattaTest {
     }
     assertEquals(0, zkClientMaster.getChildren(_conf.getZKNodeToShardPath(node1.getName())).size());
 
+    katta.close();
     nodeStartThread1.shutdown();
     nodeStartThread2.shutdown();
     masterStartThread.shutdown();
@@ -227,6 +228,7 @@ public class MasterTest extends AbstractKattaTest {
     final IndexMetaData metaData = zkClientMaster.readData(_conf.getZKIndexPath(index));
     assertEquals(IndexMetaData.IndexState.ERROR, metaData.getState());
 
+    katta.close();
     nodeStartThread1.shutdown();
     nodeStartThread2.shutdown();
     masterStartThread.shutdown();
@@ -257,6 +259,7 @@ public class MasterTest extends AbstractKattaTest {
     masterStartThread.join();
     assertEquals(1, masterStartThread.getMaster().getIndexes().size());
 
+    katta.close();
     nodeStartThread.shutdown();
     masterStartThread.shutdown();
   }
@@ -300,6 +303,7 @@ public class MasterTest extends AbstractKattaTest {
       waitForChilds(zkClient, _conf.getZKShardToNodePath(shard), 2);
     }
 
+    zkClient.close();
     deployClient.disconnect();
     nodeStartThread1.shutdown();
     nodeStartThread2.shutdown();
