@@ -36,6 +36,7 @@ import org.I0Itec.zkclient.ZkLock;
 import org.apache.lucene.analysis.KeywordAnalyzer;
 import org.apache.lucene.queryParser.QueryParser;
 import org.apache.lucene.search.Query;
+import org.mockito.Matchers;
 import org.mockito.Mockito;
 
 public class NodeTest extends AbstractKattaTest {
@@ -117,12 +118,11 @@ public class NodeTest extends AbstractKattaTest {
   }
 
   public void testMultiThreadSearch() throws Exception {
-
     ZkClient zkClient = Mockito.mock(ZkClient.class);
     Mockito.when(zkClient.getEventLock()).thenReturn(new ZkLock());
     
     NodeMetaData nodeMetaData = new NodeMetaData();
-    Mockito.when(zkClient.readData(Mockito.anyString())).thenReturn(nodeMetaData);
+    Mockito.when(zkClient.readData(Matchers.anyString())).thenReturn(nodeMetaData);
 
     LuceneServer server = new LuceneServer();
     Node node = new Node(_conf, zkClient, server);
@@ -174,7 +174,7 @@ public class NodeTest extends AbstractKattaTest {
     Mockito.when(zkClient.getEventLock()).thenReturn(new ZkLock());
 
     NodeMetaData nodeMetaData = new NodeMetaData();
-    Mockito.when(zkClient.readData(Mockito.anyString())).thenReturn(nodeMetaData);
+    Mockito.when(zkClient.readData(Matchers.anyString())).thenReturn(nodeMetaData);
 
     Node node = new Node(_conf, zkClient, new LuceneServer());
     node.start();
