@@ -79,4 +79,8 @@ public class KattaMiniCluster {
     }
     deployClient.disconnect();
   }
+
+  public ZkConfiguration getZkConfiguration() {
+    return _zkConfiguration;
+  }
 }

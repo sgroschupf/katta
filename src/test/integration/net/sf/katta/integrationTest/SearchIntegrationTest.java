@@ -23,6 +23,8 @@ import junit.framework.TestCase;
 import net.sf.katta.client.ILuceneClient;
 import net.sf.katta.client.LuceneClient;
 import net.sf.katta.node.Hits;
+import net.sf.katta.node.LuceneServer;
+import net.sf.katta.node.Node;
 import net.sf.katta.node.Query;
 import net.sf.katta.testutil.TestResources;
 import net.sf.katta.util.FileUtil;
@@ -30,6 +32,7 @@ import net.sf.katta.util.KattaException;
 import net.sf.katta.util.NodeConfiguration;
 import net.sf.katta.util.StringUtil;
 import net.sf.katta.util.ZkConfiguration;
+import net.sf.katta.util.ZkKattaUtil;
 
 import org.apache.log4j.Logger;
 
@@ -61,7 +64,7 @@ public class SearchIntegrationTest extends TestCase {
     searchThread.join();
 
     checkResults(startTime, queryTime, searchThread.getFiredQueryCount(), searchThread.getUnexpectedResultCount(),
-        searchThread.getThrownExceptions().size());
+            searchThread.getThrownExceptions());
   }
 
   public void testMultithreadedSearchWithMultipleClients() throws Exception {
@@ -81,16 +84,16 @@ public class SearchIntegrationTest extends TestCase {
     // stop everything
     long firedQueries = 0;
     long unexpectedResultCount = 0;
-    int exceptionCount = 0;
+    List<Exception> exceptions = new ArrayList<Exception>();
     for (SearchThread searchThread : searchThreads) {
       searchThread.interrupt();
       searchThread.join();
       firedQueries += searchThread.getFiredQueryCount();
       unexpectedResultCount += searchThread.getUnexpectedResultCount();
-      exceptionCount += searchThread.getThrownExceptions().size();
+      exceptions.addAll(searchThread.getThrownExceptions());
     }
 
-    checkResults(startTime, queryTime, firedQueries, unexpectedResultCount, exceptionCount);
+    checkResults(startTime, queryTime, firedQueries, unexpectedResultCount, exceptions);
   }
 
   public void testSearchWhileStartingAndStoppingNodes() throws Exception {
@@ -103,13 +106,8 @@ public class SearchIntegrationTest extends TestCase {
     searchThread.start();
 
     long queryTime = 20000;
-    Thread.sleep(queryTime / 4);
-    _miniCluster.getNode(0).shutdown();
-    Thread.sleep(queryTime / 4);
-    _miniCluster.getNode(1).getRpcServer().stop();
-    Thread.sleep(queryTime / 4);
-    _miniCluster.getNode(0).start();
-    Thread.sleep(queryTime / 4);
+
+    startAndStopNodes(queryTime);
 
     // stop everything
     searchThread.interrupt();
@@ -117,7 +115,31 @@ public class SearchIntegrationTest extends TestCase {
     _miniCluster.stop();
 
     checkResults(startTime, queryTime, searchThread.getFiredQueryCount(), searchThread.getUnexpectedResultCount(),
-        searchThread.getThrownExceptions().size());
+            searchThread.getThrownExceptions());
+  }
+
+  private void startAndStopNodes(long queryTime) throws InterruptedException {
+    Node node1 = _miniCluster.getNode(0);
+    Node node2 = _miniCluster.getNode(1);
+
+    assertNotNull(node1);
+    assertNotNull(node2);
+    
+    Thread.sleep(queryTime / 4);
+    node1.shutdown();
+    
+    Thread.sleep(queryTime / 4);
+    node2.getRpcServer().stop();
+    
+    Thread.sleep(queryTime / 4);
+    NodeConfiguration nodeConf = new NodeConfiguration();
+    nodeConf.setShardFolder(new File(nodeConf.getShardFolder(), "-new").getAbsolutePath());
+    Node newNode = new Node(_miniCluster.getZkConfiguration(), ZkKattaUtil.startZkClient(_miniCluster.getZkConfiguration(), 30000), nodeConf, new LuceneServer());
+    newNode.start();
+
+    Thread.sleep(queryTime / 4);
+
+    newNode.shutdown();
   }
 
   public void testMultithreadedSearchWithOneClientWhileStartingAndStoppingNodes() throws Exception {
@@ -134,46 +156,41 @@ public class SearchIntegrationTest extends TestCase {
     }
 
     long queryTime = 20000;
-    Thread.sleep(queryTime / 4);
-    _miniCluster.getNode(0).shutdown();
-    Thread.sleep(queryTime / 4);
-    _miniCluster.getNode(1).getRpcServer().stop();
-    Thread.sleep(queryTime / 4);
-    _miniCluster.getNode(0).start();
-    Thread.sleep(queryTime / 4);
+    startAndStopNodes(queryTime);
 
     // stop everything
     long firedQueries = 0;
     long unexpectedResultCount = 0;
-    int exceptionCount = 0;
+    List<Exception> exceptions = new ArrayList<Exception>();
     for (SearchThread searchThread : searchThreads) {
       searchThread.interrupt();
       searchThread.join();
       firedQueries += searchThread.getFiredQueryCount();
       unexpectedResultCount += searchThread.getUnexpectedResultCount();
-      exceptionCount += searchThread.getThrownExceptions().size();
+      exceptions.addAll(searchThread.getThrownExceptions());
     }
     searchClient.close();
 
-    checkResults(startTime, queryTime, firedQueries, unexpectedResultCount, exceptionCount);
+    checkResults(startTime, queryTime, firedQueries, unexpectedResultCount, exceptions);
   }
 
   private void checkResults(long startTime, long queryTime, long firedQueries, long unexpectedResultCount,
-      int exceptionCount) {
+          List<Exception> exceptions) throws Exception {
     // print results
     System.out.println("===========================================");
     System.out.println("Results of " + getName() + ":");
     System.out.println("search time: " + StringUtil.formatTimeDuration(queryTime));
     System.out.println("fired queries: " + firedQueries);
     System.out.println("wrong results: " + unexpectedResultCount);
-    System.out.println("exceptions: " + exceptionCount);
+    System.out.println("exceptions: " + exceptions.size());
     System.out.println("execution took: " + StringUtil.formatTimeDuration(System.currentTimeMillis() - startTime));
     System.out.println("===========================================");
 
     // assert results
-    assertEquals("exceptions on search", 0, exceptionCount);
+    if (!exceptions.isEmpty()) {
+      throw new IllegalStateException("Found exception.", exceptions.get(0));
+    }
     assertEquals("wrong hit count", 0, unexpectedResultCount);
-    // TODO jz: add assertions
   }
 
   private KattaMiniCluster startMiniCluster(int nodeCount, int indexCount, int replicationCount) throws KattaException,
