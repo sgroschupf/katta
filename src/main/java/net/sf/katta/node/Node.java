@@ -101,6 +101,10 @@ public class Node implements IZkStateListener {
    * Boots the node
    */
   public void start() {
+    if (_server == null) {
+      throw new IllegalStateException("Node cannot be started again after it was shutdown.");
+    }
+    
     LOG.debug("Starting node...");
 
     LOG.debug("Starting rpc server...");
