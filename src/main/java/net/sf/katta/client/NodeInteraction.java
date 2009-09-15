@@ -215,8 +215,8 @@ class NodeInteraction<T> implements Runnable {
     return s;
   }
 
+  @Override
   public String toString() {
     return "NodeInteraction: call " + _method.getName() + " on " + _node;
   }
-
 }
