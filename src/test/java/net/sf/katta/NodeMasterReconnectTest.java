@@ -15,21 +15,19 @@
  */
 package net.sf.katta;
 
-import java.util.concurrent.TimeUnit;
-
 import net.sf.katta.master.Master;
 import net.sf.katta.node.LuceneServer;
 import net.sf.katta.node.Node;
-import net.sf.katta.testutil.Gateway;
 import net.sf.katta.util.ZkConfiguration;
 import net.sf.katta.util.ZkKattaUtil;
 
+import org.I0Itec.zkclient.Gateway;
 import org.I0Itec.zkclient.ZkClient;
 
 public class NodeMasterReconnectTest extends AbstractKattaTest {
 
-  int GATEWAY_PORT = 2190;
-  int ZK_SERVER_PORT = 2181;
+  private static final int GATEWAY_PORT = 2190;
+  private static final int ZK_SERVER_PORT = 2181;
 
   public void testReconnectNode() throws Exception {
     final ZkConfiguration gatewayConf = new ZkConfiguration();
@@ -45,33 +43,21 @@ public class NodeMasterReconnectTest extends AbstractKattaTest {
     final Node node = new Node(gatewayConf, zkNodeClient, new LuceneServer());
     node.start();
     masterStartThread.join();
-    final ZkClient zkMasterClient = masterStartThread.getZkClient();
 
     // check node-master link
     waitOnNodes(masterStartThread, 1);
     assertTrue(master.getNodes().contains(node.getName()));
 
     // now break the node connection
-    zkMasterClient.getEventLock().lock();
-    try {
-      gateway.interruptAndJoin();
-      zkMasterClient.getEventLock().getDataChangedCondition().await(20, TimeUnit.SECONDS);
-    } finally {
-      zkMasterClient.getEventLock().unlock();
-    }
-    assertEquals(0, master.getNodes().size());
+    gateway.stop();
+    waitOnNodes(masterStartThread, 0);
 
     // now fix the node connection
-    gateway = new Gateway(GATEWAY_PORT, ZK_SERVER_PORT);
-    zkMasterClient.getEventLock().lock();
     gateway.start();
-    zkMasterClient.getEventLock().getDataChangedCondition().await(20, TimeUnit.SECONDS);
-    zkMasterClient.getEventLock().unlock();
-    assertEquals(1, master.getNodes().size());
+    waitOnNodes(masterStartThread, 1);
 
     node.shutdown();
     masterStartThread.shutdown();
-    gateway.interruptAndJoin();
+    gateway.stop();
   }
-
 }

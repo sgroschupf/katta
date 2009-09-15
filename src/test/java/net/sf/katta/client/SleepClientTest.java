@@ -115,7 +115,9 @@ public class SleepClientTest extends AbstractKattaTest {
       t.join();
     }
     System.out.println("Took " + (System.currentTimeMillis() - startTime) + " msec.");
-    assertTrue(exceptions.isEmpty());
+    if (!exceptions.isEmpty()) {
+      throw exceptions.get(0);
+    }
   }
   
   public void testNonExistantShard() throws Exception {

@@ -16,12 +16,14 @@
 package net.sf.katta;
 
 import java.io.File;
+import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
 import net.sf.katta.master.Master;
 import net.sf.katta.node.INodeManaged;
 import net.sf.katta.node.Node;
 import net.sf.katta.testutil.ExtendedTestCase;
+import net.sf.katta.testutil.TestUtil;
 import net.sf.katta.util.FileUtil;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.NetworkUtil;
@@ -30,7 +32,6 @@ import net.sf.katta.util.ZkConfiguration;
 import net.sf.katta.util.ZkKattaUtil;
 
 import org.I0Itec.zkclient.ZkClient;
-import org.I0Itec.zkclient.ZkLock;
 import org.I0Itec.zkclient.ZkServer;
 
 /**
@@ -235,21 +236,15 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
     assertEquals(false, master.isInSafeMode());
   }
 
-  protected void waitOnNodes(MasterStartThread masterThread, int nodeCount) throws InterruptedException {
-    long startWait = System.currentTimeMillis();
-    ZkClient ZkClient = masterThread.getZkClient();
-    ZkLock eventLock = ZkClient.getEventLock();
-    eventLock.lock();
-    try {
-      while (masterThread.getMaster().getNodes().size() != nodeCount) {
-        if (System.currentTimeMillis() - startWait > 1000 * 60) {
-          break;
-        }
-        eventLock.getDataChangedCondition().await(10, TimeUnit.SECONDS);
+  protected void waitOnNodes(final MasterStartThread masterThread, int nodeCount) throws Exception {
+    TestUtil.waitUntil(nodeCount, new Callable<Integer>() {
+
+      @Override
+      public Integer call() throws Exception {
+        return masterThread.getMaster().getNodes().size();
       }
-    } finally {
-      eventLock.unlock();
-    }
+    }, TimeUnit.SECONDS, 60);
+
     assertEquals(nodeCount, masterThread.getMaster().getNodes().size());
   }
 
