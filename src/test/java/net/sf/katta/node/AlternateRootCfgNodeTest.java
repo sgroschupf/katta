@@ -21,6 +21,7 @@ package net.sf.katta.node;
  */
 public class AlternateRootCfgNodeTest extends NodeTest {
 
+  @Override
   protected String getZkConfigurationResourceName() {
     return("/katta.zk.properties_alt_root");
   }
