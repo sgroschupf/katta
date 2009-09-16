@@ -41,7 +41,7 @@ import org.I0Itec.zkclient.ZkServer;
  */
 public abstract class AbstractKattaTest extends ExtendedTestCase {
 
-  private static ZkServer _zkServer;
+  protected static ZkServer _zkServer;
   protected final ZkConfiguration _conf;
   private final boolean _resetZkNamespaceBetweenTests;
 
