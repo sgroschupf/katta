@@ -21,6 +21,8 @@ import net.sf.katta.util.DefaultDateFormat;
 
 public class MasterMetaData implements Serializable {
 
+  private static final long serialVersionUID = 2736934599871374933L;
+  
   private String _masterName;
   private long _startTime;
 
@@ -44,5 +46,4 @@ public class MasterMetaData implements Serializable {
   public long getStartTime() {
     return _startTime;
   }
-
 }
