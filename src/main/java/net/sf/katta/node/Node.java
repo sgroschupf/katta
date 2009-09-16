@@ -45,6 +45,7 @@ import net.sf.katta.util.ZkConfiguration;
 import org.I0Itec.zkclient.IZkChildListener;
 import org.I0Itec.zkclient.IZkStateListener;
 import org.I0Itec.zkclient.ZkClient;
+import org.I0Itec.zkclient.exception.ZkNodeExistsException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -162,7 +163,7 @@ public class Node implements IZkStateListener {
     }
   }
 
-  /*
+  /**
    * Writes node ephemeral data into zookeeper
    */
   private void announceNode(NodeState nodeState) {
@@ -175,8 +176,10 @@ public class Node implements IZkStateListener {
     }
 
     final String nodeToShardPath = _conf.getZKNodeToShardPath(_nodeName);
-    if (!_zkClient.exists(nodeToShardPath)) {
+    try {
       _zkClient.createPersistent(nodeToShardPath);
+    } catch (ZkNodeExistsException e) {
+      // ignore
     }
     _zkClient.createEphemeral(nodePath, metaData);
     LOG.info("Node '" + _nodeName + "' announced");
