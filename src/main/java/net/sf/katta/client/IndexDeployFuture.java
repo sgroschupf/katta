@@ -26,6 +26,7 @@ import org.I0Itec.zkclient.ZkClient;
 import org.apache.log4j.Logger;
 import org.apache.zookeeper.Watcher.Event.KeeperState;
 
+//TODO PVo test all edge cases
 public class IndexDeployFuture implements IIndexDeployFuture, IZkDataListener, IZkStateListener {
 
   private static Logger LOG = Logger.getLogger(IndexDeployFuture.class);
@@ -39,15 +40,9 @@ public class IndexDeployFuture implements IIndexDeployFuture, IZkDataListener, I
     _indexMetaData = indexMetaData;
     _indexZkPath = indexZkPath;
 
-    // subscribe index
-    _zkClient.getEventLock().lock();
-    try {
-      _zkClient.subscribeStateChanges(this);
-      _zkClient.subscribeDataChanges(_indexZkPath, this);
-      _indexMetaData = _zkClient.readData(_indexZkPath);
-    } finally {
-      _zkClient.getEventLock().unlock();
-    }
+    _zkClient.subscribeStateChanges(this);
+    _zkClient.subscribeDataChanges(_indexZkPath, this);
+    _indexMetaData = _zkClient.readData(_indexZkPath);
   }
 
   public synchronized IndexState getState() {
@@ -55,16 +50,16 @@ public class IndexDeployFuture implements IIndexDeployFuture, IZkDataListener, I
   }
 
   public synchronized IndexState joinDeployment() throws InterruptedException {
-    while (isDeploymentRunning()) {
-      this.wait(5000);
+    while (isDeploymentRunning(_indexMetaData)) {
+      wait(5000);
     }
     return getState();
   }
 
   public synchronized IndexState joinDeployment(long maxTime) throws InterruptedException {
     long startJoin = System.currentTimeMillis();
-    while (isDeploymentRunning()) {
-      this.wait(maxTime);
+    while (isDeploymentRunning(_indexMetaData)) {
+      wait(maxTime);
       maxTime = maxTime - (System.currentTimeMillis() - startJoin);
       if (maxTime <= 0) {
         break;
@@ -73,31 +68,31 @@ public class IndexDeployFuture implements IIndexDeployFuture, IZkDataListener, I
     return getState();
   }
 
-  private boolean isDeploymentRunning() {
-    return _indexMetaData.getState() != IndexState.DEPLOYED && _indexMetaData.getState() != IndexState.ERROR;
+  private boolean isDeploymentRunning(IndexMetaData indexMetaData) {
+    if (indexMetaData == null) {
+      return false;
+    }
+    return indexMetaData.getState() != IndexState.DEPLOYED && indexMetaData.getState() != IndexState.ERROR;
   }
 
   @Override
   public synchronized void handleDataChange(String dataPath, Serializable data) {
     updateIndexMetaData((IndexMetaData) data);
   }
-  
+
   public synchronized void handleDataDeleted(String dataPath) {
     // index got deleted
-    this.notifyAll();
+    updateIndexMetaData(null);
+    notifyAll();
   }
 
-  private void updateIndexMetaData(IndexMetaData data) {
+  private synchronized void updateIndexMetaData(IndexMetaData data) {
     _indexMetaData = data;
-    this.notifyAll();
+    notifyAll();
 
-    if (data.getState() == IndexState.DEPLOYED || data.getState() == IndexState.ERROR) {
+    if (!isDeploymentRunning(data)) {
       _zkClient.unsubscribeDataChanges(_indexZkPath, this);
     }
-  }
-
-  public IndexMetaData createWritable() {
-    return new IndexMetaData();
   }
 
   @Override
@@ -113,7 +108,7 @@ public class IndexDeployFuture implements IIndexDeployFuture, IZkDataListener, I
       // since we might missed a event. With zookeeper 3.x we should still have
       // subcribed notifcatins and dont need to resubscribe
       LOG.warn("Reconnecting IndexDeployFuture");
-      _indexMetaData = _zkClient.readData(_indexZkPath);
+      updateIndexMetaData((IndexMetaData) _zkClient.readData(_indexZkPath));
     }
   }
 }
