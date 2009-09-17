@@ -73,9 +73,8 @@ public abstract class Ec2Service {
    * launches a cluster
    * 
    * @param conductorHostName
-   * @throws EC2Exception
    */
-  public void launchCluster(String groupName, int numOfSlaves) throws IOException, EC2Exception {
+  public void launchCluster(String groupName, int numOfSlaves) throws IOException {
     Ec2Instance master = launchMaster(groupName);
     Ec2Instance[] nodes = launchNodes(groupName, numOfSlaves);
     postLaunch(master, nodes);
@@ -275,7 +274,7 @@ public abstract class Ec2Service {
         }
         if (!pending) {
           // nothing pending anymore.
-          return (Ec2Instance[]) list.toArray(new Ec2Instance[list.size()]);
+          return list.toArray(new Ec2Instance[list.size()]);
         }
       }
       throw new IOException("Not all instances booted within given time");

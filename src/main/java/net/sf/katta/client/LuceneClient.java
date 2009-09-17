@@ -62,26 +62,26 @@ public class LuceneClient implements ILuceneClient {
 
   private Client kattaClient;
 
-  public LuceneClient() throws KattaException {
+  public LuceneClient() {
     kattaClient = new Client(ILuceneServer.class);
   }
 
-  public LuceneClient(final INodeSelectionPolicy nodeSelectionPolicy) throws KattaException {
+  public LuceneClient(final INodeSelectionPolicy nodeSelectionPolicy) {
     kattaClient = new Client(ILuceneServer.class, nodeSelectionPolicy);
   }
 
-  public LuceneClient(final ZkConfiguration config) throws KattaException {
+  public LuceneClient(final ZkConfiguration config) {
     kattaClient = new Client(ILuceneServer.class, config);
   }
 
-  public LuceneClient(final INodeSelectionPolicy policy, final ZkConfiguration config) throws KattaException {
+  public LuceneClient(final INodeSelectionPolicy policy, final ZkConfiguration config) {
     kattaClient = new Client(ILuceneServer.class, policy, config);
   }
 
   @Deprecated
   /*
-   * @deprecated Old api uses IQuery what just transport a string, also uses
-   * only a KeywordAnalyzer.
+   * @deprecated Old API uses IQuery, which just transports a string; also limited to using
+   * a KeywordAnalyzer internally.
    */
   public Hits search(final IQuery query, final String[] indexNames) throws KattaException {
     return search(query, indexNames, Integer.MAX_VALUE);
@@ -93,8 +93,8 @@ public class LuceneClient implements ILuceneClient {
 
   @Deprecated
   /*
-   * @deprecated Old api uses IQuery what just transport a string, also uses
-   * only a KeywordAnalyzer.
+   * @deprecated Old API uses IQuery, which just transports a string; also limited to using
+   * a KeywordAnalyzer internally.
    */
   public Hits search(final IQuery query, final String[] indexNames, final int count) throws KattaException {
     try {

@@ -39,19 +39,19 @@ public class MapFileClient implements IMapFileClient {
   
   private Client kattaClient;
   
-  public MapFileClient(final INodeSelectionPolicy nodeSelectionPolicy) throws KattaException {
+  public MapFileClient(final INodeSelectionPolicy nodeSelectionPolicy) {
     kattaClient = new Client(IMapFileServer.class, nodeSelectionPolicy);
   }
 
-  public MapFileClient() throws KattaException {
+  public MapFileClient() {
     kattaClient = new Client(IMapFileServer.class);
   }
 
-  public MapFileClient(final ZkConfiguration config) throws KattaException {
+  public MapFileClient(final ZkConfiguration config) {
     kattaClient = new Client(IMapFileServer.class, config);
   }
 
-  public MapFileClient(final INodeSelectionPolicy policy, final ZkConfiguration config) throws KattaException {
+  public MapFileClient(final INodeSelectionPolicy policy, final ZkConfiguration config) {
     kattaClient = new Client(IMapFileServer.class, policy, config);
   }
 

@@ -32,7 +32,7 @@ public abstract class AbstractServer implements INodeManaged {
   protected final Map<String, File> _shards = new ConcurrentHashMap<String, File>();
   protected String _nodeName;
 
-  public long getProtocolVersion(final String protocol, final long clientVersion) throws IOException {
+  public long getProtocolVersion(@SuppressWarnings("unused") final String protocol, @SuppressWarnings("unused") final long clientVersion) {
     return 0L;
   }
 

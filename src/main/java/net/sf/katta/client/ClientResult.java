@@ -75,6 +75,7 @@ public class ClientResult<T> implements IResultReceiver<T>, Iterable<ClientResul
       this.time = System.currentTimeMillis();
     }
 
+    @Override
     public String toString() {
       String resultStr;
       if (result != null) {
@@ -548,6 +549,7 @@ public class ClientResult<T> implements IResultReceiver<T>, Iterable<ClientResul
     }
   }
 
+  @Override
   public synchronized String toString() {
     int numResults = 0;
     int numErrors = 0;

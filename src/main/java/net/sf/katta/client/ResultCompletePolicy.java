@@ -132,6 +132,7 @@ public class ResultCompletePolicy<T> implements IResultPolicy<T> {
     }
   }
 
+  @Override
   public String toString() {
     String s = "Wait up to " + completeWait + " ms for complete results";
     if (coverageWait > 0) {

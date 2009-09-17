@@ -36,11 +36,11 @@ public class NetworkUtil {
     hostNames.add("localhost");
     try {
       final Enumeration<NetworkInterface> networkInterfaces = NetworkInterface.getNetworkInterfaces();
-      for (final Enumeration ifaces = networkInterfaces; ifaces.hasMoreElements();) {
-        final NetworkInterface iface = (NetworkInterface) ifaces.nextElement();
+      for (final Enumeration<NetworkInterface> ifaces = networkInterfaces; ifaces.hasMoreElements();) {
+        final NetworkInterface iface = ifaces.nextElement();
         InetAddress ia = null;
-        for (final Enumeration ips = iface.getInetAddresses(); ips.hasMoreElements();) {
-          ia = (InetAddress) ips.nextElement();
+        for (final Enumeration<InetAddress> ips = iface.getInetAddresses(); ips.hasMoreElements();) {
+          ia = ips.nextElement();
           hostNames.add(ia.getCanonicalHostName());
           hostNames.add(ipToString(ia.getAddress()));
         }

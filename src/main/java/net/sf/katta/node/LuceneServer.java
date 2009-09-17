@@ -460,8 +460,10 @@ public class LuceneServer implements INodeManaged, ILuceneServer {
       final IndexSearcher searcher = _searchers.get(shard);
       if (searcher == null) {
         LOG.error("Node " + _nodeName + ": unknown shard " + shard);
+        //TODO PVo should we throw an exception here?
+      } else {
+        queries[i] = searcher.rewrite(original);
       }
-      queries[i] = searcher.rewrite(original);
     }
     if (queries.length > 0) {
       return queries[0].combine(queries);

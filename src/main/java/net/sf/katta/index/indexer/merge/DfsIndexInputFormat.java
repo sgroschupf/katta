@@ -37,11 +37,11 @@ import org.apache.log4j.Logger;
 
 public class DfsIndexInputFormat extends FileInputFormat<Text, DocumentInformation> {
 
-  @SuppressWarnings("hiding")
-  protected final static Logger LOG = Logger.getLogger(DfsIndexInputFormat.class);
+  private final static Logger LOG = Logger.getLogger(DfsIndexInputFormat.class);
 
   public static final String DOCUMENT_INFORMATION = "document.duplicate.information.class";
 
+  @Override
   public RecordReader getRecordReader(final InputSplit inputSplit, final JobConf jobConf, Reporter reporter)
       throws IOException {
     IDocumentDuplicateInformation duplicateInformation = null;
@@ -61,6 +61,7 @@ public class DfsIndexInputFormat extends FileInputFormat<Text, DocumentInformati
     return dfsIndexRecordReader;
   }
 
+  @Override
   public InputSplit[] getSplits(JobConf jobConf, int numSplits) throws IOException {
     Path[] indices = getZipIndices(jobConf);
     InputSplit[] splits = new InputSplit[indices.length];

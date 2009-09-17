@@ -48,10 +48,10 @@ public class VersionInfo {
 
       final Map<String, Attributes> attrs = manifest.getEntries();
       Attributes attr = attrs.get("net/sf/katta");
-      _version = (String) attr.getValue("Implementation-Version");
-      _revision = (String) attr.getValue("Git-Revision");
-      _compiledBy = (String) attr.getValue("Compiled-By");
-      _compileTime = (String) attr.getValue("Compile-Time");
+      _version = attr.getValue("Implementation-Version");
+      _revision = attr.getValue("Git-Revision");
+      _compiledBy = attr.getValue("Compiled-By");
+      _compileTime = attr.getValue("Compile-Time");
     } else {
       LOG.debug("could not find katta jar - setting version infos to unknown");
       _version = "Unknown";

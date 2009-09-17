@@ -36,7 +36,7 @@ public class TextArrayWritable implements Writable {
   
   @SuppressWarnings("unchecked")
   public TextArrayWritable() {
-    this((List<Text>) Collections.EMPTY_LIST);
+    this(Collections.EMPTY_LIST);
   }
   
   public TextArrayWritable(List<Text> texts) {

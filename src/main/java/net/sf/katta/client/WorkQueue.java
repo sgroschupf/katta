@@ -158,7 +158,7 @@ class WorkQueue<T> implements INodeExecutor {
                 nodeShardMap.get(node), tryCount, instanceId));
       }
       Runnable interaction = interactionFactory.createInteraction(method, args, shardArrayParamIndex, node,
-              nodeShardMap, tryCount, shardManager, (INodeExecutor) this, (IResultReceiver<T>) results);
+              nodeShardMap, tryCount, shardManager, this, results);
       if (interaction != null) {
         try {
           executor.execute(interaction);
@@ -278,6 +278,7 @@ class WorkQueue<T> implements INodeExecutor {
     return results;
   }
 
+  @Override
   public String toString() {
     String argsStr = Arrays.asList(args).toString();
     argsStr = argsStr.substring(1, argsStr.length() - 1);

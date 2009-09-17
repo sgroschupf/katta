@@ -33,7 +33,6 @@ import net.sf.katta.index.IndexMetaData;
 import net.sf.katta.index.IndexMetaData.IndexState;
 import net.sf.katta.util.IHadoopConstants;
 import net.sf.katta.util.IndexConfiguration;
-import net.sf.katta.util.KattaException;
 import net.sf.katta.util.ZkConfiguration;
 
 import org.I0Itec.zkclient.ZkClient;
@@ -57,6 +56,10 @@ public class IndexMergeApplication {
     this(zkClient, config, new JobConf());
   }
 
+  /**
+   * @param zkConfiguration -- unused 
+   * TODO - remove zkConfiguration ?
+   */
   public IndexMergeApplication(ZkClient zkClient, ZkConfiguration zkConfiguration, JobConf jobConf) {
     _zkClient = zkClient;
     _jobConf = jobConf;
@@ -160,7 +163,7 @@ public class IndexMergeApplication {
     }
   }
 
-  private int countShards(List<String> indexNames) throws KattaException {
+  private int countShards(List<String> indexNames) {
     int shardCount = 0;
     for (String index : indexNames) {
       shardCount += _zkClient.countChildren(_config.getZKIndexPath(index));

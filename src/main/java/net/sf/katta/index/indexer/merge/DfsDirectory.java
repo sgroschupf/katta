@@ -49,6 +49,7 @@ public class DfsDirectory extends Directory {
     }
   }
 
+  @Override
   public String[] list() throws IOException {
     FileStatus[] fileStatuses = _fileSystem.listStatus(_path);
     String[] ret = new String[fileStatuses.length];
@@ -60,42 +61,52 @@ public class DfsDirectory extends Directory {
     return ret;
   }
 
+  @Override
   public boolean fileExists(String name) throws IOException {
     return _fileSystem.exists(new Path(_path, name));
   }
 
+  @Override
   public long fileModified(String name) {
     throw new UnsupportedOperationException();
   }
 
+  @Override
   public void touchFile(String name) {
     throw new UnsupportedOperationException();
   }
 
+  @Override
   public long fileLength(String name) throws IOException {
     return _fileSystem.getFileStatus(new Path(_path, name)).getLen();
   }
 
+  @Override
   public void deleteFile(String name) throws IOException {
     throw new UnsupportedOperationException();
   }
 
+  @Override
   public void renameFile(String from, String to) throws IOException {
     throw new UnsupportedOperationException();
   }
 
+  @Override
   public IndexOutput createOutput(String name) throws IOException {
     throw new UnsupportedOperationException();
   }
 
+  @Override
   public IndexInput openInput(String name) throws IOException {
     return new DfsIndexInput(new Path(_path, name), _ioFileBufferSize);
   }
 
+  @Override
   public synchronized void close() throws IOException {
     // nothing todo
   }
 
+  @Override
   public String toString() {
     return getClass().getName() + "@" + _path;
   }
@@ -120,6 +131,7 @@ public class DfsDirectory extends Directory {
       _length = _fileSystem.getFileStatus(path).getLen();
     }
 
+    @Override
     protected void readInternal(byte[] b, int offset, int len) throws IOException {
       synchronized (_descriptor) {
         long position = getFilePointer();
@@ -138,24 +150,29 @@ public class DfsDirectory extends Directory {
       }
     }
 
+    @Override
     public void close() throws IOException {
       if (!_isClone) {
         _descriptor._fsInputStream.close();
       }
     }
 
+    @Override
     protected void seekInternal(long position) {
       // handled in readInternal()
     }
 
+    @Override
     public long length() {
       return _length;
     }
 
+    @Override
     protected void finalize() throws IOException {
       close(); // close the file
     }
 
+    @Override
     public Object clone() {
       DfsIndexInput clone = (DfsIndexInput) super.clone();
       clone._isClone = true;
