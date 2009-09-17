@@ -32,7 +32,6 @@ import net.sf.katta.util.KattaException;
 import net.sf.katta.util.NodeConfiguration;
 import net.sf.katta.util.StringUtil;
 import net.sf.katta.util.ZkConfiguration;
-import net.sf.katta.util.ZkKattaUtil;
 
 import org.apache.log4j.Logger;
 
@@ -134,7 +133,7 @@ public class SearchIntegrationTest extends TestCase {
     Thread.sleep(queryTime / 4);
     NodeConfiguration nodeConf = new NodeConfiguration();
     nodeConf.setShardFolder(new File(nodeConf.getShardFolder(), "-new").getAbsolutePath());
-    Node newNode = new Node(_miniCluster.getZkConfiguration(), ZkKattaUtil.startZkClient(_miniCluster.getZkConfiguration(), 30000), nodeConf, new LuceneServer());
+    Node newNode = new Node(_miniCluster.getZkConfiguration(), _miniCluster.getZkClient(), nodeConf, new LuceneServer());
     newNode.start();
 
     Thread.sleep(queryTime / 4);

@@ -93,14 +93,10 @@ public class Client implements IShardProxyManager {
     
     // TODO PVo should we really start a new ZkClient here?
     _zkClient = ZkKattaUtil.startZkClient(config, 60000);
-    try {
-      _zkClient.getEventLock().lock();
-      String indicesPath = config.getZKIndicesPath();
-      _zkClient.subscribeChildChanges(indicesPath, _indexPathChangeListener);
-      addOrWatchNewIndexes(_zkClient.getChildren(indicesPath));
-    } finally {
-      _zkClient.getEventLock().unlock();
-    }
+    String indicesPath = config.getZKIndicesPath();
+    List<String> indexList = _zkClient.subscribeChildChanges(indicesPath, _indexPathChangeListener);
+    LOG.info("children=" + indexList);
+    addOrWatchNewIndexes(indexList);
     _startupTime = System.currentTimeMillis();
   }
 
@@ -119,7 +115,7 @@ public class Client implements IShardProxyManager {
           _node2ProxyMap.put(node, createNodeProxy(node));
         } catch (Exception e) {
           connectedNodes.remove(node);
-          LOG.warn("could not create proxy for node '" + node + "' - " + e.getClass().getSimpleName());
+          LOG.warn("Could not create proxy for node '" + node + "' - " + e.getClass().getSimpleName());
         }
       }
     }
@@ -173,8 +169,7 @@ public class Client implements IShardProxyManager {
     _indexToShards.put(indexName, shards);
     for (final String shardName : shards) {
       String shardToNodePath = _zkConfig.getZKShardToNodePath(shardName);
-      _zkClient.subscribeChildChanges(shardToNodePath, _shardNodeListener);
-      List<String> nodes = _zkClient.getChildren(shardToNodePath);
+      List<String> nodes = _zkClient.subscribeChildChanges(shardToNodePath, _shardNodeListener);
       updateSelectionPolicy(shardName, nodes);
     }
   }

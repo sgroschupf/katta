@@ -39,8 +39,8 @@ public class NodeMasterReconnectTest extends AbstractKattaTest {
 
     final MasterStartThread masterStartThread = startMaster();
     final Master master = masterStartThread.getMaster();
-    final ZkClient zkNodeClient = ZkKattaUtil.startZkClient(gatewayConf, 30000);
-    final Node node = new Node(gatewayConf, zkNodeClient, new LuceneServer());
+    final ZkClient zkGatewayClient = ZkKattaUtil.startZkClient(gatewayConf, 30000);
+    final Node node = new Node(gatewayConf, zkGatewayClient, new LuceneServer());
     node.start();
     masterStartThread.join();
 
@@ -57,6 +57,7 @@ public class NodeMasterReconnectTest extends AbstractKattaTest {
     waitOnNodes(masterStartThread, 1);
 
     node.shutdown();
+    zkGatewayClient.close();
     masterStartThread.shutdown();
     gateway.stop();
   }

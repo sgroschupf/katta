@@ -77,6 +77,7 @@ public class Node implements IZkStateListener {
 
   private final NodeConfiguration _configuration;
   private NodeState _currentState;
+  private ShardListener _shardListener;
 
   public static enum NodeState {
     STARTING, RECONNECTING, IN_SERVICE, LOST;
@@ -145,7 +146,7 @@ public class Node implements IZkStateListener {
   }
 
   private void cleanupLocalShardFolder() {
-    String node2ShardRootPath = _conf.getZKNodeToShardPath(_nodeName);
+    String node2ShardRootPath = getNodeToShardPath();
     List<String> shardsToServe = Collections.emptyList();
     if (_zkClient.exists(node2ShardRootPath)) {
       shardsToServe = _zkClient.getChildren(node2ShardRootPath);
@@ -175,7 +176,7 @@ public class Node implements IZkStateListener {
       _zkClient.delete(nodePath);
     }
 
-    final String nodeToShardPath = _conf.getZKNodeToShardPath(_nodeName);
+    final String nodeToShardPath = getNodeToShardPath();
     try {
       _zkClient.createPersistent(nodeToShardPath);
     } catch (ZkNodeExistsException e) {
@@ -187,8 +188,8 @@ public class Node implements IZkStateListener {
 
   private void startShardServing(boolean restart) {
     LOG.info("Start serving shards...");
-    final String nodeToShardPath = _conf.getZKNodeToShardPath(_nodeName);
-    List<String> shardsNames = _zkClient.subscribeChildChanges(nodeToShardPath, new ShardListener());
+    _shardListener = new ShardListener();
+    List<String> shardsNames = _zkClient.subscribeChildChanges(getNodeToShardPath(), _shardListener);
 
     if (restart) {
       List<String> removed = CollectionUtil.getListOfRemoved(_deployedShards, shardsNames);
@@ -199,6 +200,10 @@ public class Node implements IZkStateListener {
     deployShards(assignedShards);
     _deployedShards.clear();
     _deployedShards.addAll(shardsNames);
+  }
+
+  private String getNodeToShardPath() {
+    return _conf.getZKNodeToShardPath(_nodeName);
   }
 
   protected void deployShards(final List<AssignedShard> newShards) {
@@ -341,9 +346,9 @@ public class Node implements IZkStateListener {
     }
     _timer.cancel();
 
-    // TODO PVo don't shutdown the zkClient here
-    _zkClient.unsubscribeAll();
-    _zkClient.close();
+    _zkClient.unsubscribeStateChanges(this);
+    _zkClient.unsubscribeChildChanges(getNodeToShardPath(), _shardListener);
+
     _rpcServer.stop();
     _rpcServer = null;
     try {
@@ -445,13 +450,14 @@ public class Node implements IZkStateListener {
     }
     return newShards;
   }
-  /*
+
+  /**
    * Listens to events within the nodeToShard zookeeper folder. Those events are
    * fired if a shard is assigned or removed for this node.
    */
   protected class ShardListener implements IZkChildListener {
 
-    public void handleChildChange(String parentPath, List<String> shardsToServe) throws KattaException {
+    public void handleChildChange(String parentPath, List<String> shardsToServe) {
       LOG.info("got shard event: " + shardsToServe);
       final List<String> shardsToUndeploy = CollectionUtil.getListOfRemoved(_deployedShards, shardsToServe);
       final List<String> shardsToDeploy = CollectionUtil.getListOfAdded(_deployedShards, shardsToServe);
@@ -460,12 +466,9 @@ public class Node implements IZkStateListener {
       undeployShards(shardsToUndeploy);
       // we actually want to get all shard information now to make sure it can not be changed during any other steps
       
-      ArrayList<AssignedShard> newShards = readAssignedShards(shardsToDeploy);
+      List<AssignedShard> newShards = readAssignedShards(shardsToDeploy);
       deployShards(newShards);
     }
-
-   
-
   }
 
   /**

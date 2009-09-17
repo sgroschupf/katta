@@ -349,13 +349,14 @@ public class Katta {
     } catch (Throwable t) {
       throw new RuntimeException("Error getting server instance for " + serverClassName, t);
     }
-    final ZkClient client = new ZkClient(conf.getZKServers(), conf.getZKTimeOut());
+    final ZkClient client = ZkKattaUtil.startZkClient(conf, 60000);
     final Node node = new Node(conf, client, server);
     node.start();
     Runtime.getRuntime().addShutdownHook(new Thread() {
       @Override
       public void run() {
         node.shutdown();
+        client.close();
       }
     });
     node.join();

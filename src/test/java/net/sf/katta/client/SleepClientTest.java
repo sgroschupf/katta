@@ -28,18 +28,12 @@ import net.sf.katta.util.KattaException;
 import net.sf.katta.util.SleepClient;
 import net.sf.katta.util.SleepServer;
 
-import org.apache.log4j.Logger;
-
 /**
  * Test for {@link SleepClient}.
  */
 public class SleepClientTest extends AbstractKattaTest {
 
-  @SuppressWarnings("unused")
-  private static Logger LOG = Logger.getLogger(SleepClientTest.class);
-
   private static final String INDEX1 = "index1";
-  
   private static final String[] INDEX_1 = { INDEX1 };
 
   private static Node _node1;
@@ -137,5 +131,4 @@ public class SleepClientTest extends AbstractKattaTest {
       assertEquals("No shards for indices: [doesNotExist]", e.getMessage());
     }
   }
-
 }

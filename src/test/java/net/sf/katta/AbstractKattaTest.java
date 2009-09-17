@@ -189,12 +189,11 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
 
   protected NodeStartThread startNode(INodeManaged server, int port, String shardFolder, ZkConfiguration conf) {
     // reuse ZkClient instance
-    ZkClient zkNodeClient = ZkKattaUtil.startZkClient(conf, 30000);
     NodeConfiguration nodeConf = new NodeConfiguration();
     nodeConf.setShardFolder(shardFolder);
     nodeConf.setStartPort(port);
-    Node node = new Node(conf, zkNodeClient, nodeConf, server);
-    NodeStartThread nodeStartThread = new NodeStartThread(node, zkNodeClient);
+    Node node = new Node(conf, _zkServer.getZkClient(), nodeConf, server);
+    NodeStartThread nodeStartThread = new NodeStartThread(node, _zkServer.getZkClient());
     nodeStartThread.start();
     return nodeStartThread;
   }
@@ -285,6 +284,7 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
   protected class NodeStartThread extends Thread {
 
     private final Node _node;
+    // TODO PVo remove the ZkClient from here and use Node.getZkClient instead
     private final ZkClient _client;
 
     public NodeStartThread(Node node, ZkClient client) {

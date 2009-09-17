@@ -15,6 +15,8 @@
  */
 package net.sf.katta.node;
 
+import static org.mockito.Mockito.*;
+
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
@@ -32,7 +34,6 @@ import net.sf.katta.index.IndexMetaData.IndexState;
 import net.sf.katta.testutil.TestResources;
 
 import org.I0Itec.zkclient.ZkClient;
-import org.I0Itec.zkclient.ZkLock;
 import org.apache.lucene.analysis.KeywordAnalyzer;
 import org.apache.lucene.queryParser.QueryParser;
 import org.apache.lucene.search.Query;
@@ -119,7 +120,6 @@ public class NodeTest extends AbstractKattaTest {
 
   public void testMultiThreadSearch() throws Exception {
     ZkClient zkClient = Mockito.mock(ZkClient.class);
-    Mockito.when(zkClient.getEventLock()).thenReturn(new ZkLock());
     
     NodeMetaData nodeMetaData = new NodeMetaData();
     Mockito.when(zkClient.readData(Matchers.anyString())).thenReturn(nodeMetaData);
@@ -171,7 +171,6 @@ public class NodeTest extends AbstractKattaTest {
 
   public void testUndeployShards() throws Exception {
     ZkClient zkClient = Mockito.mock(ZkClient.class);
-    Mockito.when(zkClient.getEventLock()).thenReturn(new ZkLock());
 
     NodeMetaData nodeMetaData = new NodeMetaData();
     Mockito.when(zkClient.readData(Matchers.anyString())).thenReturn(nodeMetaData);
@@ -196,7 +195,22 @@ public class NodeTest extends AbstractKattaTest {
     assertEquals(3, workingFolder.list().length);
   }
 
-  private class QueryClient implements Callable<HitsMapWritable> {
+  public void testShutdown_doesNotCloseZkClient() {
+    ZkClient zkClient = Mockito.mock(ZkClient.class);
+
+    NodeMetaData nodeMetaData = new NodeMetaData();
+    Mockito.when(zkClient.readData(Matchers.anyString())).thenReturn(nodeMetaData);
+
+    Node node = new Node(_conf, zkClient, new LuceneServer());
+    node.start();
+
+    node.shutdown();
+    verify(zkClient, never()).close();
+    verify(zkClient, never()).unsubscribeAll();
+  }
+  
+
+  private static class QueryClient implements Callable<HitsMapWritable> {
 
     private LuceneServer _server;
     private QueryWritable _query;
