@@ -20,8 +20,6 @@ import java.util.Iterator;
 import java.util.List;
 
 /**
- * TODO PVo doc TODO PVo test
- * 
  * @author Peter Voss
  */
 public class MergeSort {
