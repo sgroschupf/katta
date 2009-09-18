@@ -70,7 +70,6 @@ public class MapFileServer implements INodeManaged, IMapFileServer {
    * MultiSearcher search in.
    * 
    * @param shardName
-   * @param indexSearcher
    * @throws IOException
    */
   public void addShard(final String shardName, final File shardDir) throws IOException {
@@ -140,10 +139,9 @@ public class MapFileServer implements INodeManaged, IMapFileServer {
       Map<String, String> metaData = new HashMap<String, String>();
       metaData.put(SHARD_SIZE_KEY, Integer.toString(count));
       return metaData;
-    } else {
-      LOG.warn("Shard " + shardName + " not found!");
-      throw new IllegalArgumentException("Shard " + shardName + " unknown");
     }
+    LOG.warn("Shard " + shardName + " not found!");
+    throw new IllegalArgumentException("Shard " + shardName + " unknown");
   }
 
   /**
@@ -196,10 +194,9 @@ public class MapFileServer implements INodeManaged, IMapFileServer {
         if (t instanceof IOException) {
           // Throw the same IOException that the MapFile.Reader threw.
           throw (IOException) t;
-        } else {
-          // Wrap MapFile.Reader's exception in an IOException.
-          throw new IOException("Error in MapLookup", t);
         }
+        // Wrap MapFile.Reader's exception in an IOException.
+        throw new IOException("Error in MapLookup", t);
       } catch (TimeoutException e) {
         /*
          * Result is not ready. Should not happen, because future is done.

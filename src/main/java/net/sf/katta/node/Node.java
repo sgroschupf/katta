@@ -166,6 +166,7 @@ public class Node implements IZkStateListener {
 
   /**
    * Writes node ephemeral data into zookeeper
+   * @param nodeState 
    */
   private void announceNode(NodeState nodeState) {
     LOG.info("Announce node '" + _nodeName + "'...");
