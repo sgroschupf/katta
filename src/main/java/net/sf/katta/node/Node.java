@@ -497,4 +497,7 @@ public class Node implements IZkStateListener {
     }
   }
 
+  public ZkClient getZkClient() {
+    return _zkClient;
+  }
 }
