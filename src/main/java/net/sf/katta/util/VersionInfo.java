@@ -71,19 +71,19 @@ public class VersionInfo {
     }
   }
 
-  private String findContainingJar(Class my_class) {
-    ClassLoader loader = my_class.getClassLoader();
-    String class_file = my_class.getName().replaceAll("\\.", "/") + ".class";
+  private String findContainingJar(Class<?> clazz) {
+    ClassLoader loader = clazz.getClassLoader();
+    String className = clazz.getName().replaceAll("\\.", "/") + ".class";
     try {
-      for (Enumeration itr = loader.getResources(class_file); itr.hasMoreElements();) {
-        URL url = (URL) itr.nextElement();
+      for (Enumeration<URL> enumeration = loader.getResources(className); enumeration.hasMoreElements();) {
+        URL url = enumeration.nextElement();
         if ("jar".equals(url.getProtocol())) {
-          String toReturn = url.getPath();
-          if (toReturn.startsWith("file:")) {
-            toReturn = toReturn.substring("file:".length());
+          String path = url.getPath();
+          if (path.startsWith("file:")) {
+            path = path.substring("file:".length());
           }
-          toReturn = URLDecoder.decode(toReturn, "UTF-8");
-          return toReturn.replaceAll("!.*$", "");
+          path = URLDecoder.decode(path, "UTF-8");
+          return path.replaceAll("!.*$", "");
         }
       }
     } catch (IOException e) {

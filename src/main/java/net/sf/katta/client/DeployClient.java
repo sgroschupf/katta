@@ -89,13 +89,12 @@ public class DeployClient implements IDeployClient {
     return returnIndexes;
   }
 
+  //TODO PVo remove this
   public void disconnect() {
-    //TODO PVo we should do this from outside when we pass in a ZkClient
-//    _zkClient.close();
+    // do nothing
   }
 
   public IndexMetaData getIndexMetaData(String name) {
     return _zkClient.readData(_conf.getZKIndexPath(name));
   }
-
 }

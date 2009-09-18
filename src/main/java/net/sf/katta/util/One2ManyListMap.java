@@ -66,7 +66,7 @@ public class One2ManyListMap<K, V> {
   public List<V> getValues(K key) {
     List<V> values = _map.get(key);
     if (values == null) {
-      values = Collections.EMPTY_LIST;
+      values = Collections.emptyList();
     }
     return values;
   }

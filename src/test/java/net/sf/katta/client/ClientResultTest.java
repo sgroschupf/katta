@@ -21,7 +21,6 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
-import java.util.NoSuchElementException;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
@@ -199,6 +198,7 @@ public class ClientResultTest extends ExtendedTestCase {
   }
 
   private static class ToStringFails {
+    @Override
     public String toString() {
       throw new RuntimeException("err");
     }
@@ -408,7 +408,7 @@ public class ClientResultTest extends ExtendedTestCase {
       final String shard = "s" + i;
       final int result = i;
       total += result;
-      final long delay = (long) rand.nextInt(50);
+      final long delay = rand.nextInt(50);
       executor.submit(new Runnable() {
         public void run() {
           sleep(delay);
@@ -488,6 +488,7 @@ public class ClientResultTest extends ExtendedTestCase {
       r.iterator().remove();
       fail("Should be read only");
     } catch (UnsupportedOperationException e) {
+      // expected
     }
   }
 
@@ -497,43 +498,51 @@ public class ClientResultTest extends ExtendedTestCase {
       s.remove(0);
       fail("Should be read only");
     } catch (UnsupportedOperationException e) {
-    } catch (NoSuchElementException e) {
+      // expected
     }
     try {
       s.clear();
       fail("Should be read only");
     } catch (UnsupportedOperationException e) {
+      // expected
     }
-    try {
-      s.remove(s.iterator().next());
-      fail("Should be read only");
-    } catch (UnsupportedOperationException e) {
-    } catch (NoSuchElementException e) {
+    if (!s.isEmpty()) {
+      try {
+        s.remove(s.iterator().next());
+        fail("Should be read only");
+      } catch (UnsupportedOperationException e) {
+        // expected
+      }
     }
     try {
       s.removeAll(new ArrayList<ClientResult<String>.Entry>());
       fail("Should be read only");
     } catch (UnsupportedOperationException e) {
+      // expected
     }
     try {
       s.retainAll(new ArrayList<ClientResult<String>.Entry>());
       fail("Should be read only");
     } catch (UnsupportedOperationException e) {
+      // expected
     }
     try {
       s.add(null);
       fail("Should be read only");
     } catch (UnsupportedOperationException e) {
+      // expected
     }
     try {
       s.addAll(new ArrayList());
       fail("Should be read only");
     } catch (UnsupportedOperationException e) {
+      // expected
     }
     try {
       s.iterator().remove();
       fail("Should be read only");
     } catch (UnsupportedOperationException e) {
+      // expected
     }
   }
 
@@ -569,11 +578,13 @@ public class ClientResultTest extends ExtendedTestCase {
 
   private void sleep(long msec) {
     long now = System.currentTimeMillis();
-    long stop = now + msec;
-    while (now < stop) {
+    long waitUntil = now + msec;
+    while (now < waitUntil) {
+      long remainingTime = waitUntil - now;
       try {
-        Thread.sleep(stop - now);
+        Thread.sleep(remainingTime);
       } catch (InterruptedException e) {
+        // ignore and continue waiting
       }
       now = System.currentTimeMillis();
     }

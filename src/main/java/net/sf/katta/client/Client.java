@@ -393,9 +393,8 @@ public class Client implements IShardProxyManager {
     double minutes = (System.currentTimeMillis() - _startupTime) / 60000.0;
     if (minutes > 0.0F) {
       return _queryCount / minutes;
-    } else {
-      return 0.0F;
     }
+    return 0.0F;
   }
 
   public void close() {

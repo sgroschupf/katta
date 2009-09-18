@@ -132,15 +132,14 @@ public class ZkConfiguration extends KattaConfiguration {
   private static final String SHARD_TO_ERROR = "shard-to-error";
   private static final String LOADTEST_NODES = "loadtest-nodes";
 
+  private String _rootPath;
+
   /**
    * Look up the path of the root node to use. This is an optional setting.
    * Returns null if not found.
    * 
    * @return The root path, or null if not found.
    */
-
-  private String _rootPath;
-
   public String getZKRootPath() {
     if (_rootPath == null) {
       _rootPath = getProperty(ZOOKEEPER_ROOT_PATH, DEFAULT_ROOT_PATH).trim();

@@ -34,19 +34,19 @@ public class SleepClient implements ISleepClient {
 
   private Client kattaClient;
 
-  public SleepClient(final INodeSelectionPolicy nodeSelectionPolicy) throws KattaException {
+  public SleepClient(final INodeSelectionPolicy nodeSelectionPolicy) {
     kattaClient = new Client(ISleepServer.class, nodeSelectionPolicy);
   }
 
-  public SleepClient() throws KattaException {
+  public SleepClient() {
     kattaClient = new Client(ISleepServer.class);
   }
 
-  public SleepClient(final ZkConfiguration config) throws KattaException {
+  public SleepClient(final ZkConfiguration config) {
     kattaClient = new Client(ISleepServer.class, config);
   }
 
-  public SleepClient(final INodeSelectionPolicy policy, final ZkConfiguration config) throws KattaException {
+  public SleepClient(final INodeSelectionPolicy policy, final ZkConfiguration config) {
     kattaClient = new Client(ISleepServer.class, policy, config);
   }
 

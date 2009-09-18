@@ -45,7 +45,6 @@ public abstract class AbstractServer implements INodeManaged {
    * Add a shard.
    * 
    * @param shardName
-   * @param indexSearcher
    * @throws IOException
    */
   public void addShard(final String shardName, final File shardDir) throws IOException {

@@ -34,7 +34,7 @@ public class SymlinkResourceLoader extends ClassLoader {
     super(parentLoader);
     _symlink = symlink;
     try {
-      _target = target.toURL();
+      _target = target.toURI().toURL();
     } catch (MalformedURLException e) {
       throw new RuntimeException("could not create url out of '" + target + "'", e);
     }
