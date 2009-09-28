@@ -19,7 +19,6 @@ import java.io.IOException;
 
 import org.apache.hadoop.io.MapWritable;
 import org.apache.hadoop.ipc.VersionedProtocol;
-import org.apache.lucene.queryParser.ParseException;
 
 /**
  * The public interface to the back end LuceneServer. These are all the
@@ -47,7 +46,6 @@ public interface ILuceneServer extends VersionedProtocol {
    * @param shardNames    A array of shard names to search in.
    * @param count         The top n high score hits.
    * @return A list of hits from the search.
-   * @throws ParseException  If the query is ill-formed.
    * @throws IOException     If the search had a problem reading files.
    */
   public HitsMapWritable search(QueryWritable query, DocumentFrequencyWritable freqs, String[] shardNames, int count)
@@ -70,7 +68,7 @@ public interface ILuceneServer extends VersionedProtocol {
    * Returns only the requested fields of a lucene document.  The fields are returned
    * as a map.
    * 
-   * @param shard        The shard to ask for the document.
+   * @param shards       The shards to ask for the document.
    * @param docId        The document that is desired.
    * @param fields       The fields to return.
    * @return             TODO what does this return?  A map?
@@ -81,10 +79,10 @@ public interface ILuceneServer extends VersionedProtocol {
   /**
    * Returns the lucene document. Each field:value tuple of the lucene document
    * is inserted into the returned map. In most cases
-   * {@link #getDetails(String, int, String[])} would be a better choice for
+   * {@link #getDetails(String[], int, String[])} would be a better choice for
    * performance reasons.
    * 
-   * @param shard        The shard to ask for the document.
+   * @param shards       The shards to ask for the document.
    * @param docId        The document that is desired.
    * @return
    * @throws IOException

@@ -271,10 +271,10 @@ public class LuceneServer implements INodeManaged, ILuceneServer {
   /**
    * Returns the lucene document. Each field:value tuple of the lucene document
    * is inserted into the returned map. In most cases
-   * {@link #getDetails(String, int, String[])} would be a better choice for
+   * {@link #getDetails(String[], int, String[])} would be a better choice for
    * performance reasons.
    * 
-   * @param shard        The shard to ask for the document.
+   * @param shards       The shards to ask for the document.
    * @param docId        The document that is desired.
    * @return
    * @throws IOException

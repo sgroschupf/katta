@@ -182,7 +182,7 @@ public class MapFileServerTest extends ExtendedTestCase {
       t.join();
     }
     long time = System.currentTimeMillis() - startTime;
-    System.out.println((1000.0 * (double) count.intValue() / (double) time) + " requests / sec");
+    System.out.println((1000.0 * count.intValue() / time) + " requests / sec");
     assertTrue(exceptions.isEmpty());
   }
   

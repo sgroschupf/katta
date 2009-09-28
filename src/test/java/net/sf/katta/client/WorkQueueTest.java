@@ -374,6 +374,7 @@ public class WorkQueueTest extends ExtendedTestCase {
         this.args = args;
       }
 
+      @Override
       public String toString() {
         return node + ":" + method.getName() + ":" + Arrays.asList(args).toString();
       }
@@ -412,6 +413,7 @@ public class WorkQueueTest extends ExtendedTestCase {
       return calls;
     }
 
+    @Override
     public String toString() {
       StringBuilder sb = new StringBuilder();
       String sep = "";

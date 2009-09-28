@@ -41,6 +41,7 @@ public class NodeInteractionTest extends ExtendedTestCase {
   private TestNodeExecutor ne;
   private Map<String, List<String>> map;
 
+  @Override
   protected void onSetUp() throws Exception {
     pp = new TestProxyProvider();
     sm = new WorkQueueTest.TestShardManager(pp, 8, 3);
@@ -246,6 +247,7 @@ public class NodeInteractionTest extends ExtendedTestCase {
       private Map<String, List<String>> nodeShardMap;
       private int tryCount;
 
+      @Override
       public String toString() {
         return node + ":" + tryCount + ":" + nodeShardMap;
       }
@@ -261,6 +263,7 @@ public class NodeInteractionTest extends ExtendedTestCase {
       calls.add(call);
     }
 
+    @Override
     public String toString() {
       StringBuilder sb = new StringBuilder();
       String sep = "";
@@ -307,6 +310,7 @@ public class NodeInteractionTest extends ExtendedTestCase {
       throw new RuntimeException("test failure");
     }
 
+    @Override
     public String toString() {
       return node + ":" + param + ":" + (shards != null ? Arrays.asList(shards).toString() : "null");
     }
@@ -340,19 +344,17 @@ public class NodeInteractionTest extends ExtendedTestCase {
     public VersionedProtocol getProxy(String node) {
       if (returnNullNodes.contains(node)) {
         return null;
-      } else {
-        VersionedProtocol vp = proxyCache.get(node);
-        if (vp != null) {
-          return vp;
-        } else {
-          TestServer ts = new TestServer(node);
-          serverCache.put(node, ts);
-          vp = (VersionedProtocol) Proxy.newProxyInstance(this.getClass().getClassLoader(),
-                  new Class[] { ITestServer.class }, ts);
-          proxyCache.put(node, vp);
-          return vp;
-        }
       }
+      VersionedProtocol vp = proxyCache.get(node);
+      if (vp != null) {
+        return vp;
+      }
+      TestServer ts = new TestServer(node);
+      serverCache.put(node, ts);
+      vp = (VersionedProtocol) Proxy.newProxyInstance(this.getClass().getClassLoader(),
+              new Class[] { ITestServer.class }, ts);
+      proxyCache.put(node, vp);
+      return vp;
     }
 
     public TestServer getServer(String node) {
@@ -364,6 +366,7 @@ public class NodeInteractionTest extends ExtendedTestCase {
       returnNullNodes.add(node);
     }
 
+    @Override
     public String toString() {
       List<String> nodes = new ArrayList<String>(serverCache.keySet());
       Collections.sort(nodes);

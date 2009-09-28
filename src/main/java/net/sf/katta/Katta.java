@@ -58,7 +58,6 @@ import org.I0Itec.zkclient.ZkServer;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.zookeeper.KeeperException;
 
 /**
  * Provides command line access to a Katta cluster.
@@ -145,7 +144,7 @@ public class Katta {
       } else if (command.endsWith("removeIndex")) {
         katta.removeIndex(args[1]);
       } else if (command.endsWith("mergeIndexes") || command.endsWith("mergeIndices")) {
-        katta.mergeIndexes(zkClient, configuration, args);
+        katta.mergeIndexes(zkClient, args);
       } else if (command.endsWith("listIndexes") || command.endsWith("listIndices")) {
         boolean detailedView = false;
         for (String arg : args) {
@@ -180,9 +179,7 @@ public class Katta {
         System.err.println();
         printUsageAndExit();
       }
-      if (katta != null) {
-        katta.close();
-      }
+      katta.close();
     }
   }
 
@@ -247,8 +244,7 @@ public class Katta {
 
   }
 
-  private void showErrors(final String indexName, ZkClient zkClient, ZkConfiguration config) throws KattaException,
-          KeeperException, InterruptedException, IOException {
+  private void showErrors(final String indexName, ZkClient zkClient, ZkConfiguration config) {
     String indexZkPath = config.getZKIndexPath(indexName);
     if (!zkClient.exists(indexZkPath)) {
       printError("index '" + indexName + "' does not exist");
@@ -381,7 +377,7 @@ public class Katta {
     _zkClient.showFolders(System.out);
   }
 
-  private void check(ZkClient zkClient, ZkConfiguration config) throws KattaException {
+  private void check(ZkClient zkClient, ZkConfiguration config) {
     System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
     System.out.println("            Index Analysis");
     System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
@@ -468,7 +464,7 @@ public class Katta {
     }
   }
 
-  public void listNodes(ZkConfiguration configuration, ZkClient zkClient, ZkConfiguration config) throws KattaException {
+  public void listNodes(ZkConfiguration configuration, ZkClient zkClient, ZkConfiguration config) {
     final List<String> nodes = zkClient.getChildren(configuration.getZKNodeToShardPath());
     int inServiceNodeCount = 0;
     final Table table = new Table();
@@ -491,8 +487,7 @@ public class Katta {
     System.out.println(table.toString());
   }
 
-  public void listIndex(boolean detailedView, ZkClient zkClient, ZkConfiguration configuration) throws KattaException,
-          IOException {
+  public void listIndex(boolean detailedView, ZkClient zkClient, ZkConfiguration configuration) throws IOException {
     final Table table;
     if (!detailedView) {
       table = new Table(new String[] { "Name", "Status", "Path", "Shards", "Size", "Disk Usage" });
@@ -532,7 +527,7 @@ public class Katta {
     return fileSystem.getContentSummary(indexPath).getLength();
   }
 
-  private int calculateIndexSize(List<String> shards, ZkClient zkClient, ZkConfiguration config) throws KattaException {
+  private int calculateIndexSize(List<String> shards, ZkClient zkClient, ZkConfiguration config) {
     int docCount = 0;
     for (String shard : shards) {
       List<String> deployedShards = zkClient.getChildren(config.getZKShardToNodePath(shard));
@@ -583,7 +578,7 @@ public class Katta {
 
   @Deprecated
   // TODO we should remove the index merging functionality
-  private void mergeIndexes(ZkClient zkClient, ZkConfiguration config, String... args) throws Exception {
+  private void mergeIndexes(ZkClient zkClient, String... args) throws Exception {
     String[] indexesToMerge = new String[0];
     File hadoopSiteXml = null;
     for (int i = 0; i < args.length; i++) {
@@ -603,7 +598,7 @@ public class Katta {
               hadoopSiteXml);
       Thread.currentThread().setContextClassLoader(classLoader);
     }
-    IndexMergeApplication indexMergeApplication = new IndexMergeApplication(zkClient, config);
+    IndexMergeApplication indexMergeApplication = new IndexMergeApplication(zkClient);
     if (indexesToMerge.length == 0) {
       indexMergeApplication.mergeDeployedIndices();
     } else {
@@ -703,6 +698,7 @@ public class Katta {
       _rows.add(strs);
     }
 
+    @Override
     public String toString() {
       final StringBuilder builder = new StringBuilder();
       final int[] columnSizes = getColumnSizes();
@@ -764,8 +760,7 @@ public class Katta {
     }
   }
 
-  private void setState(String index, String stateName, ZkClient zkClient, ZkConfiguration config)
-          throws KattaException {
+  private void setState(String index, String stateName, ZkClient zkClient, ZkConfiguration config) {
     IndexState state = null;
     for (IndexState s : IndexState.values()) {
       if (s.name().toLowerCase().equals(stateName.toLowerCase())) {

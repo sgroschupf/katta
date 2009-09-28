@@ -15,7 +15,6 @@
  */
 package net.sf.katta.client;
 
-import java.io.IOException;
 import java.util.List;
 
 import net.sf.katta.util.KattaException;
@@ -31,7 +30,7 @@ public interface IMapFileClient {
    * @param key The entry(s) to look up.
    * @param indexNames The MapFiles to search.
    * @return All the entries with the given key.
-   * @throws IOException
+   * @throws KattaException 
    */
   public List<String> get(String key, final String[] indexNames) throws KattaException;
 

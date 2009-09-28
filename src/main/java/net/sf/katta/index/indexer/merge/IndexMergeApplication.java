@@ -34,6 +34,7 @@ import net.sf.katta.index.IndexMetaData.IndexState;
 import net.sf.katta.util.IHadoopConstants;
 import net.sf.katta.util.IndexConfiguration;
 import net.sf.katta.util.ZkConfiguration;
+import net.sf.katta.util.ZkKattaUtil;
 
 import org.I0Itec.zkclient.ZkClient;
 import org.apache.hadoop.fs.FileSystem;
@@ -52,15 +53,11 @@ public class IndexMergeApplication {
 
   private ZkConfiguration _config;
 
-  public IndexMergeApplication(ZkClient zkClient, ZkConfiguration config) {
-    this(zkClient, config, new JobConf());
+  public IndexMergeApplication(ZkClient zkClient) {
+    this(zkClient, new JobConf());
   }
 
-  /**
-   * @param zkConfiguration -- unused 
-   * TODO - remove zkConfiguration ?
-   */
-  public IndexMergeApplication(ZkClient zkClient, ZkConfiguration zkConfiguration, JobConf jobConf) {
+  public IndexMergeApplication(ZkClient zkClient, JobConf jobConf) {
     _zkClient = zkClient;
     _jobConf = jobConf;
     if (_jobConf.getJar() == null && !_jobConf.get(IHadoopConstants.JOBTRACKER).equals("local")) {
@@ -195,7 +192,7 @@ public class IndexMergeApplication {
     JobConf jobConf = new JobConf();
     jobConf.set(IHadoopConstants.IO_SORT_MB, "20");
     ZkConfiguration zkConfiguration = new ZkConfiguration();
-    ZkClient zkcClient = new ZkClient(zkConfiguration.getZKServers());
-    new IndexMergeApplication(zkcClient, zkConfiguration, jobConf).mergeDeployedIndices();
+    ZkClient zkcClient = ZkKattaUtil.startZkClient(zkConfiguration, 30000);
+    new IndexMergeApplication(zkcClient, jobConf).mergeDeployedIndices();
   }
 }

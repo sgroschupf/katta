@@ -18,7 +18,6 @@ package net.sf.katta.indexing;
 import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.net.URISyntaxException;
 import java.util.Random;
 
 import org.apache.hadoop.conf.Configuration;
@@ -60,13 +59,13 @@ public class SequenceFileCreator {
 	}
 
 	public void create(String pathString, String sampleText, int num)
-			throws IOException, URISyntaxException {
+			throws IOException {
 		String[] strings = sampleText.split("\n");
 		Path path = new Path(pathString);
 		Configuration conf = new Configuration();
 		FileSystem fs = FileSystem.get(path.toUri(), conf);
-		Class kClass = LongWritable.class;
-		Class vClass = Text.class;
+		Class<LongWritable> kClass = LongWritable.class;
+		Class<Text> vClass = Text.class;
 		Writer writer = new SequenceFile.Writer(fs, conf, path, kClass, vClass);
 		int numOfLines = strings.length;
 		Random random = new Random(System.currentTimeMillis());

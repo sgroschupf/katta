@@ -27,6 +27,8 @@ import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapred.FileInputFormat;
+import org.apache.hadoop.mapred.FileOutputFormat;
 import org.apache.hadoop.mapred.JobClient;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.MapRunnable;
@@ -34,9 +36,7 @@ import org.apache.hadoop.mapred.OutputCollector;
 import org.apache.hadoop.mapred.RecordReader;
 import org.apache.hadoop.mapred.Reporter;
 import org.apache.hadoop.mapred.SequenceFileInputFormat;
-import org.apache.hadoop.mapred.TextOutputFormat;
 import org.apache.lucene.analysis.Analyzer;
-import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.Field.Index;
@@ -73,9 +73,9 @@ public class IndexerJob {
     jobConf.setInputFormat(SequenceFileInputFormat.class);
 
     Path input = new Path(path);
-    SequenceFileInputFormat.setInputPaths(jobConf, input);
+    FileInputFormat.setInputPaths(jobConf, input);
     // we just set the output path to make hadoop happy.
-    TextOutputFormat.setOutputPath(jobConf, new Path(finalDestination));
+    FileOutputFormat.setOutputPath(jobConf, new Path(finalDestination));
     // setting the folder where lucene indexes will be copied when finished.
     jobConf.set("finalDestination", finalDestination);
     // important to switch spec exec off.

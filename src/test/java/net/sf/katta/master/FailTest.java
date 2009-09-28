@@ -53,7 +53,7 @@ public class FailTest extends AbstractKattaTest {
 
     waitForPath(masterClient, _conf.getZKMasterPath());
 
-    MasterMetaData masterData = masterClient.readData(_conf.getZKMasterPath());
+    masterClient.readData(_conf.getZKMasterPath());
 
     // kill master
     master.shutdown();
