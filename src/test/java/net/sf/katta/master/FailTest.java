@@ -114,7 +114,6 @@ public class FailTest extends AbstractKattaTest {
 
     // things should be good distributed again.
     client.close();
-    deployClient.disconnect();
     node3.close();
     masterThread.shutdown();
   }

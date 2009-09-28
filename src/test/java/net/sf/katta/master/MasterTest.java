@@ -203,7 +203,6 @@ public class MasterTest extends AbstractKattaTest {
       }
     } while (indexState != IndexState.DEPLOYED || masterStartThread.getMaster().getNodes().size() > 1);
 
-    deployClient.disconnect();
     nodeStartThread1.shutdown();
     masterStartThread.shutdown();
   }
@@ -304,7 +303,6 @@ public class MasterTest extends AbstractKattaTest {
     }
 
     zkClient.close();
-    deployClient.disconnect();
     nodeStartThread1.shutdown();
     nodeStartThread2.shutdown();
     masterStartThread.shutdown();

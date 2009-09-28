@@ -78,7 +78,6 @@ public class KattaMiniCluster {
     for (int i = 0; i < deployCount; i++) {
       deployClient.addIndex(indexFile.getName() + i, indexFile.getAbsolutePath(), replicationCount).joinDeployment();
     }
-    deployClient.disconnect();
   }
 
   public ZkConfiguration getZkConfiguration() {

@@ -34,6 +34,4 @@ public interface IDeployClient {
 
   IndexMetaData getIndexMetaData(String name);
 
-  void disconnect();
-
 }

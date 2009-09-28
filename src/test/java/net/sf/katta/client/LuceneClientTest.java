@@ -84,7 +84,6 @@ public class LuceneClientTest extends AbstractKattaTest {
   @Override
   protected void onAfterClass() throws Exception {
     _client.close();
-    _deployClient.disconnect();
     _node1.shutdown();
     _node2.shutdown();
     _master.shutdown();

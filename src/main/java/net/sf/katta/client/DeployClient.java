@@ -89,11 +89,6 @@ public class DeployClient implements IDeployClient {
     return returnIndexes;
   }
 
-  //TODO PVo remove this
-  public void disconnect() {
-    // do nothing
-  }
-
   public IndexMetaData getIndexMetaData(String name) {
     return _zkClient.readData(_conf.getZKIndexPath(name));
   }

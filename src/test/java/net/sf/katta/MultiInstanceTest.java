@@ -182,8 +182,6 @@ public class MultiInstanceTest extends AbstractKattaTest {
   protected void onAfterClass() throws Exception {
     _client1.close();
     _client2.close();
-    _deployClient1.disconnect();
-    _deployClient2.disconnect();
     for (Node node : _nodes1) {
       node.shutdown();
     }
