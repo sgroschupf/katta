@@ -44,9 +44,6 @@ import org.apache.hadoop.ipc.RPC;
 import org.apache.hadoop.ipc.VersionedProtocol;
 import org.apache.log4j.Logger;
 
-/**
- * 
- */
 public class Client implements IShardProxyManager {
 
   protected final static Logger LOG = Logger.getLogger(Client.class);
