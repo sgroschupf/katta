@@ -1,6 +1,7 @@
 Katta Change Log
 
 katta 0.6-dev
+ fix KATTA-48, Index name is now included in IndexMetaData
  fix KATTA-44, Cleaned up ordering of Hits in KattaHitQueue
  fix KATTA-42, Moved to Zookeeper-3.2.1.
  remove maven repos from ivy configuration and add last missing libraries into lib folder

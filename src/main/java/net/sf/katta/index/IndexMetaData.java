@@ -20,7 +20,8 @@ import java.io.Serializable;
 public class IndexMetaData implements Serializable {
 
   private static final long serialVersionUID = 1L;
-  
+
+  private String _name;
   private String _path;
   private int _replicationLevel;
 
@@ -31,7 +32,8 @@ public class IndexMetaData implements Serializable {
     ANNOUNCED, DEPLOYED, ERROR, DEPLOYING, REPLICATING;
   }
 
-  public IndexMetaData(String path, int replicationLevel, IndexState state) {
+  public IndexMetaData(String name, String path, int replicationLevel, IndexState state) {
+    _name = name;
     _path = path;
     _replicationLevel = replicationLevel;
     _state = state;
@@ -49,18 +51,19 @@ public class IndexMetaData implements Serializable {
     return _state;
   }
 
-  public void setState(final IndexState state) {
+  public void setState(IndexState state) {
     if (state == IndexState.ERROR) {
       throw new IllegalStateException("please set an error message");
     }
     _state = state;
   }
 
-  public void setState(final IndexState state, String errorMessage) {
-    _state = state;
-    if (errorMessage != null) {
-      _errorMessage = errorMessage;
+  public void setState(IndexState state, String errorMessage) {
+    if (errorMessage == null) {
+      throw new NullPointerException();
     }
+    _state = state;
+    _errorMessage = errorMessage;
   }
 
   public String getErrorMessage() {
@@ -71,9 +74,13 @@ public class IndexMetaData implements Serializable {
     return _replicationLevel;
   }
 
-  @Override
-  public String toString() {
-    return "state: " + _state + " replication: " + _replicationLevel + " path: " + _path + " error: " + _errorMessage;
+  public String getName() {
+    return _name;
   }
 
+  @Override
+  public String toString() {
+    return "name: " + _name + ", state: " + _state + ", replication: " + _replicationLevel + ", path: " + _path
+            + ", error: " + _errorMessage;
+  }
 }

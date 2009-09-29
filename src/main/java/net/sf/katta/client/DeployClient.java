@@ -37,7 +37,7 @@ public class DeployClient implements IDeployClient {
   public IIndexDeployFuture addIndex(String name, String path, int replicationLevel) {
     final String indexPath = _conf.getZKIndexPath(name);
     validateIndexName(name, indexPath);
-    final IndexMetaData indexMetaData = new IndexMetaData(path, replicationLevel, IndexMetaData.IndexState.ANNOUNCED);
+    final IndexMetaData indexMetaData = new IndexMetaData(name, path, replicationLevel, IndexMetaData.IndexState.ANNOUNCED);
     _zkClient.createPersistent(indexPath, indexMetaData);
     return new IndexDeployFuture(_zkClient, name, indexPath, indexMetaData);
   }
