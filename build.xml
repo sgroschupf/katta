@@ -112,7 +112,8 @@
 		</copy>
 
 		<tar longfile="gnu" compression="gzip" destfile="${build.release.file}">
-			<tarfileset dir="${build.dir.dist}" />
+			<tarfileset dir="${build.dir.dist}" excludes="**/*.sh" />
+			<tarfileset dir="${build.dir.dist}" mode="775" includes="**/*.sh"/>
 		</tar>
 	</target>
 

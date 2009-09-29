@@ -1,6 +1,7 @@
 Katta Change Log
 
 katta 0.6-dev
+ fix KATTA-57, Permissions on scripts are now set properly with execute flag set in .tar.gz file
  fix KATTA-48, Index name is now included in IndexMetaData
  fix KATTA-44, Cleaned up ordering of Hits in KattaHitQueue
  fix KATTA-42, Moved to Zookeeper-3.2.1.
