@@ -79,6 +79,7 @@ public class LuceneServer implements INodeManaged, ILuceneServer {
   protected int _maxDoc = 0;
 
   public LuceneServer() {
+    // do nothing
   }
 
   public long getProtocolVersion(final String protocol, final long clientVersion) throws IOException {
@@ -94,7 +95,7 @@ public class LuceneServer implements INodeManaged, ILuceneServer {
    * MultiSearcher search in.
    * 
    * @param shardName
-   * @param indexSearcher
+   * @param shardDir
    * @throws IOException
    */
   public void addShard(final String shardName, final File shardDir) throws IOException {
@@ -627,7 +628,7 @@ public class LuceneServer implements INodeManaged, ILuceneServer {
       if (hitA.getScore() == hitB.getScore()) {
         // todo this of cource do not work since we have same shardKeys
         // (should we increment docIds?)
-        return hitA.getDocId() > hitB.getDocId();
+        return hitA.getDocId() < hitB.getDocId();
       }
       return hitA.getScore() < hitB.getScore();
     }
@@ -648,5 +649,4 @@ public class LuceneServer implements INodeManaged, ILuceneServer {
       };
     }
   }
-
 }

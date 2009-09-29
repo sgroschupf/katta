@@ -1,6 +1,7 @@
 Katta Change Log
 
 katta 0.6-dev
+ fix KATTA-44, Cleaned up ordering of Hits in KattaHitQueue
  fix KATTA-42, Moved to Zookeeper-3.2.1.
  remove maven repos from ivy configuration and add last missing libraries into lib folder
  fix KATTA-72, Give better error message when searching an index that doesn't exist.
