@@ -1,5 +1,5 @@
 <ivy-module version="2.0">
-	<info organisation="emi" module="event-processing/grid" />
+	<info organisation="101tec" module="katta" />
 
 	<!-- project configuration 
     -->
@@ -60,7 +60,7 @@
 
 		<dependency org="xmlenc" name="xmlenc" rev="0.52" conf="compile" />
 		<dependency org="zookeeper" name="zookeeper" rev="3.2.1" conf="compile" />
-        <dependency org="com.101tec" name="zkclient" rev="0.1-dev" conf="compile->compile, master" />
+        <dependency org="zkclient" name="zkclient" rev="0.1-dev_09_30_09" conf="compile" />
 
 		<!-- AWS -->
 		<dependency org="jets3t" name="jets3t" rev="0.6.1" conf="compile" />

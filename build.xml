@@ -122,12 +122,8 @@
 	<!-- ================================================================== -->
 
 	<target name="eclipse" depends="clean-eclipse, install-ivy" description="--> generates the eclipse project files">
-		<subant target="install" buildpath="modules/zkclient" />
-		<subant target="eclipse" buildpath="modules/zkclient" />
 		
-		<path id="dependend-projects">
-			<pathelement path="/zkclient" />
-		</path>
+		
 		<ivy:resolve useorigin="true" conf="eclipse, test"/>
 		<ivy:cachepath pathid="eclipse.path.id" conf="eclipse" />
 		<ivy:cachepath pathid="test.path.id" conf="test" />
@@ -153,9 +149,6 @@
 				<source path="${basedir}/extras/indexing/src/main/java" output="${build.dir}/extras/indexing/classes-main" />
 				<source path="${basedir}/extras/indexing/src/test/java" output="${build.dir}/extras/indexing/classes-test" />
 
-				<!-- zk client and others -->
-				<source pathref="dependend-projects" />
-				
 				<output path="${build.dir.main-classes}" />
 				<library pathref="test.path.id" />
 			</classpath>
@@ -168,7 +161,7 @@
 
 	<target name="clean-eclipse" depends="install-ivy" description="--> cleans the eclipse project files">
 		
-		<subant target="clean-eclipse" buildpath="modules/zkclient" />
+		
 		<delete file=".classpath" />
 		<delete file=".eclipse" />
 		<delete file=".project" />
@@ -176,7 +169,6 @@
 	</target>
 
 	<target name="compile" description="--> compile main classes">
-		<subant target="install" buildpath="modules/zkclient" />
 		<antcall target="compile-katta" />
 	</target>
 
@@ -195,13 +187,11 @@
 	</macrodef>
 
 	<target name="clean-all">
-		<subant target="clean" buildpath="modules/zkclient" />
 		<antcall target="clean" />
 		<iterate target="clean" />
 	</target>
 
 	<target name="test-all">
-		<subant target="test" buildpath="modules/zkclient" />
 		<!--<antcall target="test" />-->
 		<iterate target="test" />
 	</target>

@@ -1,5 +1,5 @@
 <ivy-module version="2.0">
-	<info organisation="emi" module="event-processing/grid" />
+	<info organisation="101tec" module="katta/indexing" />
 
 	<!-- project configuration 
     -->
