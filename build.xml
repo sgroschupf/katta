@@ -130,7 +130,7 @@
 		<taskdef name="eclipse" classname="prantl.ant.eclipse.EclipseTask" classpathref="eclipse.path.id" />
 		<mkdir dir="${build.dir.main-classes}" />
 		<mkdir dir="${build.dir.test-classes}" />
-		<eclipse>
+		<eclipse updatealways="true">
 			<settings>
 				<jdtcore compilercompliance="6.0" />
 				<resources encoding="UTF-8" />
@@ -157,11 +157,10 @@
 		<concat destfile="${basedir.ivy.instance}/.settings/org.eclipse.jdt.core.prefs" append="true">
 			 <filelist dir="${root.dir}/src/build/eclipse" files="formatter"/>
 		</concat>
+		<replace file="${basedir.ivy.instance}/.settings/org.eclipse.jdt.core.prefs" token="org.eclipse.jdt.core.compiler.compliance=6.0" value="org.eclipse.jdt.core.compiler.compliance=1.6" />
 	</target>
 
 	<target name="clean-eclipse" depends="install-ivy" description="--> cleans the eclipse project files">
-		
-		
 		<delete file=".classpath" />
 		<delete file=".eclipse" />
 		<delete file=".project" />
