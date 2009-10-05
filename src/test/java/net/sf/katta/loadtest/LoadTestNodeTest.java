@@ -37,7 +37,7 @@ public class LoadTestNodeTest extends AbstractKattaTest {
 //    startMaster();
 //    startNode();
 //
-//    DeployClient deployClient = new DeployClient(_conf);
+//    DeployClient deployClient = new DeployClient(_zkConf);
 //    deployClient.addIndex(INDEX1, TestResources.INDEX1.getAbsolutePath(), 1).joinDeployment();
 //
 //    LoadTestNode node = startLoadTestNode();

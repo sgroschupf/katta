@@ -131,6 +131,7 @@ public class ZkConfiguration extends KattaConfiguration {
   private static final String SHARD_TO_NODE = "shard-to-node";
   private static final String SHARD_TO_ERROR = "shard-to-error";
   private static final String LOADTEST_NODES = "loadtest-nodes";
+  private static final String SERVER_METRICS = "server-metrics";
 
   private String _rootPath;
 
@@ -238,5 +239,14 @@ public class ZkConfiguration extends KattaConfiguration {
   public String getZKName(String path) {
     return path.substring(path.lastIndexOf(getSeparator()) + 1);
   }
+
+  public String getZKMetricsPathForServer(String serverId) {
+    return buildPath(getZKRootPath(), SERVER_METRICS, serverId);
+  }
+
+  public String getZKMetricsPath() {
+    return buildPath(getZKRootPath(), SERVER_METRICS);
+  }
+
 
 }

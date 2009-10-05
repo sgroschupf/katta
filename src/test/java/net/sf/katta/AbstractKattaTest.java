@@ -201,7 +201,7 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
 // TODO: port load test to new client/server model.
 //
 //  protected LoadTestNode startLoadTestNode() throws KattaException {
-//    ZkClient zkNodeClient = new ZkClient(_conf);
+//    ZkClient zkNodeClient = new ZkClient(_zkConf);
 //    LoadTestNodeConfiguration nodeConf = new LoadTestNodeConfiguration();
 //    LoadTestNode node = new LoadTestNode(zkNodeClient, nodeConf);
 //    node.start();

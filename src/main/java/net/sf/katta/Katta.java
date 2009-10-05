@@ -38,6 +38,8 @@ import net.sf.katta.index.IndexMetaData.IndexState;
 import net.sf.katta.index.indexer.SampleIndexGenerator;
 import net.sf.katta.index.indexer.merge.IndexMergeApplication;
 import net.sf.katta.master.Master;
+import net.sf.katta.metrics.MetricLogger;
+import net.sf.katta.metrics.MetricLogger.OutputType;
 import net.sf.katta.node.Hit;
 import net.sf.katta.node.Hits;
 import net.sf.katta.node.INodeManaged;
@@ -173,6 +175,17 @@ public class Katta {
           System.err.println("Missing parameter index name.");
           printUsageAndExit();
         }
+      } else if (command.endsWith("startMetricsLogger")) {
+        
+        OutputType type = OutputType.SystemOut;
+        if(args[1].equalsIgnoreCase("Log4J")){
+          type = OutputType.Log4J;
+        }
+        new MetricLogger(type, zkClient, configuration);
+        Thread thread = new Thread();
+        thread.start();
+        thread.isDaemon();
+        thread.join();
       } else {
         System.err.println();
         System.err.println("> unknown command: '" + command + "'");

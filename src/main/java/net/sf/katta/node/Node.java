@@ -35,6 +35,7 @@ import java.util.TimerTask;
 import net.sf.katta.index.AssignedShard;
 import net.sf.katta.index.DeployedShard;
 import net.sf.katta.index.ShardError;
+import net.sf.katta.metrics.IMonitor;
 import net.sf.katta.util.CollectionUtil;
 import net.sf.katta.util.FileUtil;
 import net.sf.katta.util.KattaException;
@@ -60,7 +61,7 @@ public class Node implements IZkStateListener {
 
   public static final long _protocolVersion = 0;
 
-  protected ZkConfiguration _conf;
+  protected ZkConfiguration _zkConf;
   protected ZkClient _zkClient;
   private Server _rpcServer;
   private INodeManaged _server;
@@ -75,9 +76,11 @@ public class Node implements IZkStateListener {
   protected final long _startTime = System.currentTimeMillis();
   protected long _queryCounter;
 
-  private final NodeConfiguration _configuration;
+  private final NodeConfiguration _nodeConf;
   private NodeState _currentState;
   private ShardListener _shardListener;
+
+  private IMonitor _monitor;
 
   public static enum NodeState {
     STARTING, RECONNECTING, IN_SERVICE, LOST;
@@ -91,9 +94,9 @@ public class Node implements IZkStateListener {
     if (server == null) {
       throw new IllegalArgumentException("Null server passed to Node()");
     }
-    _conf = conf;
+    _zkConf = conf;
     _zkClient = zkClient;
-    _configuration = configuration;
+    _nodeConf = configuration;
     _server = server;
     _zkClient.subscribeStateChanges(this);
     LOG.info("Starting node, server class = " + server.getClass().getCanonicalName());
@@ -106,16 +109,17 @@ public class Node implements IZkStateListener {
     if (_server == null) {
       throw new IllegalStateException("Node cannot be started again after it was shutdown.");
     }
-    
+
     LOG.debug("Starting node...");
 
     LOG.debug("Starting rpc server...");
-    _nodeName = startRPCServer(_configuration.getStartPort());
+    _nodeName = startRPCServer(_nodeConf.getStartPort());
     _server.setNodeName(_nodeName);
+    startMonitor(_nodeName, _zkClient, _nodeConf, _zkConf);
 
     // we add hostName and port to the shardFolder to allow multiple nodes per
     // server with the same configuration
-    _shardsFolder = new File(_configuration.getShardFolder(), _nodeName.replaceAll(":", "@"));
+    _shardsFolder = new File(_nodeConf.getShardFolder(), _nodeName.replaceAll(":", "@"));
 
     if (!_shardsFolder.exists()) {
       _shardsFolder.mkdirs();
@@ -132,6 +136,21 @@ public class Node implements IZkStateListener {
     updateStatus(NodeState.IN_SERVICE);
     _timer = new Timer("QueryCounter", true);
     _timer.schedule(new StatusUpdater(), new Date(), 60 * 1000);
+  }
+  
+  private void startMonitor(String nodeName, ZkClient zkClient, NodeConfiguration conf, ZkConfiguration zkConf) {
+    if(LOG.isTraceEnabled()){
+      LOG.trace("starting node monitor");
+    }
+    String monitorClass = conf.getMonitorClass();
+    try {
+      Class<?> c = Class.forName(monitorClass);
+      _monitor = (IMonitor) c.newInstance();
+      _monitor.startMonitoring(nodeName, zkClient, zkConf);
+
+    } catch (Exception e) {
+      LOG.error("Unable to start node monitor:", e);
+    }
   }
 
   public void handleNewSession() throws Exception {
@@ -166,12 +185,13 @@ public class Node implements IZkStateListener {
 
   /**
    * Writes node ephemeral data into zookeeper
-   * @param nodeState 
+   * 
+   * @param nodeState
    */
   private void announceNode(NodeState nodeState) {
     LOG.info("Announce node '" + _nodeName + "'...");
     final NodeMetaData metaData = new NodeMetaData(_nodeName, nodeState);
-    final String nodePath = _conf.getZKNodePath(_nodeName);
+    final String nodePath = _zkConf.getZKNodePath(_nodeName);
     if (_zkClient.exists(nodePath)) {
       LOG.warn("Old node path '" + nodePath + "' for this node detected, deleting it...");
       _zkClient.delete(nodePath);
@@ -197,14 +217,14 @@ public class Node implements IZkStateListener {
       undeployShards(removed);
     }
     ArrayList<AssignedShard> assignedShards = readAssignedShards(shardsNames);
-    
+
     deployShards(assignedShards);
     _deployedShards.clear();
     _deployedShards.addAll(shardsNames);
   }
 
   private String getNodeToShardPath() {
-    return _conf.getZKNodeToShardPath(_nodeName);
+    return _zkConf.getZKNodeToShardPath(_nodeName);
   }
 
   protected void deployShards(final List<AssignedShard> newShards) {
@@ -220,7 +240,7 @@ public class Node implements IZkStateListener {
       } catch (Throwable t) {
         LOG.error(_nodeName + ": could not deploy shard '" + shard + "'", t);
         ShardError shardError = new ShardError(t.getMessage());
-        String shard2ErrorPath = _conf.getZKShardToErrorPath(shardName, _nodeName);
+        String shard2ErrorPath = _zkConf.getZKShardToErrorPath(shardName, _nodeName);
         if (_zkClient.exists(shard2ErrorPath)) {
           LOG.warn("detected old shard-to-error entry - deleting it..");
           // must be an old ephemeral
@@ -237,7 +257,7 @@ public class Node implements IZkStateListener {
       try {
         LOG.info("Undeploying shard: " + shard);
         _server.removeShard(shard);
-        String shard2NodePath = _conf.getZKShardToNodePath(shard, _nodeName);
+        String shard2NodePath = _zkConf.getZKShardToNodePath(shard, _nodeName);
         if (_zkClient.exists(shard2NodePath)) {
           _zkClient.delete(shard2NodePath);
         }
@@ -255,7 +275,7 @@ public class Node implements IZkStateListener {
     String shardName = shard.getShardName();
     LOG.info("announce shard '" + shardName + "'");
     // announce that this node serves this shard now...
-    final String shard2NodePath = _conf.getZKShardToNodePath(shardName, _nodeName);
+    final String shard2NodePath = _zkConf.getZKShardToNodePath(shardName, _nodeName);
     if (_zkClient.exists(shard2NodePath)) {
       LOG.warn("detected old shard-to-node entry - deleting it..");
       // must be an old ephemeral
@@ -280,7 +300,7 @@ public class Node implements IZkStateListener {
   private void installShard(AssignedShard shard, File localShardFolder) throws KattaException {
     final String shardPath = shard.getShardPath();
     String shardName = shard.getShardName();
-    LOG.info("install shard '" + shardName+ "' from " + shardPath);
+    LOG.info("install shard '" + shardName + "' from " + shardPath);
     // TODO sg: to fix HADOOP-4422 we try to download the shard 5 times
     int maxTries = 5;
     for (int i = 0; i < maxTries; i++) {
@@ -290,12 +310,12 @@ public class Node implements IZkStateListener {
         final FileSystem fileSystem = FileSystem.get(uri, new Configuration());
         final Path path = new Path(shardPath);
         boolean isZip = fileSystem.isFile(path) && shardPath.endsWith(".zip");
-  
+
         File shardTmpFolder = new File(localShardFolder.getAbsolutePath() + "_tmp");
         // we download extract first to tmp dir in case something went wrong
         FileUtil.deleteFolder(localShardFolder);
         FileUtil.deleteFolder(shardTmpFolder);
-  
+
         if (isZip) {
           final File shardZipLocal = new File(_shardsFolder, shardName + ".zip");
           if (shardZipLocal.exists()) {
@@ -330,15 +350,15 @@ public class Node implements IZkStateListener {
     if (_server == null) {
       return;
     }
-    
+
     LOG.info("shutdown " + _nodeName + " ...");
     try {
       // we deleting the ephemeral's since this is the fastest and the safest
       // way, but if this does not work, it shouldn't be too bad
-      _zkClient.delete(_conf.getZKNodePath(_nodeName));
+      _zkClient.delete(_zkConf.getZKNodePath(_nodeName));
       for (String shard : _deployedShards) {
-        String shard2NodePath = _conf.getZKShardToNodePath(shard, _nodeName);
-        String shard2ErrorPath = _conf.getZKShardToErrorPath(shard, _nodeName);
+        String shard2NodePath = _zkConf.getZKShardToNodePath(shard, _nodeName);
+        String shard2ErrorPath = _zkConf.getZKShardToErrorPath(shard, _nodeName);
         _zkClient.delete(shard2NodePath);
         _zkClient.delete(shard2ErrorPath);
       }
@@ -421,9 +441,6 @@ public class Node implements IZkStateListener {
     return new File(_shardsFolder, shardName);
   }
 
-
-
-
   @Override
   protected void finalize() throws Throwable {
     super.finalize();
@@ -437,16 +454,16 @@ public class Node implements IZkStateListener {
 
   private void updateStatus(NodeState state) {
     _currentState = state;
-    final String nodePath = _conf.getZKNodePath(_nodeName);
+    final String nodePath = _zkConf.getZKNodePath(_nodeName);
     final NodeMetaData metaData = _zkClient.readData(nodePath);
     metaData.setState(state);
     _zkClient.writeData(nodePath, metaData);
   }
-  
+
   private ArrayList<AssignedShard> readAssignedShards(final List<String> shardsToDeploy) {
     ArrayList<AssignedShard> newShards = new ArrayList<AssignedShard>();
     for (String shardName : shardsToDeploy) {
-      AssignedShard assignedShard = _zkClient.readData(_conf.getZKNodeToShardPath(_nodeName, shardName));  
+      AssignedShard assignedShard = _zkClient.readData(_zkConf.getZKNodeToShardPath(_nodeName, shardName));
       newShards.add(assignedShard);
     }
     return newShards;
@@ -465,8 +482,9 @@ public class Node implements IZkStateListener {
       _deployedShards.removeAll(shardsToUndeploy);
       _deployedShards.addAll(shardsToDeploy);
       undeployShards(shardsToUndeploy);
-      // we actually want to get all shard information now to make sure it can not be changed during any other steps
-      
+      // we actually want to get all shard information now to make sure it can
+      // not be changed during any other steps
+
       List<AssignedShard> newShards = readAssignedShards(shardsToDeploy);
       deployShards(newShards);
     }
@@ -485,7 +503,7 @@ public class Node implements IZkStateListener {
       long time = (System.currentTimeMillis() - _startTime) / (60 * 1000);
       time = Math.max(time, 1);
       final float qpm = (float) _queryCounter / time;
-      final String nodePath = _conf.getZKNodePath(_nodeName);
+      final String nodePath = _zkConf.getZKNodePath(_nodeName);
       try {
         if (_zkClient.exists(nodePath)) {
           NodeMetaData metaData = _zkClient.readData(nodePath);
