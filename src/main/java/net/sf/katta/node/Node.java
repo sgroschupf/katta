@@ -35,7 +35,7 @@ import java.util.TimerTask;
 import net.sf.katta.index.AssignedShard;
 import net.sf.katta.index.DeployedShard;
 import net.sf.katta.index.ShardError;
-import net.sf.katta.metrics.IMonitor;
+import net.sf.katta.monitor.IMonitor;
 import net.sf.katta.util.CollectionUtil;
 import net.sf.katta.util.FileUtil;
 import net.sf.katta.util.KattaException;

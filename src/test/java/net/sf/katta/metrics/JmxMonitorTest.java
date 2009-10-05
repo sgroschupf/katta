@@ -3,6 +3,7 @@ package net.sf.katta.metrics;
 import java.io.Serializable;
 
 import junit.framework.TestCase;
+import net.sf.katta.monitor.JmxMonitor;
 import net.sf.katta.util.ZkConfiguration;
 
 import org.I0Itec.zkclient.ZkClient;
