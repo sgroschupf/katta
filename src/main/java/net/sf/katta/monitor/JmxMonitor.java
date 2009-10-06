@@ -26,6 +26,7 @@ import java.util.List;
 import net.sf.katta.util.ZkConfiguration;
 
 import org.I0Itec.zkclient.ZkClient;
+import org.I0Itec.zkclient.exception.ZkNoNodeException;
 import org.apache.log4j.Logger;
 
 public class JmxMonitor implements IMonitor {
@@ -54,7 +55,6 @@ public class JmxMonitor implements IMonitor {
 
     public void run() {
       // create the node for the first time...
-      _zkClient.createEphemeral(_metricsPath, new MetricsRecord(_serverId));
       while (!isInterrupted()) {
         MetricsRecord metrics = new MetricsRecord(_serverId);
         // there is no good way to get underlaying system matrics . Only
@@ -80,7 +80,7 @@ public class JmxMonitor implements IMonitor {
           metrics.addValue("TotalPhysicalMemorySize", totalPhysicalMemorySize, System.currentTimeMillis());
 
           Long committedVirtualMemorySize = getValue(operatingSystemMXBean, "getCommittedVirtualMemorySize");
-          metrics.addValue("getCommittedVirtualMemorySize", committedVirtualMemorySize, System.currentTimeMillis());
+          metrics.addValue("CommittedVirtualMemorySize", committedVirtualMemorySize, System.currentTimeMillis());
 
           // memory
           MemoryUsage heapMemoryUsage = ManagementFactory.getMemoryMXBean().getHeapMemoryUsage();
@@ -105,16 +105,20 @@ public class JmxMonitor implements IMonitor {
             metrics.addValue("collectionTime_" + gcName, collectionTime, System.currentTimeMillis());
           }
           // File System
-          // TODO sg 10/03/09 We should add diskfree as well, but we need to know which
+          // TODO sg 10/03/09 We should add diskfree as well, but we need to
+          // know which
           // disks we talk about. This brings in the problem that currently we
           // can only use one not multiple disks for the shards. So lets fix
           // this as soon we fix this other problem :/
-          
+
         } catch (Exception e) {
           LOG.error("Unable to retrieve metrics values:", e);
         }
-
-        _zkClient.writeData(_metricsPath, metrics);
+        try {
+          _zkClient.writeData(_metricsPath, metrics);
+        } catch (ZkNoNodeException e) {
+            _zkClient.createEphemeral(_metricsPath, new MetricsRecord(_serverId));
+        }
         try {
           sleep(500);
         } catch (InterruptedException e) {

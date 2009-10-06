@@ -178,14 +178,11 @@ public class Katta {
       } else if (command.endsWith("startMetricsLogger")) {
         
         OutputType type = OutputType.SystemOut;
-        if(args[1].equalsIgnoreCase("Log4J")){
+        if(args.length > 1 && args[1].equalsIgnoreCase("Log4J")){
           type = OutputType.Log4J;
         }
-        new MetricLogger(type, zkClient, configuration);
-        Thread thread = new Thread();
-        thread.start();
-        thread.isDaemon();
-        thread.join();
+        new MetricLogger(type, zkClient, configuration).join();
+        
       } else {
         System.err.println();
         System.err.println("> unknown command: '" + command + "'");
@@ -665,6 +662,9 @@ public class Katta {
     System.err
             .println("\tstartLoadTest <nodes> <start-query-rate> <end-query-rate> <step> <test-duration-ms> <index-name> <query-file> <max hits>");
     System.err.println("\t\t\t\tStarts a load test. The query rate is in queries per second.");
+    
+    
+    System.err.println("\tstartMetricsLogger [sys|log4j]\t\tSubscribes to the Metrics updates and logs them to log file or console.");
     System.err.println("\tshowStructure [-all]\t\tShows the structure of a Katta installation.");
     System.err.println("\tcheck\t\t\tAnalyze index/shard/node status.");
     System.err.println("\tversion\t\t\tPrint the version.");

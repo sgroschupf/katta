@@ -42,7 +42,7 @@ public class MetricsRecord implements Serializable {
     return _records;
   }
 
-  class Record implements Serializable {
+  public class Record implements Serializable {
 
     private static final long serialVersionUID = 8134090886018804896L;
 
