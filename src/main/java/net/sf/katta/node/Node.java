@@ -347,6 +347,7 @@ public class Node implements IZkStateListener {
   }
 
   public void shutdown() {
+    _monitor.stopMonitoring();
     if (_server == null) {
       return;
     }

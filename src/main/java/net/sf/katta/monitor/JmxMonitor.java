@@ -39,6 +39,9 @@ public class JmxMonitor implements IMonitor {
 
   @Override
   public void startMonitoring(String serverId, ZkClient zkClient, ZkConfiguration zkConfiguration) {
+    if (serverId == null || zkClient == null || zkConfiguration == null) {
+      throw new IllegalArgumentException("parameters can't be null");
+    }
     _serverId = serverId;
     _metricsPath = zkConfiguration.getZKMetricsPathForServer(serverId);
     _zkClient = zkClient;
@@ -117,7 +120,10 @@ public class JmxMonitor implements IMonitor {
         try {
           _zkClient.writeData(_metricsPath, metrics);
         } catch (ZkNoNodeException e) {
-            _zkClient.createEphemeral(_metricsPath, new MetricsRecord(_serverId));
+          _zkClient.createEphemeral(_metricsPath, new MetricsRecord(_serverId));
+        } catch (Exception e) {
+          // this only happens if zk is down
+          LOG.debug("Can't write to zk", e);
         }
         try {
           sleep(500);
