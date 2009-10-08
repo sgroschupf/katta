@@ -1,6 +1,8 @@
 Katta Change Log
 
 katta 0.6-dev
+ fix KATTA-87, adding a first version of the katta.gui
+ fix KATTA-85, upgrade to hadoop 0.20.1 jars  
  fix KATTA-57, Permissions on scripts are now set properly with execute flag set in .tar.gz file
  fix KATTA-48, Index name is now included in IndexMetaData
  fix KATTA-44, Cleaned up ordering of Hits in KattaHitQueue
