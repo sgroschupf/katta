@@ -33,7 +33,6 @@ import java.util.concurrent.TimeoutException;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.RawLocalFileSystem;
 import org.apache.hadoop.io.MapFile;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
@@ -49,12 +48,12 @@ public class MapFileServer implements INodeManaged, IMapFileServer {
   private final static Logger LOG = Logger.getLogger(MapFileServer.class);
 
   private final Configuration _conf = new Configuration();
-  private final FileSystem _fileSystem = new RawLocalFileSystem();
+  private final FileSystem _fileSystem ;
   private final Map<String, MapFile.Reader> _readers = new ConcurrentHashMap<String, MapFile.Reader>();
   private String _nodeName;
 
-  public MapFileServer() {
-    _fileSystem.setConf(_conf);
+  public MapFileServer() throws IOException {
+    _fileSystem = FileSystem.getLocal(_conf);
   }
 
   public long getProtocolVersion(final String protocol, final long clientVersion) throws IOException {
