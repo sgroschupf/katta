@@ -20,7 +20,7 @@
    
 	function renderchart(chartName) 
 	{ 
-		var url = '<g:createLink absolute="true" controller="dashboard" action="getNodeData"/>?nodeName=${node}&chartName='+chartName
+		var url = '<g:createLink controller="dashboard" action="getNodeData"/>?nodeName=${node}&chartName='+chartName
 	    jQuery.get(url, function(strdata, textStatus) 
 	    	 { 
 	    	//alert(strdata);

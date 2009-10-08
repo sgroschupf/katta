@@ -24,7 +24,7 @@
 	function requestValues(node, key) {
 	
     var http_request = false;
-	var url = '<g:createLink absolute="true" controller="dashboard" action="getValues"/>?serverId='+node+'&key='+key+'&'+new Date().getTime(); // timestamp prevents caching in IE
+	var url = '<g:createLink controller="dashboard" action="getValues"/>?serverId='+node+'&key='+key+'&'+new Date().getTime(); // timestamp prevents caching in IE
     if (window.XMLHttpRequest) { // Mozilla, Safari,...
         http_request = new XMLHttpRequest();
         if (http_request.overrideMimeType) {
