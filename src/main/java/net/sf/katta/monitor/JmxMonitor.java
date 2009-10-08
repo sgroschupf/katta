@@ -126,7 +126,7 @@ public class JmxMonitor implements IMonitor {
           LOG.debug("Can't write to zk", e);
         }
         try {
-          sleep(500);
+          sleep(1000);
         } catch (InterruptedException e) {
           LOG.debug("Sleep was interrupted", e);
         }
