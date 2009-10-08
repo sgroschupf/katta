@@ -55,11 +55,27 @@
 		<fail if="tests.failed">Tests failed!</fail>
 	</target>
 
+	
+    <target name="webapp" description="--> builds the Katta web gui, requires grails be installed.">
+    	<property environment="env"/>
+    	<fail message="Grails need be installed and GRAILS_HOME need to be set.">
+	     <condition >
+	       <not>
+	         <isset property="env.GRAILS_HOME"/>
+	       </not>
+	     </condition>
+	   </fail>
+		<echo>Found GRAILS_HOME.</echo>
+    	<exec executable="${env.GRAILS_HOME}/bin/grails"   dir="${basedir}/extras/katta.gui">
+    		<arg line="war"/>
+    	</exec>
+        
+    </target>
 	<!-- ================================================================== -->
 	<!-- Generate a distribution                                            -->
 	<!-- ================================================================== -->
 
-	<target name="dist" depends="jar, doc, checkstyle" description="--> builds the Katta distribution">
+	<target name="dist" depends="jar, doc, checkstyle, webapp" description="--> builds the Katta distribution">
 		<echo>====== Make sure you run 'ant coverage dist' for real distributions ====== </echo>
 		<delete dir="${build.dir.dist}" />
 		<!-- creating a fileset for pulling all libs from ivycache cuz disk space is cheap -->
@@ -103,7 +119,11 @@
 		<copy todir="${build.dir.dist}">
 			<fileset file="${build.dir}/${jar.name}" />
 		</copy>
-
+		<!-- copy webapp-->
+		<copy todir="${build.dir.dist}">
+			<fileset file="${basedir}/extras/katta.gui/katta.gui*.war" />
+		</copy>
+		
 		<!-- copy project jar to dist dir -->
 		<copy todir="${build.dir.dist}">
 			<fileset file="${basedir}/CHANGES.txt" />

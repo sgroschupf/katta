@@ -52,6 +52,7 @@ import net.sf.katta.tool.ZkTool;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.SymlinkResourceLoader;
 import net.sf.katta.util.VersionInfo;
+import net.sf.katta.util.WebApp;
 import net.sf.katta.util.ZkConfiguration;
 import net.sf.katta.util.ZkKattaUtil;
 
@@ -106,6 +107,8 @@ public class Katta {
       final String queryFile = args[7];
       final int count = Integer.parseInt(args[8]);
       startIntegrationTest(nodes, startRate, endRate, step, runTime, indexNames, queryFile, count, configuration);
+    } else if (command.endsWith("startGui")) {
+      startGui(args);
     } else if (command.endsWith("version")) {
       showVersion();
     } else if (command.endsWith("zk")) {
@@ -176,13 +179,13 @@ public class Katta {
           printUsageAndExit();
         }
       } else if (command.endsWith("startMetricsLogger")) {
-        
+
         OutputType type = OutputType.SystemOut;
-        if(args.length > 1 && args[1].equalsIgnoreCase("Log4J")){
+        if (args.length > 1 && args[1].equalsIgnoreCase("Log4J")) {
           type = OutputType.Log4J;
         }
         new MetricLogger(type, zkClient, configuration).join();
-        
+
       } else {
         System.err.println();
         System.err.println("> unknown command: '" + command + "'");
@@ -191,6 +194,26 @@ public class Katta {
       }
       katta.close();
     }
+  }
+
+  private static void startGui(String[] args) throws Exception {
+    int port = 8080;
+    List<String> paths = new ArrayList<String>();
+    paths.add(".");
+    paths.add("./extras/katta.gui");
+
+    if (args.length > 1) {
+      for (int i = 1; i < args.length; i++) {
+        String command = args[i];
+        if (command.equals("-war")) {
+          paths.add(0, args[i + 1]);
+        } else if (command.equals("-port")) {
+          port = Integer.parseInt(args[i + 1]);
+        }
+      }
+    }
+    WebApp app = new WebApp((String[]) paths.toArray(new String[paths.size()]), port);
+    app.startWebServer();
   }
 
   public static void startIntegrationTest(int nodes, int startRate, int endRate, int step, int runTime,
@@ -309,7 +332,7 @@ public class Katta {
     master.start();
     return master;
   }
-  
+
   private static void waitUntilJvmTerminates() {
     // Just wait until the JVM terminates.
     Thread waiter = new Thread() {
@@ -662,9 +685,11 @@ public class Katta {
     System.err
             .println("\tstartLoadTest <nodes> <start-query-rate> <end-query-rate> <step> <test-duration-ms> <index-name> <query-file> <max hits>");
     System.err.println("\t\t\t\tStarts a load test. The query rate is in queries per second.");
-    
-    
-    System.err.println("\tstartMetricsLogger [sys|log4j]\t\tSubscribes to the Metrics updates and logs them to log file or console.");
+
+    System.err
+            .println("\tstartMetricsLogger [sys|log4j]\t\tSubscribes to the Metrics updates and logs them to log file or console.");
+    System.err.println("\tstartGui [-war <pathToWar>] [-port <port>]\t\tStarts the web based katta.gui.");
+
     System.err.println("\tshowStructure [-all]\t\tShows the structure of a Katta installation.");
     System.err.println("\tcheck\t\t\tAnalyze index/shard/node status.");
     System.err.println("\tversion\t\t\tPrint the version.");
