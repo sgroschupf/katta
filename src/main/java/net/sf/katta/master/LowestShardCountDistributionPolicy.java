@@ -30,12 +30,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.log4j.Logger;
 
 /**
- * The {@link #createDistributionPlan} method is called once for each index by
- * the distribute shards thread. The maps currentNode2ShardsMap and
- * currentShard2NodesMap are populated with just that index's shards prior to
- * the call the currentShard2NodesMap is the output, and any changes made there
- * are then made manifest in the cluster.
- * 
+ * This code attempts to select the node that has the fewest shards, to deploy
+ * replicate shards to, and to select the node that has the most shards to
+ * remove excess replicas from.
  */
 public class LowestShardCountDistributionPolicy implements IDeployPolicy {
 
@@ -191,8 +188,8 @@ public class LowestShardCountDistributionPolicy implements IDeployPolicy {
         // This is the lowest weight node, so this shard is either going here,
         // or already present
         toAddBack.add(nodeShards); // remove form the working list, to save
-                                   // later loop work, and add it to the add
-                                   // back list
+        // later loop work, and add it to the add
+        // back list
         ordered.remove();
 
         final boolean nodeContainsShard = assignedNodes.contains(currentNode);
@@ -210,7 +207,7 @@ public class LowestShardCountDistributionPolicy implements IDeployPolicy {
         neededDeployments--;
       }
     } finally { // Put any nodes that were removed form the ordered list back,
-                // this automatically re-orders the list as well
+      // this automatically re-orders the list as well
       orderedNodes.addAll(toAddBack);
     }
     return neededDeployments;
@@ -238,15 +235,15 @@ public class LowestShardCountDistributionPolicy implements IDeployPolicy {
         HashSet<String> nodeNameMap = new HashSet<String>(nodeNames);
 
         toAddBack.add(nodeShards); // remove form the working list, to save
-                                   // later loop work, and add it to the add
-                                   // back list
+        // later loop work, and add it to the add
+        // back list
         ordered.remove();
 
         final String testNode = nodeShards.getKey();
 
         if (!nodeNameMap.contains(testNode)) {
           continue; // doesn't contain one of our items, remove from the working
-                    // set and try the next most loaded node
+          // set and try the next most loaded node
         }
         // This node contains our shard and is the most loaded (by shard count)
         if (LOG.isDebugEnabled()) {
