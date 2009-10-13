@@ -15,7 +15,6 @@
  */
 package net.sf.katta;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
@@ -36,7 +35,6 @@ import net.sf.katta.index.IndexMetaData;
 import net.sf.katta.index.ShardError;
 import net.sf.katta.index.IndexMetaData.IndexState;
 import net.sf.katta.index.indexer.SampleIndexGenerator;
-import net.sf.katta.index.indexer.merge.IndexMergeApplication;
 import net.sf.katta.master.Master;
 import net.sf.katta.monitor.MetricLogger;
 import net.sf.katta.monitor.MetricLogger.OutputType;
@@ -50,7 +48,6 @@ import net.sf.katta.node.Query;
 import net.sf.katta.node.Node.NodeState;
 import net.sf.katta.tool.ZkTool;
 import net.sf.katta.util.KattaException;
-import net.sf.katta.util.SymlinkResourceLoader;
 import net.sf.katta.util.VersionInfo;
 import net.sf.katta.util.WebApp;
 import net.sf.katta.util.ZkConfiguration;
@@ -148,8 +145,6 @@ public class Katta {
         katta.setState(args[1], args[2], zkClient, configuration);
       } else if (command.endsWith("removeIndex")) {
         katta.removeIndex(args[1]);
-      } else if (command.endsWith("mergeIndexes") || command.endsWith("mergeIndices")) {
-        katta.mergeIndexes(zkClient, args);
       } else if (command.endsWith("listIndexes") || command.endsWith("listIndices")) {
         boolean detailedView = false;
         for (String arg : args) {
@@ -609,36 +604,6 @@ public class Katta {
     }
   }
 
-  @Deprecated
-  // TODO we should remove the index merging functionality
-  private void mergeIndexes(ZkClient zkClient, String... args) throws Exception {
-    String[] indexesToMerge = new String[0];
-    File hadoopSiteXml = null;
-    for (int i = 0; i < args.length; i++) {
-      if (args[i].equals("-indexes")) {
-        indexesToMerge = args[i + 1].split(",");
-      } else if (args[i].equals("-hadoopSiteXml")) {
-        hadoopSiteXml = new File(args[i + 1]);
-      }
-    }
-    if (hadoopSiteXml != null) {
-      if (!hadoopSiteXml.exists()) {
-        throw new IllegalArgumentException("given hadoop-site.xml '" + hadoopSiteXml.getAbsolutePath()
-                + "' does not exists");
-      }
-      ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
-      SymlinkResourceLoader classLoader = new SymlinkResourceLoader(contextClassLoader, "hadoop-site.xml",
-              hadoopSiteXml);
-      Thread.currentThread().setContextClassLoader(classLoader);
-    }
-    IndexMergeApplication indexMergeApplication = new IndexMergeApplication(zkClient);
-    if (indexesToMerge.length == 0) {
-      indexMergeApplication.mergeDeployedIndices();
-    } else {
-      indexMergeApplication.merge(indexesToMerge);
-    }
-  }
-
   public static void search(final String[] indexNames, final String queryString, final int count) throws KattaException {
     final ILuceneClient client = new LuceneClient();
     final IQuery query = new Query(queryString);
@@ -698,8 +663,6 @@ public class Katta {
     System.err.println("\tremoveIndex <index name>\tRemove a index from a Katta installation.");
     System.err.println("\tsetState <index name> <state>\tOverwrite the state of an index.");
     System.err.println("\tredeployIndex <index name>\tUndeploys and deploys an index.");
-    System.err
-            .println("\tmergeIndexes [-indexes <index1,index2>] [-hadoopSiteXml <siteXmlPath>]\tmerges all or the specified indexes.");
     System.err.println("\tlistErrors <index name>\t\tLists all deploy errors for a specified index.");
     System.err.println("\tsearch <index name>[,<index name>,...] \"<query>\" [count]\tSearch in supplied indexes. "
             + "The query should be in \". If you supply a result count hit details will be printed. "
