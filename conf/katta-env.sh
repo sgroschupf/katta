@@ -26,7 +26,7 @@
 # File naming remote node hosts.  $KATTA_HOME/conf/nodes by default.
 # export KATTA_NODES=${KATTA_HOME}/conf/nodes
 
-# host:path where hadoop code should be rsync'd from.  Unset by default.
+# host:path where katta code should be rsync'd from.  Unset by default.
 # export KATTA_MASTER=master:/home/$USER/src/katta-version
 
 # Seconds to sleep between node commands.  Unset by default.  This
@@ -35,9 +35,9 @@
 # export KATTA_NODE_SLEEP=0.1
 
 # The directory where pid files are stored. /tmp by default.
-# export KATTA_PID_DIR=/var/hadoop/pids
+# export KATTA_PID_DIR=/var/katta/pids
 
-# A string representing this instance of hadoop. $USER by default.
+# A string representing this instance of katta. $USER by default.
 # export KATTA_IDENT_STRING=$USER
 
 # The scheduling priority for daemon processes.  See 'man nice'.
