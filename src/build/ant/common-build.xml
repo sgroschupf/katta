@@ -178,7 +178,9 @@
 		</exec>
 		<echo>Reversion: ${build.current.revision}</echo>
 
-		<jar jarfile="${build.dir}/${jar.name}" basedir="${build.dir.main-classes}">
+		<jar jarfile="${build.dir}/${jar.name}" >
+			<fileset dir="${build.dir.main-classes}"/>
+			<fileset dir="${main.src.dir}" includes="**/*.java"/>
 			<manifest>
 				<section name="net/sf/katta">
 					<attribute name="Implementation-Vendor" value="101tec inc" />
