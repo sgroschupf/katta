@@ -19,6 +19,7 @@ import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FilenameFilter;
 import java.io.IOException;
@@ -57,14 +58,72 @@ public class FileUtil {
    * first level folder of the zip content is removed.
    */
   public static void unzip(final File sourceZip, final File targetFolder) {
+    FileInputStream fis = null;
     try {
-      targetFolder.mkdirs();
-      BufferedOutputStream dest = null;
-      final FileInputStream fis = new FileInputStream(sourceZip);
+      fis = new FileInputStream(sourceZip);
       final ZipInputStream zis = new ZipInputStream(new BufferedInputStream(fis));
+      LOG.debug("Extracting zip file '" + sourceZip.getAbsolutePath() + "' to '" + targetFolder + "'");
+      unzip(zis, targetFolder);
+    } catch (final Exception e) {
+      throw new RuntimeException("unable to expand upgrade files for " + sourceZip + " to " + targetFolder, e);
+    } finally {
+      if (fis!=null) { try { fis.close(); } catch (Exception ignore) {} }
+    }
+  }
+  
+  /**
+   * Simply unzips the content from the source zip to the target folder. The
+   * first level folder of the zip content is removed.
+   * 
+   * @param sourceZip the path to the source zip file, hadoop's IO services are used to open this path
+   * @param targetFolder The directory that the zip file will be unpacked into
+   * @param fileSystem the hadoop file system object to use to open <code>sourceZip</code>
+   * @param localSpool If true, the zip file is copied to the local file system before being unzipped. The name used is <code>targetFolder.zip</code>. If false, the unzip is streamed.
+   * 
+   */
+  public static void unzip(final Path sourceZip, final File targetFolder, final FileSystem fileSystem, final boolean localSpool) {
+    try {
+      if (localSpool) {
+        targetFolder.mkdirs();
+        final File shardZipLocal = new File(targetFolder + ".zip");
+        if (shardZipLocal.exists()) {
+          // make sure we overwrite cleanly
+          shardZipLocal.delete();
+        }
+        try {
+          fileSystem.copyToLocalFile(sourceZip, new Path(shardZipLocal.getAbsolutePath()));
+          FileUtil.unzip(shardZipLocal, targetFolder);
+        } finally {
+          shardZipLocal.delete();
+        }
+      } else {
+        FSDataInputStream fis = fileSystem.open(sourceZip);
+        try {
+          ZipInputStream zis = new ZipInputStream(fis);
+          unzip(zis, targetFolder);
+        } finally {
+          if (fis!=null) { try { fis.close(); } catch (Exception ignore) {} }
+        }
+      }
+    } catch(IOException e) {
+      throw new RuntimeException("unable to expand upgrade files for " + sourceZip + " to " + targetFolder, e);
+    }
+    
+  }
+
+  /** Unpack a zip stream to a directory usually called by {@link #unzip(File, File)} or {@link #unzip(Path, File, FileSystem, boolean).
+   * 
+   * @param zis Zip data strip to unpack
+   * @param targetFolder The folder to unpack to. This directory and path is created if needed.
+   * @throws IOException If there is an error.
+   */
+  public static void unzip(final ZipInputStream zis, final File targetFolder) throws IOException {
       ZipEntry entry;
+      BufferedOutputStream dest = null;
+
+      targetFolder.mkdirs();
       while ((entry = zis.getNextEntry()) != null) {
-        LOG.debug("Extracting:   " + entry + " from '" + sourceZip.getAbsolutePath() + "'");
+        LOG.debug("Extracting:   " + entry);
         // we need to remove the first element of the path since the
         // folder was compressed but we only want the folders content
         final String entryPath = entry.getName();
@@ -85,10 +144,7 @@ public class FileUtil {
           dest.close();
         }
       }
-      zis.close();
-    } catch (final Exception e) {
-      throw new RuntimeException("unable to expand upgrade files", e);
-    }
+
   }
 
   public static void zip(final File inputFolder, final File outputFile) throws IOException {

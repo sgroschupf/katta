@@ -137,9 +137,9 @@ public class Node implements IZkStateListener {
     _timer = new Timer("QueryCounter", true);
     _timer.schedule(new StatusUpdater(), new Date(), 60 * 1000);
   }
-  
+
   private void startMonitor(String nodeName, ZkClient zkClient, NodeConfiguration conf, ZkConfiguration zkConf) {
-    if(LOG.isTraceEnabled()){
+    if (LOG.isTraceEnabled()) {
       LOG.trace("starting node monitor");
     }
     String monitorClass = conf.getMonitorClass();
@@ -295,7 +295,9 @@ public class Node implements IZkStateListener {
   /*
    * Loads a shard from the given URI. The uri is handled bye the hadoop file
    * system. So all hadoop support file systems can be used, like local hdfs s3
-   * etc. In case the shard is compressed we also unzip the content.
+   * etc. In case the shard is compressed we also unzip the content. If the
+   * system property katta.spool.zip.shards is true, the zip file is staged to
+   * the local disk before being unzipped.
    */
   private void installShard(AssignedShard shard, File localShardFolder) throws KattaException {
     final String shardPath = shard.getShardPath();
@@ -312,24 +314,21 @@ public class Node implements IZkStateListener {
         boolean isZip = fileSystem.isFile(path) && shardPath.endsWith(".zip");
 
         File shardTmpFolder = new File(localShardFolder.getAbsolutePath() + "_tmp");
-        // we download extract first to tmp dir in case something went wrong
-        FileUtil.deleteFolder(localShardFolder);
-        FileUtil.deleteFolder(shardTmpFolder);
+        try {
+          FileUtil.deleteFolder(localShardFolder);
+          FileUtil.deleteFolder(shardTmpFolder);
 
-        if (isZip) {
-          final File shardZipLocal = new File(_shardsFolder, shardName + ".zip");
-          if (shardZipLocal.exists()) {
-            // make sure we overwrite cleanly
-            shardZipLocal.delete();
+          if (isZip) {
+            FileUtil.unzip(path, shardTmpFolder, fileSystem, System.getProperty("katta.spool.zip.shards", "false")
+                    .equalsIgnoreCase("true"));
+          } else {
+            fileSystem.copyToLocalFile(path, new Path(shardTmpFolder.getAbsolutePath()));
           }
-          fileSystem.copyToLocalFile(path, new Path(shardZipLocal.getAbsolutePath()));
-          FileUtil.unzip(shardZipLocal, shardTmpFolder);
-          shardZipLocal.delete();
-        } else {
-          fileSystem.copyToLocalFile(path, new Path(shardTmpFolder.getAbsolutePath()));
+          shardTmpFolder.renameTo(localShardFolder);
+        } finally {
+          // Ensure that the tmp folder is deleted on an error
+          FileUtil.deleteFolder(shardTmpFolder);
         }
-        shardTmpFolder.renameTo(localShardFolder);
-
         // Looks like we were successful.
         if (i > 0) {
           LOG.error("Loaded shard:" + shard);
