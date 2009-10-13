@@ -77,6 +77,7 @@
 
 	<target name="dist" depends="jar, doc, checkstyle, webapp" description="--> builds the Katta distribution">
 		<echo>====== Make sure you run 'ant coverage dist' for real distributions ====== </echo>
+		<defaultexcludes add="**/.git/**,**/.gitignore"/>
 		<delete dir="${build.dir.dist}" />
 		<!-- creating a fileset for pulling all libs from ivycache cuz disk space is cheap -->
 		<ivy:cachefileset conf="compile" setid="libs" />
@@ -90,10 +91,11 @@
 		<mkdir dir="${build.dir.dist}/docs/reports" />
 		<mkdir dir="${build.dir.dist}/lib" />
 		<mkdir dir="${build.dir.dist}/src" />
+		<mkdir dir="${build.dir.dist}/extras" />
 
 		<!-- copy launch script to target -->
 		<copy todir="${build.dir.dist}/bin">
-			<fileset dir="${basedir}/bin" />
+			<fileset dir="${basedir}/bin"/>
 		</copy>
 		<!-- copy  conf to target dir  -->
 		<copy todir="${build.dir.dist}/conf">
@@ -123,6 +125,10 @@
 		<copy todir="${build.dir.dist}">
 			<fileset file="${basedir}/extras/katta.gui/katta.gui*.war" />
 		</copy>
+		<!-- copy extras-->
+		<copy todir="${build.dir.dist}/extras">
+			<fileset dir="${basedir}/extras" excludes="**/katta.gui/**"/>
+		</copy>
 		
 		<!-- copy project jar to dist dir -->
 		<copy todir="${build.dir.dist}">
@@ -130,7 +136,8 @@
 			<fileset file="${basedir}/LICENSE.txt" />
 			<fileset file="${basedir}/README.txt" />
 		</copy>
-
+		<!-- clean up all .git folders -->
+	
 		<tar longfile="gnu" compression="gzip" destfile="${build.release.file}" >
 			<tarfileset dir="${build.dir.dist}" prefix="${name}-${version}" excludes="**/*.sh" />
 			<tarfileset dir="${build.dir.dist}" prefix="${name}-${version}" mode="775" includes="**/*.sh"/>
