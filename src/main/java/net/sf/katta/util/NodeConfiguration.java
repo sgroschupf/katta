@@ -26,6 +26,10 @@ public class NodeConfiguration extends KattaConfiguration {
   public NodeConfiguration() {
     super("/katta.node.properties");
   }
+  
+  public NodeConfiguration(File file) {
+    super(file);
+  }
 
   public int getStartPort() {
     return getInt(NODE_SERVER_PORT_START);

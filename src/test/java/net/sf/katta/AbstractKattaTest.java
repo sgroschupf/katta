@@ -26,6 +26,7 @@ import net.sf.katta.testutil.ExtendedTestCase;
 import net.sf.katta.testutil.TestUtil;
 import net.sf.katta.util.FileUtil;
 import net.sf.katta.util.KattaException;
+import net.sf.katta.util.MasterConfiguration;
 import net.sf.katta.util.NetworkUtil;
 import net.sf.katta.util.NodeConfiguration;
 import net.sf.katta.util.ZkConfiguration;
@@ -44,9 +45,18 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
   protected static ZkServer _zkServer;
   protected final ZkConfiguration _conf;
   private final boolean _resetZkNamespaceBetweenTests;
+  protected File nodeConfFile;
+  protected NodeConfiguration nodeConf;
+
 
   public AbstractKattaTest() {
     this(true);
+  }
+
+  
+  public AbstractKattaTest(ZkConfiguration conf, boolean resetZkNamespaceBetweenTests) {
+    _conf = conf;
+    _resetZkNamespaceBetweenTests = resetZkNamespaceBetweenTests;
   }
 
   public AbstractKattaTest(boolean resetZkNamespaceBetweenTests) {
@@ -114,10 +124,16 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
     // subclasses may override
   }
 
-  protected static void cleanZookeeperData(final ZkConfiguration configuration) {
+  protected void cleanZookeeperData(final ZkConfiguration configuration) {
     String dataDir = configuration.getZKDataDir();
     String dataLogDir = configuration.getZKDataLogDir();
-    File shardFolder = new NodeConfiguration().getShardFolder();
+    NodeConfiguration nodeConf = null;
+    if (nodeConfFile == null) {
+      nodeConf = new NodeConfiguration();
+    } else {
+      nodeConf = new NodeConfiguration(nodeConfFile);
+    }
+    File shardFolder = nodeConf.getShardFolder();
     FileUtil.deleteFolder(new File(dataDir));
     FileUtil.deleteFolder(new File(dataLogDir));
     FileUtil.deleteFolder(shardFolder);
@@ -162,27 +178,47 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
   protected MasterStartThread startMaster() throws KattaException {
     return startMaster(_conf);
   }
-
+  
   protected MasterStartThread startMaster(ZkConfiguration conf) throws KattaException {
-    Master master = new Master(conf, _zkServer.getZkClient(), false);
+    return startMaster(conf, new MasterConfiguration());
+  }
+  
+  protected MasterStartThread startMaster(ZkConfiguration conf, MasterConfiguration masterConf) throws KattaException {
+    Master master = new Master(conf, _zkServer.getZkClient(), false, masterConf);
     MasterStartThread masterStartThread = new MasterStartThread(master, _zkServer.getZkClient());
     masterStartThread.start();
     return masterStartThread;
   }
 
   protected NodeStartThread startNode(INodeManaged server) {
-    return startNode(server, new NodeConfiguration().getShardFolder().getAbsolutePath());
+    if (nodeConf == null) {
+      nodeConf = new NodeConfiguration();
+    }
+    return startNode(server, nodeConf.getShardFolder().getAbsolutePath());
   }
 
   protected NodeStartThread startNode(INodeManaged server, int port) {
-    return startNode(server, port, new NodeConfiguration().getShardFolder().getAbsolutePath());
+    if (nodeConf == null) {
+      nodeConf = new NodeConfiguration();
+    }
+    return startNode(server, port, nodeConf.getShardFolder().getAbsolutePath());
   }
 
   protected NodeStartThread startNode(INodeManaged server, String shardFolder) {
-    NodeConfiguration nodeConf = new NodeConfiguration();
+    if (nodeConf == null) {
+      nodeConf = new NodeConfiguration();
+    }
     return startNode(server, nodeConf.getStartPort(), shardFolder);
   }
-
+  
+  protected NodeStartThread startNode(INodeManaged server, NodeConfiguration nodeConf, ZkConfiguration conf) {
+    ZkClient zkNodeClient = ZkKattaUtil.startZkClient(conf, 30000);
+    Node node = new Node(conf, zkNodeClient, nodeConf, server);
+    NodeStartThread nodeStartThread = new NodeStartThread(node);
+    nodeStartThread.start();
+    return nodeStartThread;
+  }
+  
   protected NodeStartThread startNode(INodeManaged server, int port, String shardFolder) {
     return startNode(server, port, shardFolder, _conf);
   }
@@ -247,7 +283,7 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
     assertEquals(nodeCount, masterThread.getMaster().getNodes().size());
   }
 
-  protected class MasterStartThread extends Thread {
+  public class MasterStartThread extends Thread {
 
     private final Master _master;
     private final ZkClient _zkMasterClient;
@@ -281,7 +317,7 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
     }
   }
 
-  protected class NodeStartThread extends Thread {
+  public class NodeStartThread extends Thread {
 
     private final Node _node;
 

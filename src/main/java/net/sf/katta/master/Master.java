@@ -62,9 +62,14 @@ public class Master implements IZkStateListener {
   private ZkServer _zkServer;
 
   private boolean _shutdownClient;
-
+  
   @SuppressWarnings("unchecked")
   public Master(ZkConfiguration conf, ZkClient zkClient, boolean shutdownClient) throws KattaException {
+    this(conf, zkClient, shutdownClient, new MasterConfiguration());
+  }
+  
+  @SuppressWarnings("unchecked")
+  public Master(ZkConfiguration conf, ZkClient zkClient, boolean shutdownClient, MasterConfiguration masterConfiguration) throws KattaException {
     _masterName = NetworkUtil.getLocalhostName() + "_" + UUID.randomUUID().toString();
     _indexListener = new IndexListener();
     _nodeListener = new NodeListener();
@@ -76,7 +81,7 @@ public class Master implements IZkStateListener {
     }
     _zkClient = zkClient;
     _zkClient.subscribeStateChanges(this);
-    final MasterConfiguration masterConfiguration = new MasterConfiguration();
+    //final MasterConfiguration masterConfiguration = new MasterConfiguration();
     final String deployPolicyClassName = masterConfiguration.getDeployPolicy();
     IDeployPolicy deployPolicy;
     try {

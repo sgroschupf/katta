@@ -15,6 +15,8 @@
  */
 package net.sf.katta.util;
 
+import java.io.File;
+
 public class MasterConfiguration extends KattaConfiguration {
 
   public final static String DEPLOY_POLICY = "master.deploy.policy";
@@ -22,6 +24,10 @@ public class MasterConfiguration extends KattaConfiguration {
 
   public MasterConfiguration() {
     super("/katta.master.properties");
+  }
+  
+  public MasterConfiguration(File file) {
+    super(file);
   }
 
   public String getDeployPolicy() {
