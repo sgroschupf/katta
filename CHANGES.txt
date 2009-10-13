@@ -1,6 +1,7 @@
 Katta Change Log
 
 katta 0.6-dev
+ fix KATTA-75, tarbomb: Katta 0.5.1 release tarball expands in place
  fix KATTA-80, Configuration loading from files from Jason Rutherglen
  fix KATTA-56, fixing a comment refering to hadoop instead to katta
  fix KATTA-86, sources should be in jar as well.

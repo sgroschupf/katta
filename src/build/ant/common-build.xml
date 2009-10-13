@@ -94,7 +94,7 @@
 
 		<ivy:cachepath pathid="test.path.id" conf="test" />
 		<ivy:cachepath pathid="instrument.path.id" conf="instrument" />
-		<junit showoutput="false" printsummary="yes" haltonfailure="no" forkmode="perTest" maxmemory="256m" dir="${basedir}" errorProperty="tests.failed" failureProperty="tests.failed">
+		<junit showoutput="false" printsummary="yes" haltonfailure="yes" forkmode="perTest" maxmemory="256m" dir="${basedir}" errorProperty="tests.failed" failureProperty="tests.failed">
 			<sysproperty key="net.sourceforge.cobertura.datafile" file="${reports.dir}/katta_coverage.ser" />
 			<classpath>
 				<pathelement location="${instrumented.dir}" />

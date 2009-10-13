@@ -131,9 +131,9 @@
 			<fileset file="${basedir}/README.txt" />
 		</copy>
 
-		<tar longfile="gnu" compression="gzip" destfile="${build.release.file}">
-			<tarfileset dir="${build.dir.dist}" excludes="**/*.sh" />
-			<tarfileset dir="${build.dir.dist}" mode="775" includes="**/*.sh"/>
+		<tar longfile="gnu" compression="gzip" destfile="${build.release.file}" >
+			<tarfileset dir="${build.dir.dist}" prefix="${name}-${version}" excludes="**/*.sh" />
+			<tarfileset dir="${build.dir.dist}" prefix="${name}-${version}" mode="775" includes="**/*.sh"/>
 		</tar>
 	</target>
 
