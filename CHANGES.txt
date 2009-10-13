@@ -1,6 +1,7 @@
 Katta Change Log
 
 katta 0.6-dev
+ fix KATTA-56, fixing a comment refering to hadoop instead to katta
  fix KATTA-86, sources should be in jar as well.
  fix KATTA-77, removing indexer and merging code, since it is obsolete. Indexer sample code can be find in the extras/indexer folder. Instead of merging indexes we recommend to reindex the complete data set.
  fix KATTA-84, adding decompressing during download without storing it on the hdd - from Jason Venner
