@@ -1,5 +1,6 @@
 <project name="katta-indexing-sample">
-	<property name="root.dir" value="../../" />
+	<property name="root.dir" value="${basedir}/../../" />
 	<import file="../../src/build/ant/common-build.xml" />
+	<property file="../../src/build/ant/build.properties" />
 	<property file="build.properties" />
 </project>
