@@ -30,6 +30,7 @@
 
 usage="Usage: katta-daemon.sh [--config confdir] (start|stop) <katta-command> <args...>"
 
+unset CDPATH
 # if no args specified, show usage
 if [ $# -le 1 ]; then
   echo $usage

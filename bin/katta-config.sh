@@ -19,6 +19,7 @@
 
 # resolve links - $0 may be a softlink
 
+unset CDPATH
 this="$0"
 while [ -h "$this" ]; do
   ls=`ls -ld "$this"`

@@ -18,6 +18,7 @@
 
 # Start all katta daemons.  Run this on master node.
 
+unset CDPATH
 bin=`dirname "$0"`
 bin=`cd "$bin"; pwd`
 

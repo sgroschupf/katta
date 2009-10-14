@@ -1,6 +1,7 @@
 Katta Change Log
 
 katta 0.6-dev
+ fix KATTA-73, CDPATH environment variable causes bin scripts to fail. 
  fix KATTA-74, upgrading dependencies for extras/indexer
  fix KATTA-55, adding /extras to the distribution
  fix KATTA-75, tarbomb: Katta 0.5.1 release tarball expands in place

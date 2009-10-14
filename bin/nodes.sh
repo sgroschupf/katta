@@ -29,6 +29,7 @@
 
 usage="Usage: nodes.sh [--start-node <start>] [--num-nodes <num>] [--config <confdir>] command..."
 
+unset CDPATH
 # if no args specified, show usage
 if [ $# -le 0 ]; then
   echo $usage

@@ -20,6 +20,7 @@
 
 usage="Usage: start-bench.sh <num-test-clients>"
 
+unset CDPATH
 # if no args specified, show usage
 if [ $# -le 0 ]; then
   echo $usage

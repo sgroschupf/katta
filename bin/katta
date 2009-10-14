@@ -34,6 +34,7 @@
 #   KATTA_ROOT_LOGGER The root appender. Default is INFO,console
 #
 
+unset CDPATH
 bin=`dirname "$0"`
 bin=`cd "$bin"; pwd`
 
