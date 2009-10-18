@@ -261,13 +261,14 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
     assertEquals(childCount, client.getChildren(path).size());
   }
 
-  protected void waitOnLeaveSafeMode(Master master) {
-    long startWait = System.currentTimeMillis();
-    while (master.isInSafeMode()) {
-      if (System.currentTimeMillis() - startWait > 1000 * 60) {
-        break;
+  protected void waitOnLeaveSafeMode(final Master master) throws Exception {
+    TestUtil.waitUntil(false, new Callable<Boolean>() {
+      @Override
+      public Boolean call() throws Exception {
+        return master.isInSafeMode();
       }
-    }
+    }, TimeUnit.SECONDS, 60);
+ 
     assertEquals(false, master.isInSafeMode());
   }
 
