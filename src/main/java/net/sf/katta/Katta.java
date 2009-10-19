@@ -42,6 +42,7 @@ import net.sf.katta.node.Hit;
 import net.sf.katta.node.Hits;
 import net.sf.katta.node.INodeManaged;
 import net.sf.katta.node.IQuery;
+import net.sf.katta.node.LuceneServer;
 import net.sf.katta.node.Node;
 import net.sf.katta.node.NodeMetaData;
 import net.sf.katta.node.Query;
@@ -353,7 +354,7 @@ public class Katta {
     INodeManaged server = null;
     try {
       if (serverClassName == null) {
-        serverClassName = "net.sf.katta.node.LuceneServer";
+        serverClassName = LuceneServer.class.getName();
       }
       Class<?> serverClass = Katta.class.getClassLoader().loadClass(serverClassName);
       if (!INodeManaged.class.isAssignableFrom(serverClass)) {

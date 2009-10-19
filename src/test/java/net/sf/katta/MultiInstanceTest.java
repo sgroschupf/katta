@@ -22,7 +22,6 @@ import java.util.List;
 import java.util.Random;
 
 import net.sf.katta.client.DeployClient;
-import net.sf.katta.client.IDeployClient;
 import net.sf.katta.client.IIndexDeployFuture;
 import net.sf.katta.master.Master;
 import net.sf.katta.node.Node;
@@ -51,8 +50,6 @@ public class MultiInstanceTest extends AbstractKattaTest {
   private static List<Node> _nodes2 = new ArrayList<Node>();
   private static Master _master1;
   private static Master _master2;
-  private static IDeployClient _deployClient1;
-  private static IDeployClient _deployClient2;
   private static ISleepClient _client1;
   private static ISleepClient _client2;
 
@@ -126,15 +123,15 @@ public class MultiInstanceTest extends AbstractKattaTest {
 
     // Deploy shards to pool1.
     LOG.info("Deploying index 1");
-    _deployClient1 = new DeployClient(masterStartThread1.getZkClient(), conf1);
-    IIndexDeployFuture deployment = _deployClient1.addIndex(INDEX1, TestResources.EMPTY1_INDEX.getAbsolutePath(), 1);
+    DeployClient deployClient1 = new DeployClient(masterStartThread1.getZkClient(), conf1);
+    IIndexDeployFuture deployment = deployClient1.addIndex(INDEX1, TestResources.EMPTY1_INDEX.getAbsolutePath(), 1);
     LOG.info("Joining deployment on " + deployment.getClass().getName());
     deployment.joinDeployment();
 
     // Deploy shards to pool2.
     LOG.info("Deploying index 2");
-    _deployClient2 = new DeployClient(masterStartThread2.getZkClient(), conf2);
-    deployment = _deployClient2.addIndex(INDEX2, TestResources.EMPTY2_INDEX.getAbsolutePath(), 1);
+    DeployClient deployClient2 = new DeployClient(masterStartThread2.getZkClient(), conf2);
+    deployment = deployClient2.addIndex(INDEX2, TestResources.EMPTY2_INDEX.getAbsolutePath(), 1);
     LOG.info("Joining deployment on " + deployment.getClass().getName());
     deployment.joinDeployment();
 

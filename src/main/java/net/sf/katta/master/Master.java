@@ -63,7 +63,6 @@ public class Master implements IZkStateListener {
 
   private boolean _shutdownClient;
   
-  @SuppressWarnings("unchecked")
   public Master(ZkConfiguration conf, ZkClient zkClient, boolean shutdownClient) throws KattaException {
     this(conf, zkClient, shutdownClient, new MasterConfiguration());
   }

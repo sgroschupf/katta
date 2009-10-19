@@ -46,7 +46,7 @@ public interface ILuceneClient {
 
   /**
    * Searches with a given query in the supplied indexes for an almost unlimited
-   * ({@link Integer.MAX_VALUE}) amount of results.
+   * ({@link Integer#MAX_VALUE}) amount of results.
    * 
    * If this method might has poor performance try to limit results with
    * {@link #search(IQuery, String[], int)}.
