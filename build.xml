@@ -149,8 +149,6 @@
 	<!-- ================================================================== -->
 
 	<target name="eclipse" depends="clean-eclipse, install-ivy" description="--> generates the eclipse project files">
-		
-		
 		<ivy:resolve useorigin="true" conf="eclipse, test"/>
 		<ivy:cachepath pathid="eclipse.path.id" conf="eclipse" />
 		<ivy:cachepath pathid="test.path.id" conf="test" />
@@ -184,7 +182,6 @@
 		<concat destfile="${basedir.ivy.instance}/.settings/org.eclipse.jdt.core.prefs" append="true">
 			 <filelist dir="${root.dir}/src/build/eclipse" files="formatter"/>
 		</concat>
-		<replace file="${basedir.ivy.instance}/.settings/org.eclipse.jdt.core.prefs" token="org.eclipse.jdt.core.compiler.compliance=6.0" value="org.eclipse.jdt.core.compiler.compliance=1.6" />
 	</target>
 
 	<target name="clean-eclipse" depends="install-ivy" description="--> cleans the eclipse project files">
