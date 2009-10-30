@@ -78,17 +78,17 @@ public class DefaultNodeSelectionPolicy implements INodeSelectionPolicy {
   
   @Override
   public String toString() {
-    StringBuffer buf = new StringBuffer();
-    buf.append("DefaultNodeSelectionPolicy: ");
+    StringBuilder builder = new StringBuilder();
+    builder.append("DefaultNodeSelectionPolicy: ");
     String sep = "";
     for (Map.Entry<String, CircularList<String>> e : _shardsToNodeMap.entrySet()) {
-      buf.append(sep);
-      buf.append(e.getKey());
-      buf.append(" --> ");
-      buf.append(e.getValue());
+      builder.append(sep);
+      builder.append(e.getKey());
+      builder.append(" --> ");
+      builder.append(e.getValue());
       sep = " ";
     }
-    return buf.toString();
+    return builder.toString();
   }
 
 }
