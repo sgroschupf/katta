@@ -24,14 +24,14 @@ import java.util.Properties;
 
 public class PropertyUtil {
 
-  public static Properties loadProperties(final String path) {
-    final InputStream in = PropertyUtil.class.getResourceAsStream(path);
-    if (in == null) {
+  public static Properties loadProperties(String path) {
+    InputStream inputStream = PropertyUtil.class.getResourceAsStream(path);
+    if (inputStream == null) {
       throw new RuntimeException(path + " not in classpath");
     }
     final Properties properties = new Properties();
     try {
-      properties.load(in);
+      properties.load(inputStream);
       return properties;
     } catch (final IOException e) {
       throw new RuntimeException("unable to load kata.properties", e);
