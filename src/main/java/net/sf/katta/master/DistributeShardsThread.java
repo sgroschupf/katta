@@ -208,8 +208,8 @@ public class DistributeShardsThread extends Thread {
       while (_statusUpdate.lastChangeTimeStamp() + _safeModeMaxTime > System.currentTimeMillis()
               || _statusUpdate.getNodes().isEmpty() || areNodesConnecting(_statusUpdate.getNodes())) {
         LOG.info("SAFE MODE: No nodes available or state unstable within the last " + _safeModeMaxTime + " ms.");
+        _updateLock.lock();
         try {
-          _updateLock.lock();
           _updateLock.getUpdatedCondition().await(_safeModeMaxTime, TimeUnit.MILLISECONDS);
         } finally {
           _updateLock.unlock();
