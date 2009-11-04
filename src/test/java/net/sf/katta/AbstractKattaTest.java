@@ -48,11 +48,9 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
   protected File nodeConfFile;
   protected NodeConfiguration nodeConf;
 
-
   public AbstractKattaTest() {
     this(true);
   }
-
   
   public AbstractKattaTest(ZkConfiguration conf, boolean resetZkNamespaceBetweenTests) {
     _conf = conf;
@@ -270,6 +268,13 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
     }, TimeUnit.SECONDS, 60);
  
     assertEquals(false, master.isInSafeMode());
+  }
+
+  protected Node startNode(MasterStartThread masterStartThread, INodeManaged nodeManaged) throws InterruptedException {
+    NodeStartThread nodeStartThread1 = startNode(nodeManaged);
+    masterStartThread.join();
+    nodeStartThread1.join();
+    return nodeStartThread1.getNode();
   }
 
   protected void waitOnNodes(final MasterStartThread masterThread, int nodeCount) throws Exception {
