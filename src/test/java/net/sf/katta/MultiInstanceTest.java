@@ -33,6 +33,7 @@ import net.sf.katta.util.SleepClient;
 import net.sf.katta.util.SleepServer;
 import net.sf.katta.util.ZkConfiguration;
 
+import org.I0Itec.zkclient.ZkClient;
 import org.apache.log4j.Logger;
 
 /**
@@ -123,17 +124,11 @@ public class MultiInstanceTest extends AbstractKattaTest {
 
     // Deploy shards to pool1.
     LOG.info("Deploying index 1");
-    DeployClient deployClient1 = new DeployClient(masterStartThread1.getZkClient(), conf1);
-    IIndexDeployFuture deployment = deployClient1.addIndex(INDEX1, TestResources.EMPTY1_INDEX.getAbsolutePath(), 1);
-    LOG.info("Joining deployment on " + deployment.getClass().getName());
-    deployment.joinDeployment();
+    deployIndex(conf1, masterStartThread1.getZkClient(), INDEX1, TestResources.EMPTY1_INDEX);
 
     // Deploy shards to pool2.
     LOG.info("Deploying index 2");
-    DeployClient deployClient2 = new DeployClient(masterStartThread2.getZkClient(), conf2);
-    deployment = deployClient2.addIndex(INDEX2, TestResources.EMPTY2_INDEX.getAbsolutePath(), 1);
-    LOG.info("Joining deployment on " + deployment.getClass().getName());
-    deployment.joinDeployment();
+    deployIndex(conf2, masterStartThread2.getZkClient(), INDEX2, TestResources.EMPTY2_INDEX);
 
     // Verify setup.
     // LOG.info("\n\nPOOL 1 STRUCTURE:\n");
@@ -149,6 +144,13 @@ public class MultiInstanceTest extends AbstractKattaTest {
     LOG.info("Creating clients");
     _client1 = new SleepClient(conf1);
     _client2 = new SleepClient(conf2);
+  }
+
+  private void deployIndex(ZkConfiguration conf1, ZkClient zkClient, String indexName, File index) throws InterruptedException {
+    DeployClient deployClient1 = new DeployClient(zkClient, conf1);
+    IIndexDeployFuture deployment = deployClient1.addIndex(indexName, index.getAbsolutePath(), 1);
+    LOG.info("Joining deployment on " + deployment.getClass().getName());
+    deployment.joinDeployment();
   }
 
   private void setupIndex(File index, int size) {
