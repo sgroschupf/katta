@@ -80,6 +80,7 @@ public class SleepServer implements INodeManaged, ISleepServer {
       try {
         Thread.sleep(msec);
       } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
       }
     }
     return shards != null ? shards.length : 0;
