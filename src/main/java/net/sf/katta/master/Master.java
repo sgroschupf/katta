@@ -117,9 +117,9 @@ public class Master implements IZkStateListener {
       // // it's now safe to create the namespace
       // createDefaultNamespace();
       // }
+      createDefaultNamespace();
       becomeMasterOrSecondaryMaster();
       if (_isMaster) {
-        createDefaultNamespace();
         startNodeManagement();
         startIndexManagement();
         _manageShardThread.start();
