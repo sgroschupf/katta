@@ -24,9 +24,12 @@ import java.util.List;
 import java.util.Vector;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import net.sf.katta.client.lucene.FieldSortComparator;
 import net.sf.katta.util.MergeSort;
+import net.sf.katta.util.WritableType;
 
 import org.apache.hadoop.io.Writable;
+import org.apache.lucene.search.Sort;
 
 public class Hits implements Writable {
 
@@ -91,6 +94,20 @@ public class Hits implements Writable {
 
   public void sort(final int count) {
     sortCollection(count);
+  }
+
+  public void fieldSort(Sort sort, WritableType[] fieldTypes, int count) {
+    // TODO merge sort does not work due KATTA-93
+    final ArrayList<Hit> list = new ArrayList<Hit>(count);
+    final int size = _hitsList.size();
+    for (int i = 0; i < size; i++) {
+      list.addAll(_hitsList.remove(0));
+    }
+    _hitsList = new ArrayList<List<Hit>>();
+    if (!list.isEmpty()) {
+      Collections.sort(list, new FieldSortComparator(sort.getSort(), fieldTypes));
+    }
+    _sortedList = list.subList(0, Math.min(count, list.size()));
   }
 
   @SuppressWarnings("unchecked")

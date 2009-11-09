@@ -32,6 +32,7 @@ import net.sf.katta.node.HitsMapWritable;
 import net.sf.katta.node.ILuceneServer;
 import net.sf.katta.node.IQuery;
 import net.sf.katta.node.QueryWritable;
+import net.sf.katta.node.SortWritable;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.ZkConfiguration;
 
@@ -41,6 +42,7 @@ import org.apache.lucene.analysis.KeywordAnalyzer;
 import org.apache.lucene.queryParser.ParseException;
 import org.apache.lucene.queryParser.QueryParser;
 import org.apache.lucene.search.Query;
+import org.apache.lucene.search.Sort;
 
 /**
  * Default implementation of {@link ILuceneClient}.
@@ -107,6 +109,7 @@ public class LuceneClient implements ILuceneClient {
   }
 
   private static final Method SEARCH_METHOD;
+  private static final Method SORTED_SEARCH_METHOD;
   private static final int SEARCH_METHOD_SHARD_ARG_IDX = 2;
   static {
     try {
@@ -115,12 +118,30 @@ public class LuceneClient implements ILuceneClient {
     } catch (NoSuchMethodException e) {
       throw new RuntimeException("Could not find method search() in ILuceneSearch!");
     }
+    try {
+      SORTED_SEARCH_METHOD = ILuceneServer.class.getMethod("search", new Class[] { QueryWritable.class,
+              DocumentFrequencyWritable.class, String[].class, Integer.TYPE , SortWritable.class});
+    } catch (NoSuchMethodException e) {
+      throw new RuntimeException("Could not find method search() in ILuceneSearch!");
+    }
   }
 
   public Hits search(final Query query, final String[] indexNames, final int count) throws KattaException {
+    return search(query, indexNames, count, null);
+  }
+
+  public Hits search(final Query query, final String[] indexNames, final int count, final Sort sort)
+      throws KattaException {
     final DocumentFrequencyWritable docFreqs = getDocFrequencies(query, indexNames);
-    ClientResult<HitsMapWritable> results = kattaClient.broadcastToIndices(TIMEOUT, true, SEARCH_METHOD,
-            SEARCH_METHOD_SHARD_ARG_IDX, indexNames, new QueryWritable(query), docFreqs, null, Integer.valueOf(count));
+    ClientResult<HitsMapWritable> results;
+    if (sort == null) {
+      results = kattaClient.broadcastToIndices(TIMEOUT, true, SEARCH_METHOD, SEARCH_METHOD_SHARD_ARG_IDX, indexNames,
+          new QueryWritable(query), docFreqs, null, Integer.valueOf(count));
+    } else {
+      results = kattaClient.broadcastToIndices(TIMEOUT, true, SORTED_SEARCH_METHOD, SEARCH_METHOD_SHARD_ARG_IDX,
+          indexNames, new QueryWritable(query), docFreqs, null, Integer.valueOf(count), new SortWritable(sort));
+
+    }
     if (results.isError()) {
       throw results.getKattaException();
     }
@@ -134,13 +155,17 @@ public class LuceneClient implements ILuceneClient {
     if (LOG.isDebugEnabled()) {
       start = System.currentTimeMillis();
     }
-    result.sort(count);
+    if (sort == null) {
+      result.sort(count);
+    } else {
+      result.fieldSort(sort, results.getResults().iterator().next().getSortFieldTypes(), count);
+    }
     if (LOG.isDebugEnabled()) {
       LOG.debug("Time for sorting: " + (System.currentTimeMillis() - start) + " ms");
     }
     return result;
   }
-
+  
   // public int getResultCount(QueryWritable query, String[] shards) throws
   // IOException;
 

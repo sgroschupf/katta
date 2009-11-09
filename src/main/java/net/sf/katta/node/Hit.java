@@ -19,8 +19,11 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
+import net.sf.katta.util.WritableType;
+
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
+import org.apache.hadoop.io.WritableComparable;
 
 /**
  * Note: this class has a natural ordering that is inconsistent with equals.
@@ -37,8 +40,23 @@ public class Hit implements Writable, Comparable<Hit> {
   private float _score;
 
   private int _docId;
+  
+  private WritableComparable[] _sortFields;
 
+  private WritableType[] _sortFieldTypes;
+
+  public Hit() {
+    // needed for serialization
+  }
+  
   public Hit(final String shard, final String node, final float score, final int id) {
+    this(shard, node, score, id, null);
+  }
+
+  /**
+   * Construct a hit object with information about the types of the sort fields.
+   */
+  public Hit(final String shard, final String node, final float score, final int id, WritableType[] sortFieldTypes) {
     _shard = new Text(shard);
     if (node != null) {
       _node = new Text(node);
@@ -47,10 +65,7 @@ public class Hit implements Writable, Comparable<Hit> {
     }
     _score = score;
     _docId = id;
-  }
-
-  public Hit() {
-    // needed for serialization
+    _sortFieldTypes = sortFieldTypes;
   }
 
   // public Hit(Text shardName, Text serverName, float score, int docId) {
@@ -79,6 +94,14 @@ public class Hit implements Writable, Comparable<Hit> {
   public void setDocId(final int docId) {
     _docId = docId;
   }
+  
+  public void setSortFields(WritableComparable[] sortFields) {
+    _sortFields = sortFields;
+  }
+
+  public WritableComparable[] getSortFields() {
+    return _sortFields;
+  }
 
   public void readFields(final DataInput in) throws IOException {
     _score = in.readFloat();
@@ -92,6 +115,14 @@ public class Hit implements Writable, Comparable<Hit> {
     _shard = new Text();
     _shard.readFields(in);
     _docId = in.readInt();
+    byte sortFieldsLen = in.readByte();
+    if (sortFieldsLen > 0) {
+      _sortFields = new WritableComparable[sortFieldsLen];
+      for (int i = 0; i < sortFieldsLen; i++) {
+        _sortFields[i] = _sortFieldTypes[i].newWritableComparable();
+        _sortFields[i].readFields(in);
+      }
+    }
   }
 
   public void write(final DataOutput out) throws IOException {
@@ -104,6 +135,14 @@ public class Hit implements Writable, Comparable<Hit> {
     }
     _shard.write(out);
     out.writeInt(_docId);
+    if (_sortFields == null) {
+      out.writeByte(0);
+    } else {
+      out.writeByte(_sortFields.length);
+      for (Writable writable : _sortFields) {
+        writable.write(out);
+      }
+    }
   }
 
   public int compareTo(final Hit o) {

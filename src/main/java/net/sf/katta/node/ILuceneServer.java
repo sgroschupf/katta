@@ -52,6 +52,20 @@ public interface ILuceneServer extends VersionedProtocol {
       throws IOException;
 
   /**
+   * Sorts the returned hits based on the sort parameter.
+   * 
+   * @param query         The query to run.
+   * @param freqs         Term frequency information for term weighting.
+   * @param shardNames    A array of shard names to search in.
+   * @param count         The top n high score hits.
+   * @param sort          sort criteria for returned hits
+   * @return A list of hits from the search.
+   * @throws IOException     If the search had a problem reading files.
+   */
+  public HitsMapWritable search(QueryWritable query, DocumentFrequencyWritable freqs, String[] shardNames, int count,
+      SortWritable sort) throws IOException;
+  
+  /**
    * Returns the number of documents a term occurs in. In a distributed search
    * environment, we need to get this first and then query all nodes again with
    * this information to ensure we compute TF IDF correctly. See

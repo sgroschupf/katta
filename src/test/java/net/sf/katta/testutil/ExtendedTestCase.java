@@ -20,7 +20,9 @@ import java.io.IOException;
 import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import junit.framework.TestCase;
 import net.sf.katta.util.FileUtil;
@@ -44,6 +46,8 @@ public abstract class ExtendedTestCase extends TestCase {
   private static int _testMethodsLeft = 0;
 
   private Map<String, File> _testName2rootFolder = new HashMap<String, File>();
+
+  private Set<File> _classWideRootFolders = new HashSet<File>();
 
   private int countTestMethods() {
     int testMethodCount = 0;
@@ -93,6 +97,12 @@ public abstract class ExtendedTestCase extends TestCase {
 
   protected void afterClass() throws Exception {
     // subclasses may override
+
+    // TDOD jz: introduce a onAfterClass() method so nobody overwrites this by
+    // accident
+    for (File file : _classWideRootFolders) {
+      FileUtil.deleteFolder(file);
+    }
   }
 
   /**
@@ -102,6 +112,19 @@ public abstract class ExtendedTestCase extends TestCase {
   protected File createFile(String name) {
     File rootFolder = getTmpRootFolder();
     return new File(rootFolder, name);
+  }
+
+  protected File createClassWideFile(String name) {
+    String testName = this.getClass().getSimpleName();
+    try {
+      File rootFolder = File.createTempFile(testName + "_", ".tmp");
+      rootFolder.delete();
+      rootFolder.mkdirs();
+      _classWideRootFolders.add(rootFolder);
+      return new File(rootFolder, name);
+    } catch (IOException e) {
+      throw new RuntimeException("could not create tmp file", e);
+    }
   }
 
   /**
