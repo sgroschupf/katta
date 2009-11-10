@@ -18,7 +18,6 @@ package net.sf.katta;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 import net.sf.katta.client.DefaultNodeSelectionPolicy;
@@ -129,7 +128,7 @@ public class LuceneComplianceTest extends AbstractKattaTest {
   }
 
   public void testFieldSort() throws Exception {
-    // query and compare
+    // query and compare (auto types)
     IndexSearcher indexSearcher = new IndexSearcher(luceneIndex.getAbsolutePath());
     Sort sort = new Sort(new SortField[] { new SortField(FIELD_NAME) });
     checkQueryResults(indexSearcher, kattaIndex.getName(), FIELD_NAME, "0", sort);
@@ -139,6 +138,14 @@ public class LuceneComplianceTest extends AbstractKattaTest {
     checkQueryResults(indexSearcher, kattaIndex.getName(), FIELD_NAME, "23", sort);
     checkQueryResults(indexSearcher, kattaIndex.getName(), FIELD_NAME, "2 23", sort);
     checkQueryResults(indexSearcher, kattaIndex.getName(), FIELD_NAME, "nothing", sort);
+
+    // check for explicit types
+    sort = new Sort(new SortField[] { new SortField(FIELD_NAME, SortField.BYTE) });
+    checkQueryResults(indexSearcher, kattaIndex.getName(), FIELD_NAME, "1", sort);
+    sort = new Sort(new SortField[] { new SortField(FIELD_NAME, SortField.INT) });
+    checkQueryResults(indexSearcher, kattaIndex.getName(), FIELD_NAME, "1", sort);
+    sort = new Sort(new SortField[] { new SortField(FIELD_NAME, SortField.LONG) });
+    checkQueryResults(indexSearcher, kattaIndex.getName(), FIELD_NAME, "1", sort);
   }
 
   private void checkQueryResults(IndexSearcher indexSearcher, String kattaIndexName, String fieldName,
@@ -173,11 +180,9 @@ public class LuceneComplianceTest extends AbstractKattaTest {
         assertEquals(scoreDocs[i].score, hits.get(i).getScore());
       }
     } else {
-      System.err.println("------------------------");
       for (int i = 0; i < scoreDocs.length; i++) {
         Comparable[] luceneFields = ((FieldDoc) scoreDocs[i]).fields;
         WritableComparable[] kattaFields = hits.get(i).getSortFields();
-        System.err.println(Arrays.asList(luceneFields) + " / " + Arrays.asList(kattaFields));
         assertEquals(luceneFields.length, kattaFields.length);
         for (int j = 0; j < luceneFields.length; j++) {
           assertEquals(luceneFields[j].toString(), kattaFields[j].toString());

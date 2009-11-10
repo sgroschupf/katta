@@ -51,10 +51,13 @@ public class FieldSortComparator implements Comparator<Hit> {
     // auto-detected on the node side.
     for (int i = 0; i < sortFields.length; i++) {
       if (_fieldTypes[i] == WritableType.TEXT && sortFields[i].getLocale() != null) {
-        throw new UnsupportedOperationException("locale-sensitive comparison not supported yet");
+        throw new UnsupportedOperationException("locale-sensitive field sort currently not supported");
         // jz: therefore we could use java.text.Collator class (see lucenes
         // FieldSortedHitQueue)
+      } else if (sortFields[i].getType() == SortField.CUSTOM) {
+        throw new UnsupportedOperationException("custom field sort currently not supported");
       }
+
       if (_sortFields[i].getType() == SortField.SCORE) {
         _fieldComparators[i] = REVERSED_COMPARABLE_COMPARATOR;
       } else {

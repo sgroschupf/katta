@@ -15,6 +15,7 @@
  */
 package net.sf.katta.util;
 
+import org.apache.hadoop.io.ByteWritable;
 import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.FloatWritable;
 import org.apache.hadoop.io.IntWritable;
@@ -31,10 +32,12 @@ import org.apache.hadoop.io.WritableComparable;
  */
 public enum WritableType {
 
-  TEXT, INT, LONG, FLOAT, DOUBLE;
+  TEXT, BYTE, INT, LONG, FLOAT, DOUBLE;
 
   public static WritableType detectWritableType(Comparable comparable) {
-    if (comparable instanceof Integer) {
+    if (comparable instanceof Byte) {
+      return WritableType.BYTE;
+    } else if (comparable instanceof Integer) {
       return WritableType.INT;
     } else if (comparable instanceof String) {
       return WritableType.TEXT;
@@ -60,6 +63,8 @@ public enum WritableType {
     switch (this) {
     case TEXT:
       return new Text();
+    case BYTE:
+      return new ByteWritable();
     case INT:
       return new IntWritable();
     case LONG:
@@ -80,6 +85,8 @@ public enum WritableType {
     switch (this) {
     case TEXT:
       return new Text((String) comparable);
+    case BYTE:
+      return new ByteWritable(((Byte) comparable).byteValue());
     case INT:
       return new IntWritable(((Integer) comparable).intValue());
     case LONG:

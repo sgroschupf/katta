@@ -21,6 +21,7 @@ import java.util.List;
 
 import junit.framework.TestCase;
 
+import org.apache.hadoop.io.ByteWritable;
 import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.FloatWritable;
 import org.apache.hadoop.io.IntWritable;
@@ -38,6 +39,7 @@ public class WritableTypeTest extends TestCase {
     // filled corresponding with WritableTypes array
     List<Comparable> comparables = new ArrayList();
     comparables.add("as");
+    comparables.add(new Byte((byte) 3));
     comparables.add(new Integer(3));
     comparables.add(new Long(3));
     comparables.add(new Float(3));
@@ -47,6 +49,7 @@ public class WritableTypeTest extends TestCase {
     // corresponds to the above list
     List<WritableComparable> writableComparables = new ArrayList();
     writableComparables.add(new Text("as"));
+    writableComparables.add(new ByteWritable((byte) 3));
     writableComparables.add(new IntWritable(3));
     writableComparables.add(new LongWritable(3));
     writableComparables.add(new FloatWritable(3));
