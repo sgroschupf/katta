@@ -30,17 +30,17 @@ public class LuceneClientFailoverTest extends AbstractKattaTest {
   private MasterStartThread _masterThread;
   private NodeStartThread _nodeThread1;
   private NodeStartThread _nodeThread2;
-  private String index = "index1";
+  private String _index = "index1";
 
-  static int nodePort1 = 20000;
-  static int nodePort2 = 20001;
+  private static int _nodePort1 = 20000;
+  private static int _nodePort2 = 20001;
   private LuceneClient _searchClient;
 
   @Override
   protected void onSetUp2() throws Exception {
     _masterThread = startMaster();
-    _nodeThread1 = startNode(new LuceneServer(), nodePort1);
-    _nodeThread2 = startNode(new LuceneServer(), nodePort2, "./build/data/LuceneClientFailoverTest/kattaShards2");
+    _nodeThread1 = startNode(new LuceneServer(), _nodePort1);
+    _nodeThread2 = startNode(new LuceneServer(), _nodePort2, "./build/data/LuceneClientFailoverTest/kattaShards2");
 
     _masterThread.join();
     _nodeThread1.join();
@@ -48,7 +48,7 @@ public class LuceneClientFailoverTest extends AbstractKattaTest {
 
     // distribute index over 2 nodes
     Katta katta = new Katta(_conf);
-    katta.addIndex(index, "src/test/testIndexA", 2);
+    katta.addIndex(_index, "src/test/testIndexA", 2);
     katta.close();
   }
 
@@ -63,8 +63,8 @@ public class LuceneClientFailoverTest extends AbstractKattaTest {
     // jz: since hadoop18 the ipc acts a little fragile when starting and
     // stopping ipc-servers rapidly on the same port so we increment port
     // numbers from test to test
-    nodePort1 = nodePort1 + 4;
-    nodePort2 = nodePort2 + 4;
+    _nodePort1 = _nodePort1 + 4;
+    _nodePort2 = _nodePort2 + 4;
   }
 
   public void testSearch_NodeProxyDownAfterClientInitialization() throws Exception {
@@ -76,8 +76,8 @@ public class LuceneClientFailoverTest extends AbstractKattaTest {
 
     final Query query = new Query("content:the");
     System.out.println("=========================");
-    assertSearchResults(10, _searchClient.search(query, new String[] { index }, 10));
-    assertSearchResults(10, _searchClient.search(query, new String[] { index }, 10));
+    assertSearchResults(10, _searchClient.search(query, new String[] { _index }, 10));
+    assertSearchResults(10, _searchClient.search(query, new String[] { _index }, 10));
     // search 2 time to ensure we get all availible nodes
     System.out.println("=========================");
   }
@@ -91,8 +91,8 @@ public class LuceneClientFailoverTest extends AbstractKattaTest {
 
     final Query query = new Query("content:the");
     System.out.println("=========================");
-    assertEquals(937, _searchClient.count(query, new String[] { index }));
-    assertEquals(937, _searchClient.count(query, new String[] { index }));
+    assertEquals(937, _searchClient.count(query, new String[] { _index }));
+    assertEquals(937, _searchClient.count(query, new String[] { _index }));
     // search 2 time to ensure we get all availible nodes
     System.out.println("=========================");
   }
@@ -101,7 +101,7 @@ public class LuceneClientFailoverTest extends AbstractKattaTest {
     // start search client
     _searchClient = new LuceneClient(_conf);
     final Query query = new Query("content:the");
-    Hits hits = _searchClient.search(query, new String[] { index }, 10);
+    Hits hits = _searchClient.search(query, new String[] { _index }, 10);
 
     // shutdown proxy of node1
     System.out.println("=========================");
@@ -125,7 +125,7 @@ public class LuceneClientFailoverTest extends AbstractKattaTest {
 
     System.out.println("=========================");
     try {
-      _searchClient.search(query, new String[] { index }, 10);
+      _searchClient.search(query, new String[] { _index }, 10);
       fail("should throw exception");
     } catch (ShardAccessException e) {
       // expected
@@ -146,7 +146,7 @@ public class LuceneClientFailoverTest extends AbstractKattaTest {
     // simulate 2nd node alive and serving shard
     String node2Name = _nodeThread2.getNode().getName();
     ZkClient zkClient = _masterThread.getZkClient();
-    List<String> shards = zkClient.getChildren(_conf.getZKIndexPath(index));
+    List<String> shards = zkClient.getChildren(_conf.getZKIndexPath(_index));
     zkClient.createPersistent(_conf.getZKNodePath(node2Name));
     for (String shard : shards) {
       zkClient.createPersistent(_conf.getZKShardToNodePath(shard, node2Name));
@@ -155,17 +155,17 @@ public class LuceneClientFailoverTest extends AbstractKattaTest {
 
     _searchClient = new LuceneClient(_conf);
     final Query query = new Query("content:the");
-    assertSearchResults(10, _searchClient.search(query, new String[] { index }, 10));
-    assertSearchResults(10, _searchClient.search(query, new String[] { index }, 10));
+    assertSearchResults(10, _searchClient.search(query, new String[] { _index }, 10));
+    assertSearchResults(10, _searchClient.search(query, new String[] { _index }, 10));
 
     // flip node1/node2 alive status
-    _nodeThread2 = startNode(new LuceneServer(), nodePort2, "./build/data/LuceneClientFailoverTest/kattaShards2");
+    _nodeThread2 = startNode(new LuceneServer(), _nodePort2, "./build/data/LuceneClientFailoverTest/kattaShards2");
     _nodeThread2.join();
     _nodeThread1.shutdown();
     waitOnNodes(_masterThread, 1);
 
     // search again
-    assertSearchResults(10, _searchClient.search(query, new String[] { index }, 10));
+    assertSearchResults(10, _searchClient.search(query, new String[] { _index }, 10));
     _searchClient.close();
   }
 }

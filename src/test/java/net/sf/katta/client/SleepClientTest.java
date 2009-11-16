@@ -50,13 +50,11 @@ public class SleepClientTest extends AbstractKattaTest {
     MasterStartThread masterStartThread = startMaster();
     _master = masterStartThread.getMaster();
 
-    NodeStartThread nodeStartThread1 = startNode(new SleepServer());
-    _node1 = nodeStartThread1.getNode();
-    masterStartThread.join();
-    nodeStartThread1.join();
+    _node1 = startNode(masterStartThread, new SleepServer());
+
     waitOnNodes(masterStartThread, 1);
 
-    _deployClient = new DeployClient(nodeStartThread1.getZkClient(), _conf);
+    _deployClient = new DeployClient(_node1.getZkClient(), _conf);
     _deployClient.addIndex(INDEX1, TestResources.MAP_FILE_A.getAbsolutePath(), 1).joinDeployment();
     _client = new SleepClient(_conf);
   }
