@@ -322,7 +322,7 @@ public class Client implements IShardProxyManager {
     WorkQueue<T> workQueue = new WorkQueue<T>(this, allShards, method, shardArrayParamIndex, args);
 
     for (String node : nodeShardsMap.keySet()) {
-      workQueue.execute(node, nodeShardsMap, 1);
+      workQueue.execute(node, nodeShardsMap, 1, 3);// TODO make maxTryCount configurable
     }
 
     ClientResult<T> results = workQueue.getResults(resultPolicy);

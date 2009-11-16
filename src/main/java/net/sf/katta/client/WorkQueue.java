@@ -43,7 +43,7 @@ class WorkQueue<T> implements INodeExecutor {
 
   public interface INodeInteractionFactory<T> {
     public Runnable createInteraction(Method method, Object[] args, int shardArrayParamIndex, String node,
-            Map<String, List<String>> nodeShardMap, int tryCount, IShardProxyManager shardManager,
+            Map<String, List<String>> nodeShardMap, int tryCount, int maxTryCount,IShardProxyManager shardManager,
             INodeExecutor nodeExecutor, IResultReceiver<T> results);
   }
 
@@ -90,10 +90,10 @@ class WorkQueue<T> implements INodeExecutor {
           Object... args) {
     this(new INodeInteractionFactory<T>() {
       public Runnable createInteraction(Method method, Object[] args, int shardArrayParamIndex, String node,
-              Map<String, List<String>> nodeShardMap, int tryCount, IShardProxyManager shardManager,
-              INodeExecutor nodeExecutor, IResultReceiver<T> results) {
-        return new NodeInteraction<T>(method, args, shardArrayParamIndex, node, nodeShardMap, tryCount, shardManager,
-                nodeExecutor, results);
+          Map<String, List<String>> nodeShardMap, int tryCount, int maxTryCount, IShardProxyManager shardManager,
+          INodeExecutor nodeExecutor, IResultReceiver<T> results) {
+        return new NodeInteraction<T>(method, args, shardArrayParamIndex, node, nodeShardMap, tryCount, maxTryCount,
+            shardManager, nodeExecutor, results);
       }
     }, shardManager, allShards, method, shardArrayParamIndex, args);
   }
@@ -150,15 +150,16 @@ class WorkQueue<T> implements INodeExecutor {
    * @param node The node on which to execute the method.
    * @param nodeShardMap The current node shard map, with failed nodes removed if this is a retry.
    * @param tryCount This call is the Nth retry. Starts at 1.
+   * @param maxTryCount How often the call should be repeated in maximum.
    */
-  public void execute(String node, Map<String, List<String>> nodeShardMap, int tryCount) {
+  public void execute(String node, Map<String, List<String>> nodeShardMap, int tryCount, int maxTryCount) {
     if (!executor.isShutdown() && !results.isClosed()) {
       if (LOG.isTraceEnabled()) {
         LOG.trace(String.format("Creating interaction with %s, will use shards: %s, tryCount=%d (id=%d)", node,
                 nodeShardMap.get(node), tryCount, instanceId));
       }
       Runnable interaction = interactionFactory.createInteraction(method, args, shardArrayParamIndex, node,
-              nodeShardMap, tryCount, shardManager, this, results);
+              nodeShardMap, tryCount, maxTryCount, shardManager, this, results);
       if (interaction != null) {
         try {
           executor.execute(interaction);

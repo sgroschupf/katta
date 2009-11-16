@@ -52,7 +52,7 @@ public class WorkQueueTest extends ExtendedTestCase {
       assertEquals(String.format("WorkQueue[TestServer.doSomething(16) (id=%d)]", i), wq.toString());
       Map<String, List<String>> plan = sm.createNode2ShardsMap(sm.allShards());
       for (String node : plan.keySet()) {
-        wq.execute(node, plan, 1);
+        wq.execute(node, plan, 1, 3);
       }
       ClientResult<Integer> r = wq.getResults(1000);
       int numNodes = plan.keySet().size();
@@ -76,7 +76,7 @@ public class WorkQueueTest extends ExtendedTestCase {
     assertEquals("ClientResult: 0 results, 0 errors, 0/8 shards (closed)", r.toString());
     Map<String, List<String>> plan = sm.createNode2ShardsMap(sm.allShards());
     for (String node : plan.keySet()) {
-      wq.execute(node, plan, 1);
+      wq.execute(node, plan, 1, 3);
     }
     r = wq.getResults(0, false);
     assertEquals("ClientResult: 0 results, 0 errors, 0/8 shards (closed)", r.toString());
@@ -97,7 +97,7 @@ public class WorkQueueTest extends ExtendedTestCase {
     assertEquals("ClientResult: 0 results, 0 errors, 0/8 shards (closed)", r.toString());
     Map<String, List<String>> plan = sm.createNode2ShardsMap(sm.allShards());
     for (String node : plan.keySet()) {
-      wq.execute(node, plan, 1);
+      wq.execute(node, plan, 1, 3);
     }
     r = wq.getResults(0, false);
     assertEquals("ClientResult: 0 results, 0 errors, 0/8 shards (closed)", r.toString());
@@ -113,7 +113,7 @@ public class WorkQueueTest extends ExtendedTestCase {
     WorkQueue<Integer> wq = new WorkQueue<Integer>(factory, sm, sm.allShards(), method, -1, 16);
     Map<String, List<String>> plan = sm.createNode2ShardsMap(sm.allShards());
     for (String node : plan.keySet()) {
-      wq.execute(node, plan, 1);
+      wq.execute(node, plan, 1, 3);
     }
     int numShards = sm.allShards().size();
     long slop = 20;
@@ -241,7 +241,7 @@ public class WorkQueueTest extends ExtendedTestCase {
     }
     System.out.println("Progress:");
     for (String node : plan.keySet()) {
-      wq.execute(node, plan, 1);
+      wq.execute(node, plan, 1, 3);
     }
     double coverage = 0.0;
     do {
@@ -389,7 +389,7 @@ public class WorkQueueTest extends ExtendedTestCase {
     }
 
     public Runnable createInteraction(Method method, final Object[] args, int shardArrayParamIndex, final String node,
-            Map<String, List<String>> nodeShardMap, int tryCount, IShardProxyManager shardManager,
+            Map<String, List<String>> nodeShardMap, int tryCount, int maxTryCount, IShardProxyManager shardManager,
             INodeExecutor nodeExecutor, final IResultReceiver<Integer> results) {
       calls.add(new Entry(node, method, args));
       final long additionalSleepTime2 = additionalSleepTime;
@@ -447,7 +447,7 @@ public class WorkQueueTest extends ExtendedTestCase {
   public static <T> INodeInteractionFactory<T> nullFactory() {
     return new INodeInteractionFactory<T>() {
       public Runnable createInteraction(Method method, Object[] args, int shardArrayParamIndex, String node,
-              Map<String, List<String>> nodeShardMap, int tryCount, IShardProxyManager shardManager,
+              Map<String, List<String>> nodeShardMap, int tryCount, int maxTryCount, IShardProxyManager shardManager,
               INodeExecutor nodeExecutor, IResultReceiver<T> results) {
         return null;
       }

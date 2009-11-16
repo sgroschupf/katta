@@ -28,9 +28,9 @@ import org.apache.log4j.Logger;
 
 /**
  * This class is responsible for calling the sever node via an RPC proxy, and
- * possibly scheduling retires if errors occur. Only 2 retries are attempted (3
- * calls total). With replication level N, there can be at most N-1 retries (N
- * calls total).
+ * possibly scheduling retires if errors occur. Only M-1 retries are attempted,
+ * whereby M is the given maxRetryCount (M calls total). With replication
+ * level N, there can be at most N-1 retries (N calls total).
  */
 class NodeInteraction<T> implements Runnable {
 
@@ -46,10 +46,12 @@ class NodeInteraction<T> implements Runnable {
   private final Map<String, List<String>> _node2ShardsMap;
   private final List<String> _shards;
   private final int _tryCount;
+  private final int _maxTryCount;
   private final INodeExecutor _workQueue;
   private final IShardProxyManager _shardManager;
   private final IResultReceiver<T> _result;
   private final int instanceId = interactionInstanceCounter++;
+
 
   /**
    * Create a node interaction. This will make one call to one node, listing
@@ -79,6 +81,8 @@ class NodeInteraction<T> implements Runnable {
    * @param tryCount
    *          This interaction is the Nth retry (starts at 1). We use this to
    *          decide if we should retry shards.
+   * @param maxTryCount
+   *          The maximum number a interaction is tried to be executed.
    * @param shardManager
    *          Our source of node proxies, and access to a node selection policy
    *          to pick the nodes to use for retires. Also we notify this object
@@ -92,8 +96,8 @@ class NodeInteraction<T> implements Runnable {
    *         retry we write the error to it.
    */
   public NodeInteraction(Method method, Object[] args, int shardArrayIndex, String node,
-          Map<String, List<String>> node2ShardsMap, int tryCount, IShardProxyManager shardManager,
-          INodeExecutor workQueue, IResultReceiver<T> result) {
+      Map<String, List<String>> node2ShardsMap, int tryCount, int maxTryCount, IShardProxyManager shardManager,
+      INodeExecutor workQueue, IResultReceiver<T> result) {
     _method = method;
     // Make a copy in case we will be modifying the shard list.
     _args = Arrays.copyOf(args, args.length);
@@ -102,6 +106,7 @@ class NodeInteraction<T> implements Runnable {
     _node2ShardsMap = node2ShardsMap;
     _shards = node2ShardsMap.get(node);
     _tryCount = tryCount;
+    _maxTryCount = maxTryCount;
     _workQueue = workQueue;
     _shardManager = shardManager;
     _result = result;
@@ -140,9 +145,9 @@ class NodeInteraction<T> implements Runnable {
       }
       _result.addResult(result, _shards);
     } catch (Throwable t) {
-      LOG.error(String.format("Error calling %s (try # %d of 3) (id=%d)", (methodDesc != null ? methodDesc : _method
-              + " on " + _node), _tryCount, instanceId), t);
-      if (_tryCount >= 3) {
+      LOG.error(String.format("Error calling %s (try # %d of %d) (id=%d)", (methodDesc != null ? methodDesc : _method
+          + " on " + _node), _tryCount, _maxTryCount, instanceId), t);
+      if (_tryCount >= _maxTryCount) {
         _result.addError(new KattaException(String.format("%s for shards %s failed (id=%d)",
                 getClass().getSimpleName(), _shards, instanceId), t), _shards);
         return;
@@ -157,7 +162,7 @@ class NodeInteraction<T> implements Runnable {
           Map<String, List<String>> retryMap = _shardManager.createNode2ShardsMap(_node2ShardsMap.get(_node));
           // Execute the action again for every node
           for (String newNode : retryMap.keySet()) {
-            _workQueue.execute(newNode, retryMap, _tryCount + 1);
+            _workQueue.execute(newNode, retryMap, _tryCount + 1, _maxTryCount);
           }
         } catch (ShardAccessException e) {
           // Nothing to do. Report error.

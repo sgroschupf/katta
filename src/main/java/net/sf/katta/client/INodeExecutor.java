@@ -36,8 +36,10 @@ interface INodeExecutor {
    *          depending on errors and errors on retries.
    * @param tryCount
    *          This job would be the Nth retry. Starts at 1. The NodeInteraction
-   *          uses this to decide whether or not to retry (3 tries max).
+   *          uses this to decide whether or not to retry (M tries max).
+   * @param maxTryCount
+   *          The maximum nuber of retries for a given interaction.
    */
-  public void execute(String node, Map<String, List<String>> nodeShardMap, int tryCount);
+  public void execute(String node, Map<String, List<String>> nodeShardMap, int tryCount, int maxTryCount);
 
 }
