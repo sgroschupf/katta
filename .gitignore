@@ -4,3 +4,9 @@ zookeeper-log-data/
 .classpath
 .settings
 build
+extras/katta.gui/bin
+extras/katta.gui/test
+extras/katta.gui/web-app
+prodDb*
+.DS_Store
+stacktrace.log
