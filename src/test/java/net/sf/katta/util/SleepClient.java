@@ -49,6 +49,10 @@ public class SleepClient implements ISleepClient {
   public SleepClient(final INodeSelectionPolicy policy, final ZkConfiguration config) {
     kattaClient = new Client(ISleepServer.class, policy, config);
   }
+  
+  public SleepClient(final INodeSelectionPolicy policy, final ZkConfiguration config, final ClientConfiguration clientConfiguration) {
+    kattaClient = new Client(ISleepServer.class, policy, config, clientConfiguration);
+  }
 
   private static final Method SLEEP_METHOD;
   private static final int SLEEP_METHOD_SHARD_ARG_IDX = 2;

@@ -23,6 +23,7 @@ import net.sf.katta.AbstractKattaTest;
 import net.sf.katta.master.Master;
 import net.sf.katta.node.Node;
 import net.sf.katta.testutil.TestResources;
+import net.sf.katta.util.ClientConfiguration;
 import net.sf.katta.util.ISleepClient;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.SleepClient;
@@ -56,7 +57,7 @@ public class SleepClientTest extends AbstractKattaTest {
 
     _deployClient = new DeployClient(_node1.getZkClient(), _conf);
     _deployClient.addIndex(INDEX1, TestResources.MAP_FILE_A.getAbsolutePath(), 1).joinDeployment();
-    _client = new SleepClient(_conf);
+    _client = new SleepClient(new DefaultNodeSelectionPolicy(), _conf, new ClientConfiguration());
   }
 
   @Override

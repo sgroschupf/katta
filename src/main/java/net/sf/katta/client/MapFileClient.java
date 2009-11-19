@@ -21,6 +21,7 @@ import java.util.List;
 
 import net.sf.katta.node.IMapFileServer;
 import net.sf.katta.node.TextArrayWritable;
+import net.sf.katta.util.ClientConfiguration;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.ZkConfiguration;
 
@@ -47,12 +48,17 @@ public class MapFileClient implements IMapFileClient {
     kattaClient = new Client(IMapFileServer.class);
   }
 
-  public MapFileClient(final ZkConfiguration config) {
-    kattaClient = new Client(IMapFileServer.class, config);
+  public MapFileClient(final ZkConfiguration zkConfig) {
+    kattaClient = new Client(IMapFileServer.class, zkConfig);
   }
 
-  public MapFileClient(final INodeSelectionPolicy policy, final ZkConfiguration config) {
-    kattaClient = new Client(IMapFileServer.class, policy, config);
+  public MapFileClient(final INodeSelectionPolicy policy, final ZkConfiguration czkCnfig) {
+    kattaClient = new Client(IMapFileServer.class, policy, czkCnfig);
+  }
+
+  public MapFileClient(final INodeSelectionPolicy policy, final ZkConfiguration zkConfig,
+      ClientConfiguration clientConfiguration) {
+    kattaClient = new Client(IMapFileServer.class, policy, zkConfig, clientConfiguration);
   }
 
 

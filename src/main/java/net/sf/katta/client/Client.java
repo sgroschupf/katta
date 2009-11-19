@@ -31,6 +31,7 @@ import java.util.Map;
 import java.util.Set;
 
 import net.sf.katta.index.IndexMetaData;
+import net.sf.katta.util.ClientConfiguration;
 import net.sf.katta.util.CollectionUtil;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.ZkConfiguration;
@@ -65,6 +66,8 @@ public class Client implements IShardProxyManager {
   private final long _startupTime;
 
   private Configuration _hadoopConf = new Configuration();
+  private final ClientConfiguration _clientConfiguration;
+  private final int _maxTryCount;
 
   public Client(Class<? extends VersionedProtocol> serverClass) {
     this(serverClass, new DefaultNodeSelectionPolicy(), new ZkConfiguration());
@@ -79,18 +82,27 @@ public class Client implements IShardProxyManager {
   }
 
   public Client(Class<? extends VersionedProtocol> serverClass, final INodeSelectionPolicy policy,
-          final ZkConfiguration config) {
-    _hadoopConf.set("ipc.client.timeout", "2500");
-    _hadoopConf.set("ipc.client.connect.max.retries", "2");
-    // TODO jz: make configurable
+      final ZkConfiguration zkConfig) {
+    this(serverClass, policy, zkConfig, new ClientConfiguration());
+  }
+
+  public Client(Class<? extends VersionedProtocol> serverClass, final INodeSelectionPolicy policy,
+      final ZkConfiguration zkConfig, ClientConfiguration clientConfiguration) {
+    Set<String> keys = clientConfiguration.getKeys();
+    for (String key : keys) {
+      // simply set all properties / adding non-hadoop properties shouldn't hurt
+      _hadoopConf.set(key, clientConfiguration.getProperty(key));
+    }
 
     _serverClass = serverClass;
     _selectionPolicy = policy;
-    _zkConfig = config;
-    
+    _zkConfig = zkConfig;
+    _clientConfiguration = clientConfiguration;
+    _maxTryCount = _clientConfiguration.getInt(ClientConfiguration.CLIENT_NODE_INTERACTION_MAXTRYCOUNT);
+
     // TODO PVo should we really start a new ZkClient here?
-    _zkClient = ZkKattaUtil.startZkClient(config, 60000);
-    String indicesPath = config.getZKIndicesPath();
+    _zkClient = ZkKattaUtil.startZkClient(zkConfig, 60000);
+    String indicesPath = zkConfig.getZKIndicesPath();
     List<String> indexList = _zkClient.subscribeChildChanges(indicesPath, _indexPathChangeListener);
     LOG.info("children=" + indexList);
     addOrWatchNewIndexes(indexList);
@@ -321,8 +333,9 @@ public class Client implements IShardProxyManager {
 
     WorkQueue<T> workQueue = new WorkQueue<T>(this, allShards, method, shardArrayParamIndex, args);
 
+    
     for (String node : nodeShardsMap.keySet()) {
-      workQueue.execute(node, nodeShardsMap, 1, 3);// TODO make maxTryCount configurable
+      workQueue.execute(node, nodeShardsMap, 1, _maxTryCount);
     }
 
     ClientResult<T> results = workQueue.getResults(resultPolicy);

@@ -32,6 +32,7 @@ import net.sf.katta.node.HitsMapWritable;
 import net.sf.katta.node.ILuceneServer;
 import net.sf.katta.node.IQuery;
 import net.sf.katta.node.QueryWritable;
+import net.sf.katta.util.ClientConfiguration;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.ZkConfiguration;
 
@@ -70,12 +71,17 @@ public class LuceneClient implements ILuceneClient {
     kattaClient = new Client(ILuceneServer.class, nodeSelectionPolicy);
   }
 
-  public LuceneClient(final ZkConfiguration config) {
-    kattaClient = new Client(ILuceneServer.class, config);
+  public LuceneClient(final ZkConfiguration zkConfig) {
+    kattaClient = new Client(ILuceneServer.class, zkConfig);
   }
 
-  public LuceneClient(final INodeSelectionPolicy policy, final ZkConfiguration config) {
-    kattaClient = new Client(ILuceneServer.class, policy, config);
+  public LuceneClient(final INodeSelectionPolicy policy, final ZkConfiguration zkConfig) {
+    kattaClient = new Client(ILuceneServer.class, policy, zkConfig);
+  }
+
+  public LuceneClient(final INodeSelectionPolicy policy, final ZkConfiguration zkConfig,
+      ClientConfiguration clientConfiguration) {
+    kattaClient = new Client(ILuceneServer.class, policy, zkConfig, clientConfiguration);
   }
 
   @Deprecated

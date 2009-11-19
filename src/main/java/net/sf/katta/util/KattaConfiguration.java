@@ -17,6 +17,7 @@ package net.sf.katta.util;
 
 import java.io.File;
 import java.util.Properties;
+import java.util.Set;
 
 import org.apache.hadoop.fs.Path;
 
@@ -39,7 +40,12 @@ public class KattaConfiguration {
     _properties = properties;
     _resourcePath = filePath;
   }
-  
+
+  public KattaConfiguration() {
+    _properties = new Properties();
+    _resourcePath = null;
+  }
+
   public String getResourcePath() {
     return _resourcePath;
   }
@@ -66,6 +72,10 @@ public class KattaConfiguration {
 
   protected void setProperty(String key, String value) {
     _properties.setProperty(key, value);
+  }
+
+  protected void setProperty(String key, long value) {
+    _properties.setProperty(key, Long.toString(value));
   }
 
   public int getInt(final String key) {
@@ -99,4 +109,7 @@ public class KattaConfiguration {
     }
   }
 
+  public Set<String> getKeys() {
+    return _properties.stringPropertyNames();
+  }
 }
