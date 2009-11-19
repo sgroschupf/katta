@@ -546,14 +546,18 @@ public class Katta {
     System.out.println();
   }
 
-  private long calculateIndexDiskUsage(String index) throws IOException {
+  private long calculateIndexDiskUsage(String index) {
     Path indexPath = new Path(index);
     URI indexUri = indexPath.toUri();
-    FileSystem fileSystem = FileSystem.get(indexUri, new Configuration());
-    if (!fileSystem.exists(indexPath)) {
-      return 0;
+    try {
+      FileSystem fileSystem = FileSystem.get(indexUri, new Configuration());
+      if (!fileSystem.exists(indexPath)) {
+        return -1;
+      }
+      return fileSystem.getContentSummary(indexPath).getLength();
+    } catch (IOException e) {
+      return -1;
     }
-    return fileSystem.getContentSummary(indexPath).getLength();
   }
 
   private int calculateIndexSize(List<String> shards, ZkClient zkClient, ZkConfiguration config) {

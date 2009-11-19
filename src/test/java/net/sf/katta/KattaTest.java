@@ -15,6 +15,12 @@
  */
 package net.sf.katta;
 
+import java.io.IOException;
+
+import net.sf.katta.client.DeployClient;
+import net.sf.katta.util.ZkConfiguration;
+
+import org.I0Itec.zkclient.ZkClient;
 
 public class KattaTest extends AbstractKattaTest {
 
@@ -25,14 +31,22 @@ public class KattaTest extends AbstractKattaTest {
     super.onSetUp2();
     _katta = new Katta();
   }
-  
+
   @Override
   protected void onTearDown() throws Exception {
     _katta.close();
     super.onTearDown();
   }
-  
+
   public void testShowStructure() {
     _katta.showStructure();
+  }
+
+  public void testListIndexesWithUnreachableIndex_KATTA_76() throws IOException {
+    ZkConfiguration configuration = new ZkConfiguration();
+    ZkClient zkClient = new ZkClient(configuration.getZKServers());
+    DeployClient deployClient = new DeployClient(zkClient, configuration);
+    deployClient.addIndex("index1", "hdfs://localhost:8020/index", 1);
+    _katta.listIndex(true, zkClient, configuration);
   }
 }
