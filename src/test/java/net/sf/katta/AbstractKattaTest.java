@@ -51,7 +51,7 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
   public AbstractKattaTest() {
     this(true);
   }
-  
+
   public AbstractKattaTest(ZkConfiguration conf, boolean resetZkNamespaceBetweenTests) {
     _conf = conf;
     _resetZkNamespaceBetweenTests = resetZkNamespaceBetweenTests;
@@ -144,7 +144,7 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
     if (_zkServer != null) {
       throw new IllegalStateException("zk server already running");
     }
-    int port = _conf.getZKClientPort();
+    int port = 2182;
     if (!NetworkUtil.isPortFree(port)) {
       throw new IllegalStateException("port " + port + " blocked. Probably other zk server is running.");
     }
@@ -176,11 +176,11 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
   protected MasterStartThread startMaster() throws KattaException {
     return startMaster(_conf);
   }
-  
+
   protected MasterStartThread startMaster(ZkConfiguration conf) throws KattaException {
     return startMaster(conf, new MasterConfiguration());
   }
-  
+
   protected MasterStartThread startMaster(ZkConfiguration conf, MasterConfiguration masterConf) throws KattaException {
     Master master = new Master(conf, _zkServer.getZkClient(), false, masterConf);
     MasterStartThread masterStartThread = new MasterStartThread(master, _zkServer.getZkClient());
@@ -208,7 +208,7 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
     }
     return startNode(server, nodeConf.getStartPort(), shardFolder);
   }
-  
+
   protected NodeStartThread startNode(INodeManaged server, NodeConfiguration nodeConf, ZkConfiguration conf) {
     ZkClient zkNodeClient = ZkKattaUtil.startZkClient(conf, 30000);
     Node node = new Node(conf, zkNodeClient, nodeConf, server);
@@ -216,7 +216,7 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
     nodeStartThread.start();
     return nodeStartThread;
   }
-  
+
   protected NodeStartThread startNode(INodeManaged server, int port, String shardFolder) {
     return startNode(server, port, shardFolder, _conf);
   }
@@ -232,15 +232,15 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
     return nodeStartThread;
   }
 
-// TODO: port load test to new client/server model.
-//
-//  protected LoadTestNode startLoadTestNode() throws KattaException {
-//    ZkClient zkNodeClient = new ZkClient(_zkConf);
-//    LoadTestNodeConfiguration nodeConf = new LoadTestNodeConfiguration();
-//    LoadTestNode node = new LoadTestNode(zkNodeClient, nodeConf);
-//    node.start();
-//    return node;
-//  }
+  // TODO: port load test to new client/server model.
+  //
+  // protected LoadTestNode startLoadTestNode() throws KattaException {
+  // ZkClient zkNodeClient = new ZkClient(_zkConf);
+  // LoadTestNodeConfiguration nodeConf = new LoadTestNodeConfiguration();
+  // LoadTestNode node = new LoadTestNode(zkNodeClient, nodeConf);
+  // node.start();
+  // return node;
+  // }
 
   public static void waitForPath(final ZkClient client, final String path) throws InterruptedException {
     int tryCount = 0;
@@ -251,7 +251,7 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
   }
 
   public static void waitForChilds(final ZkClient client, final String path, final int childCount)
-          throws InterruptedException {
+      throws InterruptedException {
     int tryCount = 0;
     while (client.getChildren(path).size() != childCount && tryCount++ < 100) {
       Thread.sleep(500);
@@ -266,7 +266,7 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
         return master.isInSafeMode();
       }
     }, TimeUnit.SECONDS, 60);
- 
+
     assertEquals(false, master.isInSafeMode());
   }
 

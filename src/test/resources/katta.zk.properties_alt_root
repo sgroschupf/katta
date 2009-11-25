@@ -12,7 +12,5 @@ zookeeper.sync-limit=2
 zookeeper.data-dir=build/zookeeper-data
 # zookeeper folder where log data are stored
 zookeeper.log-data-dir=build/zookeeper-log-data
-# zookeeper client port
-zookeeper.clientPort=2182
 # Katta root node to use
 zookeeper.root-path=/test/katta20090510153800

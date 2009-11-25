@@ -38,6 +38,7 @@ public class ZkConfiguration extends KattaConfiguration {
 
   public static final String ZOOKEEPER_LOG_DATA_DIR = "zookeeper.log-data-dir";
 
+  @Deprecated
   public static final String ZOOKEEPER_CLIENT_PORT = "zookeeper.clientPort";
 
   public static final String ZOOKEEPER_ROOT_PATH = "zookeeper.root-path";
@@ -104,6 +105,7 @@ public class ZkConfiguration extends KattaConfiguration {
     return getProperty(ZOOKEEPER_LOG_DATA_DIR);
   }
 
+  @Deprecated
   public int getZKClientPort() {
     return getInt(ZOOKEEPER_CLIENT_PORT);
   }
@@ -113,14 +115,14 @@ public class ZkConfiguration extends KattaConfiguration {
    * static fields of ZkPaths.
    */
 
-  private Character sep;
+  private Character _sep;
 
   public char getSeparator() {
-    if (sep == null) {
+    if (_sep == null) {
       String s = getProperty(ZK_PATH_SEPERATOR, "/");
-      sep = new Character(s.length() > 0 ? s.charAt(0) : '/');
+      _sep = new Character(s.length() > 0 ? s.charAt(0) : '/');
     }
-    return sep.charValue();
+    return _sep.charValue();
   }
 
   public static final String DEFAULT_ROOT_PATH = "/katta";
@@ -247,6 +249,5 @@ public class ZkConfiguration extends KattaConfiguration {
   public String getZKMetricsPath() {
     return buildPath(getZKRootPath(), SERVER_METRICS);
   }
-
 
 }
