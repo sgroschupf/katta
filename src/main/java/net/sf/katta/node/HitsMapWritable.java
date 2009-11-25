@@ -24,7 +24,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+import net.sf.katta.util.WritableType;
+
 import org.apache.hadoop.io.Writable;
+import org.apache.hadoop.io.WritableComparable;
 import org.apache.log4j.Logger;
 
 public class HitsMapWritable implements Writable {
@@ -34,6 +37,7 @@ public class HitsMapWritable implements Writable {
   private String _serverName;
   private final Map<String, List<Hit>> _hitToShard = new ConcurrentHashMap<String, List<Hit>>();
   private int _totalHits;
+  private WritableType[] _sortFieldTypes;
 
   public HitsMapWritable() {
     // for serialization
@@ -50,6 +54,13 @@ public class HitsMapWritable implements Writable {
     }
     _serverName = in.readUTF();
     _totalHits = in.readInt();
+    byte sortFieldTypesLen = in.readByte();
+    if (sortFieldTypesLen > 0) {
+      _sortFieldTypes = new WritableType[sortFieldTypesLen];
+      for (int i = 0; i < sortFieldTypesLen; i++) {
+        _sortFieldTypes[i] = WritableType.values()[in.readByte()];
+      }
+    }
     if (LOG.isDebugEnabled()) {
       LOG.debug("HitsMap reading start at: " + start + " for server " + _serverName);
     }
@@ -60,8 +71,22 @@ public class HitsMapWritable implements Writable {
       for (int j = 0; j < hitSize; j++) {
         final float score = in.readFloat();
         final int docId = in.readInt();
-        final Hit hit = new Hit(shardName, _serverName, score, docId);
+        final Hit hit;
+        if (sortFieldTypesLen > 0) {
+          hit = new Hit(shardName, _serverName, score, docId, _sortFieldTypes);
+        } else {
+          hit = new Hit(shardName, _serverName, score, docId);
+        }
         addHitToShard(shardName, hit);
+        byte sortFieldsLen = in.readByte();
+        if (sortFieldsLen > 0) {
+          WritableComparable[] sortFields = new WritableComparable[sortFieldsLen];
+          for (int k = 0; k < sortFieldsLen; k++) {
+            sortFields[k] = _sortFieldTypes[k].newWritableComparable();
+            sortFields[k].readFields(in);
+          }
+          hit.setSortFields(sortFields);
+        }
       }
     }
     if (LOG.isDebugEnabled()) {
@@ -77,6 +102,14 @@ public class HitsMapWritable implements Writable {
     }
     out.writeUTF(_serverName);
     out.writeInt(_totalHits);
+    if (_sortFieldTypes == null) {
+      out.writeByte(0);
+    } else {
+      out.writeByte(_sortFieldTypes.length);
+      for (WritableType writableType : _sortFieldTypes) {
+        out.writeByte(writableType.ordinal());
+      }
+    }
     final Set<String> keySet = _hitToShard.keySet();
     out.writeInt(keySet.size());
     for (final String key : keySet) {
@@ -86,6 +119,15 @@ public class HitsMapWritable implements Writable {
       for (final Hit hit : list) {
         out.writeFloat(hit.getScore());
         out.writeInt(hit.getDocId());
+        WritableComparable[] sortFields = hit.getSortFields();
+        if (sortFields == null) {
+          out.writeByte(0);
+        } else {
+          out.writeByte(sortFields.length);
+          for (Writable writable : sortFields) {
+            writable.write(out);
+          }
+        }
       }
     }
     if (LOG.isDebugEnabled()) {
@@ -124,4 +166,13 @@ public class HitsMapWritable implements Writable {
   public int getTotalHits() {
     return _totalHits;
   }
+
+  public WritableType[] getSortFieldTypes() {
+    return _sortFieldTypes;
+  }
+
+  public void setSortFieldTypes(WritableType[] sortFieldTypes) {
+    _sortFieldTypes = sortFieldTypes;
+  }
+  
 }

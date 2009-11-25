@@ -15,10 +15,12 @@
  */
 package net.sf.katta.client;
 
+import java.io.File;
 import java.util.List;
 import java.util.Set;
 
 import net.sf.katta.AbstractKattaTest;
+import net.sf.katta.index.IndexMetaData.IndexState;
 import net.sf.katta.master.Master;
 import net.sf.katta.node.Hit;
 import net.sf.katta.node.Hits;
@@ -32,9 +34,17 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 import org.apache.log4j.Logger;
 import org.apache.lucene.analysis.KeywordAnalyzer;
+import org.apache.lucene.analysis.standard.StandardAnalyzer;
+import org.apache.lucene.document.Document;
+import org.apache.lucene.document.Field;
+import org.apache.lucene.document.Field.Index;
+import org.apache.lucene.document.Field.Store;
+import org.apache.lucene.index.IndexWriter;
+import org.apache.lucene.index.IndexWriter.MaxFieldLength;
 import org.apache.lucene.queryParser.ParseException;
 import org.apache.lucene.queryParser.QueryParser;
 import org.apache.lucene.search.Query;
+import org.apache.lucene.search.Sort;
 
 /**
  * Test for {@link LuceneClient}.
@@ -72,12 +82,9 @@ public class LuceneClientTest extends AbstractKattaTest {
     waitOnNodes(masterStartThread, 2);
 
     _deployClient = new DeployClient(masterStartThread.getZkClient(), _conf);
-    _deployClient.addIndex(INDEX1, TestResources.INDEX1.getAbsolutePath(), 1)
-        .joinDeployment();
-    _deployClient.addIndex(INDEX2, TestResources.INDEX1.getAbsolutePath(), 1)
-        .joinDeployment();
-    _deployClient.addIndex(INDEX3, TestResources.INDEX1.getAbsolutePath(), 1)
-        .joinDeployment();
+    _deployClient.addIndex(INDEX1, TestResources.INDEX1.getAbsolutePath(), 1).joinDeployment();
+    _deployClient.addIndex(INDEX2, TestResources.INDEX1.getAbsolutePath(), 1).joinDeployment();
+    _deployClient.addIndex(INDEX3, TestResources.INDEX1.getAbsolutePath(), 1).joinDeployment();
     _client = new LuceneClient(new DefaultNodeSelectionPolicy(), _conf);
   }
 
@@ -136,8 +143,49 @@ public class LuceneClientTest extends AbstractKattaTest {
     }
     assertEquals(8, hits.size());
     assertEquals(8, hits.getHits().size());
-    for (final Hit hit : hits.getHits()) {
-      LOG.info(hit.getNode() + " -- " + hit.getScore() + " -- " + hit.getDocId());
+  }
+
+  public void testSortedSearch() throws Exception {
+    // write and deploy test index
+    File sortIndex = createFile("sortIndex");
+    String queryTerm = "2";
+    String sortFieldName = "sortField";
+    String textFieldName = "textField";
+    IndexWriter indexWriter = new IndexWriter(sortIndex, new StandardAnalyzer(), true, MaxFieldLength.UNLIMITED);
+    for (int i = 0; i < 20; i++) {
+      Document document = new Document();
+      document.add(new Field(sortFieldName, "" + i, Store.NO, Index.NOT_ANALYZED));
+      String textField = "sample text";
+      if (i % 2 == 0) {// produce some different scores
+        for (int j = 0; j < i; j++) {
+          textField += " " + queryTerm;
+        }
+      }
+      document.add(new Field(textFieldName, textField, Store.NO, Index.ANALYZED));
+      indexWriter.addDocument(document);
+    }
+    indexWriter.optimize();
+    indexWriter.close();
+    IndexState indexState = _deployClient.addIndex(sortIndex.getName(), sortIndex.getParentFile().getAbsolutePath(), 1)
+        .joinDeployment();
+    assertEquals(IndexState.DEPLOYED, indexState);
+    Thread.sleep(1000);// wait until lucene client is aware of the index
+
+    // query and compare results
+    final Query query = new QueryParser("", new KeywordAnalyzer()).parse(textFieldName + ": " + queryTerm);
+    Sort sort = new Sort(new String[] { "sortField" });
+    final Hits hits = _client.search(query, new String[] { sortIndex.getName() }, 20, sort);
+    assertNotNull(hits);
+    List<Hit> hitsList = hits.getHits();
+    for (final Hit hit : hitsList) {
+      writeToLog(hit);
+    }
+    assertEquals(9, hits.size());
+    assertEquals(9, hitsList.size());
+    assertTrue("results ordered after score", hitsList.get(0).getScore() < hitsList.get(1).getScore());
+    for (int i = 0; i < hitsList.size() - 1; i++) {
+      int compareTo = hitsList.get(i).getSortFields()[0].compareTo(hitsList.get(i + 1).getSortFields()[0]);
+      assertTrue("results not after field", compareTo == 0 || compareTo == -1);
     }
   }
 

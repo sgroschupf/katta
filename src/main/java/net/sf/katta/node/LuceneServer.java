@@ -31,6 +31,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import net.sf.katta.client.lucene.FieldSortComparator;
+import net.sf.katta.util.WritableType;
+
 import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.DataOutputBuffer;
 import org.apache.hadoop.io.MapWritable;
@@ -45,6 +48,7 @@ import org.apache.lucene.index.Term;
 import org.apache.lucene.queryParser.ParseException;
 import org.apache.lucene.search.DefaultSimilarity;
 import org.apache.lucene.search.Explanation;
+import org.apache.lucene.search.FieldDoc;
 import org.apache.lucene.search.Filter;
 import org.apache.lucene.search.HitCollector;
 import org.apache.lucene.search.IndexSearcher;
@@ -201,8 +205,14 @@ public class LuceneServer implements INodeManaged, ILuceneServer {
    * @throws ParseException  If the query is ill-formed.
    * @throws IOException     If the search had a problem reading files.
    */
-  public HitsMapWritable search(final QueryWritable query, final DocumentFrequencyWritable freqs, final String[] shards,
-          final int count) throws IOException {
+  public HitsMapWritable search(final QueryWritable query, final DocumentFrequencyWritable freqs,
+      final String[] shards, final int count) throws IOException {
+    return search(query, freqs, shards, count, null);
+  }
+
+  @Override
+  public HitsMapWritable search(QueryWritable query, DocumentFrequencyWritable freqs, String[] shards, int count,
+      SortWritable sortWritable) throws IOException {
     if (LOG.isDebugEnabled()) {
       LOG.debug("You are searching with the query: '" + query.getQuery() + "'");
     }
@@ -219,7 +229,11 @@ public class LuceneServer implements INodeManaged, ILuceneServer {
     if (LOG.isDebugEnabled()) {
       start = System.currentTimeMillis();
     }
-    search(luceneQuery, freqs, shards, result, count);
+    Sort sort = null;
+    if (sortWritable != null) {
+      sort = sortWritable.getSort();
+    }
+    search(luceneQuery, freqs, shards, result, count, sort);
     if (LOG.isDebugEnabled()) {
       final long end = System.currentTimeMillis();
       LOG.debug("Search took " + (end - start) / 1000.0 + "sec.");
@@ -344,7 +358,6 @@ public class LuceneServer implements INodeManaged, ILuceneServer {
     return search(query, docFreqs, shards, 1).getTotalHits();
   }
 
-
   /**
    * Search in the given shards and return max hits for given query
    * 
@@ -356,31 +369,34 @@ public class LuceneServer implements INodeManaged, ILuceneServer {
    * @throws IOException
    */
   protected final void search(final Query query, final DocumentFrequencyWritable freqs, final String[] shards,
-          final HitsMapWritable result, final int max) throws IOException {
+      final HitsMapWritable result, final int max, Sort sort) throws IOException {
     final Query rewrittenQuery = rewrite(query, shards);
     final int numDocs = freqs.getNumDocs();
     final Weight weight = rewrittenQuery.weight(new CachedDfSource(freqs.getAll(), numDocs, new DefaultSimilarity()));
     // Limit the request to the number requested or the total number of documents, whichever is smaller.
     final int limit = Math.min(numDocs, max);
-    final KattaHitQueue hq = new KattaHitQueue(limit);
     int totalHits = 0;
     final int shardsCount = shards.length;
 
     // Run the search in parallel on the shards with a thread pool.
     List<Future<SearchResult>> tasks = new ArrayList<Future<SearchResult>>();
     for (int i = 0; i < shardsCount; i++) {
-      SearchCall call = new SearchCall(shards[i], weight, limit);
+      SearchCall call = new SearchCall(shards[i], weight, limit, sort);
       Future<SearchResult> future = _threadPool.submit(call);
       tasks.add(future);
     }
 
     final ScoreDoc[][] scoreDocs = new ScoreDoc[shardsCount][];
+    ScoreDoc scoreDocExample = null;
     for (int i = 0; i < shardsCount; i++) {
       SearchResult searchResult;
       try {
         searchResult = tasks.get(i).get();
         totalHits += searchResult._totalHits;
         scoreDocs[i] = searchResult._scoreDocs;
+        if (scoreDocExample == null && scoreDocs[i].length > 0) {
+          scoreDocExample = scoreDocs[i][0];
+        }
       } catch (InterruptedException e) {
         throw new IOException("Multithread shard search interrupted:", e);
       } catch (ExecutionException e) {
@@ -390,43 +406,89 @@ public class LuceneServer implements INodeManaged, ILuceneServer {
 
     result.addTotalHits(totalHits);
 
-    int pos = 0;
-    BitSet done = new BitSet(shardsCount);
-    while (done.cardinality() != shardsCount) {
-      ScoreDoc scoreDoc = null;
-      for (int i = 0; i < shardsCount; i++) {
-        // only process this shard if it is not yet done.
-        if (!done.get(i)) {
-          final ScoreDoc[] docs = scoreDocs[i];
-          if (pos < docs.length) {
-            scoreDoc = docs[pos];
-            final Hit hit = new Hit(shards[i], _nodeName, scoreDoc.score, scoreDoc.doc);
-            if (!hq.insert(hit)) {
-              // no doc left that has a higher score than the lowest score in
-              // the queue
+    final Iterable<Hit> finalHitList;
+    if (sort == null || totalHits == 0) {
+      final KattaHitQueue hq = new KattaHitQueue(limit);
+      int pos = 0;
+      BitSet done = new BitSet(shardsCount);
+      while (done.cardinality() != shardsCount) {
+        ScoreDoc scoreDoc = null;
+        for (int i = 0; i < shardsCount; i++) {
+          // only process this shard if it is not yet done.
+          if (!done.get(i)) {
+            final ScoreDoc[] docs = scoreDocs[i];
+            if (pos < docs.length) {
+              scoreDoc = docs[pos];
+              final Hit hit = new Hit(shards[i], _nodeName, scoreDoc.score, scoreDoc.doc);
+              if (!hq.insert(hit)) {
+                // no doc left that has a higher score than the lowest score in
+                // the queue
+                done.set(i, true);
+              }
+            } else {
+              // no docs left in this shard
               done.set(i, true);
             }
-          } else {
-            // no docs left in this shard
-            done.set(i, true);
           }
         }
+        // we always wait until we got all hits from this position in all
+        // shards.
+
+        pos++;
+        if (scoreDoc == null) {
+          // we do not have any more data
+          break;
+        }
       }
-      // we always wait until we got all hits from this position in all shards.
-      
-      
-      pos++;
-      if (scoreDoc == null) {
-        // we do not have any more data
-        break;
-      }
+      finalHitList = hq;
+    } else {
+      WritableType[] sortFieldsTypes = null;
+      FieldDoc fieldDoc = (FieldDoc) scoreDocExample;
+      sortFieldsTypes = WritableType.detectWritableTypes(fieldDoc.fields);
+      result.setSortFieldTypes(sortFieldsTypes);
+      finalHitList = mergeFieldSort(new FieldSortComparator(sort.getSort(), sortFieldsTypes), limit, scoreDocs, shards,
+          _nodeName);
     }
 
-    for (Hit hit : hq) {
+    for (Hit hit : finalHitList) {
       if (hit != null) {
         result.addHitToShard(hit.getShard(), hit);
       }
     }
+  }
+
+  /**
+   * Merges the already sorted sub-lists to one big sorted list.
+   */
+  private final static List<Hit> mergeFieldSort(FieldSortComparator comparator, int count,
+      ScoreDoc[][] sortedFieldDocs, String[] shards, String nodeName) {
+    int[] arrayPositions = new int[sortedFieldDocs.length];
+    final List<Hit> sortedResult = new ArrayList<Hit>(count);
+
+    BitSet listDone = new BitSet(sortedFieldDocs.length);
+    do {
+      int fieldDocArrayWithSmallestFieldDoc = -1;
+      FieldDoc smallestFieldDoc = null;
+      for (int subListIndex = 0; subListIndex < arrayPositions.length; subListIndex++) {
+        if (!listDone.get(subListIndex)) {
+          FieldDoc hit = (FieldDoc) sortedFieldDocs[subListIndex][arrayPositions[subListIndex]];
+          if (smallestFieldDoc == null || comparator.compare(hit.fields, smallestFieldDoc.fields) < 0) {
+            smallestFieldDoc = hit;
+            fieldDocArrayWithSmallestFieldDoc = subListIndex;
+          }
+        }
+      }
+      ScoreDoc[] smallestElementList = sortedFieldDocs[fieldDocArrayWithSmallestFieldDoc];
+      FieldDoc fieldDoc = (FieldDoc) smallestElementList[arrayPositions[fieldDocArrayWithSmallestFieldDoc]];
+      arrayPositions[fieldDocArrayWithSmallestFieldDoc]++;
+      final Hit hit = new Hit(shards[fieldDocArrayWithSmallestFieldDoc], nodeName, fieldDoc.score, fieldDoc.doc);
+      hit.setSortFields(WritableType.convertComparable(comparator.getFieldTypes(), fieldDoc.fields));
+      sortedResult.add(hit);
+      if (arrayPositions[fieldDocArrayWithSmallestFieldDoc] >= smallestElementList.length) {
+        listDone.set(fieldDocArrayWithSmallestFieldDoc, true);
+      }
+    } while (sortedResult.size() < count && listDone.cardinality() < arrayPositions.length);
+    return sortedResult;
   }
 
   /**
@@ -500,20 +562,26 @@ public class LuceneServer implements INodeManaged, ILuceneServer {
     private final String _shardName;
     private final Weight _weight;
     private final int _limit;
+    private final Sort _sort;
 
-    public SearchCall(String shardName, Weight weight, int limit) {
+    public SearchCall(String shardName, Weight weight, int limit, Sort sort) {
       _shardName = shardName;
       _weight = weight;
       _limit = limit;
+      _sort = sort;
     }
 
     @Override
     public SearchResult call() throws Exception {
       final IndexSearcher indexSearcher = _searchers.get(_shardName);
-      final TopDocs docs = indexSearcher.search(_weight, null, _limit);
+      final TopDocs docs;
+      if (_sort != null) {
+        docs = indexSearcher.search(_weight, null, _limit, _sort);
+      } else {
+        docs = indexSearcher.search(_weight, null, _limit);
+      }
       return new SearchResult(docs.totalHits, docs.scoreDocs);
     }
-
   }
 
   private static class SearchResult {

@@ -24,15 +24,16 @@ import net.sf.katta.util.KattaException;
 
 import org.apache.hadoop.io.MapWritable;
 import org.apache.lucene.search.Query;
+import org.apache.lucene.search.Sort;
 
 /**
  * Client for searching document indices deployed on a katta cluster.
  * <p>
  * 
- * You provide a {@link IQuery} and the name of the deployed indices, and get
+ * You provide a {@link Query} and the name of the deployed indices, and get
  * back {@link Hits} which contains multiple {@link Hit} objects as the results.
  * <br>
- * See {@link #search(IQuery, String[], int)}.
+ * See {@link #search(Query, String[], int)}.
  * <p>
  * 
  * The details of a hit-document can be retrieved through the
@@ -40,7 +41,8 @@ import org.apache.lucene.search.Query;
  * 
  * @see Hit
  * @see Hits
- * @see IQuery
+ * @see Query
+ * @see Sort
  */
 public interface ILuceneClient {
 
@@ -80,7 +82,24 @@ public interface ILuceneClient {
 
   @Deprecated
   public Hits search(IQuery query, String[] indexNames, int count) throws KattaException;
-
+  
+  /**
+   * Searches with a given query in the supplied indexes for a limited amount of
+   * results and sorts the results based upon the sort parameter.
+   * 
+   * @param query
+   *          The query to search with.
+   * @param indexNames
+   *          A list of index names to search in.
+   * @param count
+   *          The count of results that should be returned.
+   * @param sort
+   *          Sort criteria for returned hits
+   * @return A object that capsulates all results.
+   * @throws KattaException
+   */
+  public Hits search(Query query, String[] indexNames, int count, Sort sort) throws KattaException;
+  
   /**
    * Gets all the details to a hit.
    * 
