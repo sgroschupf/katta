@@ -61,6 +61,7 @@
 
 		<!-- TEST Dependencies -->
 		<dependency org="junit" name="junit" rev="3.8.1" conf="test" />
+		<dependency org="junit" name="junit" rev="4.7" conf="test" />
         <dependency org="org.mockito" name="mockito-core" rev="1.7" conf="test" />
         <dependency org="org.jmock" name="jmock" rev="2.4.0" conf="test" />
 		<dependency org="org.hamcrest" name="hamcrest-library" rev="1.1" conf="test" />
