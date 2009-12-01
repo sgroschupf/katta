@@ -131,6 +131,7 @@ public class JmxMonitor implements IMonitor {
           LOG.debug("Sleep was interrupted", e);
         }
       }
+      LOG.info("jmx monitor stopped");
     }
 
     private Long getValue(OperatingSystemMXBean operatingSystemMXBean, String methodName) throws NoSuchMethodException,

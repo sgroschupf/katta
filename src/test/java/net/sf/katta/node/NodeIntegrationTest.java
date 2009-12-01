@@ -15,46 +15,39 @@
  */
 package net.sf.katta.node;
 
+import static org.junit.Assert.assertEquals;
+
 import java.util.List;
 
-import junit.framework.TestCase;
-import net.sf.katta.util.ZkConfiguration;
-import net.sf.katta.util.ZkKattaUtil;
+import net.sf.katta.testutil.PrintMethodNames;
+import net.sf.katta.testutil.ZkTestSystem;
 
 import org.I0Itec.zkclient.IZkChildListener;
 import org.I0Itec.zkclient.ZkClient;
-import org.I0Itec.zkclient.ZkServer;
+import org.junit.Rule;
+import org.junit.Test;
 
-public class NodeIntegrationTest extends TestCase {
+public class NodeIntegrationTest {
 
-  private ZkServer _zkServer;
-  private ZkConfiguration _conf;
-  private ZkClient _zkClient;
+  @Rule
+  public ZkTestSystem _zk = ZkTestSystem.getInstance();
+  @Rule
+  public PrintMethodNames _printMethodNames = new PrintMethodNames();
 
-  @Override
-  protected void setUp() {
-    _conf = new ZkConfiguration();
-    _zkServer = ZkKattaUtil.startZkServer(_conf);
-    _zkClient = _zkServer.getZkClient();
-  }
-  
-  @Override
-  protected void tearDown() throws Exception {
-    _zkServer.shutdown();
-  }
-  
+  @Test
   public void testShutdown_shouldCleanupZkClientSubscriptions() {
-    Node node = new Node(_conf, _zkClient, new LuceneServer());
+    ZkClient zkClient = _zk.getZkClient();
+    Node node = new Node(_zk.getZkConf(), zkClient, new LuceneServer());
     node.start();
 
-    _zkClient.subscribeChildChanges("/", new IZkChildListener(){
-
+    zkClient.subscribeChildChanges("/", new IZkChildListener() {
       @Override
       public void handleChildChange(String parentPath, List<String> currentChilds) throws Exception {
         // ignore
-      }});
-    
+      }
+    });
+
     node.shutdown();
-    assertEquals(1, _zkClient.numberOfListeners());
+    assertEquals(1, zkClient.numberOfListeners());
   }
 }

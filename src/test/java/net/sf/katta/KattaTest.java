@@ -18,35 +18,70 @@ package net.sf.katta;
 import java.io.IOException;
 
 import net.sf.katta.client.DeployClient;
+import net.sf.katta.master.Master;
+import net.sf.katta.testutil.PrintMethodNames;
+import net.sf.katta.testutil.ZkTestSystem;
 import net.sf.katta.util.ZkConfiguration;
+import net.sf.katta.util.ZkKattaUtil;
 
 import org.I0Itec.zkclient.ZkClient;
+import org.I0Itec.zkclient.ZkServer;
+import org.junit.Rule;
+import org.junit.Test;
 
-public class KattaTest extends AbstractKattaTest {
+public class KattaTest {
 
-  private Katta _katta;
+  @Rule
+  public ZkTestSystem _zk = ZkTestSystem.getInstance();
+  @Rule
+  public PrintMethodNames _printMethodNames = new PrintMethodNames();
 
-  @Override
-  protected void onSetUp2() throws Exception {
-    super.onSetUp2();
-    _katta = new Katta();
-  }
-
-  @Override
-  protected void onTearDown() throws Exception {
-    _katta.close();
-    super.onTearDown();
-  }
-
+  @Test
   public void testShowStructure() {
-    _katta.showStructure();
+    Katta katta = new Katta(_zk.getZkConf());
+    katta.showStructure();
   }
 
+  @Test
   public void testListIndexesWithUnreachableIndex_KATTA_76() throws IOException {
-    ZkConfiguration configuration = new ZkConfiguration();
-    ZkClient zkClient = new ZkClient(configuration.getZKServers());
+    Katta _katta = new Katta(_zk.getZkConf());
+    ZkConfiguration configuration = _zk.getZkConf();
+    ZkClient zkClient = _zk.getZkClient();
     DeployClient deployClient = new DeployClient(zkClient, configuration);
     deployClient.addIndex("index1", "hdfs://localhost:8020/index", 1);
     _katta.listIndex(true, zkClient, configuration);
+  }
+
+  @Test
+  public void testEmbeddedZK() throws Exception {
+    // by default there need to be a zkserver
+    final ZkConfiguration conf = new ZkConfiguration();
+
+    Master master = Katta.startMaster(conf);
+    try {
+      ZkClient client = ZkKattaUtil.startZkClient(conf, 10000);
+      client.close();
+    } finally {
+      if (master != null) {
+        master.shutdown();
+      }
+    }
+  }
+
+  @Test
+  public void testNoEmbeddedZK() throws Exception {
+    final ZkConfiguration conf = new ZkConfiguration();
+    conf.setEmbedded(false);
+
+    // we start our own zkServer that the master will connect to
+    ZkServer zkServer = ZkKattaUtil.startZkServer(conf);
+    try {
+      // this would fail if this would try to start another ZkServer on the same
+      // port
+      Master master = Katta.startMaster(conf);
+      master.shutdown();
+    } finally {
+      zkServer.shutdown();
+    }
   }
 }
