@@ -452,7 +452,7 @@ public class LuceneServer implements INodeManaged, ILuceneServer {
 
     for (Hit hit : finalHitList) {
       if (hit != null) {
-        result.addHitToShard(hit.getShard(), hit);
+        result.addHit(hit);
       }
     }
   }

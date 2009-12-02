@@ -16,6 +16,7 @@
 package net.sf.katta;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 
@@ -40,6 +41,7 @@ public class PerformanceTest extends AbstractKattaTest {
   }
 
   private void start() throws InterruptedException, KattaException {
+    startZkServer();
     MasterStartThread masterStartThread = startMaster();
     final ZkClient zkClientMaster = masterStartThread.getZkClient();
 
@@ -72,69 +74,52 @@ public class PerformanceTest extends AbstractKattaTest {
     nodeStartThread1.shutdown();
     nodeStartThread2.shutdown();
     masterStartThread.shutdown();
+    stopZkServer();
   }
 
   public void testSortSpeed() {
-    sortCollection();
-    sortMerge();
-    // sortOther();
-    sortOtherII();
+    sortCollection(setupHits());
+    sortMerge(setupHits());
+    // sortOther(setupHits());//start with more memory
+    sortOtherII(setupHits());
   }
 
-  public void sortCollection() {
-    final Random random = new Random();
-    // the same number everytime to get comparable results
-    random.setSeed(64567547657L);
-    final List<Hit> hitList = new ArrayList<Hit>();
-    for (int i = 0; i < _hitCount; i++) {
-      hitList.add(new Hit("shard", "node", random.nextFloat(), random.nextInt()));
-    }
+  public void testSortSpeedWithSortedSublists() {
+    sortCollection(setupHitsWithSortedSubLists());
+    sortMerge(setupHitsWithSortedSubLists());
+    // sortOther(setupHitsWithSortedSubLists());//start with more memory
+    sortOtherII(setupHitsWithSortedSubLists());
+  }
 
-    final Hits hits = new Hits();
-    hits.addHits(hitList);
+  public void sortCollection(Hits hits) {
     final long start = System.currentTimeMillis();
     hits.sortCollection(_hitCount);
     final long end = System.currentTimeMillis();
     System.out.println("sortCollection: " + (end - start) + "ms. for " + _hitCount);
   }
 
-  public void sortMerge() {
-    final Random random = new Random();
-    // the same number everytime to get comparable results
-    random.setSeed(64567547657L);
-    final List<Hit> hitList = new ArrayList<Hit>();
-    for (int i = 0; i < _hitCount; i++) {
-      final Hit hit = new Hit("shard", "node", random.nextFloat(), random.nextInt());
-      hitList.add(hit);
-    }
-
-    final Hits hits = new Hits();
-    hits.addHits(hitList);
+  public void sortMerge(Hits hits) {
     final long start = System.currentTimeMillis();
     hits.sortMerge();
     final long end = System.currentTimeMillis();
     System.out.println("sortMerge: " + (end - start) + "ms. for " + _hitCount);
   }
 
-  public void sortOther() {
-    final Random random = new Random();
-    // the same number everytime to get comparable results
-    random.setSeed(64567547657L);
-    final List<Hit> hitList = new ArrayList<Hit>();
-    for (int i = 0; i < _hitCount; i++) {
-      final Hit hit = new Hit("shard", "node", random.nextFloat(), random.nextInt());
-      hitList.add(hit);
-    }
-
-    final Hits hits = new Hits();
-    hits.addHits(hitList);
+  public void sortOther(Hits hits) {
     final long start = System.currentTimeMillis();
     hits.sortOther();
     final long end = System.currentTimeMillis();
     System.out.println("sortOther: " + (end - start) + "ms. for " + _hitCount);
   }
 
-  public void sortOtherII() {
+  public void sortOtherII(Hits hits) {
+    final long start = System.currentTimeMillis();
+    hits.sortOtherII();
+    final long end = System.currentTimeMillis();
+    System.out.println("sortOtherII: " + (end - start) + "ms. for " + _hitCount);
+  }
+
+  private Hits setupHits() {
     final Random random = new Random();
     // the same number everytime to get comparable results
     random.setSeed(64567547657L);
@@ -146,9 +131,28 @@ public class PerformanceTest extends AbstractKattaTest {
 
     final Hits hits = new Hits();
     hits.addHits(hitList);
-    final long start = System.currentTimeMillis();
-    hits.sortOtherII();
-    final long end = System.currentTimeMillis();
-    System.out.println("sortOtherII: " + (end - start) + "ms. for " + _hitCount);
+    return hits;
+  }
+
+  private Hits setupHitsWithSortedSubLists() {
+    final Random random = new Random();
+    // the same number everytime to get comparable results
+    random.setSeed(64567547657L);
+    List<Hit>[] hitListsArray = new ArrayList[4];
+    for (int i = 0; i < hitListsArray.length; i++) {
+      hitListsArray[i] = new ArrayList<Hit>();
+    }
+
+    for (int i = 0; i < _hitCount; i++) {
+      final Hit hit = new Hit("shard", "node", random.nextFloat(), random.nextInt());
+      hitListsArray[random.nextInt(hitListsArray.length)].add(hit);
+    }
+
+    final Hits hits = new Hits();
+    for (List<Hit> hitList : hitListsArray) {
+      Collections.sort(hitList);
+      hits.addHits(hitList);
+    }
+    return hits;
   }
 }

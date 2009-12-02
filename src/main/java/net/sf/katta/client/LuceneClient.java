@@ -153,9 +153,9 @@ public class LuceneClient implements ILuceneClient {
     }
     Hits result = new Hits();
     for (HitsMapWritable hmw : results.getResults()) {
-      Hits hits = hmw.getHits();
-      result.addTotalHits(hits.size());
-      result.addHits(hits.getHits());
+      List<Hit> hits = hmw.getHitList();
+      result.addTotalHits(hmw.getTotalHits());
+      result.addHits(hits);
     }
     long start = 0;
     if (LOG.isDebugEnabled()) {

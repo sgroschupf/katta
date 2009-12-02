@@ -19,10 +19,11 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
 import net.sf.katta.util.WritableType;
 
@@ -34,17 +35,19 @@ public class HitsMapWritable implements Writable {
 
   private final static Logger LOG = Logger.getLogger(HitsMapWritable.class);
 
-  private String _serverName;
-  private final Map<String, List<Hit>> _hitToShard = new ConcurrentHashMap<String, List<Hit>>();
+  private String _nodeName;
   private int _totalHits;
   private WritableType[] _sortFieldTypes;
+
+  private List<Hit> _hits = new ArrayList<Hit>();
+  private Set<String> _shards = new HashSet<String>();
 
   public HitsMapWritable() {
     // for serialization
   }
 
-  public HitsMapWritable(final String serverName) {
-    _serverName = serverName;
+  public HitsMapWritable(final String nodeName) {
+    _nodeName = nodeName;
   }
 
   public void readFields(final DataInput in) throws IOException {
@@ -52,7 +55,7 @@ public class HitsMapWritable implements Writable {
     if (LOG.isDebugEnabled()) {
       start = System.currentTimeMillis();
     }
-    _serverName = in.readUTF();
+    _nodeName = in.readUTF();
     _totalHits = in.readInt();
     byte sortFieldTypesLen = in.readByte();
     if (sortFieldTypesLen > 0) {
@@ -62,33 +65,38 @@ public class HitsMapWritable implements Writable {
       }
     }
     if (LOG.isDebugEnabled()) {
-      LOG.debug("HitsMap reading start at: " + start + " for server " + _serverName);
+      LOG.debug("HitsMap reading start at: " + start + " for server " + _nodeName);
     }
-    final int shardSize = in.readInt();
-    for (int i = 0; i < shardSize; i++) {
-      final String shardName = in.readUTF();
-      final int hitSize = in.readInt();
-      for (int j = 0; j < hitSize; j++) {
-        final float score = in.readFloat();
-        final int docId = in.readInt();
-        final Hit hit;
-        if (sortFieldTypesLen > 0) {
-          hit = new Hit(shardName, _serverName, score, docId, _sortFieldTypes);
-        } else {
-          hit = new Hit(shardName, _serverName, score, docId);
+    final int shardCount = in.readInt();
+    HashMap<Byte, String> shardByShardIndex = new HashMap<Byte, String>(shardCount);
+    for (int i = 0; i < shardCount; i++) {
+      shardByShardIndex.put((byte) i, in.readUTF());
+    }
+
+    final int hitCount = in.readInt();
+    for (int i = 0; i < hitCount; i++) {
+      final byte shardIndex = in.readByte();
+      final float score = in.readFloat();
+      final int docId = in.readInt();
+      final String shard = shardByShardIndex.get(shardIndex);
+      final Hit hit;
+      if (sortFieldTypesLen > 0) {
+        hit = new Hit(shard, _nodeName, score, docId, _sortFieldTypes);
+      } else {
+        hit = new Hit(shard, _nodeName, score, docId);
+      }
+      addHit(hit);
+      byte sortFieldsLen = in.readByte();
+      if (sortFieldsLen > 0) {
+        WritableComparable[] sortFields = new WritableComparable[sortFieldsLen];
+        for (int k = 0; k < sortFieldsLen; k++) {
+          sortFields[k] = _sortFieldTypes[k].newWritableComparable();
+          sortFields[k].readFields(in);
         }
-        addHitToShard(shardName, hit);
-        byte sortFieldsLen = in.readByte();
-        if (sortFieldsLen > 0) {
-          WritableComparable[] sortFields = new WritableComparable[sortFieldsLen];
-          for (int k = 0; k < sortFieldsLen; k++) {
-            sortFields[k] = _sortFieldTypes[k].newWritableComparable();
-            sortFields[k].readFields(in);
-          }
-          hit.setSortFields(sortFields);
-        }
+        hit.setSortFields(sortFields);
       }
     }
+
     if (LOG.isDebugEnabled()) {
       final long end = System.currentTimeMillis();
       LOG.debug("HitsMap reading took " + (end - start) / 1000.0 + "sec.");
@@ -100,7 +108,7 @@ public class HitsMapWritable implements Writable {
     if (LOG.isDebugEnabled()) {
       start = System.currentTimeMillis();
     }
-    out.writeUTF(_serverName);
+    out.writeUTF(_nodeName);
     out.writeInt(_totalHits);
     if (_sortFieldTypes == null) {
       out.writeByte(0);
@@ -110,52 +118,72 @@ public class HitsMapWritable implements Writable {
         out.writeByte(writableType.ordinal());
       }
     }
-    final Set<String> keySet = _hitToShard.keySet();
-    out.writeInt(keySet.size());
-    for (final String key : keySet) {
-      out.writeUTF(key);
-      final List<Hit> list = _hitToShard.get(key);
-      out.writeInt(list.size());
-      for (final Hit hit : list) {
-        out.writeFloat(hit.getScore());
-        out.writeInt(hit.getDocId());
-        WritableComparable[] sortFields = hit.getSortFields();
-        if (sortFields == null) {
-          out.writeByte(0);
-        } else {
-          out.writeByte(sortFields.length);
-          for (Writable writable : sortFields) {
-            writable.write(out);
-          }
+    int shardCount = _shards.size();
+    out.writeInt(shardCount);
+    byte shardIndex = 0;
+    Map<String, Byte> shardIndexByShard = new HashMap<String, Byte>(shardCount);
+    for (String shard : _shards) {
+      out.writeUTF(shard);
+      shardIndexByShard.put(shard, shardIndex);
+      shardIndex++;
+    }
+    out.writeInt(_hits.size());
+    for (Hit hit : _hits) {
+      out.writeByte(shardIndexByShard.get(hit.getShard()));
+      out.writeFloat(hit.getScore());
+      out.writeInt(hit.getDocId());
+      WritableComparable[] sortFields = hit.getSortFields();
+      if (sortFields == null) {
+        out.writeByte(0);
+      } else {
+        out.writeByte(sortFields.length);
+        for (Writable writable : sortFields) {
+          writable.write(out);
         }
       }
     }
     if (LOG.isDebugEnabled()) {
       final long end = System.currentTimeMillis();
       LOG.debug("HitsMap writing took " + (end - start) / 1000.0 + "sec.");
-      LOG.debug("HitsMap writing ended at: " + end + " for server " + _serverName);
+      LOG.debug("HitsMap writing ended at: " + end + " for server " + _nodeName);
     }
   }
 
+  public void addHit(final Hit hit) {
+    _hits.add(hit);
+    _shards.add(hit.getShard());
+  }
+
+  /**
+   * @deprecated use {@link #addHit(Hit)} instead
+   */
+  @SuppressWarnings("unused")
   public void addHitToShard(final String shard, final Hit hit) {
-    List<Hit> hitList = _hitToShard.get(shard);
-    if (hitList == null) {
-      hitList = new ArrayList<Hit>();
-      _hitToShard.put(shard, hitList);
-    }
-    hitList.add(hit);
+    addHit(hit);
   }
 
+  /**
+   * @deprecated use {@link #getNodeName()} instead
+   */
   public String getServerName() {
-    return _serverName;
+    return getNodeName();
   }
 
+  public String getNodeName() {
+    return _nodeName;
+  }
+
+  public List<Hit> getHitList() {
+    return _hits;
+  }
+
+  /**
+   * @deprecated use {@link #getHitList()} instead
+   */
   public Hits getHits() {
     final Hits result = new Hits();
     result.setTotalHits(_totalHits);
-    for (final List<Hit> hitList : _hitToShard.values()) {
-      result.addHits(hitList);
-    }
+    result.addHits(_hits);
     return result;
   }
 
@@ -174,5 +202,5 @@ public class HitsMapWritable implements Writable {
   public void setSortFieldTypes(WritableType[] sortFieldTypes) {
     _sortFieldTypes = sortFieldTypes;
   }
-  
+
 }
