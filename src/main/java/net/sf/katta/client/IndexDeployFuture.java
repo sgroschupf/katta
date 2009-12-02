@@ -35,7 +35,7 @@ public class IndexDeployFuture implements IIndexDeployFuture, IZkDataListener, I
   private final String _indexZkPath;
   private IndexMetaData _indexMetaData;
 
-  public IndexDeployFuture(ZkClient zkClient, String index, String indexZkPath, IndexMetaData indexMetaData) {
+  public IndexDeployFuture(ZkClient zkClient, String indexZkPath, IndexMetaData indexMetaData) {
     _zkClient = zkClient;
     _indexMetaData = indexMetaData;
     _indexZkPath = indexZkPath;
@@ -89,7 +89,6 @@ public class IndexDeployFuture implements IIndexDeployFuture, IZkDataListener, I
   private synchronized void updateIndexMetaData(IndexMetaData data) {
     _indexMetaData = data;
     notifyAll();
-
     if (!isDeploymentRunning(data)) {
       _zkClient.unsubscribeDataChanges(_indexZkPath, this);
     }

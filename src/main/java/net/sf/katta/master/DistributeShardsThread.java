@@ -69,13 +69,8 @@ public class DistributeShardsThread extends Thread {
 
   protected final List<IndexStateListener> _indexStateListeners = new CopyOnWriteArrayList<IndexStateListener>();
 
-  public DistributeShardsThread(ZkConfiguration conf, final ZkClient zkClient, final IDeployPolicy deployPolicy, final long safeModeMaxTime) {
-    this(conf, zkClient, deployPolicy, safeModeMaxTime, true);
-  }
-
-  // TODO PVo isDaemon is not used
-  public DistributeShardsThread(ZkConfiguration conf, final ZkClient zkClient, final IDeployPolicy deployPolicy, final long safeModeMaxTime,
-          boolean isDaemon) {
+  public DistributeShardsThread(ZkConfiguration conf, final ZkClient zkClient, final IDeployPolicy deployPolicy,
+          final long safeModeMaxTime) {
     setDaemon(true);
     setName(getClass().getSimpleName());
     _deployPolicy = deployPolicy;
@@ -325,7 +320,8 @@ public class DistributeShardsThread extends Thread {
   private int getMinimalReplicationCount(final String indexZkPath, int desiredReplicationCount) {
     int minimalReplicationCount = desiredReplicationCount;
     final List<String> shards = _zkClient.getChildren(indexZkPath);
-    final Map<String, List<String>> shard2NodesMap = readShard2NodesMapFromZk(_conf, _zkClient, new HashSet<String>(shards));
+    final Map<String, List<String>> shard2NodesMap = readShard2NodesMapFromZk(_conf, _zkClient, new HashSet<String>(
+            shards));
     for (final String shard : shards) {
       final int servingNodes = shard2NodesMap.get(shard).size();
       if (servingNodes < minimalReplicationCount) {
@@ -337,8 +333,8 @@ public class DistributeShardsThread extends Thread {
 
   private boolean isOverReplicated(final String indexZkPath, final IndexMetaData indexMetaData) {
     final List<String> shards = _zkClient.getChildren(indexZkPath);
-    final Map<String, List<String>> currentShard2NodesMap = readShard2NodesMapFromZk(_conf, _zkClient, new HashSet<String>(
-            shards));
+    final Map<String, List<String>> currentShard2NodesMap = readShard2NodesMapFromZk(_conf, _zkClient,
+            new HashSet<String>(shards));
     for (final String shard : shards) {
       final int servingNodes = currentShard2NodesMap.get(shard).size();
       if (servingNodes > indexMetaData.getReplicationLevel()) {
@@ -464,7 +460,7 @@ public class DistributeShardsThread extends Thread {
       if (zkClient.exists(shard2NodeRootPath)) {
         shard2NodeNames.put(shard, zkClient.getChildren(shard2NodeRootPath));
       } else {
-        shard2NodeNames.put(shard, Collections.<String>emptyList());
+        shard2NodeNames.put(shard, Collections.<String> emptyList());
       }
     }
     return shard2NodeNames;
@@ -478,7 +474,7 @@ public class DistributeShardsThread extends Thread {
       if (zkClient.exists(node2ShardRootPath)) {
         node2ShardNames.put(node, zkClient.getChildren(node2ShardRootPath));
       } else {
-        node2ShardNames.put(node, Collections.<String>emptyList());
+        node2ShardNames.put(node, Collections.<String> emptyList());
       }
     }
     return node2ShardNames;

@@ -37,9 +37,10 @@ public class DeployClient implements IDeployClient {
   public IIndexDeployFuture addIndex(String name, String path, int replicationLevel) {
     final String indexPath = _conf.getZKIndexPath(name);
     validateIndexName(name, indexPath);
-    final IndexMetaData indexMetaData = new IndexMetaData(name, path, replicationLevel, IndexMetaData.IndexState.ANNOUNCED);
+    final IndexMetaData indexMetaData = new IndexMetaData(name, path, replicationLevel,
+            IndexMetaData.IndexState.ANNOUNCED);
     _zkClient.createPersistent(indexPath, indexMetaData);
-    return new IndexDeployFuture(_zkClient, name, indexPath, indexMetaData);
+    return new IndexDeployFuture(_zkClient, indexPath, indexMetaData);
   }
 
   private void validateIndexName(String name, String indexPath) {
@@ -76,7 +77,6 @@ public class DeployClient implements IDeployClient {
     return returnIndexes;
   }
 
-  // TODO jz: if IndexMetaData would contain index name, we could avoid that
   public List<String> getIndexNames(IndexState indexState) {
     final List<String> indexes = _zkClient.getChildren(_conf.getZKIndicesPath());
     final List<String> returnIndexes = new ArrayList<String>();

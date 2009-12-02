@@ -99,7 +99,7 @@ public class Master implements IZkStateListener {
     } else {
       safeModeMaxTime = masterConfiguration.getInt(MasterConfiguration.SAFE_MODE_MAX_TIME);
     }
-    _manageShardThread = new DistributeShardsThread(_conf, _zkClient, deployPolicy, safeModeMaxTime, false);
+    _manageShardThread = new DistributeShardsThread(_conf, _zkClient, deployPolicy, safeModeMaxTime);
   }
 
   public Master(ZkConfiguration conf, ZkServer zkServer) throws KattaException {
