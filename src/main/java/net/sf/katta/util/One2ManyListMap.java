@@ -41,6 +41,14 @@ public class One2ManyListMap<K, V> {
     _map = map;
   }
 
+  public void add(K key) {
+    List<V> values = _map.get(key);
+    if (values == null) {
+      values = new ArrayList<V>(3);
+      _map.put(key, values);
+    }
+  }
+
   public void add(K key, V value) {
     List<V> values = _map.get(key);
     if (values == null) {

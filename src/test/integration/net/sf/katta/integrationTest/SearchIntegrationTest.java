@@ -26,6 +26,7 @@ import net.sf.katta.node.Hits;
 import net.sf.katta.node.LuceneServer;
 import net.sf.katta.node.Node;
 import net.sf.katta.node.Query;
+import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.testutil.TestResources;
 import net.sf.katta.util.FileUtil;
 import net.sf.katta.util.KattaException;
@@ -46,7 +47,7 @@ public class SearchIntegrationTest extends TestCase {
     }
     super.tearDown();
   }
-  
+
   public void testSearch() throws Exception {
     long startTime = System.currentTimeMillis();
     _miniCluster = startMiniCluster(5, 3, 3);
@@ -123,17 +124,19 @@ public class SearchIntegrationTest extends TestCase {
 
     assertNotNull(node1);
     assertNotNull(node2);
-    
+
     Thread.sleep(queryTime / 4);
     node1.shutdown();
-    
+
     Thread.sleep(queryTime / 4);
     node2.getRpcServer().stop();
-    
+
     Thread.sleep(queryTime / 4);
     NodeConfiguration nodeConf = new NodeConfiguration();
     nodeConf.setShardFolder(new File(nodeConf.getShardFolder(), "-new").getAbsolutePath());
-    Node newNode = new Node(_miniCluster.getZkConfiguration(), _miniCluster.getZkClient(), nodeConf, new LuceneServer());
+    InteractionProtocol protocol = new InteractionProtocol(_miniCluster.getZkClient(), _miniCluster
+            .getZkConfiguration());
+    Node newNode = new Node(protocol, nodeConf, new LuceneServer());
     newNode.start();
 
     Thread.sleep(queryTime / 4);
@@ -193,7 +196,7 @@ public class SearchIntegrationTest extends TestCase {
   }
 
   private KattaMiniCluster startMiniCluster(int nodeCount, int indexCount, int replicationCount) throws KattaException,
-      InterruptedException {
+          InterruptedException {
     ZkConfiguration conf = new ZkConfiguration();
     FileUtil.deleteFolder(new File(conf.getZKDataDir()));
     FileUtil.deleteFolder(new File(conf.getZKDataLogDir()));

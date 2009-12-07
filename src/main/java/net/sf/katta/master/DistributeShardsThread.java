@@ -20,14 +20,11 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
@@ -37,13 +34,10 @@ import net.sf.katta.index.IndexMetaData;
 import net.sf.katta.index.IndexMetaData.IndexState;
 import net.sf.katta.node.NodeMetaData;
 import net.sf.katta.node.Node.NodeState;
+import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.util.CollectionUtil;
 import net.sf.katta.util.KattaException;
-import net.sf.katta.util.ZkConfiguration;
-import net.sf.katta.util.ZkKattaUtil;
 
-import org.I0Itec.zkclient.IZkChildListener;
-import org.I0Itec.zkclient.ZkClient;
 import org.I0Itec.zkclient.exception.ZkException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -57,8 +51,7 @@ public class DistributeShardsThread extends Thread {
 
   protected final static Logger LOG = Logger.getLogger(DistributeShardsThread.class);
 
-  private final ZkConfiguration _conf;
-  private final ZkClient _zkClient;
+  private final InteractionProtocol _interactionProtocol;
   private final IDeployPolicy _deployPolicy;
   private final long _safeModeMaxTime;
 
@@ -67,41 +60,39 @@ public class DistributeShardsThread extends Thread {
 
   private boolean _safeMode;
 
-  protected final List<IndexStateListener> _indexStateListeners = new CopyOnWriteArrayList<IndexStateListener>();
-
-  public DistributeShardsThread(ZkConfiguration conf, final ZkClient zkClient, final IDeployPolicy deployPolicy,
+  public DistributeShardsThread(InteractionProtocol interactionProtocol, final IDeployPolicy deployPolicy,
           final long safeModeMaxTime) {
+    _interactionProtocol = interactionProtocol;
     setDaemon(true);
     setName(getClass().getSimpleName());
     _deployPolicy = deployPolicy;
-    _zkClient = zkClient;
-    _conf = conf;
-    // try {
-    // _zkClient.getEventLock().lock();
-    // _zkClient.subscribeReconnects(this);
-    // } finally {
-    // _zkClient.getEventLock().unlock();
-    // }
     _safeModeMaxTime = safeModeMaxTime;
   }
 
-  public void updateIndexes(final Collection<String> indexes) {
-    _statusUpdate.updateIndexes(indexes);
-    try {
-      _updateLock.lock();
-      _updateLock.getUpdatedCondition().signal();
-    } finally {
-      _updateLock.unlock();
-    }
+  public void addIndex(String node) {
+    _statusUpdate.addIndex(node);
+    signalUpdate();
   }
 
-  public void updateNodes(final Collection<String> nodes) {
-    _statusUpdate.updateNodes(nodes);
+  public void removeIndex(String node) {
+    _statusUpdate.removeIndex(node);
+    signalUpdate();
+  }
+
+  public void addNode(String node) {
+    _statusUpdate.addNode(node);
+    signalUpdate();
+  }
+
+  public void removeNode(String node) {
+    _statusUpdate.removeNode(node);
+    signalUpdate();
+  }
+
+  private void signalUpdate() {
     try {
       _updateLock.lock();
       _updateLock.getUpdatedCondition().signal();
-    } catch (Exception e) {
-      e.printStackTrace();
     } finally {
       _updateLock.unlock();
     }
@@ -187,12 +178,6 @@ public class DistributeShardsThread extends Thread {
         sleep(1000);
       }
     } catch (final InterruptedException e) {
-      // sg: in case we shutdown this thread we need to make sure all index
-      // listener unsubscribe zookeeper notification to make sure zookeeper is
-      // able to shutdown cleanly
-      for (final IndexStateListener listener : _indexStateListeners) {
-        listener.unsubscribeShardEvents();
-      }
       LOG.info("manage shard thread stopped");
     }
   }
@@ -222,11 +207,12 @@ public class DistributeShardsThread extends Thread {
   private boolean areNodesConnecting(Set<String> nodes) {
     for (String node : nodes) {
       try {
-        NodeMetaData nodeMetaData = _zkClient.readData(_conf.getZKNodePath(node));
+        NodeMetaData nodeMetaData = _interactionProtocol.getNodeInServiceMD(node);
         if (nodeMetaData.getState() == NodeState.STARTING || nodeMetaData.getState() == NodeState.RECONNECTING) {
           return true;
         }
       } catch (ZkException e) {
+        // TODO jz: no zk stuff here
         // on startup there could be some node data removals and addings since
         // the "old" ephemerals have to be cleared
         LOG.warn("failed to load node data");
@@ -252,8 +238,8 @@ public class DistributeShardsThread extends Thread {
 
   private Set<String> getIndexesInState(IndexState indexState) {
     final Set<String> indexes = new HashSet<String>();
-    for (final String index : _zkClient.getChildren(_conf.getZKIndicesPath())) {
-      final IndexMetaData indexMetaData = _zkClient.readData(_conf.getZKIndexPath(index));
+    for (final String index : _interactionProtocol.getIndices()) {
+      final IndexMetaData indexMetaData = _interactionProtocol.getIndexMD(index);
       if (indexMetaData.getState() == indexState) {
         indexes.add(index);
       }
@@ -282,13 +268,12 @@ public class DistributeShardsThread extends Thread {
 
   private Set<String> getUnderreplicatedIndexes(int nodeCount) {
     final Set<String> underreplicatedIndexes = new HashSet<String>();
-    for (final String index : _zkClient.getChildren(_conf.getZKIndicesPath())) {
-      final String indexZkPath = _conf.getZKIndexPath(index);
-      final IndexMetaData indexMetaData = _zkClient.readData(indexZkPath);
+    for (final String index : _interactionProtocol.getIndices()) {
+      final IndexMetaData indexMetaData = _interactionProtocol.getIndexMD(index);
       if (indexMetaData.getState() != IndexState.ERROR && indexMetaData.getState() != IndexState.DEPLOYING
               && indexMetaData.getState() != IndexState.REPLICATING) {
         int desiredReplicationCount = indexMetaData.getReplicationLevel();
-        int minimalReplicationCount = getMinimalReplicationCount(indexZkPath, desiredReplicationCount);
+        int minimalReplicationCount = getMinimalReplicationCount(index, desiredReplicationCount);
         if (minimalReplicationCount < desiredReplicationCount) {
           if (minimalReplicationCount >= nodeCount) {
             LOG.warn("found index '" + index
@@ -304,12 +289,11 @@ public class DistributeShardsThread extends Thread {
 
   private Set<String> getOverreplicatedIndexes() {
     final Set<String> overreplicatedIndexes = new HashSet<String>();
-    for (final String index : _zkClient.getChildren(_conf.getZKIndicesPath())) {
-      final String indexZkPath = _conf.getZKIndexPath(index);
-      final IndexMetaData indexMetaData = _zkClient.readData(indexZkPath);
+    for (final String index : _interactionProtocol.getIndices()) {
+      final IndexMetaData indexMetaData = _interactionProtocol.getIndexMD(index);
       if (indexMetaData.getState() != IndexState.ERROR && indexMetaData.getState() != IndexState.DEPLOYING
               && indexMetaData.getState() != IndexState.REPLICATING) {
-        if (isOverReplicated(indexZkPath, indexMetaData)) {
+        if (isOverReplicated(index, indexMetaData)) {
           overreplicatedIndexes.add(index);
         }
       }
@@ -317,11 +301,10 @@ public class DistributeShardsThread extends Thread {
     return overreplicatedIndexes;
   }
 
-  private int getMinimalReplicationCount(final String indexZkPath, int desiredReplicationCount) {
+  private int getMinimalReplicationCount(final String index, int desiredReplicationCount) {
     int minimalReplicationCount = desiredReplicationCount;
-    final List<String> shards = _zkClient.getChildren(indexZkPath);
-    final Map<String, List<String>> shard2NodesMap = readShard2NodesMapFromZk(_conf, _zkClient, new HashSet<String>(
-            shards));
+    final List<String> shards = _interactionProtocol.getIndexShards(index);
+    final Map<String, List<String>> shard2NodesMap = _interactionProtocol.getShard2NodesMap(shards);
     for (final String shard : shards) {
       final int servingNodes = shard2NodesMap.get(shard).size();
       if (servingNodes < minimalReplicationCount) {
@@ -331,10 +314,9 @@ public class DistributeShardsThread extends Thread {
     return minimalReplicationCount;
   }
 
-  private boolean isOverReplicated(final String indexZkPath, final IndexMetaData indexMetaData) {
-    final List<String> shards = _zkClient.getChildren(indexZkPath);
-    final Map<String, List<String>> currentShard2NodesMap = readShard2NodesMapFromZk(_conf, _zkClient,
-            new HashSet<String>(shards));
+  private boolean isOverReplicated(final String index, final IndexMetaData indexMetaData) {
+    final List<String> shards = _interactionProtocol.getIndexShards(index);
+    final Map<String, List<String>> currentShard2NodesMap = _interactionProtocol.getShard2NodesMap(shards);
     for (final String shard : shards) {
       final int servingNodes = currentShard2NodesMap.get(shard).size();
       if (servingNodes > indexMetaData.getReplicationLevel()) {
@@ -353,17 +335,7 @@ public class DistributeShardsThread extends Thread {
 
     // iterates through all nodes and removes the assigned shards from index
     for (final String indexName : removedIndexes) {
-      final List<String> nodes = ZkKattaUtil.getKnownNodes(_zkClient, _conf);
-      for (final String node : nodes) {
-        final List<String> shards = _zkClient.getChildren(_conf.getZKNodeToShardPath(node));
-        for (final String shard : shards) {
-          final String node2ShardPath = _conf.getZKNodeToShardPath(node, shard);
-          final AssignedShard shardWritable = _zkClient.readData(node2ShardPath);
-          if (shardWritable.getIndexName().equalsIgnoreCase(indexName)) {
-            _zkClient.delete(node2ShardPath);
-          }
-        }
-      }
+      _interactionProtocol.undeployIndex(indexName);
     }
   }
 
@@ -386,9 +358,9 @@ public class DistributeShardsThread extends Thread {
 
     LOG.info(state.name().toLowerCase() + " following indexes:  " + affectedIndexes);
     for (final String index : affectedIndexes) {
-      final String indexZkPath = _conf.getZKIndexPath(index);
+      // final String indexZkPath = _conf.getZKIndexPath(index);
       try {
-        IndexMetaData indexMetaData = _zkClient.readData(_conf.getZKIndexPath(index));
+        IndexMetaData indexMetaData = _interactionProtocol.getIndexMD(index);
         LOG.info(state.name().toLowerCase() + " shards for index '" + index + "' (" + indexMetaData.getState() + ")");
 
         final Map<String, AssignedShard> shard2AssignedShardMap = readShardsFromFs(index, indexMetaData);
@@ -396,107 +368,44 @@ public class DistributeShardsThread extends Thread {
         LOG.info("Found shards '" + indexShards + "' for index '" + index + "'");
 
         indexMetaData.setState(state);
-        _zkClient.writeData(indexZkPath, indexMetaData);
+        _interactionProtocol.updateIndexMD(indexMetaData);
         distributeIndexShards(index, indexMetaData, indexShards, shard2AssignedShardMap, liveNodes);
       } catch (final Exception e) {
         if (e.getCause() instanceof InterruptedException) {
           throw new KattaException("Distribution of shards was interrupted", e.getCause());
         }
         LOG.error("could not deploy index '" + index + "'", e);
-        IndexMetaData indexMetaData = _zkClient.readData(indexZkPath);
+        IndexMetaData indexMetaData = _interactionProtocol.getIndexMD(index);
         indexMetaData.setState(IndexState.ERROR, StringUtils.stringifyException(e));
-        _zkClient.writeData(indexZkPath, indexMetaData);
+        _interactionProtocol.updateIndexMD(indexMetaData);
       }
     }
   }
 
-  private void distributeIndexShards(final String index, final IndexMetaData indexMD, final Set<String> indexShards,
+  private void distributeIndexShards(final String index, final IndexMetaData indexMD, final Set<String> shards,
           final Map<String, AssignedShard> shard2AssignedShardMap, Collection<String> liveNodes) {
     // cleanup/undeploy failed shards
-    for (final String shard : indexShards) {
-      final String shard2ErrorRootPath = _conf.getZKShardToErrorPath(shard);
-      if (_zkClient.exists(shard2ErrorRootPath)) {
-        final List<String> nodesWithFailedShard = _zkClient.getChildren(shard2ErrorRootPath);
-        for (final String node : nodesWithFailedShard) {
-          _zkClient.delete(_conf.getZKShardToErrorPath(shard, node));
-          _zkClient.delete(_conf.getZKNodeToShardPath(node, shard));
-        }
-      }
-    }
+    _interactionProtocol.cleanupShardData(shards);
 
     // add shards to zk
-    for (final String shard : indexShards) {
-      final String shardZkPath = _conf.getZKShardPath(index, shard);
-      final String shard2NodeRootPath = _conf.getZKShardToNodePath(shard);
-      final String shard2ErrorRootPath = _conf.getZKShardToErrorPath(shard);
-      if (!_zkClient.exists(shardZkPath)) {
-        _zkClient.createPersistent(shardZkPath, shard2AssignedShardMap.get(shard));
-      }
-      if (!_zkClient.exists(shard2NodeRootPath)) {
-        _zkClient.createPersistent(shard2NodeRootPath);
-      }
-      if (!_zkClient.exists(shard2ErrorRootPath)) {
-        _zkClient.createPersistent(shard2ErrorRootPath);
-      }
-    }
+    _interactionProtocol.createShardData(index, shards, shard2AssignedShardMap);
 
     // now distribute shards
-    final Map<String, List<String>> currentShard2NodesMap = readShard2NodesMapFromZk(_conf, _zkClient, indexShards);
-    final Map<String, List<String>> currentNodeToShardsMap = readNode2ShardsMapFromZk(_zkClient);
+    final Map<String, List<String>> currentShard2NodesMap = _interactionProtocol.getShard2NodesMap(shards);
+    final Map<String, List<String>> currentNodeToShardsMap = _interactionProtocol.getNode2ShardsMap();
     final Map<String, List<String>> distributionMap = _deployPolicy.createDistributionPlan(currentShard2NodesMap,
             currentNodeToShardsMap, new ArrayList<String>(liveNodes), indexMD.getReplicationLevel());
     writeShardDistributionMapToZK(distributionMap, shard2AssignedShardMap);
 
-    final IndexStateListener indexStateListener = new IndexStateListener(index, indexMD, indexShards, liveNodes.size());
-    _indexStateListeners.add(indexStateListener);
-    indexStateListener.subscribeShardEvents();
-  }
-
-  private static Map<String, List<String>> readShard2NodesMapFromZk(ZkConfiguration conf, final ZkClient zkClient,
-          final Set<String> indexShards) {
-    final Map<String, List<String>> shard2NodeNames = new HashMap<String, List<String>>();
-    for (final String shard : indexShards) {
-      final String shard2NodeRootPath = conf.getZKShardToNodePath(shard);
-      if (zkClient.exists(shard2NodeRootPath)) {
-        shard2NodeNames.put(shard, zkClient.getChildren(shard2NodeRootPath));
-      } else {
-        shard2NodeNames.put(shard, Collections.<String> emptyList());
-      }
-    }
-    return shard2NodeNames;
-  }
-
-  private Map<String, List<String>> readNode2ShardsMapFromZk(final ZkClient zkClient) {
-    final Map<String, List<String>> node2ShardNames = new HashMap<String, List<String>>();
-    final List<String> nodes = zkClient.getChildren(_conf.getZKNodeToShardPath());
-    for (final String node : nodes) {
-      final String node2ShardRootPath = _conf.getZKNodeToShardPath(node);
-      if (zkClient.exists(node2ShardRootPath)) {
-        node2ShardNames.put(node, zkClient.getChildren(node2ShardRootPath));
-      } else {
-        node2ShardNames.put(node, Collections.<String> emptyList());
-      }
-    }
-    return node2ShardNames;
+    _interactionProtocol.keepDeployStateSynced(index, indexMD, shards, liveNodes.size());
   }
 
   private void writeShardDistributionMapToZK(final Map<String, List<String>> distributionMap,
           final Map<String, AssignedShard> shard2AssignedShardMap) {
     final Set<String> nodes = distributionMap.keySet();
     for (final String node : nodes) {
-      final List<String> existingShards = _zkClient.getChildren(_conf.getZKNodeToShardPath(node));
       final List<String> newShards = distributionMap.get(node);
-
-      // add new shards
-      for (final String shard2Deploy : CollectionUtil.getListOfAdded(existingShards, newShards)) {
-        final String shard2NodePath = _conf.getZKNodeToShardPath(node, shard2Deploy);
-        _zkClient.createPersistent(shard2NodePath, shard2AssignedShardMap.get(shard2Deploy));
-      }
-
-      // remove old shards
-      for (final String shard2Deploy : CollectionUtil.getListOfRemoved(existingShards, newShards)) {
-        _zkClient.delete(_conf.getZKNodeToShardPath(node, shard2Deploy));
-      }
+      _interactionProtocol.deployShards(node, newShards, shard2AssignedShardMap);
     }
   }
 
@@ -560,9 +469,29 @@ public class DistributeShardsThread extends Thread {
     private final Set<String> _indexes = new HashSet<String>();
     private final Set<String> _nodes = new HashSet<String>();
 
+    public void addIndex(String name) {
+      _indexes.add(name);
+      _lastUpdate = System.currentTimeMillis();
+    }
+
+    public void removeIndex(String name) {
+      _indexes.remove(name);
+      _lastUpdate = System.currentTimeMillis();
+    }
+
     public void updateIndexes(final Collection<String> indexes) {
       _indexes.clear();
       _indexes.addAll(indexes);
+      _lastUpdate = System.currentTimeMillis();
+    }
+
+    public void addNode(String name) {
+      _nodes.add(name);
+      _lastUpdate = System.currentTimeMillis();
+    }
+
+    public void removeNode(String name) {
+      _nodes.remove(name);
       _lastUpdate = System.currentTimeMillis();
     }
 
@@ -586,151 +515,6 @@ public class DistributeShardsThread extends Thread {
 
   }
 
-  protected class IndexStateListener implements IZkChildListener {
-
-    private final Set<String> _shards;
-    private final Map<String, Integer> _shardToReplicaCount = new ConcurrentHashMap<String, Integer>();
-    private final Map<String, Integer> _shardToErrorCount = new ConcurrentHashMap<String, Integer>();
-    private final String _index;
-    private IndexMetaData _indexMetaData;
-    private final int _replicationLevel;
-
-    public IndexStateListener(final String index, final IndexMetaData indexMetaData, final Set<String> shards,
-            final int nodeCount) {
-      _index = index;
-      _indexMetaData = indexMetaData;
-      _shards = shards;
-
-      // TODO jz: this should be part of the distributionPlan
-      _replicationLevel = Math.min(_indexMetaData.getReplicationLevel(), nodeCount);
-    }
-
-    public void subscribeShardEvents() {
-      _zkClient.getEventLock().lock();
-      try {
-        LOG.info("start watching index '" + _index + "' (" + _indexMetaData.getState() + ")");
-        final Set<String> shards = _shards;
-        for (final String shard : shards) {
-          final String shard2NodeRootPath = _conf.getZKShardToNodePath(shard);
-          final String shard2ErrorPath = _conf.getZKShardToErrorPath(shard);
-          _zkClient.subscribeChildChanges(shard2NodeRootPath, this);
-          _zkClient.subscribeChildChanges(shard2ErrorPath, this);
-          _shardToReplicaCount.put(shard, _zkClient.getChildren(shard2NodeRootPath).size());
-          _shardToErrorCount.put(shard, _zkClient.getChildren(shard2ErrorPath).size());
-        }
-        checkForIndexStateSwitch();
-      } finally {
-        _zkClient.getEventLock().unlock();
-      }
-    }
-
-    public void unsubscribeShardEvents() {
-      LOG.info("stop watching index '" + _index + "' (" + _indexMetaData.getState() + ")");
-      final Set<String> shards = _shards;
-      for (final String shard : shards) {
-        final String shard2NodeRootPath = _conf.getZKShardToNodePath(shard);
-        final String shard2ErrorPath = _conf.getZKShardToErrorPath(shard);
-        _zkClient.unsubscribeChildChanges(shard2NodeRootPath, this);
-        _zkClient.unsubscribeChildChanges(shard2ErrorPath, this);
-      }
-      _indexStateListeners.remove(this);
-    }
-
-    public void handleChildChange(final String parentPath, final List<String> currentChilds) throws KattaException {
-      final String shard = _conf.getZKName(parentPath);
-      if (parentPath.startsWith(_conf.getZKShardToNodePath())) {
-        _shardToReplicaCount.put(shard, currentChilds.size());
-      } else if (parentPath.startsWith(_conf.getZKShardToErrorPath())) {
-        _shardToErrorCount.put(shard, currentChilds.size());
-      } else {
-        throw new IllegalStateException("could not associate path " + parentPath);
-      }
-      checkForIndexStateSwitch();
-    }
-
-    private synchronized void checkForIndexStateSwitch() {
-      if (_indexMetaData.getState() == IndexState.DEPLOYED || _indexMetaData.getState() == IndexState.ERROR) {
-        return;
-      }
-      if (LOG.isDebugEnabled()) {
-        LOG.debug("check with following deployments:" + _shardToReplicaCount);
-        LOG.debug("check with following errors:" + _shardToErrorCount);
-      }
-      int notDeployed = 0;
-      int underReplicated = 0;
-      int failed = 0;
-      int failedCompletely = 0;
-
-      for (final String shard : _shards) {
-        final Integer replicaCount = _shardToReplicaCount.get(shard);
-        if (replicaCount == null || replicaCount == 0) {
-          notDeployed++;
-        } else if (replicaCount < _replicationLevel) {
-          underReplicated++;
-        }
-        final Integer errorCount = _shardToErrorCount.get(shard);
-        if (errorCount != null) {
-          failed += errorCount;
-          if (errorCount >= _replicationLevel) {
-            failedCompletely++;
-          }
-        }
-      }
-
-      if (failedCompletely > 0) {
-        // at least one shard could not be deployed on any node
-        LOG.info("index '" + _index + "' deployment failed");
-        switchIndexState(IndexState.ERROR);
-        unsubscribeShardEvents();
-      } else if (notDeployed == 0 && underReplicated == 0 && failed == 0) {
-        // all shards are fully replicated
-        switchIndexState(IndexState.DEPLOYED);
-        unsubscribeShardEvents();
-      } else if (notDeployed == 0 && underReplicated > 0) {
-        // all shards are at least 1 time deployed
-        switchIndexState(IndexState.REPLICATING);
-      } else if (notDeployed == 0 && underReplicated - failed == 0) {
-        LOG.info("index '" + _index + "' deployed with errors");
-        switchIndexState(IndexState.DEPLOYED);
-        unsubscribeShardEvents();
-
-        try {
-          _updateLock.lock();
-          // we wakeup the manager thread since part of this index needs to be
-          // redeployed
-          _updateLock.getUpdatedCondition().signalAll();
-          // TODO sg: if a shard is corrupted it would fail to deploy on all
-          // nodes. So in case a shard just failed once on one specific node,
-          // than we can assume that with the next distribution map it will be
-          // deployed on a different node. In order to allow distribution
-          // policies to handle such cases we should pass in node-shard-error
-          // map as well
-        } finally {
-          _updateLock.unlock();
-        }
-      }
-
-    }
-
-    private void switchIndexState(final IndexState indexState) {
-      if (_indexMetaData.getState() == indexState) {
-        return;
-      }
-
-      LOG
-              .info("switching index '" + _index + "' from state " + _indexMetaData.getState() + " into state "
-                      + indexState);
-      final String indexZkPath = _conf.getZKIndexPath(_index);
-      _indexMetaData = _zkClient.readData(indexZkPath);
-      if (indexState == IndexState.ERROR) {
-        _indexMetaData.setState(indexState, "could not deploy shards properly, please see node logs");
-      } else {
-        _indexMetaData.setState(indexState);
-      }
-      _zkClient.writeData(indexZkPath, _indexMetaData);
-    }
-  }
-
   private class IndexInvalidException extends Exception {
 
     private static final long serialVersionUID = 1L;
@@ -748,18 +532,6 @@ public class DistributeShardsThread extends Thread {
 
     private static final long serialVersionUID = 1L;
     private final Condition _updatedCondition = newCondition();
-
-    // @Override
-    // public void lock() {
-    // new IOException(">>>>>>>>>>>>>>>>>>>>lock").printStackTrace();
-    // super.lock();
-    // }
-    //    
-    // @Override
-    // public void unlock() {
-    // new IOException("<<<<<<<<<<<<<<<<<<<<<<<unlock").printStackTrace();
-    // super.unlock();
-    // }
 
     /**
      * This condition will be signaled if a {@link StatusUpdate} has been

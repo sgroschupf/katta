@@ -23,28 +23,24 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.List;
 
-import net.sf.katta.util.ZkConfiguration;
+import net.sf.katta.protocol.InteractionProtocol;
 
-import org.I0Itec.zkclient.ZkClient;
-import org.I0Itec.zkclient.exception.ZkNoNodeException;
 import org.apache.log4j.Logger;
 
 public class JmxMonitor implements IMonitor {
   protected final static Logger LOG = Logger.getLogger(JmxMonitor.class);
 
-  private ZkClient _zkClient;
+  private InteractionProtocol _protocol;
   private JmxMonitorThread _thread;
-  private String _metricsPath;
   private String _serverId;
 
   @Override
-  public void startMonitoring(String serverId, ZkClient zkClient, ZkConfiguration zkConfiguration) {
-    if (serverId == null || zkClient == null || zkConfiguration == null) {
+  public void startMonitoring(String serverId, InteractionProtocol protocol) {
+    _protocol = protocol;
+    if (serverId == null || protocol == null) {
       throw new IllegalArgumentException("parameters can't be null");
     }
     _serverId = serverId;
-    _metricsPath = zkConfiguration.getZKMetricsPathForServer(serverId);
-    _zkClient = zkClient;
     _thread = new JmxMonitorThread();
     _thread.start();
   }
@@ -117,14 +113,7 @@ public class JmxMonitor implements IMonitor {
         } catch (Exception e) {
           LOG.error("Unable to retrieve metrics values:", e);
         }
-        try {
-          _zkClient.writeData(_metricsPath, metrics);
-        } catch (ZkNoNodeException e) {
-          _zkClient.createEphemeral(_metricsPath, new MetricsRecord(_serverId));
-        } catch (Exception e) {
-          // this only happens if zk is down
-          LOG.debug("Can't write to zk", e);
-        }
+        _protocol.setMetric(_serverId, metrics);
         try {
           sleep(1000);
         } catch (InterruptedException e) {

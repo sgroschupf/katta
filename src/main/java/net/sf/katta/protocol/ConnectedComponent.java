@@ -13,14 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package net.sf.katta.monitor;
+package net.sf.katta.protocol;
 
-import net.sf.katta.protocol.InteractionProtocol;
+/**
+ * A component which is connected to a node-cluster / zk-server. But sometimes
+ * connections drop. So this is the lifecylce for connections (once they are
+ * already connected).
+ * 
+ */
+public interface ConnectedComponent {
 
-public interface IMonitor {
+  void reconnect();
 
-  void startMonitoring(String serverId, InteractionProtocol protocol);
-
-  public void stopMonitoring();
+  void disconnect();
 
 }

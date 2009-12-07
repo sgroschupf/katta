@@ -20,76 +20,57 @@ import java.util.List;
 
 import net.sf.katta.index.IndexMetaData;
 import net.sf.katta.index.IndexMetaData.IndexState;
+import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.util.ZkConfiguration;
 
 import org.I0Itec.zkclient.ZkClient;
 
 public class DeployClient implements IDeployClient {
 
-  private ZkConfiguration _conf;
-  private ZkClient _zkClient;
+  private final InteractionProtocol _protocol;
 
   public DeployClient(ZkClient zkClient, ZkConfiguration configuration) {
-    _conf = configuration;
-    _zkClient = zkClient;
+    this(new InteractionProtocol(zkClient, configuration));
   }
 
-  public IIndexDeployFuture addIndex(String name, String path, int replicationLevel) {
-    final String indexPath = _conf.getZKIndexPath(name);
-    validateIndexName(name, indexPath);
-    final IndexMetaData indexMetaData = new IndexMetaData(name, path, replicationLevel,
-            IndexMetaData.IndexState.ANNOUNCED);
-    _zkClient.createPersistent(indexPath, indexMetaData);
-    return new IndexDeployFuture(_zkClient, indexPath, indexMetaData);
+  public DeployClient(InteractionProtocol interactionProtocol) {
+    _protocol = interactionProtocol;
+  }
+
+  public IIndexDeployFuture addIndex(String indexName, String indexPath, int replicationLevel) {
+    validateIndexName(indexName, indexPath);
+    _protocol.addIndex(indexName, indexPath, replicationLevel);
+    return new IndexDeployFuture(_protocol, indexName);
   }
 
   private void validateIndexName(String name, String indexPath) {
     if (name.trim().equals("*")) {
       throw new IllegalArgumentException("invalid index name: " + name);
     }
-
-    if (_zkClient.exists(indexPath)) {
-      throw new IllegalArgumentException("index already exists: " + name);
-    }
   }
 
-  public void removeIndex(String name) {
-    final String indexPath = _conf.getZKIndexPath(name);
-    if (!_zkClient.exists(indexPath)) {
-      throw new IllegalArgumentException("index not exists: " + name);
-    }
-    _zkClient.deleteRecursive(indexPath);
+  public void removeIndex(String indexName) {
+    _protocol.removeIndex(indexName);
   }
 
   public boolean existsIndex(String indexName) {
-    return _zkClient.exists(_conf.getZKIndexPath(indexName));
+    return _protocol.indexExists(indexName);
   }
 
   public List<IndexMetaData> getIndexes(IndexState indexState) {
-    final List<String> indexes = _zkClient.getChildren(_conf.getZKIndicesPath());
-    final List<IndexMetaData> returnIndexes = new ArrayList<IndexMetaData>();
-    for (final String index : indexes) {
-      final IndexMetaData metaData = _zkClient.readData(_conf.getZKIndexPath(index));
-      if (metaData.getState() == indexState) {
-        returnIndexes.add(metaData);
-      }
-    }
-    return returnIndexes;
+    return _protocol.getIndicesMDs(indexState);
   }
 
   public List<String> getIndexNames(IndexState indexState) {
-    final List<String> indexes = _zkClient.getChildren(_conf.getZKIndicesPath());
+    List<IndexMetaData> indexesMds = getIndexes(indexState);
     final List<String> returnIndexes = new ArrayList<String>();
-    for (final String index : indexes) {
-      final IndexMetaData metaData = _zkClient.readData(_conf.getZKIndexPath(index));
-      if (metaData.getState() == indexState) {
-        returnIndexes.add(index);
-      }
+    for (final IndexMetaData indexMD : indexesMds) {
+      returnIndexes.add(indexMD.getName());
     }
     return returnIndexes;
   }
 
-  public IndexMetaData getIndexMetaData(String name) {
-    return _zkClient.readData(_conf.getZKIndexPath(name));
+  public IndexMetaData getIndexMetaData(String indexName) {
+    return _protocol.getIndexMD(indexName);
   }
 }

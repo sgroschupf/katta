@@ -20,10 +20,8 @@ import java.io.IOException;
 import java.net.BindException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
@@ -33,43 +31,37 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 import net.sf.katta.index.AssignedShard;
-import net.sf.katta.index.DeployedShard;
 import net.sf.katta.index.ShardError;
 import net.sf.katta.monitor.IMonitor;
+import net.sf.katta.protocol.ConnectedComponent;
+import net.sf.katta.protocol.IAddRemoveListener;
+import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.util.CollectionUtil;
 import net.sf.katta.util.FileUtil;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.NetworkUtil;
 import net.sf.katta.util.NodeConfiguration;
-import net.sf.katta.util.ZkConfiguration;
 
-import org.I0Itec.zkclient.IZkChildListener;
-import org.I0Itec.zkclient.IZkStateListener;
-import org.I0Itec.zkclient.ZkClient;
-import org.I0Itec.zkclient.exception.ZkNodeExistsException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.ipc.RPC;
 import org.apache.hadoop.ipc.RPC.Server;
 import org.apache.log4j.Logger;
-import org.apache.zookeeper.Watcher.Event.KeeperState;
 
-public class Node implements IZkStateListener {
+public class Node implements ConnectedComponent {
 
   protected final static Logger LOG = Logger.getLogger(Node.class);
 
   public static final long _protocolVersion = 0;
 
-  protected ZkConfiguration _zkConf;
-  protected ZkClient _zkClient;
+  private final InteractionProtocol _protocol;
   private Server _rpcServer;
   private INodeManaged _server;
 
   protected String _nodeName;
   protected int _rpcServerPort;
   protected File _shardsFolder;
-  // contains the deploy errors two
   protected final Set<String> _deployedShards = new HashSet<String>();
 
   private Timer _timer;
@@ -78,7 +70,6 @@ public class Node implements IZkStateListener {
 
   private final NodeConfiguration _nodeConf;
   private NodeState _currentState;
-  private ShardListener _shardListener;
 
   private IMonitor _monitor;
 
@@ -86,19 +77,18 @@ public class Node implements IZkStateListener {
     STARTING, RECONNECTING, IN_SERVICE, LOST;
   }
 
-  public Node(ZkConfiguration conf, ZkClient zkClient, INodeManaged server) {
-    this(conf, zkClient, new NodeConfiguration(), server);
+  public Node(InteractionProtocol protocol, INodeManaged server) {
+    this(protocol, new NodeConfiguration(), server);
   }
 
-  public Node(ZkConfiguration conf, ZkClient zkClient, final NodeConfiguration configuration, INodeManaged server) {
+  public Node(InteractionProtocol protocol, final NodeConfiguration configuration, INodeManaged server) {
+    _protocol = protocol;
     if (server == null) {
       throw new IllegalArgumentException("Null server passed to Node()");
     }
-    _zkConf = conf;
-    _zkClient = zkClient;
     _nodeConf = configuration;
     _server = server;
-    _zkClient.subscribeStateChanges(this);
+    protocol.registerComponent(this);
     LOG.info("Starting node, server class = " + server.getClass().getCanonicalName());
   }
 
@@ -115,7 +105,7 @@ public class Node implements IZkStateListener {
     LOG.debug("Starting rpc server...");
     _nodeName = startRPCServer(_nodeConf.getStartPort());
     _server.setNodeName(_nodeName);
-    startMonitor(_nodeName, _zkClient, _nodeConf, _zkConf);
+    startMonitor(_protocol, _nodeName, _nodeConf);
 
     // we add hostName and port to the shardFolder to allow multiple nodes per
     // server with the same configuration
@@ -129,7 +119,7 @@ public class Node implements IZkStateListener {
     }
 
     cleanupLocalShardFolder();
-    announceNode(NodeState.STARTING);
+    _protocol.publishNode(this, NodeState.STARTING);
     startShardServing(false);
 
     LOG.info("Started node: " + _nodeName + "...");
@@ -138,7 +128,7 @@ public class Node implements IZkStateListener {
     _timer.schedule(new StatusUpdater(), new Date(), 60 * 1000);
   }
 
-  private void startMonitor(String nodeName, ZkClient zkClient, NodeConfiguration conf, ZkConfiguration zkConf) {
+  private void startMonitor(InteractionProtocol protocol, String nodeName, NodeConfiguration conf) {
     if (LOG.isTraceEnabled()) {
       LOG.trace("starting node monitor");
     }
@@ -146,30 +136,14 @@ public class Node implements IZkStateListener {
     try {
       Class<?> c = Class.forName(monitorClass);
       _monitor = (IMonitor) c.newInstance();
-      _monitor.startMonitoring(nodeName, zkClient, zkConf);
-
+      _monitor.startMonitoring(nodeName, protocol);
     } catch (Exception e) {
       LOG.error("Unable to start node monitor:", e);
     }
   }
 
-  public void handleNewSession() throws Exception {
-    announceNode(NodeState.RECONNECTING);
-    cleanupLocalShardFolder();
-    startShardServing(true);
-    updateStatus(NodeState.IN_SERVICE);
-  }
-
-  public void handleStateChanged(KeeperState state) throws Exception {
-    // do nothing
-  }
-
   private void cleanupLocalShardFolder() {
-    String node2ShardRootPath = getNodeToShardPath();
-    List<String> shardsToServe = Collections.emptyList();
-    if (_zkClient.exists(node2ShardRootPath)) {
-      shardsToServe = _zkClient.getChildren(node2ShardRootPath);
-    }
+    List<String> shardsToServe = _protocol.getNodeShards(_nodeName);
     String[] folderList = _shardsFolder.list(FileUtil.VISIBLE_FILES_FILTER);
     if (folderList != null) {
       List<String> localShards = Arrays.asList(folderList);
@@ -183,88 +157,64 @@ public class Node implements IZkStateListener {
     }
   }
 
-  /**
-   * Writes node ephemeral data into zookeeper
-   * 
-   * @param nodeState
-   */
-  private void announceNode(NodeState nodeState) {
-    LOG.info("Announce node '" + _nodeName + "'...");
-    final NodeMetaData metaData = new NodeMetaData(_nodeName, nodeState);
-    final String nodePath = _zkConf.getZKNodePath(_nodeName);
-    if (_zkClient.exists(nodePath)) {
-      LOG.warn("Old node path '" + nodePath + "' for this node detected, deleting it...");
-      _zkClient.delete(nodePath);
-    }
-
-    final String nodeToShardPath = getNodeToShardPath();
-    try {
-      _zkClient.createPersistent(nodeToShardPath);
-    } catch (ZkNodeExistsException e) {
-      // ignore
-    }
-    _zkClient.createEphemeral(nodePath, metaData);
-    LOG.info("Node '" + _nodeName + "' announced");
-  }
-
   private void startShardServing(boolean restart) {
     LOG.info("Start serving shards...");
-    _shardListener = new ShardListener();
-    List<String> shardsNames = _zkClient.subscribeChildChanges(getNodeToShardPath(), _shardListener);
+    List<String> shardsNames = _protocol.registerShardListener(this, _nodeName, new IAddRemoveListener() {
+      @Override
+      public void removed(String shardName) {
+        LOG.info("remove shard event: " + shardName);
+        undeployShard(shardName);
+      }
+
+      @Override
+      public void added(String shardName) {
+        LOG.info("add shard event: " + shardName);
+        deployShard(shardName);
+      }
+
+    });
 
     if (restart) {
       List<String> removed = CollectionUtil.getListOfRemoved(_deployedShards, shardsNames);
-      undeployShards(removed);
+      for (String removedShard : removed) {
+        undeployShard(removedShard);
+      }
     }
-    ArrayList<AssignedShard> assignedShards = readAssignedShards(shardsNames);
 
-    deployShards(assignedShards);
+    for (String shard : shardsNames) {
+      deployShard(shard);
+    }
     _deployedShards.clear();
     _deployedShards.addAll(shardsNames);
   }
 
-  private String getNodeToShardPath() {
-    return _zkConf.getZKNodeToShardPath(_nodeName);
-  }
-
-  protected void deployShards(final List<AssignedShard> newShards) {
-    for (AssignedShard shard : newShards) {
-      String shardName = shard.getShardName();
-      File localShardFolder = getLocalShardFolder(shardName);
-      try {
-        if (!localShardFolder.exists()) {
-          installShard(shard, localShardFolder);
-        }
-        _server.addShard(shardName, localShardFolder);
-        announceShard(shard);
-      } catch (Throwable t) {
-        LOG.error(_nodeName + ": could not deploy shard '" + shard + "'", t);
-        ShardError shardError = new ShardError(t.getMessage());
-        String shard2ErrorPath = _zkConf.getZKShardToErrorPath(shardName, _nodeName);
-        if (_zkClient.exists(shard2ErrorPath)) {
-          LOG.warn("detected old shard-to-error entry - deleting it..");
-          // must be an old ephemeral
-          _zkClient.delete(shard2ErrorPath);
-        }
-        _zkClient.createEphemeral(shard2ErrorPath, shardError);
-        FileUtil.deleteFolder(localShardFolder);
+  protected void deployShard(String shardName) {
+    AssignedShard shard = _protocol.getNodeShardMD(_nodeName, shardName);
+    File localShardFolder = getLocalShardFolder(shardName);
+    try {
+      if (!localShardFolder.exists()) {
+        installShard(shard, localShardFolder);
       }
+      _server.addShard(shardName, localShardFolder);
+      announceShard(shard);
+      _deployedShards.add(shardName);
+    } catch (Throwable t) {
+      LOG.error(_nodeName + ": could not deploy shard '" + shard + "'", t);
+      ShardError shardError = new ShardError(t.getMessage());
+      _protocol.publishShardError(this, shard, shardError);
+      FileUtil.deleteFolder(localShardFolder);
     }
   }
 
-  protected void undeployShards(final List<String> shardsToRemove) {
-    for (String shard : shardsToRemove) {
-      try {
-        LOG.info("Undeploying shard: " + shard);
-        _server.removeShard(shard);
-        String shard2NodePath = _zkConf.getZKShardToNodePath(shard, _nodeName);
-        if (_zkClient.exists(shard2NodePath)) {
-          _zkClient.delete(shard2NodePath);
-        }
-        FileUtil.deleteFolder(getLocalShardFolder(shard));
-      } catch (final Exception e) {
-        LOG.error("Failed to undeploy shard: " + shard, e);
-      }
+  protected void undeployShard(final String shard) {
+    try {
+      LOG.info("Undeploying shard: " + shard);
+      _server.removeShard(shard);
+      _protocol.unpublishShard(this, shard);
+      FileUtil.deleteFolder(getLocalShardFolder(shard));
+      _deployedShards.remove(shard);
+    } catch (final Exception e) {
+      LOG.error("Failed to undeploy shard: " + shard, e);
     }
   }
 
@@ -274,22 +224,13 @@ public class Node implements IZkStateListener {
   private void announceShard(AssignedShard shard) throws KattaException {
     String shardName = shard.getShardName();
     LOG.info("announce shard '" + shardName + "'");
-    // announce that this node serves this shard now...
-    final String shard2NodePath = _zkConf.getZKShardToNodePath(shardName, _nodeName);
-    if (_zkClient.exists(shard2NodePath)) {
-      LOG.warn("detected old shard-to-node entry - deleting it..");
-      // must be an old ephemeral
-      _zkClient.delete(shard2NodePath);
-    }
-
     Map<String, String> metaData;
     try {
       metaData = _server.getShardMetaData(shardName);
     } catch (Throwable t) {
-      throw new KattaException("Error measuring shard size for " + shardName, t);
+      throw new KattaException("Error retrieving shard metadata for " + shardName, t);
     }
-    DeployedShard deployedShard = new DeployedShard(shardName, metaData);
-    _zkClient.createEphemeral(shard2NodePath, deployedShard);
+    _protocol.publishShard(this, shard, metaData);
   }
 
   /*
@@ -346,30 +287,17 @@ public class Node implements IZkStateListener {
   }
 
   public void shutdown() {
-    _monitor.stopMonitoring();
     if (_server == null) {
       return;
     }
 
     LOG.info("shutdown " + _nodeName + " ...");
-    try {
-      // we deleting the ephemeral's since this is the fastest and the safest
-      // way, but if this does not work, it shouldn't be too bad
-      _zkClient.delete(_zkConf.getZKNodePath(_nodeName));
-      for (String shard : _deployedShards) {
-        String shard2NodePath = _zkConf.getZKShardToNodePath(shard, _nodeName);
-        String shard2ErrorPath = _zkConf.getZKShardToErrorPath(shard, _nodeName);
-        _zkClient.delete(shard2NodePath);
-        _zkClient.delete(shard2ErrorPath);
-      }
-    } catch (Throwable t) {
-      LOG.warn("could'nt cleanup zk ephemeral Paths: " + t.getMessage());
+    if (_monitor != null) {
+      _monitor.stopMonitoring();
     }
     _timer.cancel();
 
-    _zkClient.unsubscribeStateChanges(this);
-    _zkClient.unsubscribeChildChanges(getNodeToShardPath(), _shardListener);
-
+    _protocol.unregisterComponent(this);
     _rpcServer.stop();
     _rpcServer = null;
     try {
@@ -454,44 +382,32 @@ public class Node implements IZkStateListener {
 
   private void updateStatus(NodeState state) {
     _currentState = state;
-    final String nodePath = _zkConf.getZKNodePath(_nodeName);
-    final NodeMetaData metaData = _zkClient.readData(nodePath);
-    metaData.setState(state);
-    _zkClient.writeData(nodePath, metaData);
+    _protocol.updateNodeStatus(_nodeName, state);
   }
 
-  private ArrayList<AssignedShard> readAssignedShards(final List<String> shardsToDeploy) {
-    ArrayList<AssignedShard> newShards = new ArrayList<AssignedShard>();
-    for (String shardName : shardsToDeploy) {
-      AssignedShard assignedShard = _zkClient.readData(_zkConf.getZKNodeToShardPath(_nodeName, shardName));
-      newShards.add(assignedShard);
-    }
-    return newShards;
+  public InteractionProtocol getProtocol() {
+    return _protocol;
   }
 
-  /**
-   * Listens to events within the nodeToShard zookeeper folder. Those events are
-   * fired if a shard is assigned or removed for this node.
-   */
-  protected class ShardListener implements IZkChildListener {
+  @Override
+  public void reconnect() {
+    LOG.info(_nodeName + " reconnected");
+    _protocol.publishNode(this, NodeState.RECONNECTING);
+    cleanupLocalShardFolder();
+    startShardServing(true);
+    updateStatus(NodeState.IN_SERVICE);
+  }
 
-    public void handleChildChange(String parentPath, List<String> shardsToServe) {
-      LOG.info("got shard event: " + shardsToServe);
-      final List<String> shardsToUndeploy = CollectionUtil.getListOfRemoved(_deployedShards, shardsToServe);
-      final List<String> shardsToDeploy = CollectionUtil.getListOfAdded(_deployedShards, shardsToServe);
-      _deployedShards.removeAll(shardsToUndeploy);
-      _deployedShards.addAll(shardsToDeploy);
-      undeployShards(shardsToUndeploy);
-      // we actually want to get all shard information now to make sure it can
-      // not be changed during any other steps
-
-      List<AssignedShard> newShards = readAssignedShards(shardsToDeploy);
-      deployShards(newShards);
-    }
+  @Override
+  public void disconnect() {
+    LOG.info(_nodeName + " disconnected");
+    // we keep serving the shards
   }
 
   /**
    * A Thread that updates the status of the node within zookeeper.
+   * 
+   * TODO jz: maybe we should implement this as {@link IMonitor} as well ?
    */
   protected class StatusUpdater extends TimerTask {
     @Override
@@ -503,20 +419,12 @@ public class Node implements IZkStateListener {
       long time = (System.currentTimeMillis() - _startTime) / (60 * 1000);
       time = Math.max(time, 1);
       final float qpm = (float) _queryCounter / time;
-      final String nodePath = _zkConf.getZKNodePath(_nodeName);
       try {
-        if (_zkClient.exists(nodePath)) {
-          NodeMetaData metaData = _zkClient.readData(nodePath);
-          metaData.setQueriesPerMinute(qpm);
-          _zkClient.writeData(nodePath, metaData);
-        }
+        _protocol.updateNodeStatus(_nodeName, qpm);
       } catch (final Exception e) {
         LOG.error("Failed to update node status.", e);
       }
     }
   }
 
-  public ZkClient getZkClient() {
-    return _zkClient;
-  }
 }

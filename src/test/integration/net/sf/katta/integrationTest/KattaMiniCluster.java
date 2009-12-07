@@ -22,6 +22,7 @@ import net.sf.katta.client.IDeployClient;
 import net.sf.katta.master.Master;
 import net.sf.katta.node.LuceneServer;
 import net.sf.katta.node.Node;
+import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.NodeConfiguration;
 import net.sf.katta.util.ZkConfiguration;
@@ -50,12 +51,13 @@ public class KattaMiniCluster {
 
   public void start() throws KattaException {
     _zkServer = ZkKattaUtil.startZkServer(_zkConfiguration);
+    InteractionProtocol protocol = new InteractionProtocol(_zkServer.getZkClient(), _zkConfiguration);
     for (int i = 0; i < _nodes.length; i++) {
       NodeConfiguration nodeConf = new NodeConfiguration();
       nodeConf.setShardFolder(new File(nodeConf.getShardFolder(), "" + i).getAbsolutePath());
-      _nodes[i] = new Node(_zkConfiguration, _zkServer.getZkClient(), nodeConf, new LuceneServer());
+      _nodes[i] = new Node(protocol, nodeConf, new LuceneServer());
     }
-    _master = new Master(_zkConfiguration, _zkServer);
+    _master = new Master(protocol, _zkServer);
     _master.start();
     for (Node node : _nodes) {
       node.start();
@@ -83,7 +85,7 @@ public class KattaMiniCluster {
   public ZkConfiguration getZkConfiguration() {
     return _zkConfiguration;
   }
-  
+
   public ZkServer getZkServer() {
     return _zkServer;
   }

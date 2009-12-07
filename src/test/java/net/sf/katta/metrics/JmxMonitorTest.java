@@ -15,26 +15,24 @@
  */
 package net.sf.katta.metrics;
 
-import java.io.Serializable;
-
+import static org.mockito.Matchers.anyObject;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import junit.framework.TestCase;
 import net.sf.katta.monitor.JmxMonitor;
-import net.sf.katta.util.ZkConfiguration;
-
-import org.I0Itec.zkclient.ZkClient;
-import org.mockito.Mockito;
+import net.sf.katta.monitor.MetricsRecord;
+import net.sf.katta.protocol.InteractionProtocol;
 
 public class JmxMonitorTest extends TestCase {
 
   public void testGetCpu() throws Exception {
     JmxMonitor monitor = new JmxMonitor();
-    ZkClient zkClient = Mockito.mock(ZkClient.class);
-    ZkConfiguration zkConfiguration = Mockito.mock(ZkConfiguration.class);
-    String somePath = "/somePaht";
-    Mockito.when(zkConfiguration.getZKMetricsPathForServer("someId")).thenReturn(somePath);
-    monitor.startMonitoring("someId", zkClient, zkConfiguration);
+    String nodeId = "someId";
+    InteractionProtocol protocol = mock(InteractionProtocol.class);
+    monitor.startMonitoring(nodeId, protocol);
     Thread.sleep(1200);
-    Mockito.verify(zkClient, Mockito.atLeastOnce()).writeData(Mockito.anyString(), (Serializable) Mockito.anyObject());
+    verify(protocol, atLeastOnce()).setMetric(eq(nodeId), (MetricsRecord) anyObject());
   }
-
 }

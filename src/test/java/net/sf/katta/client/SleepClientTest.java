@@ -55,7 +55,7 @@ public class SleepClientTest extends AbstractKattaTest {
 
     waitOnNodes(masterStartThread, 1);
 
-    _deployClient = new DeployClient(_node1.getZkClient(), _conf);
+    _deployClient = new DeployClient(_node1.getProtocol());
     _deployClient.addIndex(INDEX1, TestResources.MAP_FILE_A.getAbsolutePath(), 1).joinDeployment();
     _client = new SleepClient(new DefaultNodeSelectionPolicy(), _conf, new ClientConfiguration());
   }
@@ -78,17 +78,17 @@ public class SleepClientTest extends AbstractKattaTest {
     System.out.println("time 2 = " + d2);
     assertTrue(d2 - d1 > 200);
   }
-  
+
   public void testMultiThreadedAccess() throws Exception {
     Random rand = new Random("sleepy".hashCode());
     List<Thread> threads = new ArrayList<Thread>();
     final List<Exception> exceptions = new ArrayList<Exception>();
     long startTime = System.currentTimeMillis();
-    for (int i=0; i<10; i++) {
+    for (int i = 0; i < 10; i++) {
       final Random rand2 = new Random(rand.nextInt());
       Thread t = new Thread(new Runnable() {
         public void run() {
-          for (int j=0; j<50; j++) {
+          for (int j = 0; j < 50; j++) {
             int n = rand2.nextInt(20);
             try {
               _client.sleepIndices(n, INDEX_1);
@@ -111,7 +111,7 @@ public class SleepClientTest extends AbstractKattaTest {
       throw exceptions.get(0);
     }
   }
-  
+
   public void testNonExistantShard() throws Exception {
     try {
       _client.sleepShards(0, 0, new String[] { "doesNotExist" });

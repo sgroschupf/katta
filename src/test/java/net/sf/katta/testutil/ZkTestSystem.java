@@ -16,6 +16,8 @@
 package net.sf.katta.testutil;
 
 import net.sf.katta.DefaultNameSpaceImpl;
+import net.sf.katta.Katta;
+import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.util.ZkConfiguration;
 
 import org.I0Itec.zkclient.ZkClient;
@@ -32,7 +34,7 @@ public class ZkTestSystem extends ExternalResource {
   private ZkServer _zkServer;
   private ZkConfiguration _conf;
 
-  public ZkTestSystem() {
+  private ZkTestSystem() {
     System.out.println("~~~~~~~~~~~~~~~ starting zk system ~~~~~~~~~~~~~~~");
     String baseDir = "build/zkdata";
     String dataDir = baseDir + "/data";
@@ -48,24 +50,27 @@ public class ZkTestSystem extends ExternalResource {
   @Override
   // executed before every test method
   protected void before() throws Throwable {
-    cleanupZkNameSpace();
+    cleanupZk();
   }
 
   @Override
   // executed after every test method
   protected void after() {
-    cleanupZkNameSpace();
+    cleanupZk();
   }
 
-  private void cleanupZkNameSpace() {
+  private void cleanupZk() {
     LOG.info("cleanup zk namespace");
     getZkClient().deleteRecursive(_conf.getZKRootPath());
     new DefaultNameSpaceImpl(_conf).createDefaultNameSpace(getZkClient());
+    LOG.info("unsubscribing " + getZkClient().numberOfListeners() + " listeners");
+    getZkClient().unsubscribeAll();
   }
 
   public static ZkTestSystem getInstance() {
     if (_instance == null) {
       _instance = new ZkTestSystem();
+      _instance.cleanupZk();
       Runtime.getRuntime().addShutdownHook(new Thread() {
         @Override
         public void run() {
@@ -85,13 +90,27 @@ public class ZkTestSystem extends ExternalResource {
     return _zkServer.getZkClient();
   }
 
+  public InteractionProtocol getInteractionProtocol() {
+    return new InteractionProtocol(_zkServer.getZkClient(), _conf);
+  }
+
   public ZkConfiguration getZkConf() {
     return _conf;
+  }
+
+  public int getServerPort() {
+    return PORT;
   }
 
   public ZkClient createZkClient() {
     return new ZkClient("localhost:" + PORT);
   }
+
+  public void showStructure() {
+    Katta katta = new Katta(getZkConf());
+    katta.showStructure();
+  }
+
   // LuceneComplianceTest (zk, lucene server)
   // LuceneClientTest (zk, lucene server)
   // MasterTest(zk, ~lucene server)
@@ -138,5 +157,5 @@ public class ZkTestSystem extends ExternalResource {
 
   // TIMES:
   // 5 minutes 21 seconds
-  // 5 minutes 41 seconds (fixed 3 test with ZkTestSystem)
+  // 5 minutes 29/41 seconds (fixed 3 test with ZkTestSystem)
 }

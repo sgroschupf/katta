@@ -47,6 +47,7 @@ import net.sf.katta.node.Node;
 import net.sf.katta.node.NodeMetaData;
 import net.sf.katta.node.Query;
 import net.sf.katta.node.Node.NodeState;
+import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.tool.ZkTool;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.VersionInfo;
@@ -79,6 +80,11 @@ public class Katta {
   public Katta(final ZkConfiguration configuration) {
     _conf = configuration;
     _zkClient = ZkKattaUtil.startZkClient(configuration, 10000);
+  }
+
+  public Katta(final ZkConfiguration configuration, ZkClient zkClient) {
+    _conf = configuration;
+    _zkClient = zkClient;
   }
 
   public static void main(final String[] args) throws Exception {
@@ -320,10 +326,10 @@ public class Katta {
     Master master;
     if (conf.isEmbedded()) {
       ZkServer zkServer = ZkKattaUtil.startZkServer(conf);
-      master = new Master(conf, zkServer);
+      master = new Master(new InteractionProtocol(zkServer.getZkClient(), conf), zkServer);
     } else {
       ZkClient zkClient = ZkKattaUtil.startZkClient(conf, 30000);
-      master = new Master(conf, zkClient, true);
+      master = new Master(new InteractionProtocol(zkClient, conf), true);
     }
     master.start();
     return master;
@@ -375,7 +381,8 @@ public class Katta {
       throw new RuntimeException("Error getting server instance for " + serverClassName, t);
     }
     final ZkClient client = ZkKattaUtil.startZkClient(conf, 60000);
-    final Node node = new Node(conf, client, server);
+    InteractionProtocol interactionProtocol = new InteractionProtocol(client, conf);
+    final Node node = new Node(interactionProtocol, server);
     node.start();
     Runtime.getRuntime().addShutdownHook(new Thread() {
       @Override

@@ -25,6 +25,7 @@ import net.sf.katta.index.IndexMetaData.IndexState;
 import net.sf.katta.node.LuceneServer;
 import net.sf.katta.node.Node;
 import net.sf.katta.node.Query;
+import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.testutil.TestResources;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.NodeConfiguration;
@@ -43,12 +44,13 @@ public class FailTest extends AbstractKattaTest {
   public void testMasterFail() throws Exception {
     final ZkClient masterClient = ZkKattaUtil.startZkClient(_conf, 30000);
     final ZkClient secMasterClient = ZkKattaUtil.startZkClient(_conf, 30000);
-
-    final Master master = new Master(_conf, masterClient, true);
+    InteractionProtocol masterProtocol = new InteractionProtocol(masterClient, _conf);
+    InteractionProtocol secMasterProtocol = new InteractionProtocol(secMasterClient, _conf);
+    final Master master = new Master(masterProtocol, true);
     master.start();
 
     // start secondary master..
-    final Master secMaster = new Master(_conf, secMasterClient, true);
+    final Master secMaster = new Master(secMasterProtocol, true);
     secMaster.start();
 
     waitForPath(masterClient, _conf.getZKMasterPath());
@@ -118,7 +120,7 @@ public class FailTest extends AbstractKattaTest {
     masterThread.shutdown();
   }
 
-  //TODO PVo enable later
+  // TODO PVo enable later
   public void _testZkReconnectDuringDeployment() throws InterruptedException, KattaException {
     final MasterStartThread masterThread = startMaster();
     final ZkClient masterZkClient = masterThread.getZkClient();
@@ -147,13 +149,12 @@ public class FailTest extends AbstractKattaTest {
     }
   }
 
-
   private static class DummyNode {
 
     private final Node _node;
 
     public DummyNode(final ZkConfiguration conf, final NodeConfiguration nodeConfiguration) {
-      _node = new Node(conf, _zkServer.getZkClient(), nodeConfiguration, new LuceneServer());
+      _node = new Node(new InteractionProtocol(_zkServer.getZkClient(), conf), nodeConfiguration, new LuceneServer());
       _node.start();
     }
 

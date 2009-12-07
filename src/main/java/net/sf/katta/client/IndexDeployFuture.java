@@ -19,38 +19,34 @@ import java.io.Serializable;
 
 import net.sf.katta.index.IndexMetaData;
 import net.sf.katta.index.IndexMetaData.IndexState;
+import net.sf.katta.protocol.ConnectedComponent;
+import net.sf.katta.protocol.InteractionProtocol;
 
 import org.I0Itec.zkclient.IZkDataListener;
-import org.I0Itec.zkclient.IZkStateListener;
-import org.I0Itec.zkclient.ZkClient;
 import org.apache.log4j.Logger;
-import org.apache.zookeeper.Watcher.Event.KeeperState;
 
 //TODO PVo test all edge cases
-public class IndexDeployFuture implements IIndexDeployFuture, IZkDataListener, IZkStateListener {
+public class IndexDeployFuture implements IIndexDeployFuture, IZkDataListener, ConnectedComponent {
 
   private static Logger LOG = Logger.getLogger(IndexDeployFuture.class);
 
-  private final ZkClient _zkClient;
-  private final String _indexZkPath;
-  private IndexMetaData _indexMetaData;
+  private final InteractionProtocol _protocol;
+  private final String _indexName;
 
-  public IndexDeployFuture(ZkClient zkClient, String indexZkPath, IndexMetaData indexMetaData) {
-    _zkClient = zkClient;
-    _indexMetaData = indexMetaData;
-    _indexZkPath = indexZkPath;
+  public IndexDeployFuture(InteractionProtocol protocol, String indexName) {
+    _protocol = protocol;
+    _indexName = indexName;
 
-    _zkClient.subscribeStateChanges(this);
-    _zkClient.subscribeDataChanges(_indexZkPath, this);
-    _indexMetaData = _zkClient.readData(_indexZkPath);
+    _protocol.registerComponent(this);
+    _protocol.registerIndexMetaDataListener(this, indexName, this);
   }
 
   public synchronized IndexState getState() {
-    return _indexMetaData.getState();
+    return _protocol.getIndexMD(_indexName).getState();
   }
 
   public synchronized IndexState joinDeployment() throws InterruptedException {
-    while (isDeploymentRunning(_indexMetaData)) {
+    while (isDeploymentRunning(_protocol.getIndexMD(_indexName))) {
       wait(5000);
     }
     return getState();
@@ -58,7 +54,7 @@ public class IndexDeployFuture implements IIndexDeployFuture, IZkDataListener, I
 
   public synchronized IndexState joinDeployment(long maxTime) throws InterruptedException {
     long startJoin = System.currentTimeMillis();
-    while (isDeploymentRunning(_indexMetaData)) {
+    while (isDeploymentRunning(_protocol.getIndexMD(_indexName))) {
       wait(maxTime);
       maxTime = maxTime - (System.currentTimeMillis() - startJoin);
       if (maxTime <= 0) {
@@ -68,7 +64,7 @@ public class IndexDeployFuture implements IIndexDeployFuture, IZkDataListener, I
     return getState();
   }
 
-  private boolean isDeploymentRunning(IndexMetaData indexMetaData) {
+  private static boolean isDeploymentRunning(IndexMetaData indexMetaData) {
     if (indexMetaData == null) {
       return false;
     }
@@ -87,27 +83,24 @@ public class IndexDeployFuture implements IIndexDeployFuture, IZkDataListener, I
   }
 
   private synchronized void updateIndexMetaData(IndexMetaData data) {
-    _indexMetaData = data;
     notifyAll();
     if (!isDeploymentRunning(data)) {
-      _zkClient.unsubscribeDataChanges(_indexZkPath, this);
+      _protocol.unregisterComponent(this);
     }
   }
 
   @Override
-  public void handleNewSession() throws Exception {
-    // ignore
+  public void reconnect() {
+    // sg: we just want to make sure we get the very latest state of the
+    // index,
+    // since we might missed a event. With zookeeper 3.x we should still have
+    // subcribed notifcatins and dont need to resubscribe
+    LOG.warn("Reconnecting IndexDeployFuture");
+    updateIndexMetaData(_protocol.getIndexMD(_indexName));
   }
 
   @Override
-  public void handleStateChanged(KeeperState state) throws Exception {
-    if (state == KeeperState.SyncConnected) {
-      // sg: we just want to make sure we get the very latest state of the
-      // index,
-      // since we might missed a event. With zookeeper 3.x we should still have
-      // subcribed notifcatins and dont need to resubscribe
-      LOG.warn("Reconnecting IndexDeployFuture");
-      updateIndexMetaData((IndexMetaData) _zkClient.readData(_indexZkPath));
-    }
+  public void disconnect() {
+    // nothing
   }
 }

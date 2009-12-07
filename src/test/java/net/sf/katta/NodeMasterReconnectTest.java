@@ -18,6 +18,7 @@ package net.sf.katta;
 import net.sf.katta.master.Master;
 import net.sf.katta.node.LuceneServer;
 import net.sf.katta.node.Node;
+import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.util.ZkConfiguration;
 import net.sf.katta.util.ZkKattaUtil;
 
@@ -40,7 +41,8 @@ public class NodeMasterReconnectTest extends AbstractKattaTest {
     final MasterStartThread masterStartThread = startMaster();
     final Master master = masterStartThread.getMaster();
     final ZkClient zkGatewayClient = ZkKattaUtil.startZkClient(gatewayConf, 30000);
-    final Node node = new Node(gatewayConf, zkGatewayClient, new LuceneServer());
+    InteractionProtocol gatewayProtocol = new InteractionProtocol(zkGatewayClient, gatewayConf);
+    final Node node = new Node(gatewayProtocol, new LuceneServer());
     node.start();
     masterStartThread.join();
 
@@ -54,8 +56,9 @@ public class NodeMasterReconnectTest extends AbstractKattaTest {
 
     // now fix the node connection
     gateway.start();
-    waitOnNodes(masterStartThread, 1);
+    waitOnNodesInService(masterStartThread, 1);
 
+    // cleanup
     node.shutdown();
     zkGatewayClient.close();
     masterStartThread.shutdown();
