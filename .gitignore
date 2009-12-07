@@ -10,3 +10,4 @@ extras/katta.gui/web-app
 prodDb*
 .DS_Store
 stacktrace.log
+log.log
