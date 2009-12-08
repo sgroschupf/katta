@@ -19,8 +19,6 @@ import static org.junit.Assert.assertEquals;
 
 import java.util.List;
 
-import net.sf.katta.coordinate.AddIndexCommandTest;
-import net.sf.katta.coordinate.BalanceIndexCommandTest;
 import net.sf.katta.testutil.PrintMethodNames;
 import net.sf.katta.testutil.ZkTestSystem;
 
@@ -28,8 +26,6 @@ import org.I0Itec.zkclient.IZkChildListener;
 import org.I0Itec.zkclient.ZkClient;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.runner.Result;
-import org.junit.runner.notification.Failure;
 
 public class NodeIntegrationTest {
 
@@ -55,15 +51,4 @@ public class NodeIntegrationTest {
     assertEquals(1, zkClient.numberOfListeners());
   }
 
-  public static void main(String[] args) {
-    Result result = org.junit.runner.JUnitCore.runClasses(AddIndexCommandTest.class, BalanceIndexCommandTest.class,
-            NodeIntegrationTest.class);
-    if (result.getFailureCount() > 0) {
-      System.err.println("tests failed");
-      List<Failure> failures = result.getFailures();
-      for (Failure failure : failures) {
-        System.out.println(failure.getMessage());
-      }
-    }
-  }
 }
