@@ -43,13 +43,19 @@ public class KattaTest {
   }
 
   @Test
+  public void testShowErrorsWithIndexNotExist() {
+    Katta katta = new Katta(_zk.getZkConf());
+    katta.showErrors("abc");
+  }
+
+  @Test
   public void testListIndexesWithUnreachableIndex_KATTA_76() throws IOException {
-    Katta _katta = new Katta(_zk.getZkConf());
+    Katta _katta = new Katta(_zk.getZkConf(), _zk.getZkClient());
     ZkConfiguration configuration = _zk.getZkConf();
     ZkClient zkClient = _zk.getZkClient();
     DeployClient deployClient = new DeployClient(zkClient, configuration);
     deployClient.addIndex("index1", "hdfs://localhost:8020/index", 1);
-    _katta.listIndex(true, zkClient, configuration);
+    _katta.listIndex(true);
   }
 
   @Test

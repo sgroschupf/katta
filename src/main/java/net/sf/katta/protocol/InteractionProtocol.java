@@ -27,7 +27,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import net.sf.katta.DefaultNameSpaceImpl;
-import net.sf.katta.Katta;
 import net.sf.katta.index.AssignedShard;
 import net.sf.katta.index.DeployedShard;
 import net.sf.katta.index.IndexMetaData;
@@ -57,19 +56,23 @@ import org.apache.zookeeper.Watcher.Event.KeeperState;
  * Abstracts the interaction between master and nodes via zookeeper files and
  * folders.
  * 
- * TODO use in {@link Katta}
  */
 public class InteractionProtocol {
 
   protected final static Logger LOG = Logger.getLogger(InteractionProtocol.class);
 
+  protected volatile boolean _connected = true;
   protected final ZkClient _zkClient;
   protected ZkConfiguration _zkConf;
   protected final List<IndexStateListener> _indexStateListeners = new CopyOnWriteArrayList<IndexStateListener>();
+
+  // we govern the various listener and ephemerals to remove burden from
+  // listener-users to unregister/delete them
   protected One2ManyListMap<ConnectedComponent, Object> _zkListenerByComponent = new One2ManyListMap<ConnectedComponent, Object>();
   private One2ManyListMap<ConnectedComponent, String> _zkEphemeralPublishesByComponent = new One2ManyListMap<ConnectedComponent, String>();
-  private Map<Object, String> _zkPathesByListener = new HashMap<Object, String>();
-  protected volatile boolean _connected = true;
+  private One2ManyListMap<Object, String> _zkPathesByListener = new One2ManyListMap<Object, String>();
+  // private One2ManyListMap<IZkDataListener, String> _zkDataPathesByListener =
+  // new One2ManyListMap<IZkDataListener, String>();
 
   private IZkStateListener _stateListener = new IZkStateListener() {
     @Override
@@ -128,13 +131,15 @@ public class InteractionProtocol {
   public void unregisterComponent(ConnectedComponent component) {
     List<Object> listeners = _zkListenerByComponent.removeKey(component);
     for (Object listener : listeners) {
-      String zkPath = _zkPathesByListener.get(listener);
-      if (listener instanceof IZkChildListener) {
-        _zkClient.unsubscribeChildChanges(zkPath, (IZkChildListener) listener);
-      } else if (listener instanceof IZkDataListener) {
-        _zkClient.unsubscribeDataChanges(zkPath, (IZkDataListener) listener);
-      } else {
-        throw new IllegalStateException("could not handle lister of type " + listener.getClass().getName());
+      List<String> zkPathes = _zkPathesByListener.getValues(listener);
+      for (String zkPath : zkPathes) {
+        if (listener instanceof IZkChildListener) {
+          _zkClient.unsubscribeChildChanges(zkPath, (IZkChildListener) listener);
+        } else if (listener instanceof IZkDataListener) {
+          _zkClient.unsubscribeDataChanges(zkPath, (IZkDataListener) listener);
+        } else {
+          throw new IllegalStateException("could not handle lister of type " + listener.getClass().getName());
+        }
       }
     }
 
@@ -172,18 +177,38 @@ public class InteractionProtocol {
           String zkPath) {
     synchronized (component) {
       AddRemoveListenerAdapter zkListener = new AddRemoveListenerAdapter(_zkClient, zkPath, listener);
-      _zkPathesByListener.put(zkListener, zkPath);
+      _zkPathesByListener.add(zkListener, zkPath);
       _zkListenerByComponent.add(component, zkListener);
       return zkListener.getCachedChilds();
     }
   }
 
-  public void registerIndexMetaDataListener(ConnectedComponent component, String indexName,
-          IZkDataListener zkDataListener) {
-    String zkPath = _zkConf.getZKIndexPath(indexName);
-    _zkClient.subscribeDataChanges(zkPath, zkDataListener);
-    _zkPathesByListener.put(zkDataListener, zkPath);
-    _zkListenerByComponent.add(component, zkDataListener);
+  private void registerDataListener(ConnectedComponent component, String zkPath, IZkDataListener dataListener) {
+    _zkClient.subscribeDataChanges(zkPath, dataListener);
+    _zkListenerByComponent.add(component, dataListener);
+    _zkPathesByListener.add(dataListener, zkPath);
+  }
+
+  private void unregisterDataListener(ConnectedComponent component, String zkPath, IZkDataListener dataListener) {
+    _zkClient.unsubscribeDataChanges(zkPath, dataListener);
+    _zkListenerByComponent.removeValue(component, dataListener);
+    _zkPathesByListener.removeValue(dataListener, zkPath);
+  }
+
+  public void registerIndexMetaDataListener(ConnectedComponent component, String indexName, IZkDataListener dataListener) {
+    registerDataListener(component, _zkConf.getZKIndexPath(indexName), dataListener);
+  }
+
+  public List<String> registerMetricsNodeListener(ConnectedComponent component, IAddRemoveListener dataListener) {
+    return registerAddRemoveListener(component, dataListener, _zkConf.getZKMetricsPath());
+  }
+
+  public void registerMetricsDataListener(ConnectedComponent component, String nodeName, IZkDataListener dataListener) {
+    registerDataListener(component, _zkConf.getZKMetricsPathForServer(nodeName), dataListener);
+  }
+
+  public void unregisterMetricsDataListener(ConnectedComponent component, String nodeName, IZkDataListener dataListener) {
+    unregisterDataListener(component, _zkConf.getZKMetricsPathForServer(nodeName), dataListener);
   }
 
   public boolean becomeMasterOrSecondaryMaster(final Master master) {
@@ -237,11 +262,19 @@ public class InteractionProtocol {
   }
 
   public NodeMetaData getNodeInServiceMD(String node) {
-    return _zkClient.readData(_zkConf.getZKNodePath(node));
+    return (NodeMetaData) readZkData(_zkConf.getZKNodePath(node));
   }
 
   public IndexMetaData getIndexMD(String index) {
-    return _zkClient.readData(_zkConf.getZKIndexPath(index));
+    return (IndexMetaData) readZkData(_zkConf.getZKIndexPath(index));
+  }
+
+  private Serializable readZkData(String zkPath) {
+    Serializable data = null;
+    if (_zkClient.exists(zkPath)) {
+      data = _zkClient.readData(zkPath);
+    }
+    return data;
   }
 
   public List<String> getIndexShards(String index) {
@@ -271,6 +304,24 @@ public class InteractionProtocol {
 
   public AssignedShard getNodeShardMD(String nodeName, String shardName) {
     return _zkClient.readData(_zkConf.getZKNodeToShardPath(nodeName, shardName));
+  }
+
+  public List<DeployedShard> getShardsMD(String shard) {
+    List<DeployedShard> deployedShards = new ArrayList<DeployedShard>();
+    List<String> nodeNames = _zkClient.getChildren(_zkConf.getZKShardToNodePath(shard));
+    for (String nodeName : nodeNames) {
+      DeployedShard deployedShard = _zkClient.readData(_zkConf.getZKShardToNodePath(shard, nodeName));
+      deployedShards.add(deployedShard);
+    }
+    return deployedShards;
+  }
+
+  public int getShardReplication(String shard) {
+    return _zkClient.countChildren(_zkConf.getZKShardToNodePath(shard));
+  }
+
+  public long getShardAnnounceTime(String node, String shard) {
+    return _zkClient.getCreationTime(_zkConf.getZKShardToNodePath(shard, node));
   }
 
   public Map<String, List<String>> getShard2NodesMap(Collection<String> shards) {
@@ -396,15 +447,19 @@ public class InteractionProtocol {
   }
 
   public void setMetric(String nodeName, MetricsRecord metricsRecord) {
-    String _metricsPath = _zkConf.getZKMetricsPathForServer(nodeName);
+    String metricsPath = _zkConf.getZKMetricsPathForServer(nodeName);
     try {
-      _zkClient.writeData(_metricsPath, metricsRecord);
+      _zkClient.writeData(metricsPath, metricsRecord);
     } catch (ZkNoNodeException e) {
-      _zkClient.createEphemeral(_metricsPath, new MetricsRecord(nodeName));
+      _zkClient.createEphemeral(metricsPath, new MetricsRecord(nodeName));
     } catch (Exception e) {
       // this only happens if zk is down
       LOG.debug("Can't write to zk", e);
     }
+  }
+
+  public MetricsRecord getMetric(String nodeName) {
+    return (MetricsRecord) readZkData(_zkConf.getZKMetricsPathForServer(nodeName));
   }
 
   public void publishShardError(Node node, AssignedShard shard, ShardError shardError) {
@@ -672,6 +727,9 @@ public class InteractionProtocol {
     public AddRemoveListenerAdapter(ZkClient zkClient, String path, IAddRemoveListener listener) {
       _listener = listener;
       _cachedChilds = zkClient.subscribeChildChanges(path, this);
+      if (_cachedChilds == null) {
+        _cachedChilds = Collections.EMPTY_LIST;
+      }
     }
 
     public List<String> getCachedChilds() {

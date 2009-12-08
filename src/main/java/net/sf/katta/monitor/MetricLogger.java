@@ -19,16 +19,16 @@ import java.io.Serializable;
 import java.util.List;
 import java.util.concurrent.locks.ReentrantLock;
 
+import net.sf.katta.protocol.ConnectedComponent;
+import net.sf.katta.protocol.IAddRemoveListener;
+import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.util.ZkConfiguration;
 
-import org.I0Itec.zkclient.IZkChildListener;
 import org.I0Itec.zkclient.IZkDataListener;
-import org.I0Itec.zkclient.IZkStateListener;
 import org.I0Itec.zkclient.ZkClient;
 import org.apache.log4j.Logger;
-import org.apache.zookeeper.Watcher.Event.KeeperState;
 
-public class MetricLogger implements IZkChildListener, IZkDataListener, IZkStateListener {
+public class MetricLogger implements IZkDataListener, ConnectedComponent {
 
   public enum OutputType {
     Log4J, SystemOut;
@@ -36,46 +36,76 @@ public class MetricLogger implements IZkChildListener, IZkDataListener, IZkState
 
   private final static Logger LOG = Logger.getLogger(MetricLogger.class);
 
-  private final ZkClient _zkClient;
-
   private OutputType _outputType;
-
   private ReentrantLock _lock;
 
+  protected final InteractionProtocol _protocol;
+  private long _loggedRecords = 0;
+
+  /**
+   * @deprecated use
+   *             {@link MetricLogger#MetricLogger(OutputType, InteractionProtocol)}
+   *             instead
+   */
   public MetricLogger(OutputType outputType, ZkClient zkClient, ZkConfiguration zkConf) {
+    this(outputType, new InteractionProtocol(zkClient, zkConf));
+  }
+
+  public MetricLogger(OutputType outputType, InteractionProtocol protocol) {
+    _protocol = protocol;
     _outputType = outputType;
-    _zkClient = zkClient;
-    String zkMetricsPath = zkConf.getZKMetricsPath();
-    zkClient.subscribeChildChanges(zkMetricsPath, this);
-    List<String> children = zkClient.getChildren(zkMetricsPath);
-    subscribeDataUpdates(zkMetricsPath, children);
-    zkClient.subscribeStateChanges(this);
+    _protocol.registerComponent(this);
+    List<String> children = _protocol.registerMetricsNodeListener(this, new IAddRemoveListener() {
+      @Override
+      public void removed(String name) {
+        unsubscribeDataUpdates(name);
+      }
+
+      @Override
+      public void added(String name) {
+        MetricsRecord metric = _protocol.getMetric(name);
+        logMetric(metric);
+        subscribeDataUpdates(name);
+      }
+    });
+    for (String node : children) {
+      subscribeDataUpdates(node);
+    }
     _lock = new ReentrantLock();
     _lock.lock();
   }
 
-  public void handleChildChange(String parentPath, List<String> currentChilds) throws Exception {
-    // in case new nodes join the cluster...
-    subscribeDataUpdates(parentPath, currentChilds);
+  protected void subscribeDataUpdates(String nodeName) {
+    _protocol.registerMetricsDataListener(this, nodeName, this);
   }
 
-  private void subscribeDataUpdates(String parentPath, List<String> currentChilds) {
-    for (String childName : currentChilds) {
-      _zkClient.subscribeDataChanges(parentPath + "/" + childName, this);
-    }
-
+  protected void unsubscribeDataUpdates(String nodeName) {
+    _protocol.unregisterMetricsDataListener(this, nodeName, this);
   }
 
+  @Override
   public void handleDataChange(String dataPath, Serializable data) throws Exception {
     MetricsRecord metrics = (MetricsRecord) data;
-    if (_outputType == OutputType.Log4J) {
-      LOG.info(metrics);
-    } else {
-      System.out.println(metrics.toString());
-    }
+    logMetric(metrics);
   }
 
+  protected void logMetric(MetricsRecord metrics) {
+    switch (_outputType) {
+    case Log4J:
+      LOG.info(metrics);
+      break;
+    case SystemOut:
+      System.out.println(metrics.toString());
+      break;
+    default:
+      throw new IllegalStateException("output type " + _outputType + " not supported");
+    }
+    _loggedRecords++;
+  }
+
+  @Override
   public void handleDataDeleted(String dataPath) throws Exception {
+    // nothing todo
   }
 
   public void join() throws InterruptedException {
@@ -84,13 +114,18 @@ public class MetricLogger implements IZkChildListener, IZkDataListener, IZkState
     }
   }
 
-  public void handleNewSession() throws Exception {
+  public long getLoggedRecords() {
+    return _loggedRecords;
   }
 
-  public void handleStateChanged(KeeperState state) throws Exception {
-    if (state == KeeperState.Disconnected) {
-      _lock.unlock();
-    }
+  @Override
+  public void disconnect() {
+    _lock.unlock();
+  }
+
+  @Override
+  public void reconnect() {
+    // nothing to do
   }
 
 }
