@@ -23,9 +23,9 @@ import java.util.concurrent.TimeUnit;
 import net.sf.katta.master.Master;
 import net.sf.katta.node.INodeManaged;
 import net.sf.katta.node.Node;
-import net.sf.katta.node.NodeMetaData;
 import net.sf.katta.node.Node.NodeState;
 import net.sf.katta.protocol.InteractionProtocol;
+import net.sf.katta.protocol.metadata.NodeMetaData;
 import net.sf.katta.testutil.ExtendedTestCase;
 import net.sf.katta.testutil.TestUtil;
 import net.sf.katta.util.FileUtil;
@@ -303,7 +303,7 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
       public Integer call() throws Exception {
         List<String> nodes = masterThread.getMaster().getNodes();
         for (String node : nodes) {
-          final String nodePath = _conf.getZKNodePath(node);
+          final String nodePath = _conf.getZKNodeMetaDataPath(node);
           NodeMetaData nodeMetaData = _zkServer.getZkClient().readData(nodePath);
           if (nodeMetaData.getState() != NodeState.IN_SERVICE) {
             return -1;

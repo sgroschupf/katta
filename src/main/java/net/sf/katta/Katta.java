@@ -44,10 +44,10 @@ import net.sf.katta.node.INodeManaged;
 import net.sf.katta.node.IQuery;
 import net.sf.katta.node.LuceneServer;
 import net.sf.katta.node.Node;
-import net.sf.katta.node.NodeMetaData;
 import net.sf.katta.node.Query;
 import net.sf.katta.node.Node.NodeState;
 import net.sf.katta.protocol.InteractionProtocol;
+import net.sf.katta.protocol.metadata.NodeMetaData;
 import net.sf.katta.tool.ZkTool;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.VersionInfo;
@@ -510,16 +510,12 @@ public class Katta {
     int numNodes = 0;
     for (final String node : nodes) {
       numNodes++;
-      NodeMetaData nodeMetaData = _protocol.getNodeInServiceMD(node);
-      if (nodeMetaData == null) {
-        // known but outdated node (master cleans this up)
-      } else {
-        NodeState nodeState = nodeMetaData.getState();
-        if (nodeState == NodeState.IN_SERVICE) {
-          inServiceNodeCount++;
-        }
-        table.addRow(nodeMetaData.getName(), nodeMetaData.getStartTimeAsDate(), nodeState.name());
+      NodeMetaData nodeMetaData = _protocol.getNodeMD(node);
+      NodeState nodeState = nodeMetaData.getState();
+      if (nodeState == NodeState.IN_SERVICE) {
+        inServiceNodeCount++;
       }
+      table.addRow(nodeMetaData.getName(), nodeMetaData.getStartTimeAsDate(), nodeState.name());
     }
     table.setHeader("Name (" + inServiceNodeCount + "/" + numNodes + " nodes connected)", "Start time", "State");
     System.out.println(table.toString());

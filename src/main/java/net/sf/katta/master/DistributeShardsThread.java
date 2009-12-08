@@ -32,9 +32,9 @@ import java.util.concurrent.locks.ReentrantLock;
 import net.sf.katta.index.AssignedShard;
 import net.sf.katta.index.IndexMetaData;
 import net.sf.katta.index.IndexMetaData.IndexState;
-import net.sf.katta.node.NodeMetaData;
 import net.sf.katta.node.Node.NodeState;
 import net.sf.katta.protocol.InteractionProtocol;
+import net.sf.katta.protocol.metadata.NodeMetaData;
 import net.sf.katta.util.CollectionUtil;
 import net.sf.katta.util.KattaException;
 
@@ -207,7 +207,7 @@ public class DistributeShardsThread extends Thread {
   private boolean areNodesConnecting(Set<String> nodes) {
     for (String node : nodes) {
       try {
-        NodeMetaData nodeMetaData = _interactionProtocol.getNodeInServiceMD(node);
+        NodeMetaData nodeMetaData = _interactionProtocol.getNodeMD(node);
         if (nodeMetaData.getState() == NodeState.STARTING || nodeMetaData.getState() == NodeState.RECONNECTING) {
           return true;
         }

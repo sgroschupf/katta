@@ -52,7 +52,7 @@ public class NodeMasterReconnectTest extends AbstractKattaTest {
 
     // now break the node connection
     gateway.stop();
-    waitOnNodes(masterStartThread, 0);
+    waitOnNodesInService(masterStartThread, 0);
 
     // now fix the node connection
     gateway.start();

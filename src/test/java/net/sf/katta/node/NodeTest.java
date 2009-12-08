@@ -37,6 +37,7 @@ import net.sf.katta.index.AssignedShard;
 import net.sf.katta.index.IndexMetaData;
 import net.sf.katta.index.IndexMetaData.IndexState;
 import net.sf.katta.protocol.InteractionProtocol;
+import net.sf.katta.protocol.metadata.NodeMetaData;
 import net.sf.katta.testutil.TestResources;
 
 import org.I0Itec.zkclient.ZkClient;

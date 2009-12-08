@@ -36,8 +36,8 @@ import net.sf.katta.master.Master;
 import net.sf.katta.master.MasterMetaData;
 import net.sf.katta.monitor.MetricsRecord;
 import net.sf.katta.node.Node;
-import net.sf.katta.node.NodeMetaData;
 import net.sf.katta.node.Node.NodeState;
+import net.sf.katta.protocol.metadata.NodeMetaData;
 import net.sf.katta.util.CollectionUtil;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.One2ManyListMap;
@@ -55,6 +55,12 @@ import org.apache.zookeeper.Watcher.Event.KeeperState;
 /**
  * Abstracts the interaction between master and nodes via zookeeper files and
  * folders.
+ * 
+ * <p>
+ * ZK Structure:<br>
+ * + root<br>
+ * ...|+ nodes (ephemerals of connected nodes)<br>
+ * ...|+ nodes-metadata (persistents of connected & unconnected node) <br>
  * 
  */
 public class InteractionProtocol {
@@ -250,7 +256,7 @@ public class InteractionProtocol {
   }
 
   public List<String> getKnownNodes() {
-    return _zkClient.getChildren(_zkConf.getZKNodeToShardPath());
+    return _zkClient.getChildren(_zkConf.getZKNodeMetaDatasPath());
   }
 
   public List<String> getNodes() {
@@ -261,8 +267,8 @@ public class InteractionProtocol {
     return _zkClient.getChildren(_zkConf.getZKIndicesPath());
   }
 
-  public NodeMetaData getNodeInServiceMD(String node) {
-    return (NodeMetaData) readZkData(_zkConf.getZKNodePath(node));
+  public NodeMetaData getNodeMD(String node) {
+    return (NodeMetaData) readZkData(_zkConf.getZKNodeMetaDataPath(node));
   }
 
   public IndexMetaData getIndexMD(String index) {
@@ -502,9 +508,11 @@ public class InteractionProtocol {
     LOG.info("Announce node '" + nodeName + "'...");
     final NodeMetaData metaData = new NodeMetaData(nodeName, nodeState);
     final String nodePath = _zkConf.getZKNodePath(nodeName);
-    if (_zkClient.exists(nodePath)) {
-      LOG.warn("Old node path '" + nodePath + "' for this node detected, deleting it...");
-      _zkClient.delete(nodePath);
+    final String nodeMetadataPath = _zkConf.getZKNodeMetaDataPath(nodeName);
+    if (_zkClient.exists(nodeMetadataPath)) {
+      _zkClient.writeData(nodeMetadataPath, metaData);
+    } else {
+      _zkClient.createPersistent(nodeMetadataPath, metaData);
     }
 
     final String nodeToShardPath = _zkConf.getZKNodeToShardPath(nodeName);
@@ -513,24 +521,29 @@ public class InteractionProtocol {
     } catch (ZkNodeExistsException e) {
       // ignore
     }
-    _zkClient.createEphemeral(nodePath, metaData);
+
+    if (_zkClient.exists(nodePath)) {
+      LOG.warn("Old node ephemeral '" + nodePath + "' detected, deleting it...");
+      _zkClient.delete(nodePath);
+    }
+    _zkClient.createEphemeral(nodePath);
     _zkEphemeralPublishesByComponent.add(node, nodePath);
     LOG.info("Node '" + nodeName + "' announced");
   }
 
   public void updateNodeStatus(String nodeName, NodeState state) {
-    final String nodePath = _zkConf.getZKNodePath(nodeName);
-    final NodeMetaData metaData = _zkClient.readData(nodePath);
+    final String nodeMdPath = _zkConf.getZKNodeMetaDataPath(nodeName);
+    final NodeMetaData metaData = _zkClient.readData(nodeMdPath);
     metaData.setState(state);
-    _zkClient.writeData(nodePath, metaData);
+    _zkClient.writeData(nodeMdPath, metaData);
   }
 
   public void updateNodeStatus(String nodeName, float queriesPerMinute) {
-    final String nodePath = _zkConf.getZKNodePath(nodeName);
-    if (_zkClient.exists(nodePath)) {
-      NodeMetaData metaData = _zkClient.readData(nodePath);
+    final String nodeMdPath = _zkConf.getZKNodeMetaDataPath(nodeName);
+    if (_zkClient.exists(nodeMdPath)) {
+      NodeMetaData metaData = _zkClient.readData(nodeMdPath);
       metaData.setQueriesPerMinute(queriesPerMinute);
-      _zkClient.writeData(nodePath, metaData);
+      _zkClient.writeData(nodeMdPath, metaData);
     }
   }
 

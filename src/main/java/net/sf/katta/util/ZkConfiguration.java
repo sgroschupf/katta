@@ -100,7 +100,7 @@ public class ZkConfiguration extends KattaConfiguration {
   public String getZKDataDir() {
     return getProperty(ZOOKEEPER_DATA_DIR);
   }
-  
+
   public String getZKDataLogDir() {
     return getProperty(ZOOKEEPER_LOG_DATA_DIR);
   }
@@ -128,6 +128,7 @@ public class ZkConfiguration extends KattaConfiguration {
   public static final String DEFAULT_ROOT_PATH = "/katta";
   private static final String MASTER = "master";
   private static final String NODES = "nodes";
+  private static final String NODES_METADATA = "nodes-metadata";
   private static final String INDEXES = "indexes";
   private static final String NODE_TO_SHARD = "node-to-shard";
   private static final String SHARD_TO_NODE = "shard-to-node";
@@ -171,6 +172,14 @@ public class ZkConfiguration extends KattaConfiguration {
 
   public String getZKNodePath(String node) {
     return buildPath(getZKRootPath(), NODES, node);
+  }
+
+  public String getZKNodeMetaDatasPath() {
+    return buildPath(getZKRootPath(), NODES_METADATA);
+  }
+
+  public String getZKNodeMetaDataPath(String node) {
+    return buildPath(getZKRootPath(), NODES_METADATA, node);
   }
 
   public String getZKIndicesPath() {

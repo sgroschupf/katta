@@ -43,6 +43,7 @@ public class DefaultNameSpaceImpl implements IDefaultNameSpace {
     safeCreate(zkClient, _conf.getZKRootPath());
     safeCreate(zkClient, _conf.getZKIndicesPath());
     safeCreate(zkClient, _conf.getZKNodesPath());
+    safeCreate(zkClient, _conf.getZKNodeMetaDatasPath());
     safeCreate(zkClient, _conf.getZKNodeToShardPath());
     safeCreate(zkClient, _conf.getZKShardToNodePath());
     safeCreate(zkClient, _conf.getZKShardToErrorPath());
