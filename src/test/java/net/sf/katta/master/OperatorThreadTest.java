@@ -131,12 +131,12 @@ public class OperatorThreadTest extends AbstractLeaderTest {
 
     Thread.sleep(safeModeMaxTime + 100);
     verify(leaderOperation, times(1)).execute(_context);
-    verify(leaderOperation, times(0)).nodeOperationComplete(_context);
+    verify(leaderOperation, times(0)).nodeOperationsComplete(_context);
 
     // complete node operation
     nodeQueue.poll();
     Thread.sleep(safeModeMaxTime + 100);
-    verify(leaderOperation, times(1)).nodeOperationComplete(_context);
+    verify(leaderOperation, times(1)).nodeOperationsComplete(_context);
 
     operatorThread.interrupt();
     operatorThread.join();
@@ -176,7 +176,7 @@ public class OperatorThreadTest extends AbstractLeaderTest {
 
     when(leaderOperation1.execute(_context)).thenReturn(operationIds);
     when(leaderOperation1.locksOperation(leaderOperation2)).thenReturn(true);
-    when(leaderOperation2.getLockAlreadObtainedInstruction()).thenReturn(lockInstruction);
+    when(leaderOperation2.getLockAlreadyObtainedInstruction()).thenReturn(lockInstruction);
     when(queue.poll()).thenReturn(leaderOperation1).thenReturn(leaderOperation2).thenAnswer(new SleepingAnswer());
 
     // start the ooperator
@@ -193,7 +193,7 @@ public class OperatorThreadTest extends AbstractLeaderTest {
 
     // let operation2 be executed
     Thread.sleep(safeModeMaxTime + 100);
-    verify(leaderOperation1, times(1)).nodeOperationComplete(_context);
+    verify(leaderOperation1, times(1)).nodeOperationsComplete(_context);
     operatorThread.interrupt();
     operatorThread.join();
   }

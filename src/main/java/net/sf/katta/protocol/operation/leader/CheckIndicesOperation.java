@@ -6,9 +6,10 @@ import java.util.Set;
 import net.sf.katta.master.LeaderContext;
 import net.sf.katta.master.OperationRegistry;
 import net.sf.katta.protocol.InteractionProtocol;
+import net.sf.katta.protocol.operation.OperationId;
 
 //TODO should be a global check index or everything op
-public class BalanceIndicesOperation extends AbstractInbalanceOperation {
+public class CheckIndicesOperation extends AbstractIndexOperation {
 
   private static final long serialVersionUID = 1L;
   private final CheckType _checkType;
@@ -17,13 +18,13 @@ public class BalanceIndicesOperation extends AbstractInbalanceOperation {
     UNDEREPLICATED, OVERREPLICATED, ALL;
   }
 
-  public BalanceIndicesOperation(CheckType checkType) {
+  public CheckIndicesOperation(CheckType checkType) {
     _checkType = checkType;
   }
 
   // TODO do we really need sub-operations
   @Override
-  public void execute(LeaderContext context) throws Exception {
+  public List<OperationId> execute(LeaderContext context) throws Exception {
     InteractionProtocol protocol = context.getProtocol();
     OperationRegistry registry = context.getOperationRegistry();
     List<String> liveNodes = protocol.getNodes();
@@ -46,7 +47,7 @@ public class BalanceIndicesOperation extends AbstractInbalanceOperation {
   }
 
   @Override
-  public void nodeOperationComplete(LeaderContext context) throws Exception {
+  public void nodeOperationsComplete(LeaderContext context) throws Exception {
     // nothing to do
   }
 }

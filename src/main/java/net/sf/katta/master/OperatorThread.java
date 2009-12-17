@@ -101,7 +101,7 @@ class OperatorThread extends Thread {
   }
 
   private void handleLockedOperation(LeaderOperation operation) {
-    LockInstruction lockInstruction = operation.getLockAlreadObtainedInstruction();
+    LockInstruction lockInstruction = operation.getLockAlreadyObtainedInstruction();
     switch (lockInstruction) {
     case CANCEL_THIS_OPERATION:
       // just do nothing

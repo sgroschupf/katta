@@ -9,6 +9,7 @@ import java.util.List;
 
 import net.sf.katta.master.DefaultDistributionPolicy;
 import net.sf.katta.master.LeaderContext;
+import net.sf.katta.master.Master;
 import net.sf.katta.node.Node;
 import net.sf.katta.node.Node.NodeState;
 import net.sf.katta.protocol.DistributedBlockingQueue;
@@ -37,6 +38,13 @@ public class AbstractLeaderTest {
   protected int _shardCount = _indexFile.listFiles().length;
 
   private int _nodeCounter;
+  private int _masterCounter;
+
+  protected Master mockMaster() {
+    Master master = mock(Master.class);
+    when(master.getMasterName()).thenReturn("master" + _masterCounter++);
+    return master;
+  }
 
   protected Node mockNode() {
     Node node = mock(Node.class);

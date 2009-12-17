@@ -25,11 +25,11 @@ import net.sf.katta.protocol.ConnectedComponent;
 import net.sf.katta.protocol.DistributedBlockingQueue;
 import net.sf.katta.protocol.IAddRemoveListener;
 import net.sf.katta.protocol.InteractionProtocol;
-import net.sf.katta.protocol.operation.leader.BalanceIndicesOperation;
+import net.sf.katta.protocol.operation.leader.CheckIndicesOperation;
 import net.sf.katta.protocol.operation.leader.IndexUndeployOperation;
 import net.sf.katta.protocol.operation.leader.LeaderOperation;
 import net.sf.katta.protocol.operation.leader.RemoveSuperfluousShardsOperation;
-import net.sf.katta.protocol.operation.leader.BalanceIndicesOperation.CheckType;
+import net.sf.katta.protocol.operation.leader.CheckIndicesOperation.CheckType;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.MasterConfiguration;
 import net.sf.katta.util.NetworkUtil;
@@ -167,13 +167,13 @@ public class Master implements ConnectedComponent {
     List<String> nodes = _protocol.registerNodeListener(this, new IAddRemoveListener() {
       @Override
       public void removed(String name) {
-        _protocol.addLeaderOperation(new BalanceIndicesOperation(CheckType.UNDEREPLICATED));
+        _protocol.addLeaderOperation(new CheckIndicesOperation(CheckType.UNDEREPLICATED));
       }
 
       @Override
       public void added(String name) {
         _protocol.addLeaderOperation(new RemoveSuperfluousShardsOperation(name));
-        _protocol.addLeaderOperation(new BalanceIndicesOperation(CheckType.ALL));
+        _protocol.addLeaderOperation(new CheckIndicesOperation(CheckType.ALL));
       }
     });
     LOG.info("found following nodes connected: " + nodes);

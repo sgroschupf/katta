@@ -40,7 +40,7 @@ public class OperationRegistryTest extends AbstractLeaderTest {
     operationWatchdog.join();
     assertTrue(operationWatchdog.isDone());
     assertEquals(0, operationWatchdog.getOpenOperationCount());
-    verify(_leaderOperation, times(1)).nodeOperationComplete(_context);
+    verify(_leaderOperation, times(1)).nodeOperationsComplete(_context);
   }
 
   @Test(timeout = 10000)

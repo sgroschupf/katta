@@ -85,7 +85,7 @@ public class OperationWatchdog implements ConnectedComponent {
     if (isDone()) {
       protocol.unregisterComponent(this);
       try {
-        _leaderOperation.nodeOperationComplete(_context);
+        _leaderOperation.nodeOperationsComplete(_context);
       } catch (Exception e) {
         LOG.info("operation complete action of " + _leaderOperation + " failed", e);
       }

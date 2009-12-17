@@ -15,17 +15,17 @@
  */
 package net.sf.katta.protocol.operation.leader;
 
-import java.util.Set;
+import java.util.List;
 
 import net.sf.katta.index.IndexMetaData.IndexState;
 import net.sf.katta.master.LeaderContext;
 import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.protocol.metadata.IndexMetaData;
-import net.sf.katta.protocol.metadata.IndexMetaData.Shard;
+import net.sf.katta.protocol.operation.OperationId;
 
 import org.apache.hadoop.util.StringUtils;
 
-public class BalanceIndexOperation extends AbstractDistributeShardsOperation {
+public class BalanceIndexOperation extends AbstractIndexOperation {
 
   private static final long serialVersionUID = 1L;
 
@@ -36,32 +36,44 @@ public class BalanceIndexOperation extends AbstractDistributeShardsOperation {
   }
 
   @Override
-  public void execute(LeaderContext context) throws Exception {
+  public List<OperationId> execute(LeaderContext context) throws Exception {
     InteractionProtocol protocol = context.getProtocol();
-    IndexMetaData indexMetaData = protocol.getIndexMD(_indexName);
+    IndexMetaData indexMD = protocol.getIndexMD(_indexName);
+    if (!canAndShouldRegulateReplication(protocol, _indexName)) {
+      LOG.info("skip balancing for index '" + _indexName + "' cause there is no possible optimization");
+      return null;
+    }
     LOG.info("balancing shards for index '" + _indexName + "'");
 
-    // TODO should write AssignedShard to indexPath/shard (so we can read from
-    // there)
-    // final Map<String, AssignedShard> shard2AssignedShardMap =
-    // readShardsFromFs(_indexName, indexMetaData);
-    final Set<Shard> indexShards = indexMetaData.getShards();
-    LOG.info("Found shards '" + indexShards + "' for index '" + _indexName + "'");
-
     try {
-      indexMetaData.setState(IndexState.REPLICATING);
-      protocol.updateIndexMD(indexMetaData);
-      distributeIndexShards(protocol, context.getDeployPolicy(), indexMetaData, protocol.getNodes(), false);
+      List<OperationId> operationIds = distributeIndexShards(context, indexMD, protocol.getNodes(), false);
+      return operationIds;
     } catch (Exception e) {
-      indexMetaData.setState(IndexState.ERROR, StringUtils.stringifyException(e));
-      protocol.updateIndexMD(indexMetaData);
+      // TODO handle appropriate
+      indexMD.setState(IndexState.ERROR, StringUtils.stringifyException(e));
+      protocol.updateIndexMD(indexMD);
+      return null;
     }
   }
 
   @Override
-  public void nodeOperationComplete(LeaderContext context) throws Exception {
-    // TODO check if index is well balanced and re-execute if not ?
-    // scan queue and reexecute only if no balance op for this index is
-    // contained ?
+  public void nodeOperationsComplete(LeaderContext context) throws Exception {
+    // re-trigger if the index is still or again unbalanced
+    if (canAndShouldRegulateReplication(context.getProtocol(), _indexName)) {
+      context.getProtocol().addLeaderOperation(this);
+    }
+  }
+
+  @Override
+  public LockInstruction getLockAlreadyObtainedInstruction() {
+    return LockInstruction.CANCEL_THIS_OPERATION;
+  }
+
+  @Override
+  public boolean locksOperation(LeaderOperation operation) {
+    if (operation instanceof BalanceIndexOperation) {
+      return ((BalanceIndexOperation) operation)._indexName.equals(_indexName);
+    }
+    return false;
   }
 }

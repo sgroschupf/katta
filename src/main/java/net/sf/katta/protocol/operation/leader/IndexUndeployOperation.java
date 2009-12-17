@@ -56,7 +56,7 @@ public class IndexUndeployOperation implements LeaderOperation {
   }
 
   @Override
-  public void nodeOperationComplete(LeaderContext context) throws Exception {
+  public void nodeOperationsComplete(LeaderContext context) throws Exception {
     // nothing todo
   }
 

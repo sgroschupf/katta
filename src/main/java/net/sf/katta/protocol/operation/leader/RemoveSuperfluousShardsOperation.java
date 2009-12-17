@@ -16,7 +16,7 @@ public class RemoveSuperfluousShardsOperation implements LeaderOperation {
   }
 
   @Override
-  public void nodeOperationComplete(LeaderContext context) throws Exception {
+  public void nodeOperationsComplete(LeaderContext context) throws Exception {
     // nothing todo
   }
 

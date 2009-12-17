@@ -33,7 +33,7 @@ public interface LeaderOperation extends Serializable {
   /**
    * @param context
    * @return null or a list of operationId which have to be completed before
-   *         {@link #nodeOperationComplete(LeaderContext)} method is called.
+   *         {@link #nodeOperationsComplete(LeaderContext)} method is called.
    * @throws Exception
    */
   List<OperationId> execute(LeaderContext context) throws Exception;
@@ -42,7 +42,7 @@ public interface LeaderOperation extends Serializable {
    * Called when all operations are complete or the nodes of the incomplete
    * operations went down.
    */
-  void nodeOperationComplete(LeaderContext context) throws Exception;
+  void nodeOperationsComplete(LeaderContext context) throws Exception;
 
   /**
    * @param operation
@@ -56,6 +56,6 @@ public interface LeaderOperation extends Serializable {
    * 
    * @return a {@link LockInstruction}
    */
-  LockInstruction getLockAlreadObtainedInstruction();
+  LockInstruction getLockAlreadyObtainedInstruction();
 
 }

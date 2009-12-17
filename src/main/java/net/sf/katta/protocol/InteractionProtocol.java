@@ -522,7 +522,7 @@ public class InteractionProtocol {
   }
 
   public void addLeaderOperation(LeaderOperation operation) {
-    String queuePath = _zkConf.getZKLeaderPath();
+    String queuePath = _zkConf.getZKMasterQueuePath();
     new DistributedBlockingQueue<LeaderOperation>(_zkClient, queuePath).offer(operation);
   }
 

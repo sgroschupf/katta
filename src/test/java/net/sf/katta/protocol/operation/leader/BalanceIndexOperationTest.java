@@ -16,6 +16,9 @@
 package net.sf.katta.protocol.operation.leader;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
 
 import java.util.HashMap;
 import java.util.List;
@@ -32,7 +35,25 @@ import org.junit.Test;
 public class BalanceIndexOperationTest extends AbstractLeaderTest {
 
   @Test
+  public void testLocksOperation() throws Exception {
+    // only lock operations on same index
+    LeaderOperation op1 = new BalanceIndexOperation("index1");
+    LeaderOperation op2 = new BalanceIndexOperation("index1");
+    LeaderOperation op3 = new BalanceIndexOperation("index2");
+    LeaderOperation otherOp = mock(LeaderOperation.class);
+
+    assertTrue(op1.locksOperation(op1));
+    assertTrue(op1.locksOperation(op2));
+    assertTrue(op2.locksOperation(op1));
+    assertFalse(op1.locksOperation(op3));
+    assertFalse(op1.locksOperation(otherOp));
+    assertFalse(op3.locksOperation(op1));
+    assertFalse(otherOp.locksOperation(op1));
+  }
+
+  @Test
   public void testBalanceUnderreplicatedIndex() throws Exception {
+    _zk.showStructure();
     // add nodes and index
     List<Node> nodes = mockNodes(2);
     List<DistributedBlockingQueue<NodeOperation>> nodeQueues = publisNodes(nodes);
@@ -46,7 +67,7 @@ public class BalanceIndexOperationTest extends AbstractLeaderTest {
     publisShards(nodes, nodeQueues);
 
     // balance the index does not change anything
-    IndexBalanceOperation balanceOperation = new IndexBalanceOperation(_indexName);
+    BalanceIndexOperation balanceOperation = new BalanceIndexOperation(_indexName);
     balanceOperation.execute(_context);
     for (DistributedBlockingQueue<NodeOperation> nodeqQueue : nodeQueues) {
       assertEquals(1, nodeqQueue.size());
@@ -62,7 +83,6 @@ public class BalanceIndexOperationTest extends AbstractLeaderTest {
       assertEquals(1, nodeqQueue.size());
     }
     assertEquals(1, nodeQueue3.size());
-    _zk.showStructure();
   }
 
   @Test
@@ -80,7 +100,7 @@ public class BalanceIndexOperationTest extends AbstractLeaderTest {
     publisShards(nodes, nodeQueues);
 
     // balance the index does not change anything
-    IndexBalanceOperation balanceOperation = new IndexBalanceOperation(_indexName);
+    BalanceIndexOperation balanceOperation = new BalanceIndexOperation(_indexName);
     balanceOperation.execute(_context);
     for (DistributedBlockingQueue<NodeOperation> nodeqQueue : nodeQueues) {
       assertEquals(1, nodeqQueue.size());
@@ -94,16 +114,64 @@ public class BalanceIndexOperationTest extends AbstractLeaderTest {
     for (DistributedBlockingQueue<NodeOperation> nodeqQueue : nodeQueues) {
       assertEquals(2, nodeqQueue.size());
     }
-    _zk.showStructure();
+  }
+
+  @Test
+  public void testUnbalancedIndexAfterBalancingIndex() throws Exception {
+    // add nodes and index
+    List<Node> nodes = mockNodes(2);
+    List<DistributedBlockingQueue<NodeOperation>> nodeQueues = publisNodes(nodes);
+    IndexDeployOperation deployOperation = new IndexDeployOperation(_indexName, _indexPath, 3);
+    deployOperation.execute(_context);
+
+    // index deployed on 2 nodes / desired replica is 3
+    for (DistributedBlockingQueue<NodeOperation> nodeqQueue : nodeQueues) {
+      assertEquals(1, nodeqQueue.size());
+    }
+    publisShards(nodes, nodeQueues);
+
+    // balance the index does not change anything
+    BalanceIndexOperation balanceOperation = new BalanceIndexOperation(_indexName);
+    balanceOperation.execute(_context);
+    for (DistributedBlockingQueue<NodeOperation> nodeqQueue : nodeQueues) {
+      assertEquals(1, nodeqQueue.size());
+    }
+
+    // node completion does not add another balance op since not enough nodes
+    // are there
+    DistributedBlockingQueue<LeaderOperation> masterQueue = _protocol.publishMaster(mockMaster());
+    assertEquals(0, masterQueue.size());
+    balanceOperation.nodeOperationsComplete(_context);
+    assertEquals(0, masterQueue.size());
+
+    // add node and now the balance op should add itself for retry
+    Node node3 = mockNode();
+    DistributedBlockingQueue<NodeOperation> nodeQueue3 = publisNode(node3);
+    balanceOperation.nodeOperationsComplete(_context);
+    assertEquals(1, masterQueue.size());
+
+    // now do the balance
+    assertEquals(0, nodeQueue3.size());
+    balanceOperation.execute(_context);
+    assertEquals(1, nodeQueue3.size());
+    publisShard(node3, nodeQueue3);
+
+    // now it shouldn't add itself again since the index is balanced
+    balanceOperation.nodeOperationsComplete(_context);
+    assertEquals(1, masterQueue.size());
   }
 
   private void publisShards(List<Node> nodes, List<DistributedBlockingQueue<NodeOperation>> nodeQueues)
           throws InterruptedException {
     for (int i = 0; i < nodes.size(); i++) {
-      Set<String> shardNames = ((ShardDeployOperation) nodeQueues.get(i).peek()).getShardNames();
-      for (String shardName : shardNames) {
-        _protocol.publishShard(nodes.get(i), shardName, new HashMap<String, String>());
-      }
+      publisShard(nodes.get(i), nodeQueues.get(i));
+    }
+  }
+
+  private void publisShard(Node node, DistributedBlockingQueue<NodeOperation> nodeQueue) throws InterruptedException {
+    Set<String> shardNames = ((ShardDeployOperation) nodeQueue.peek()).getShardNames();
+    for (String shardName : shardNames) {
+      _protocol.publishShard(node, shardName, new HashMap<String, String>());
     }
   }
 

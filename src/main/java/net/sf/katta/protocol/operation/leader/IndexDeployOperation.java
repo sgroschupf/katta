@@ -36,7 +36,7 @@ import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.util.StringUtils;
 import org.apache.log4j.Logger;
 
-public class IndexDeployOperation extends AbstractDistributeShardsOperation {
+public class IndexDeployOperation extends AbstractIndexOperation {
 
   private static final long serialVersionUID = 1L;
   private final static Logger LOG = Logger.getLogger(IndexDeployOperation.class);
@@ -52,7 +52,7 @@ public class IndexDeployOperation extends AbstractDistributeShardsOperation {
   }
 
   @Override
-  public void execute(LeaderContext context) throws Exception {
+  public List<OperationId> execute(LeaderContext context) throws Exception {
     InteractionProtocol protocol = context.getProtocol();
     LOG.info("deploying index '" + _indexName + "'");
     IndexMetaData indexMetaData = new IndexMetaData(_indexName, _indexPath, _replicationLevel, IndexState.ANNOUNCED);// avoid
@@ -64,23 +64,33 @@ public class IndexDeployOperation extends AbstractDistributeShardsOperation {
     protocol.writeIndexMD(indexMetaData);
     LOG.info("Found shards '" + readShards + "' for index '" + _indexName + "'");
     try {
-      indexMetaData.setState(IndexState.DEPLOYING);
       protocol.updateIndexMD(indexMetaData);
-      List<OperationId> nodeOperationIds = distributeIndexShards(protocol, context.getDeployPolicy(), indexMetaData,
-              protocol.getNodes(), true);
-      context.getOperationRegistry().watchIndexDeployment(_indexName, nodeOperationIds);
+      List<OperationId> operationIds = distributeIndexShards(context, indexMetaData, protocol.getNodes(), true);
+      return operationIds;
     } catch (Exception e) {
       LOG.error("failed to deploy index " + _indexName, e);
       indexMetaData.setState(IndexState.ERROR, StringUtils.stringifyException(e));
       protocol.updateIndexMD(indexMetaData);
+      return null;
     }
   }
 
   @Override
-  public void nodeOperationComplete(LeaderContext context) throws Exception {
+  public LockInstruction getLockAlreadyObtainedInstruction() {
+    // TODO Auto-generated method stub
+    return null;
+  }
+
+  @Override
+  public boolean locksOperation(LeaderOperation operation) {
+    // TODO Auto-generated method stub
+    return false;
+  }
+
+  @Override
+  public void nodeOperationsComplete(LeaderContext context) throws Exception {
     LOG.info("deployment of index " + _indexName + " complete - triggering complete deployment operation");
     // TODO index metadata to live / error
-
   }
 
   protected List<Shard> readShardsFromFs(final String index, final IndexMetaData indexMetaData)

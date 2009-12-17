@@ -41,7 +41,7 @@ public class DefaultNameSpaceImpl implements IDefaultNameSpace {
   public void createDefaultNameSpace(ZkClient zkClient) {
     LOG.debug("Creating default File structure if required....");
     safeCreate(zkClient, _conf.getZKRootPath());
-    safeCreate(zkClient, _conf.getZKLeaderPath());
+    // safeCreate(zkClient, _conf.getZKLeaderPath());
     safeCreate(zkClient, _conf.getZKWorkPath());
     safeCreate(zkClient, _conf.getZKIndicesPath());
     safeCreate(zkClient, _conf.getZKIndexMetaDatasPath());
