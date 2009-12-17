@@ -15,14 +15,12 @@
  */
 package net.sf.katta.node;
 
-import static org.mockito.Matchers.endsWith;
 import static org.mockito.Matchers.startsWith;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.io.File;
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -33,11 +31,11 @@ import java.util.concurrent.Future;
 import junit.framework.Assert;
 import net.sf.katta.AbstractKattaTest;
 import net.sf.katta.Katta;
-import net.sf.katta.index.AssignedShard;
 import net.sf.katta.index.IndexMetaData;
 import net.sf.katta.index.IndexMetaData.IndexState;
 import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.protocol.metadata.NodeMetaData;
+import net.sf.katta.protocol.operation.node.ShardDeployOperation;
 import net.sf.katta.testutil.TestResources;
 
 import org.I0Itec.zkclient.ZkClient;
@@ -46,7 +44,6 @@ import org.apache.lucene.queryParser.QueryParser;
 import org.apache.lucene.search.Query;
 import org.mockito.Matchers;
 import org.mockito.Mockito;
-import org.mockito.internal.progress.NewOngoingStubbing;
 
 public class NodeTest extends AbstractKattaTest {
 
@@ -111,7 +108,7 @@ public class NodeTest extends AbstractKattaTest {
 
     // test
     assertTrue(node.getDeployedShards().size() > 0);
-    IndexMetaData indexMetaData = masterThread.getZkClient().readData(_conf.getZKIndexPath(index));
+    IndexMetaData indexMetaData = masterThread.getZkClient().readData(_conf.getOldZKIndexPath(index));
     assertEquals(IndexMetaData.IndexState.DEPLOYED, indexMetaData.getState());
 
     nodeThread.shutdown();
@@ -127,39 +124,32 @@ public class NodeTest extends AbstractKattaTest {
   }
 
   public void testMultiThreadSearch() throws Exception {
-    List<AssignedShard> shards = new ArrayList<AssignedShard>();
-    shards.add(new AssignedShard("index", "src/test/testIndexA/aIndex"));
-    shards.add(new AssignedShard("index", "src/test/testIndexA/bIndex"));
-    shards.add(new AssignedShard("index", "src/test/testIndexA/cIndex"));
-    shards.add(new AssignedShard("index", "src/test/testIndexA/dIndex"));
-
     ZkClient zkClient = Mockito.mock(ZkClient.class);
     NodeMetaData nodeMetaData = new NodeMetaData();
-    when(zkClient.readData(startsWith(_conf.getZKNodesPath()))).thenReturn(nodeMetaData);
-    NewOngoingStubbing<Serializable> whenReadAssignedShard = when(zkClient.readData(endsWith("Index")));
-    for (AssignedShard assignedShard : shards) {
-      whenReadAssignedShard = whenReadAssignedShard.thenReturn(assignedShard);
-    }
+    String indexName = "index1";
+    nodeMetaData.addShard(indexName, "aIndex", "src/test/testIndexA/aIndex");
+    nodeMetaData.addShard(indexName, "bIndex", "src/test/testIndexA/bIndex");
+    nodeMetaData.addShard(indexName, "cIndex", "src/test/testIndexA/cIndex");
+    nodeMetaData.addShard(indexName, "dIndex", "src/test/testIndexA/dIndex");
+    when(zkClient.exists(startsWith(_conf.getZKNodeMetaDatasPath()))).thenReturn(true);
+    when(zkClient.readData(startsWith(_conf.getZKNodeMetaDatasPath()))).thenReturn(nodeMetaData);
 
     LuceneServer server = new LuceneServer();
     InteractionProtocol protocol = new InteractionProtocol(zkClient, _conf);
-    Node node = new Node(protocol, server);
+    Node node = new Node(_protocol, server);
     node.start();
 
-    for (AssignedShard assignedShard : shards) {
-      node.deployShard(assignedShard.getShardName());
-    }
-
-    ArrayList<String> shardNames = new ArrayList<String>();
-    for (AssignedShard assignedShard : shards) {
-      shardNames.add(assignedShard.getShardName());
+    NodeContext nodeContext = new NodeContext(node, server, new ShardManager(createFile("test")), _protocol);
+    for (ShardDeployOperation deployInstruction : nodeMetaData.getDeployInstructions()) {
+      deployInstruction.execute(nodeContext);
     }
 
     QueryParser parser = new QueryParser("field", new KeywordAnalyzer());
     Query query = parser.parse("foo: bar");
     QueryWritable writable = new QueryWritable(query);
 
-    String[] shardArray = shardNames.toArray(new String[shardNames.size()]);
+    String[] shardArray = nodeMetaData.getShards(indexName).toArray(
+            new String[nodeMetaData.getShards(indexName).size()]);
     DocumentFrequencyWritable freqs = server.getDocFreqs(writable, shardArray);
 
     ExecutorService es = Executors.newFixedThreadPool(100);
@@ -187,31 +177,30 @@ public class NodeTest extends AbstractKattaTest {
     ZkClient zkClient = Mockito.mock(ZkClient.class);
 
     NodeMetaData nodeMetaData = new NodeMetaData();
-    when(zkClient.readData(startsWith(_conf.getZKNodesPath()))).thenReturn(nodeMetaData);
-    when(zkClient.readData(endsWith("Index"))).thenReturn(new AssignedShard("index", "src/test/testIndexA/aIndex"))
-            .thenReturn(new AssignedShard("index", "src/test/testIndexA/bIndex")).thenReturn(
-                    new AssignedShard("index", "src/test/testIndexA/cIndex")).thenReturn(
-                    new AssignedShard("index", "src/test/testIndexA/dIndex"));
+    String indexName = "index1";
+    nodeMetaData.addShard(indexName, "aIndex", "src/test/testIndexA/aIndex");
+    nodeMetaData.addShard(indexName, "bIndex", "src/test/testIndexA/bIndex");
+    nodeMetaData.addShard(indexName, "cIndex", "src/test/testIndexA/cIndex");
+    nodeMetaData.addShard(indexName, "dIndex", "src/test/testIndexA/dIndex");
+
+    // nodeMetaData.addDeployInstruction(instruction);
+    when(zkClient.readData(startsWith(_conf.getZKNodeMetaDatasPath()))).thenReturn(nodeMetaData);
 
     InteractionProtocol protocol = new InteractionProtocol(zkClient, _conf);
-    Node node = new Node(protocol, new LuceneServer());
+    LuceneServer server = new LuceneServer();
+    Node node = new Node(_protocol, server);
     node.start();
 
-    List<String> shards = new ArrayList<String>();
-    shards.add("index_aIndex");
-    shards.add("index_bIndex");
-    shards.add("index_cIndex");
-    shards.add("index_dIndex");
-
-    for (String shard : shards) {
-      node.deployShard(new File(shard).getName());
+    NodeContext nodeContext = new NodeContext(node, server, new ShardManager(createFile("test")), _protocol);
+    for (ShardDeployOperation deployInstruction : nodeMetaData.getDeployInstructions()) {
+      deployInstruction.execute(nodeContext);
     }
 
     // we should have 4 folders in our working folder now.
     File workingFolder = node._shardsFolder;
     assertEquals(4, workingFolder.list().length);
 
-    node.undeployShard(shards.get(0));
+    node.undeployShard(nodeMetaData.getShards(indexName).iterator().next());
     assertEquals(3, workingFolder.list().length);
   }
 
@@ -222,7 +211,7 @@ public class NodeTest extends AbstractKattaTest {
     Mockito.when(zkClient.readData(Matchers.anyString())).thenReturn(nodeMetaData);
 
     InteractionProtocol protocol = new InteractionProtocol(zkClient, _conf);
-    Node node = new Node(protocol, new LuceneServer());
+    Node node = new Node(_protocol, new LuceneServer());
     node.start();
 
     node.shutdown();

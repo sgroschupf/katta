@@ -17,6 +17,7 @@ package net.sf.katta.index;
 
 import java.io.Serializable;
 
+@Deprecated
 public class IndexMetaData implements Serializable {
 
   private static final long serialVersionUID = 1L;

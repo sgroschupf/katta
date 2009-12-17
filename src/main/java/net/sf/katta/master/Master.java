@@ -22,8 +22,14 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 import net.sf.katta.protocol.ConnectedComponent;
+import net.sf.katta.protocol.DistributedBlockingQueue;
 import net.sf.katta.protocol.IAddRemoveListener;
 import net.sf.katta.protocol.InteractionProtocol;
+import net.sf.katta.protocol.operation.leader.BalanceIndicesOperation;
+import net.sf.katta.protocol.operation.leader.IndexUndeployOperation;
+import net.sf.katta.protocol.operation.leader.LeaderOperation;
+import net.sf.katta.protocol.operation.leader.RemoveSuperfluousShardsOperation;
+import net.sf.katta.protocol.operation.leader.BalanceIndicesOperation.CheckType;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.MasterConfiguration;
 import net.sf.katta.util.NetworkUtil;
@@ -35,7 +41,7 @@ public class Master implements ConnectedComponent {
 
   protected final static Logger LOG = Logger.getLogger(Master.class);
 
-  protected DistributeShardsThread _manageShardThread;
+  protected OperatorThread _manageShardThread;
 
   private String _masterName;
   protected boolean _isMaster;
@@ -44,7 +50,12 @@ public class Master implements ConnectedComponent {
 
   private ZkServer _zkServer;
   private boolean _shutdownClient;
-  private InteractionProtocol _protocol;
+  protected InteractionProtocol _protocol;
+
+  private DistributedBlockingQueue<LeaderOperation> _queue;
+
+  private IDeployPolicy _deployPolicy;
+  private long _safeModeMaxTime;
 
   public Master(InteractionProtocol interactionProtocol, ZkServer zkServer) throws KattaException {
     this(interactionProtocol, false);
@@ -63,35 +74,44 @@ public class Master implements ConnectedComponent {
     _shutdownClient = shutdownClient;
     interactionProtocol.registerComponent(this);
     final String deployPolicyClassName = masterConfiguration.getDeployPolicy();
-    IDeployPolicy deployPolicy;
     try {
       final Class<IDeployPolicy> policyClazz = (Class<IDeployPolicy>) Class.forName(deployPolicyClassName);
-      deployPolicy = policyClazz.newInstance();
+      _deployPolicy = policyClazz.newInstance();
     } catch (final Exception e) {
       throw new KattaException("Unable to instantiate deploy policy", e);
     }
 
-    long safeModeMaxTime = 10000;
-
+    _safeModeMaxTime = 10000;
     if (!masterConfiguration.containsProperty(MasterConfiguration.SAFE_MODE_MAX_TIME)) {
       LOG.warn(MasterConfiguration.SAFE_MODE_MAX_TIME + " not configured in master configuration");
       // TODO jz: remove that check once we can assume all config files has been
       // updated
     } else {
-      safeModeMaxTime = masterConfiguration.getInt(MasterConfiguration.SAFE_MODE_MAX_TIME);
+      _safeModeMaxTime = masterConfiguration.getInt(MasterConfiguration.SAFE_MODE_MAX_TIME);
     }
-    _manageShardThread = new DistributeShardsThread(_protocol, deployPolicy, safeModeMaxTime);
+
   }
 
   public void start() {
     becomePrimaryOrSecondaryMaster();
   }
 
+  @Override
+  public void reconnect() {
+    becomePrimaryOrSecondaryMaster();
+  }
+
+  @Override
+  public void disconnect() {
+    // TODO ??
+  }
+
   private void becomePrimaryOrSecondaryMaster() {
-    _isMaster = _protocol.becomeMasterOrSecondaryMaster(this);
-    if (_isMaster) {
+    _queue = _protocol.publishMaster(this);
+    if (isMaster()) {
       startNodeManagement();
-      startIndexManagement();
+      LeaderContext leaderContext = new LeaderContext(_protocol, _deployPolicy, new OperationRegistry(_protocol));
+      _manageShardThread = new OperatorThread(_protocol, _queue, leaderContext, _safeModeMaxTime);
       _manageShardThread.start();
     }
   }
@@ -125,17 +145,18 @@ public class Master implements ConnectedComponent {
     }
   }
 
-  private void startIndexManagement() {
+  private void startIndexManagementOLD() {
     LOG.debug("Loading indexes...");
     List<String> indices = _protocol.registerIndexListener(this, new IAddRemoveListener() {
       @Override
       public void removed(String name) {
-        _manageShardThread.removeIndex(name);
+        // deploy client add this operation
+        _protocol.addLeaderOperation(new IndexUndeployOperation(name));
       }
 
       @Override
       public void added(String name) {
-        _manageShardThread.addIndex(name);
+        // deploy client add this operation
       }
     });
     LOG.info("found following indices connected: " + indices);
@@ -146,12 +167,13 @@ public class Master implements ConnectedComponent {
     List<String> nodes = _protocol.registerNodeListener(this, new IAddRemoveListener() {
       @Override
       public void removed(String name) {
-        _manageShardThread.removeNode(name);
+        _protocol.addLeaderOperation(new BalanceIndicesOperation(CheckType.UNDEREPLICATED));
       }
 
       @Override
       public void added(String name) {
-        _manageShardThread.addNode(name);
+        _protocol.addLeaderOperation(new RemoveSuperfluousShardsOperation(name));
+        _protocol.addLeaderOperation(new BalanceIndicesOperation(CheckType.ALL));
       }
     });
     LOG.info("found following nodes connected: " + nodes);
@@ -166,7 +188,7 @@ public class Master implements ConnectedComponent {
   }
 
   public boolean isMaster() {
-    return _isMaster;
+    return _queue != null;
   }
 
   @Deprecated
@@ -185,16 +207,6 @@ public class Master implements ConnectedComponent {
 
   public void handleMasterDisappearedEvent() {
     becomePrimaryOrSecondaryMaster();
-  }
-
-  @Override
-  public void reconnect() {
-    becomePrimaryOrSecondaryMaster();
-  }
-
-  @Override
-  public void disconnect() {
-    // TODO ??
   }
 
 }

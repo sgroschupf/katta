@@ -19,6 +19,7 @@ import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 
+@Deprecated
 public class DeployedShard implements Serializable {
 
   private String _shardName = "";

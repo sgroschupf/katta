@@ -53,14 +53,14 @@ public class FailTest extends AbstractKattaTest {
     final Master secMaster = new Master(secMasterProtocol, true);
     secMaster.start();
 
-    waitForPath(masterClient, _conf.getZKMasterPath());
+    waitForPath(masterClient, _conf.getZKLeaderPath());
 
-    masterClient.readData(_conf.getZKMasterPath());
+    masterClient.readData(_conf.getZKLeaderPath());
 
     // kill master
     master.shutdown();
     // just make sure we can read the file
-    waitForPath(secMasterClient, _conf.getZKMasterPath());
+    waitForPath(secMasterClient, _conf.getZKLeaderPath());
     assertTrue(secMaster.isMaster());
 
     secMaster.shutdown();
@@ -89,7 +89,7 @@ public class FailTest extends AbstractKattaTest {
     final DummyNode node3 = new DummyNode(_conf, sconf3);
     waitForChilds(zkClientMaster, _conf.getZKNodesPath(), 3);
     masterThread.join();
-    waitForPath(zkClientMaster, _conf.getZKMasterPath());
+    waitForPath(zkClientMaster, _conf.getZKLeaderPath());
 
     // deploy index
     final IDeployClient deployClient = new DeployClient(zkClientMaster, _conf);

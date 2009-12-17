@@ -29,6 +29,8 @@ public class NodeMetaData implements Serializable {
   private float _queriesPerMinute = 0f;
   private long _startTimeStamp = System.currentTimeMillis();
 
+  // with node execution
+
   public NodeMetaData() {
     // for serialization
   }
@@ -39,7 +41,7 @@ public class NodeMetaData implements Serializable {
   }
 
   public String getName() {
-    return _name.toString();
+    return _name;
   }
 
   public String getStartTimeAsDate() {

@@ -16,6 +16,7 @@
 package net.sf.katta.util;
 
 import java.io.File;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
@@ -48,6 +49,11 @@ public class SleepServer implements INodeManaged, ISleepServer {
 
   public void removeShard(final String shardName) {
     _shards.remove(shardName);
+  }
+
+  @Override
+  public Collection<String> getShards() {
+    return _shards;
   }
 
   public Map<String, String> getShardMetaData(final String shardName) {

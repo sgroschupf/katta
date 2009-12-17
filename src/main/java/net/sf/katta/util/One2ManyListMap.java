@@ -119,6 +119,21 @@ public class One2ManyListMap<K, V> {
   }
 
   /**
+   * 
+   * @param value
+   * @return true if map contains the value
+   */
+  public boolean containsValue(V value) {
+    Collection<List<V>> values = _map.values();
+    for (List<V> list : values) {
+      if (list.contains(value)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
    * @see HashMap#keySet()
    * @return a set view of the keys contained in this map.
    */
@@ -142,4 +157,5 @@ public class One2ManyListMap<K, V> {
   public String toString() {
     return _map.toString();
   }
+
 }

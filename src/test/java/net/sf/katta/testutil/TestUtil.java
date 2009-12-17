@@ -16,7 +16,6 @@
 package net.sf.katta.testutil;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -28,9 +27,9 @@ import org.I0Itec.zkclient.ZkServer;
 import org.apache.log4j.Logger;
 import org.mockito.Mockito;
 import org.mockito.exceptions.base.MockitoAssertionError;
-import org.mockito.internal.stubbing.Stubber;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
+import org.mockito.stubbing.Stubber;
 
 public class TestUtil {
 
@@ -57,7 +56,7 @@ public class TestUtil {
    * @throws InterruptedException
    */
   public static <T> T waitUntil(T expectedValue, Callable<T> callable, TimeUnit timeUnit, long timeout)
-      throws Exception {
+          throws Exception {
     long startTime = System.currentTimeMillis();
     do {
       T actual = callable.call();
@@ -108,7 +107,7 @@ public class TestUtil {
   }
 
   public static void waitUntilNoExceptionThrown(Runnable runnable, TimeUnit timeUnit, int timeout)
-      throws InterruptedException {
+          throws InterruptedException {
     long startTime = System.currentTimeMillis();
     do {
       RuntimeException exception = null;
@@ -149,11 +148,11 @@ public class TestUtil {
     });
   }
 
-  public static ZkServer startZkServer(String testName, int port) throws IOException {
+  public static ZkServer startZkServer(String testName, int port) {
     return startZkServer(testName, port, ZkServer.DEFAULT_TICK_TIME);
   }
 
-  public static ZkServer startZkServer(String testName, int port, int tickTime) throws IOException {
+  public static ZkServer startZkServer(String testName, int port, int tickTime) {
     String dataPath = "./build/test/" + testName + "/data";
     String logPath = "./build/test/" + testName + "/log";
     FileUtil.deleteFolder(new File(dataPath));

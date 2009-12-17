@@ -36,8 +36,8 @@ public class JmxMonitor implements IMonitor {
 
   @Override
   public void startMonitoring(String serverId, InteractionProtocol protocol) {
-    _protocol = protocol;
-    if (serverId == null || protocol == null) {
+    _protocol = _protocol;
+    if (serverId == null || _protocol == null) {
       throw new IllegalArgumentException("parameters can't be null");
     }
     _serverId = serverId;

@@ -136,7 +136,7 @@ public class SearchIntegrationTest extends TestCase {
     nodeConf.setShardFolder(new File(nodeConf.getShardFolder(), "-new").getAbsolutePath());
     InteractionProtocol protocol = new InteractionProtocol(_miniCluster.getZkClient(), _miniCluster
             .getZkConfiguration());
-    Node newNode = new Node(protocol, nodeConf, new LuceneServer());
+    Node newNode = new Node(_protocol, nodeConf, new LuceneServer());
     newNode.start();
 
     Thread.sleep(queryTime / 4);

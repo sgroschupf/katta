@@ -18,33 +18,22 @@ package net.sf.katta.node;
 import java.io.File;
 import java.io.IOException;
 import java.net.BindException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 
-import net.sf.katta.index.AssignedShard;
-import net.sf.katta.index.ShardError;
 import net.sf.katta.monitor.IMonitor;
 import net.sf.katta.protocol.ConnectedComponent;
-import net.sf.katta.protocol.IAddRemoveListener;
+import net.sf.katta.protocol.DistributedBlockingQueue;
 import net.sf.katta.protocol.InteractionProtocol;
-import net.sf.katta.util.CollectionUtil;
-import net.sf.katta.util.FileUtil;
-import net.sf.katta.util.KattaException;
+import net.sf.katta.protocol.metadata.NodeMetaData;
+import net.sf.katta.protocol.operation.node.NodeOperation;
+import net.sf.katta.protocol.operation.node.RedeployShardsOperation;
 import net.sf.katta.util.NetworkUtil;
 import net.sf.katta.util.NodeConfiguration;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.ipc.RPC;
 import org.apache.hadoop.ipc.RPC.Server;
 import org.apache.log4j.Logger;
@@ -55,14 +44,11 @@ public class Node implements ConnectedComponent {
 
   public static final long _protocolVersion = 0;
 
-  private final InteractionProtocol _protocol;
+  protected final InteractionProtocol _protocol;
   private Server _rpcServer;
   private INodeManaged _server;
 
   protected String _nodeName;
-  protected int _rpcServerPort;
-  protected File _shardsFolder;
-  protected final Set<String> _deployedShards = new HashSet<String>();
 
   private Timer _timer;
   protected final long _startTime = System.currentTimeMillis();
@@ -72,6 +58,9 @@ public class Node implements ConnectedComponent {
   private NodeState _currentState;
 
   private IMonitor _monitor;
+  private Thread _nodeOperationThread;
+
+  private NodeContext _context;
 
   public static enum NodeState {
     STARTING, RECONNECTING, IN_SERVICE, LOST;
@@ -88,7 +77,7 @@ public class Node implements ConnectedComponent {
     }
     _nodeConf = configuration;
     _server = server;
-    protocol.registerComponent(this);
+    _protocol.registerComponent(this);
     LOG.info("Starting node, server class = " + server.getClass().getCanonicalName());
   }
 
@@ -103,29 +92,64 @@ public class Node implements ConnectedComponent {
     LOG.debug("Starting node...");
 
     LOG.debug("Starting rpc server...");
-    _nodeName = startRPCServer(_nodeConf.getStartPort());
+    String hostName = NetworkUtil.getLocalhostName();
+    _rpcServer = startRPCServer(hostName, _nodeConf.getStartPort(), _server);
+    _nodeName = hostName + ":" + _rpcServer.getListenerAddress().getPort();
     _server.setNodeName(_nodeName);
     startMonitor(_protocol, _nodeName, _nodeConf);
 
     // we add hostName and port to the shardFolder to allow multiple nodes per
     // server with the same configuration
-    _shardsFolder = new File(_nodeConf.getShardFolder(), _nodeName.replaceAll(":", "@"));
+    File shardsFolder = new File(_nodeConf.getShardFolder(), _nodeName.replaceAll(":", "@"));
+    ShardManager shardManager = new ShardManager(shardsFolder);
+    _context = new NodeContext(_protocol, this, shardManager, _server);
 
-    if (!_shardsFolder.exists()) {
-      _shardsFolder.mkdirs();
-    }
-    if (!_shardsFolder.exists()) {
-      throw new IllegalStateException("could not create local shard folder '" + _shardsFolder.getAbsolutePath() + "'");
+    NodeMetaData nodeMetaData = _protocol.getNodeMD(_nodeName);
+    if (nodeMetaData == null) {
+      nodeMetaData = new NodeMetaData(_nodeName, NodeState.STARTING);
+    } else {
+      nodeMetaData.setState(NodeState.STARTING);
     }
 
-    cleanupLocalShardFolder();
-    _protocol.publishNode(this, NodeState.STARTING);
-    startShardServing(false);
+    // TODO should be done when master answers
+    // removeLocalShardsWithoutServeInstruction(nodeMetaData);
+
+    DistributedBlockingQueue<NodeOperation> nodeOperationQueue = _protocol.publishNode(this, nodeMetaData);
+    _nodeOperationThread = new Thread(new NodeOperationProcessor(nodeOperationQueue, _context));
+    _nodeOperationThread.setDaemon(true);
+    _nodeOperationThread.start();
+
+    // deploy previous served shards
+    redeployInstalledShards();
 
     LOG.info("Started node: " + _nodeName + "...");
+    // TODO WelcomeNodeOperation to masters queue
     updateStatus(NodeState.IN_SERVICE);
     _timer = new Timer("QueryCounter", true);
     _timer.schedule(new StatusUpdater(), new Date(), 60 * 1000);
+  }
+
+  @Override
+  public void reconnect() {
+    LOG.info(_nodeName + " reconnected");
+    redeployInstalledShards();
+    NodeMetaData nodeMetaData = _protocol.getNodeMD(_nodeName);
+    nodeMetaData.setState(NodeState.RECONNECTING);
+    _protocol.publishNode(this, nodeMetaData);
+    updateStatus(NodeState.IN_SERVICE);
+  }
+
+  @Override
+  public void disconnect() {
+    LOG.info(_nodeName + " disconnected");
+    // we keep serving the shards
+  }
+
+  private void redeployInstalledShards() {
+    Collection<String> installedShards = _context.getShardManager().getInstalledShards();
+    RedeployShardsOperation redeployOperation = new RedeployShardsOperation(installedShards);
+    // _protocol.addNodeOperation(_nodeName, redeployShardsOperation);
+    redeployOperation.execute(_context);
   }
 
   private void startMonitor(InteractionProtocol protocol, String nodeName, NodeConfiguration conf) {
@@ -136,153 +160,9 @@ public class Node implements ConnectedComponent {
     try {
       Class<?> c = Class.forName(monitorClass);
       _monitor = (IMonitor) c.newInstance();
-      _monitor.startMonitoring(nodeName, protocol);
+      _monitor.startMonitoring(nodeName, _protocol);
     } catch (Exception e) {
       LOG.error("Unable to start node monitor:", e);
-    }
-  }
-
-  private void cleanupLocalShardFolder() {
-    List<String> shardsToServe = _protocol.getNodeShards(_nodeName);
-    String[] folderList = _shardsFolder.list(FileUtil.VISIBLE_FILES_FILTER);
-    if (folderList != null) {
-      List<String> localShards = Arrays.asList(folderList);
-
-      List<String> shardsToRemove = CollectionUtil.getListOfRemoved(localShards, shardsToServe);
-      for (String shard : shardsToRemove) {
-        File localShard = getLocalShardFolder(shard);
-        LOG.info("delete local shard " + localShard.getAbsolutePath());
-        FileUtil.deleteFolder(localShard);
-      }
-    }
-  }
-
-  private void startShardServing(boolean restart) {
-    LOG.info("Start serving shards...");
-    List<String> shardsNames = _protocol.registerShardListener(this, _nodeName, new IAddRemoveListener() {
-      @Override
-      public void removed(String shardName) {
-        LOG.info("remove shard event: " + shardName);
-        undeployShard(shardName);
-      }
-
-      @Override
-      public void added(String shardName) {
-        LOG.info("add shard event: " + shardName);
-        deployShard(shardName);
-      }
-
-    });
-
-    if (restart) {
-      List<String> removed = CollectionUtil.getListOfRemoved(_deployedShards, shardsNames);
-      for (String removedShard : removed) {
-        undeployShard(removedShard);
-      }
-    }
-
-    for (String shard : shardsNames) {
-      deployShard(shard);
-    }
-    _deployedShards.clear();
-    _deployedShards.addAll(shardsNames);
-  }
-
-  protected void deployShard(String shardName) {
-    AssignedShard shard = _protocol.getNodeShardMD(_nodeName, shardName);
-    File localShardFolder = getLocalShardFolder(shardName);
-    try {
-      if (!localShardFolder.exists()) {
-        installShard(shard, localShardFolder);
-      }
-      _server.addShard(shardName, localShardFolder);
-      announceShard(shard);
-      _deployedShards.add(shardName);
-    } catch (Throwable t) {
-      LOG.error(_nodeName + ": could not deploy shard '" + shard + "'", t);
-      ShardError shardError = new ShardError(t.getMessage());
-      _protocol.publishShardError(this, shard, shardError);
-      FileUtil.deleteFolder(localShardFolder);
-    }
-  }
-
-  protected void undeployShard(final String shard) {
-    try {
-      LOG.info("Undeploying shard: " + shard);
-      _server.removeShard(shard);
-      _protocol.unpublishShard(this, shard);
-      FileUtil.deleteFolder(getLocalShardFolder(shard));
-      _deployedShards.remove(shard);
-    } catch (final Exception e) {
-      LOG.error("Failed to undeploy shard: " + shard, e);
-    }
-  }
-
-  /*
-   * Announce in zookeeper node is serving this shard,
-   */
-  private void announceShard(AssignedShard shard) throws KattaException {
-    String shardName = shard.getShardName();
-    LOG.info("announce shard '" + shardName + "'");
-    Map<String, String> metaData;
-    try {
-      metaData = _server.getShardMetaData(shardName);
-    } catch (Throwable t) {
-      throw new KattaException("Error retrieving shard metadata for " + shardName, t);
-    }
-    _protocol.publishShard(this, shard, metaData);
-  }
-
-  /*
-   * Loads a shard from the given URI. The uri is handled bye the hadoop file
-   * system. So all hadoop support file systems can be used, like local hdfs s3
-   * etc. In case the shard is compressed we also unzip the content. If the
-   * system property katta.spool.zip.shards is true, the zip file is staged to
-   * the local disk before being unzipped.
-   */
-  private void installShard(AssignedShard shard, File localShardFolder) throws KattaException {
-    final String shardPath = shard.getShardPath();
-    String shardName = shard.getShardName();
-    LOG.info("install shard '" + shardName + "' from " + shardPath);
-    // TODO sg: to fix HADOOP-4422 we try to download the shard 5 times
-    int maxTries = 5;
-    for (int i = 0; i < maxTries; i++) {
-      URI uri;
-      try {
-        uri = new URI(shardPath);
-        final FileSystem fileSystem = FileSystem.get(uri, new Configuration());
-        final Path path = new Path(shardPath);
-        boolean isZip = fileSystem.isFile(path) && shardPath.endsWith(".zip");
-
-        File shardTmpFolder = new File(localShardFolder.getAbsolutePath() + "_tmp");
-        try {
-          FileUtil.deleteFolder(localShardFolder);
-          FileUtil.deleteFolder(shardTmpFolder);
-
-          if (isZip) {
-            FileUtil.unzip(path, shardTmpFolder, fileSystem, System.getProperty("katta.spool.zip.shards", "false")
-                    .equalsIgnoreCase("true"));
-          } else {
-            fileSystem.copyToLocalFile(path, new Path(shardTmpFolder.getAbsolutePath()));
-          }
-          shardTmpFolder.renameTo(localShardFolder);
-        } finally {
-          // Ensure that the tmp folder is deleted on an error
-          FileUtil.deleteFolder(shardTmpFolder);
-        }
-        // Looks like we were successful.
-        if (i > 0) {
-          LOG.error("Loaded shard:" + shard);
-        }
-        return;
-      } catch (final URISyntaxException e) {
-        throw new KattaException("Can not parse uri for path: " + shardPath, e);
-      } catch (final Exception e) {
-        LOG.error(String.format("Error loading shard: %s (try %d of %d)", shardPath, i, maxTries), e);
-        if (i >= maxTries - 1) {
-          throw new KattaException("Can not load shard: " + shardPath, e);
-        }
-      }
     }
   }
 
@@ -296,6 +176,12 @@ public class Node implements ConnectedComponent {
       _monitor.stopMonitoring();
     }
     _timer.cancel();
+    _nodeOperationThread.interrupt();
+    try {
+      _nodeOperationThread.join();
+    } catch (InterruptedException e) {
+      Thread.interrupted();// proceed
+    }
 
     _protocol.unregisterComponent(this);
     _rpcServer.stop();
@@ -314,7 +200,7 @@ public class Node implements ConnectedComponent {
   }
 
   public int getRPCServerPort() {
-    return _rpcServerPort;
+    return _rpcServer.getListenerAddress().getPort();
   }
 
   public NodeState getState() {
@@ -325,10 +211,6 @@ public class Node implements ConnectedComponent {
     _rpcServer.join();
   }
 
-  public Collection<String> getDeployedShards() {
-    return _deployedShards;
-  }
-
   public Server getRpcServer() {
     return _rpcServer;
   }
@@ -337,15 +219,14 @@ public class Node implements ConnectedComponent {
    * Starting the hadoop RPC server that response to query requests. We iterate
    * over a port range of node.server.port.start + 10000
    */
-  private String startRPCServer(final int startPort) {
-    final String hostName = NetworkUtil.getLocalhostName();
+  private static Server startRPCServer(String hostName, final int startPort, INodeManaged nodeManaged) {
     int serverPort = startPort;
     int tryCount = 10000;
+    Server _rpcServer = null;
     while (_rpcServer == null) {
       try {
-        _rpcServer = RPC.getServer(_server, "0.0.0.0", serverPort, new Configuration());
-        LOG.info(_server.getClass().getSimpleName() + " server started on : " + hostName + ":" + serverPort);
-        _rpcServerPort = serverPort;
+        _rpcServer = RPC.getServer(nodeManaged, "0.0.0.0", serverPort, new Configuration());
+        LOG.info(nodeManaged.getClass().getSimpleName() + " server started on : " + hostName + ":" + serverPort);
       } catch (final BindException e) {
         if (serverPort - startPort < tryCount) {
           serverPort++;
@@ -362,11 +243,7 @@ public class Node implements ConnectedComponent {
     } catch (final IOException e) {
       throw new RuntimeException("failed to start rpc server", e);
     }
-    return hostName + ":" + serverPort;
-  }
-
-  private File getLocalShardFolder(final String shardName) {
-    return new File(_shardsFolder, shardName);
+    return _rpcServer;
   }
 
   @Override
@@ -387,21 +264,6 @@ public class Node implements ConnectedComponent {
 
   public InteractionProtocol getProtocol() {
     return _protocol;
-  }
-
-  @Override
-  public void reconnect() {
-    LOG.info(_nodeName + " reconnected");
-    _protocol.publishNode(this, NodeState.RECONNECTING);
-    cleanupLocalShardFolder();
-    startShardServing(true);
-    updateStatus(NodeState.IN_SERVICE);
-  }
-
-  @Override
-  public void disconnect() {
-    LOG.info(_nodeName + " disconnected");
-    // we keep serving the shards
   }
 
   /**
@@ -425,6 +287,36 @@ public class Node implements ConnectedComponent {
         LOG.error("Failed to update node status.", e);
       }
     }
+  }
+
+  private class NodeOperationProcessor implements Runnable {
+
+    private final DistributedBlockingQueue<NodeOperation> _distributedBlockingQueue;
+    private final NodeContext _nodeContext;
+
+    public NodeOperationProcessor(DistributedBlockingQueue<NodeOperation> distributedBlockingQueue,
+            NodeContext nodeContext) {
+      _distributedBlockingQueue = distributedBlockingQueue;
+      _nodeContext = nodeContext;
+    }
+
+    @Override
+    public void run() {
+      try {
+        while (true) {
+          NodeOperation operation = _distributedBlockingQueue.poll();
+          try {
+            operation.execute(_context);
+          } catch (Exception e) {
+            LOG.error("failed to execute " + operation, e);
+          }
+        }
+      } catch (InterruptedException e) {
+        Thread.interrupted();
+      }
+      LOG.info("node operation processor stopped");
+    }
+
   }
 
 }

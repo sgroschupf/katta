@@ -32,7 +32,6 @@ import net.sf.katta.client.ILuceneClient;
 import net.sf.katta.client.LuceneClient;
 import net.sf.katta.index.DeployedShard;
 import net.sf.katta.index.IndexMetaData;
-import net.sf.katta.index.ShardError;
 import net.sf.katta.index.IndexMetaData.IndexState;
 import net.sf.katta.index.indexer.SampleIndexGenerator;
 import net.sf.katta.master.Master;
@@ -48,6 +47,7 @@ import net.sf.katta.node.Query;
 import net.sf.katta.node.Node.NodeState;
 import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.protocol.metadata.NodeMetaData;
+import net.sf.katta.protocol.metadata.ShardError;
 import net.sf.katta.tool.ZkTool;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.VersionInfo;
@@ -268,7 +268,7 @@ public class Katta {
   }
 
   private void redeployIndex(final String indexName) {
-    IndexMetaData indexMetaData = _protocol.getIndexMD(indexName);
+    IndexMetaData indexMetaData = _protocol.getOldIndexMD(indexName);
     if (indexMetaData == null) {
       printError("index '" + indexName + "' does not exist");
       return;
@@ -285,7 +285,7 @@ public class Katta {
   }
 
   public void showErrors(final String indexName) {
-    IndexMetaData indexMetaData = _protocol.getIndexMD(indexName);
+    IndexMetaData indexMetaData = _protocol.getOldIndexMD(indexName);
     if (indexMetaData == null) {
       printError("index '" + indexName + "' does not exist");
       return;
@@ -422,7 +422,7 @@ public class Katta {
     List<String> indexes = _protocol.getIndices();
     CounterMap<IndexState> indexStateCounterMap = new CounterMap<IndexState>();
     for (String index : indexes) {
-      IndexMetaData indexMetaData = _protocol.getIndexMD(index);
+      IndexMetaData indexMetaData = _protocol.getOldIndexMD(index);
       indexStateCounterMap.increment(indexMetaData.getState());
     }
     Table tableIndexStates = new Table("Index State", "Count");
@@ -439,7 +439,7 @@ public class Katta {
     System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
     for (String index : indexes) {
       System.out.println("checking " + index + " ...");
-      IndexMetaData indexMetaData = _protocol.getIndexMD(index);
+      IndexMetaData indexMetaData = _protocol.getOldIndexMD(index);
       List<String> shards = _protocol.getIndexShards(index);
       for (String shard : shards) {
         int shardReplication = _protocol.getShardReplication(shard);
@@ -531,7 +531,7 @@ public class Katta {
 
     List<String> indices = _protocol.getIndices();
     for (final String index : indices) {
-      final IndexMetaData metaData = _protocol.getIndexMD(index);
+      final IndexMetaData metaData = _protocol.getOldIndexMD(index);
       String state = metaData.getState().toString();
       List<String> shards = _protocol.getIndexShards(index);
       int size = calculateIndexSize(shards);
@@ -582,7 +582,7 @@ public class Katta {
   }
 
   public void addIndex(final String name, final String path, final int replicationLevel) {
-    final String indexZkPath = _conf.getZKIndexPath(name);
+    final String indexZkPath = _conf.getOldZKIndexPath(name);
     if (name.trim().equals("*")) {
       printError("Index with name " + name + " isn't allowed.");
       return;
@@ -771,7 +771,7 @@ public class Katta {
   private void setState(String index, String stateName) {
     try {
       IndexState state = IndexState.valueOf(stateName.toUpperCase());
-      IndexMetaData indexMetaData = _protocol.getIndexMD(index);
+      IndexMetaData indexMetaData = _protocol.getOldIndexMD(index);
       indexMetaData.setState(state, "");
       _protocol.updateIndexMD(indexMetaData);
       System.out.println("Updated state of index " + index + " to DEPLOYED");

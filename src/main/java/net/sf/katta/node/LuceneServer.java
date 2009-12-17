@@ -19,6 +19,8 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -76,7 +78,7 @@ public class LuceneServer implements INodeManaged, ILuceneServer {
 
   private final static Logger LOG = Logger.getLogger(LuceneServer.class);
 
-  protected final Map<String, IndexSearcher> _searchers = new ConcurrentHashMap<String, IndexSearcher>();
+  protected final Map<String, IndexSearcher> _searcherByShard = new ConcurrentHashMap<String, IndexSearcher>();
   protected ExecutorService _threadPool = Executors.newFixedThreadPool(100);
 
   protected String _nodeName;
@@ -106,8 +108,8 @@ public class LuceneServer implements INodeManaged, ILuceneServer {
     LOG.info("LuceneServer " + _nodeName + " got shard " + shardName);
     try {
       IndexSearcher indexSearcher = new IndexSearcher(shardDir.getAbsolutePath());
-      synchronized (_searchers) {
-        _searchers.put(shardName, indexSearcher);
+      synchronized (_searcherByShard) {
+        _searcherByShard.put(shardName, indexSearcher);
         _maxDoc += indexSearcher.maxDoc();
       }
     } catch (CorruptIndexException e) {
@@ -121,8 +123,8 @@ public class LuceneServer implements INodeManaged, ILuceneServer {
    */
   public void removeShard(final String shardName) {
     LOG.info("LuceneServer " + _nodeName + " removing shard " + shardName);
-    synchronized (_searchers) {
-      final Searchable remove = _searchers.remove(shardName);
+    synchronized (_searcherByShard) {
+      final Searchable remove = _searcherByShard.remove(shardName);
       if (remove == null) {
         return; // nothing to do.
       }
@@ -133,6 +135,11 @@ public class LuceneServer implements INodeManaged, ILuceneServer {
       }
     }
   }
+  
+  @Override
+  public Collection<String> getShards() {
+    return Collections.unmodifiableCollection(_searcherByShard.keySet());
+  }
 
   /**
    * Returns the number of documents a shard has.
@@ -141,7 +148,7 @@ public class LuceneServer implements INodeManaged, ILuceneServer {
    * @return the number of documents in the shard.
    */
   protected int shardSize(String shardName) {
-    final Searchable searchable = _searchers.get(shardName);
+    final Searchable searchable = _searcherByShard.get(shardName);
     if (searchable != null) {
       final IndexSearcher indexSearcher = (IndexSearcher) searchable;
       int size = indexSearcher.getIndexReader().numDocs();
@@ -173,10 +180,10 @@ public class LuceneServer implements INodeManaged, ILuceneServer {
    * Close all Lucene indices. No further calls will be made after this one.
    */
   public void shutdown() throws IOException {
-    for (final Searchable searchable : _searchers.values()) {
+    for (final Searchable searchable : _searcherByShard.values()) {
       searchable.close();
     }
-    _searchers.clear();
+    _searcherByShard.clear();
   }
 
 
@@ -501,7 +508,7 @@ public class LuceneServer implements INodeManaged, ILuceneServer {
    * @throws IOException
    */
   protected Document doc(final String shardName, final int docId) throws IOException {
-    final Searchable searchable = _searchers.get(shardName);
+    final Searchable searchable = _searcherByShard.get(shardName);
     if (searchable != null) {
       return searchable.doc(docId);
     }
@@ -520,7 +527,7 @@ public class LuceneServer implements INodeManaged, ILuceneServer {
     final Query[] queries = new Query[shardNames.length];
     for (int i = 0; i < shardNames.length; i++) {
       final String shard = shardNames[i];
-      final IndexSearcher searcher = _searchers.get(shard);
+      final IndexSearcher searcher = _searcherByShard.get(shard);
       if (searcher == null) {
         LOG.error("Node " + _nodeName + ": unknown shard " + shard);
         //TODO PVo should we throw an exception here?
@@ -544,7 +551,7 @@ public class LuceneServer implements INodeManaged, ILuceneServer {
    */
   protected int docFreq(final String shardName, final Term term) throws IOException {
     int result = 0;
-    final Searchable searchable = _searchers.get(shardName);
+    final Searchable searchable = _searcherByShard.get(shardName);
     if (searchable != null) {
       result = searchable.docFreq(term);
     } else {
@@ -573,7 +580,7 @@ public class LuceneServer implements INodeManaged, ILuceneServer {
 
     @Override
     public SearchResult call() throws Exception {
-      final IndexSearcher indexSearcher = _searchers.get(_shardName);
+      final IndexSearcher indexSearcher = _searcherByShard.get(_shardName);
       final TopDocs docs;
       if (_sort != null) {
         docs = indexSearcher.search(_weight, null, _limit, _sort);
@@ -717,4 +724,5 @@ public class LuceneServer implements INodeManaged, ILuceneServer {
       };
     }
   }
+
 }

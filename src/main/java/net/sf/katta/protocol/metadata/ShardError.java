@@ -13,16 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package net.sf.katta.index;
+package net.sf.katta.protocol.metadata;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
 import java.io.Serializable;
 
-import org.apache.hadoop.io.Writable;
+public class ShardError implements Serializable {
 
-public class ShardError implements Writable, Serializable{
+  private static final long serialVersionUID = 1L;
 
   private String _errorMsg = "";
   private long _timestamp = System.currentTimeMillis();
@@ -41,16 +38,6 @@ public class ShardError implements Writable, Serializable{
 
   public long getTimestamp() {
     return _timestamp;
-  }
-
-  public void readFields(final DataInput in) throws IOException {
-    _timestamp = in.readLong();
-    _errorMsg = in.readUTF();
-  }
-
-  public void write(final DataOutput out) throws IOException {
-    out.writeLong(_timestamp);
-    out.writeUTF(_errorMsg);
   }
 
   @Override

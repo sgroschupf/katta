@@ -42,11 +42,11 @@ public class IndexDeployFuture implements IIndexDeployFuture, IZkDataListener, C
   }
 
   public synchronized IndexState getState() {
-    return _protocol.getIndexMD(_indexName).getState();
+    return _protocol.getOldIndexMD(_indexName).getState();
   }
 
   public synchronized IndexState joinDeployment() throws InterruptedException {
-    while (isDeploymentRunning(_protocol.getIndexMD(_indexName))) {
+    while (isDeploymentRunning(_protocol.getOldIndexMD(_indexName))) {
       wait(5000);
     }
     return getState();
@@ -54,7 +54,7 @@ public class IndexDeployFuture implements IIndexDeployFuture, IZkDataListener, C
 
   public synchronized IndexState joinDeployment(long maxTime) throws InterruptedException {
     long startJoin = System.currentTimeMillis();
-    while (isDeploymentRunning(_protocol.getIndexMD(_indexName))) {
+    while (isDeploymentRunning(_protocol.getOldIndexMD(_indexName))) {
       wait(maxTime);
       maxTime = maxTime - (System.currentTimeMillis() - startJoin);
       if (maxTime <= 0) {
@@ -96,7 +96,7 @@ public class IndexDeployFuture implements IIndexDeployFuture, IZkDataListener, C
     // since we might missed a event. With zookeeper 3.x we should still have
     // subcribed notifcatins and dont need to resubscribe
     LOG.warn("Reconnecting IndexDeployFuture");
-    updateIndexMetaData(_protocol.getIndexMD(_indexName));
+    updateIndexMetaData(_protocol.getOldIndexMD(_indexName));
   }
 
   @Override

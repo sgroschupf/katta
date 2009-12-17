@@ -21,6 +21,7 @@ import java.util.List;
 import net.sf.katta.index.IndexMetaData;
 import net.sf.katta.index.IndexMetaData.IndexState;
 import net.sf.katta.protocol.InteractionProtocol;
+import net.sf.katta.protocol.operation.leader.IndexDeployOperation;
 import net.sf.katta.util.ZkConfiguration;
 
 import org.I0Itec.zkclient.ZkClient;
@@ -39,7 +40,7 @@ public class DeployClient implements IDeployClient {
 
   public IIndexDeployFuture addIndex(String indexName, String indexPath, int replicationLevel) {
     validateIndexName(indexName, indexPath);
-    _protocol.addIndex(indexName, indexPath, replicationLevel);
+    _protocol.addLeaderOperation(new IndexDeployOperation(indexName, indexPath, replicationLevel));
     return new IndexDeployFuture(_protocol, indexName);
   }
 
@@ -58,7 +59,10 @@ public class DeployClient implements IDeployClient {
   }
 
   public List<IndexMetaData> getIndexes(IndexState indexState) {
-    return _protocol.getIndicesMDs(indexState);
+    // TODO index by state
+    return null;
+    // return _protocol.getIndicesMDs(indexState);
+
   }
 
   public List<String> getIndexNames(IndexState indexState) {
@@ -71,6 +75,6 @@ public class DeployClient implements IDeployClient {
   }
 
   public IndexMetaData getIndexMetaData(String indexName) {
-    return _protocol.getIndexMD(indexName);
+    return _protocol.getOldIndexMD(indexName);
   }
 }

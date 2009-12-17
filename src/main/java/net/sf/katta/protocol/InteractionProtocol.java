@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -27,17 +28,20 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import net.sf.katta.DefaultNameSpaceImpl;
-import net.sf.katta.index.AssignedShard;
 import net.sf.katta.index.DeployedShard;
-import net.sf.katta.index.IndexMetaData;
-import net.sf.katta.index.ShardError;
 import net.sf.katta.index.IndexMetaData.IndexState;
 import net.sf.katta.master.Master;
 import net.sf.katta.master.MasterMetaData;
 import net.sf.katta.monitor.MetricsRecord;
 import net.sf.katta.node.Node;
 import net.sf.katta.node.Node.NodeState;
+import net.sf.katta.protocol.metadata.IndexMetaData;
 import net.sf.katta.protocol.metadata.NodeMetaData;
+import net.sf.katta.protocol.metadata.ShardError;
+import net.sf.katta.protocol.metadata.IndexMetaData.Shard;
+import net.sf.katta.protocol.operation.OperationId;
+import net.sf.katta.protocol.operation.leader.LeaderOperation;
+import net.sf.katta.protocol.operation.node.NodeOperation;
 import net.sf.katta.util.CollectionUtil;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.One2ManyListMap;
@@ -48,7 +52,6 @@ import org.I0Itec.zkclient.IZkDataListener;
 import org.I0Itec.zkclient.IZkStateListener;
 import org.I0Itec.zkclient.ZkClient;
 import org.I0Itec.zkclient.exception.ZkNoNodeException;
-import org.I0Itec.zkclient.exception.ZkNodeExistsException;
 import org.apache.log4j.Logger;
 import org.apache.zookeeper.Watcher.Event.KeeperState;
 
@@ -56,12 +59,19 @@ import org.apache.zookeeper.Watcher.Event.KeeperState;
  * Abstracts the interaction between master and nodes via zookeeper files and
  * folders.
  * 
+ * TODO explainStructure() *
  * <p>
  * ZK Structure:<br>
  * + root<br>
- * ...|+ nodes (ephemerals of connected nodes)<br>
- * ...|+ nodes-metadata (persistents of connected & unconnected node) <br>
- * 
+ * ...|+ version (katta version information)<br>
+ * ...|+ master (the master ephemeral)<br>
+ * ...|+ nodes<br>
+ * ........|+ metadata (persistents of connected & unconnected nodes) <br>
+ * ........|+ live (ephemerals of connected nodes) <br>
+ * ...|+ indices<br>
+ * ........|+ live (persistents of indices) <br>
+ * ........|+ error (persistents of error indices) <br>
+ * ...|+ work (contains intermittent data of operations)<br>
  */
 public class InteractionProtocol {
 
@@ -77,8 +87,6 @@ public class InteractionProtocol {
   protected One2ManyListMap<ConnectedComponent, Object> _zkListenerByComponent = new One2ManyListMap<ConnectedComponent, Object>();
   private One2ManyListMap<ConnectedComponent, String> _zkEphemeralPublishesByComponent = new One2ManyListMap<ConnectedComponent, String>();
   private One2ManyListMap<Object, String> _zkPathesByListener = new One2ManyListMap<Object, String>();
-  // private One2ManyListMap<IZkDataListener, String> _zkDataPathesByListener =
-  // new One2ManyListMap<IZkDataListener, String>();
 
   private IZkStateListener _stateListener = new IZkStateListener() {
     @Override
@@ -174,9 +182,14 @@ public class InteractionProtocol {
     return registerAddRemoveListener(component, indexListener, _zkConf.getZKIndicesPath());
   }
 
+  @Deprecated
   public List<String> registerShardListener(ConnectedComponent component, String nodeName,
           final IAddRemoveListener shardListener) {
     return registerAddRemoveListener(component, shardListener, _zkConf.getZKNodeToShardPath(nodeName));
+  }
+
+  public void registerNodeMetaDataListener(ConnectedComponent component, String nodeName, IZkDataListener dataListener) {
+    registerDataListener(component, _zkConf.getZKNodeMetaDataPath(nodeName), dataListener);
   }
 
   private List<String> registerAddRemoveListener(final ConnectedComponent component, final IAddRemoveListener listener,
@@ -202,7 +215,7 @@ public class InteractionProtocol {
   }
 
   public void registerIndexMetaDataListener(ConnectedComponent component, String indexName, IZkDataListener dataListener) {
-    registerDataListener(component, _zkConf.getZKIndexPath(indexName), dataListener);
+    registerDataListener(component, _zkConf.getOldZKIndexPath(indexName), dataListener);
   }
 
   public List<String> registerMetricsNodeListener(ConnectedComponent component, IAddRemoveListener dataListener) {
@@ -217,44 +230,6 @@ public class InteractionProtocol {
     unregisterDataListener(component, _zkConf.getZKMetricsPathForServer(nodeName), dataListener);
   }
 
-  public boolean becomeMasterOrSecondaryMaster(final Master master) {
-    String masterName = master.getMasterName();
-    cleanupOldMasterData(masterName);
-
-    boolean isMaster;
-    String zkMasterPath = _zkConf.getZKMasterPath();
-    if (!_zkClient.exists(zkMasterPath)) {
-      LOG.info(masterName + " starting as master...");
-      _zkClient.createEphemeral(zkMasterPath, new MasterMetaData(masterName, System.currentTimeMillis()));
-      _zkEphemeralPublishesByComponent.add(master, zkMasterPath);
-      isMaster = true;
-    } else {
-      LOG.info(masterName + " starting as secondary master...");
-      _zkClient.subscribeDataChanges(zkMasterPath, new IZkDataListener() {
-        public void handleDataDeleted(final String dataPath) throws KattaException {
-          master.handleMasterDisappearedEvent();
-        }
-
-        @Override
-        public void handleDataChange(String dataPath, Serializable data) throws Exception {
-          // do nothing
-        }
-      });
-      isMaster = false;
-    }
-    return isMaster;
-  }
-
-  private void cleanupOldMasterData(final String masterName) {
-    if (_zkClient.exists(_zkConf.getZKMasterPath())) {
-      final MasterMetaData existingMaster = _zkClient.readData(_zkConf.getZKMasterPath());
-      if (existingMaster.getMasterName().equals(masterName)) {
-        LOG.warn("detected old master entry pointing to this host - deleting it..");
-        _zkClient.delete(_zkConf.getZKMasterPath());
-      }
-    }
-  }
-
   public List<String> getKnownNodes() {
     return _zkClient.getChildren(_zkConf.getZKNodeMetaDatasPath());
   }
@@ -267,8 +242,16 @@ public class InteractionProtocol {
     return _zkClient.getChildren(_zkConf.getZKIndicesPath());
   }
 
+  public List<String> getLiveIndices() {
+    return _zkClient.getChildren(_zkConf.getZKIndexMetaDatasPath());
+  }
+
   public NodeMetaData getNodeMD(String node) {
     return (NodeMetaData) readZkData(_zkConf.getZKNodeMetaDataPath(node));
+  }
+
+  public net.sf.katta.index.IndexMetaData getOldIndexMD(String index) {
+    return (net.sf.katta.index.IndexMetaData) readZkData(_zkConf.getOldZKIndexPath(index));
   }
 
   public IndexMetaData getIndexMD(String index) {
@@ -283,33 +266,16 @@ public class InteractionProtocol {
     return data;
   }
 
-  public List<String> getIndexShards(String index) {
-    return _zkClient.getChildren(_zkConf.getZKIndexPath(index));
-  }
-
-  public List<String> getNodeShards(String nodeName) {
-    String zkNode2ShardPath = _zkConf.getZKNodeToShardPath(nodeName);
-    List<String> children = null;
-    if (_zkClient.exists(zkNode2ShardPath)) {
-      children = _zkClient.getChildren(zkNode2ShardPath);
-    }
-    if (children == null) {
-      children = Collections.EMPTY_LIST;
-    }
-    return children;
-  }
-
-  public ArrayList<AssignedShard> getNodeShardsMD(String nodeName, List<String> shardNames) {
-    ArrayList<AssignedShard> shardMDs = new ArrayList<AssignedShard>();
+  public Collection<String> getNodeShards(String nodeName) {
+    Set<String> shards = new HashSet<String>();
+    List<String> shardNames = _zkClient.getChildren(_zkConf.getZKShardToNodePath());
     for (String shardName : shardNames) {
-      AssignedShard assignedShard = _zkClient.readData(_zkConf.getZKNodeToShardPath(nodeName, shardName));
-      shardMDs.add(assignedShard);
+      List<String> nodeNames = _zkClient.getChildren(_zkConf.getZKShardToNodePath(shardName));
+      if (nodeNames.contains(nodeName)) {
+        shards.add(shardName);
+      }
     }
-    return shardMDs;
-  }
-
-  public AssignedShard getNodeShardMD(String nodeName, String shardName) {
-    return _zkClient.readData(_zkConf.getZKNodeToShardPath(nodeName, shardName));
+    return shards;
   }
 
   public List<DeployedShard> getShardsMD(String shard) {
@@ -330,17 +296,25 @@ public class InteractionProtocol {
     return _zkClient.getCreationTime(_zkConf.getZKShardToNodePath(shard, node));
   }
 
-  public Map<String, List<String>> getShard2NodesMap(Collection<String> shards) {
+  public Map<String, List<String>> getShard2NodesMap(Collection<Shard> shards) {
     final Map<String, List<String>> shard2NodeNames = new HashMap<String, List<String>>();
-    for (final String shard : shards) {
-      final String shard2NodeRootPath = _zkConf.getZKShardToNodePath(shard);
+    for (final Shard shard : shards) {
+      final String shard2NodeRootPath = _zkConf.getZKShardToNodePath(shard.getName());
       if (_zkClient.exists(shard2NodeRootPath)) {
-        shard2NodeNames.put(shard, _zkClient.getChildren(shard2NodeRootPath));
+        shard2NodeNames.put(shard.getName(), _zkClient.getChildren(shard2NodeRootPath));
       } else {
-        shard2NodeNames.put(shard, Collections.<String> emptyList());
+        shard2NodeNames.put(shard.getName(), Collections.<String> emptyList());
       }
     }
     return shard2NodeNames;
+  }
+
+  public List<String> getShardNodes(String shard) {
+    final String shard2NodeRootPath = _zkConf.getZKShardToNodePath(shard);
+    if (!_zkClient.exists(shard2NodeRootPath)) {
+      return Collections.<String> emptyList();
+    }
+    return _zkClient.getChildren(shard2NodeRootPath);
   }
 
   public Map<String, List<ShardError>> getShard2ErrorMap(Collection<String> shards) {
@@ -364,13 +338,13 @@ public class InteractionProtocol {
 
   public Map<String, List<String>> getNode2ShardsMap() {
     final Map<String, List<String>> node2ShardNames = new HashMap<String, List<String>>();
-    final List<String> nodes = _zkClient.getChildren(_zkConf.getZKNodeToShardPath());
+    List<String> nodes = getNodes();
     for (final String node : nodes) {
       final String node2ShardRootPath = _zkConf.getZKNodeToShardPath(node);
       if (_zkClient.exists(node2ShardRootPath)) {
         node2ShardNames.put(node, _zkClient.getChildren(node2ShardRootPath));
       } else {
-        node2ShardNames.put(node, Collections.<String> emptyList());
+        node2ShardNames.put(node, new ArrayList<String>());
       }
     }
     return node2ShardNames;
@@ -386,41 +360,21 @@ public class InteractionProtocol {
     _zkClient.writeData(zkIndexPath, indexMetaData);
   }
 
-  public void undeployIndex(String indexName) {
-    final List<String> nodes = getKnownNodes();
-    for (final String node : nodes) {
-      final List<String> shards = _zkClient.getChildren(_zkConf.getZKNodeToShardPath(node));
-      for (final String shard : shards) {
-        final String node2ShardPath = _zkConf.getZKNodeToShardPath(node, shard);
-        final AssignedShard shardWritable = _zkClient.readData(node2ShardPath);
-        if (shardWritable.getIndexName().equalsIgnoreCase(indexName)) {
-          _zkClient.delete(node2ShardPath);
-        }
+  public void cleanupShardData(String shard) {
+    final String shard2ErrorRootPath = _zkConf.getZKShardToErrorPath(shard);
+    if (_zkClient.exists(shard2ErrorRootPath)) {
+      final List<String> nodesWithFailedShard = _zkClient.getChildren(shard2ErrorRootPath);
+      for (final String node : nodesWithFailedShard) {
+        _zkClient.delete(_zkConf.getZKShardToErrorPath(shard, node));
+        _zkClient.delete(_zkConf.getZKNodeToShardPath(node, shard));
       }
     }
   }
 
-  public void cleanupShardData(Set<String> shards) {
-    for (final String shard : shards) {
-      final String shard2ErrorRootPath = _zkConf.getZKShardToErrorPath(shard);
-      if (_zkClient.exists(shard2ErrorRootPath)) {
-        final List<String> nodesWithFailedShard = _zkClient.getChildren(shard2ErrorRootPath);
-        for (final String node : nodesWithFailedShard) {
-          _zkClient.delete(_zkConf.getZKShardToErrorPath(shard, node));
-          _zkClient.delete(_zkConf.getZKNodeToShardPath(node, shard));
-        }
-      }
-    }
-  }
-
-  public void createShardData(String index, Set<String> shards, final Map<String, AssignedShard> shard2AssignedShardMap) {
-    for (final String shard : shards) {
-      final String shardZkPath = _zkConf.getZKShardPath(index, shard);
-      final String shard2NodeRootPath = _zkConf.getZKShardToNodePath(shard);
-      final String shard2ErrorRootPath = _zkConf.getZKShardToErrorPath(shard);
-      if (!_zkClient.exists(shardZkPath)) {
-        _zkClient.createPersistent(shardZkPath, shard2AssignedShardMap.get(shard));
-      }
+  public void createShardData(IndexMetaData indexMD) {
+    for (final Shard shard : indexMD.getShards()) {
+      final String shard2NodeRootPath = _zkConf.getZKShardToNodePath(shard.getName());
+      final String shard2ErrorRootPath = _zkConf.getZKShardToErrorPath(shard.getName());
       if (!_zkClient.exists(shard2NodeRootPath)) {
         _zkClient.createPersistent(shard2NodeRootPath);
       }
@@ -430,26 +384,119 @@ public class InteractionProtocol {
     }
   }
 
-  public void deployShards(String node, List<String> newShards, Map<String, AssignedShard> shard2AssignedShardMap) {
-    final List<String> existingShards = _zkClient.getChildren(_zkConf.getZKNodeToShardPath(node));
-
-    // add new shards
-    for (final String shard2Deploy : CollectionUtil.getListOfAdded(existingShards, newShards)) {
-      final String shard2NodePath = _zkConf.getZKNodeToShardPath(node, shard2Deploy);
-      _zkClient.createPersistent(shard2NodePath, shard2AssignedShardMap.get(shard2Deploy));
-    }
-
-    // remove old shards
-    for (final String shard2Deploy : CollectionUtil.getListOfRemoved(existingShards, newShards)) {
-      _zkClient.delete(_zkConf.getZKNodeToShardPath(node, shard2Deploy));
-    }
-
-  }
-
   public void keepDeployStateSynced(String index, IndexMetaData indexMD, Set<String> shards, int size) {
     final IndexStateListener indexStateListener = new IndexStateListener(index, indexMD, shards, size);
     _indexStateListeners.add(indexStateListener);
     indexStateListener.subscribeShardEvents();
+  }
+
+  public DistributedBlockingQueue<LeaderOperation> publishMaster(final Master master) {
+    String masterName = master.getMasterName();
+    cleanupOldMasterData(masterName);
+
+    boolean isMaster;
+    String zkMasterPath = _zkConf.getZKLeaderPath();
+    if (!_zkClient.exists(zkMasterPath)) {
+      LOG.info(masterName + " starting as master...");
+      createEphemeral(master, zkMasterPath, null);
+      isMaster = true;
+    } else {
+      LOG.info(masterName + " starting as secondary master...");
+      _zkClient.subscribeDataChanges(zkMasterPath, new IZkDataListener() {
+        public void handleDataDeleted(final String dataPath) throws KattaException {
+          master.handleMasterDisappearedEvent();
+        }
+
+        @Override
+        public void handleDataChange(String dataPath, Serializable data) throws Exception {
+          // do nothing
+        }
+      });
+      isMaster = false;
+    }
+
+    DistributedBlockingQueue<LeaderOperation> queue = null;
+    if (isMaster) {
+      String queuePath = _zkConf.getZKMasterQueuePath();
+      if (!_zkClient.exists(queuePath)) {
+        _zkClient.createPersistent(queuePath);
+      }
+      queue = new DistributedBlockingQueue<LeaderOperation>(_zkClient, queuePath);
+    }
+
+    LOG.info("master '" + master.getMasterName() + "' published");
+    return queue;
+  }
+
+  private void cleanupOldMasterData(final String masterName) {
+    if (_zkClient.exists(_zkConf.getZKLeaderPath())) {
+      final MasterMetaData existingMaster = _zkClient.readData(_zkConf.getZKLeaderPath());
+      if (existingMaster.getMasterName().equals(masterName)) {
+        LOG.warn("detected old master entry pointing to this host - deleting it..");
+        _zkClient.delete(_zkConf.getZKLeaderPath());
+      }
+    }
+  }
+
+  public DistributedBlockingQueue<NodeOperation> publishNode(Node node, NodeMetaData nodeMetaData) {
+    LOG.info("publishing node '" + node.getName() + "' ...");
+    final String nodePath = _zkConf.getZKNodePath(node.getName());
+    final String nodeMetadataPath = _zkConf.getZKNodeMetaDataPath(node.getName());
+
+    // write or update metadata
+    if (_zkClient.exists(nodeMetadataPath)) {
+      _zkClient.writeData(nodeMetadataPath, nodeMetaData);
+    } else {
+      _zkClient.createPersistent(nodeMetadataPath, nodeMetaData);
+    }
+
+    // create queue for incoming node operations
+    String queuePath = _zkConf.getZKNodeQueuePath(node.getName());
+    if (_zkClient.exists(queuePath)) {
+      _zkClient.deleteRecursive(queuePath);
+    }
+    _zkClient.createPersistent(queuePath);
+    DistributedBlockingQueue<NodeOperation> nodeQueue = new DistributedBlockingQueue<NodeOperation>(_zkClient,
+            queuePath);
+
+    // mark the node as connected
+    if (_zkClient.exists(nodePath)) {
+      LOG.warn("Old node ephemeral '" + nodePath + "' detected, deleting it...");
+      _zkClient.delete(nodePath);
+    }
+    createEphemeral(node, nodePath, null);
+    LOG.info("node '" + node.getName() + "' published");
+    return nodeQueue;
+  }
+
+  public void publishShard(Node node, String shardName, Map<String, String> metaData) {
+    // announce that this node serves this shard now...
+    final String shard2NodePath = _zkConf.getZKShardToNodePath(shardName, node.getName());
+    if (_zkClient.exists(shard2NodePath)) {
+      LOG.warn("detected old shard-to-node entry - deleting it..");
+      _zkClient.delete(shard2NodePath);
+    }
+
+    DeployedShard deployedShard = new DeployedShard(shardName, metaData);
+    createEphemeral(node, shard2NodePath, deployedShard);
+  }
+
+  public void publishShardError(Node node, String shardName, ShardError shardError) {
+    String shard2ErrorPath = _zkConf.getZKShardToErrorPath(shardName, node.getName());
+    if (_zkClient.exists(shard2ErrorPath)) {
+      LOG.warn("detected old shard-to-error entry - deleting it..");
+      // must be an old ephemeral
+      _zkClient.delete(shard2ErrorPath);
+    }
+    createEphemeral(node, shard2ErrorPath, shardError);
+  }
+
+  public void unpublishShard(Node node, String shard) {
+    String shard2NodePath = _zkConf.getZKShardToNodePath(shard, node.getName());
+    if (_zkClient.exists(shard2NodePath)) {
+      _zkClient.delete(shard2NodePath);
+    }
+    _zkEphemeralPublishesByComponent.removeValue(node, shard2NodePath);
   }
 
   public void setMetric(String nodeName, MetricsRecord metricsRecord) {
@@ -457,6 +504,7 @@ public class InteractionProtocol {
     try {
       _zkClient.writeData(metricsPath, metricsRecord);
     } catch (ZkNoNodeException e) {
+      // TODO put in ephemeral map ?
       _zkClient.createEphemeral(metricsPath, new MetricsRecord(nodeName));
     } catch (Exception e) {
       // this only happens if zk is down
@@ -468,69 +516,38 @@ public class InteractionProtocol {
     return (MetricsRecord) readZkData(_zkConf.getZKMetricsPathForServer(nodeName));
   }
 
-  public void publishShardError(Node node, AssignedShard shard, ShardError shardError) {
-    String shard2ErrorPath = _zkConf.getZKShardToErrorPath(shard.getShardName(), node.getName());
-    if (_zkClient.exists(shard2ErrorPath)) {
-      LOG.warn("detected old shard-to-error entry - deleting it..");
-      // must be an old ephemeral
-      _zkClient.delete(shard2ErrorPath);
-    }
-    _zkClient.createEphemeral(shard2ErrorPath, shardError);
-    _zkEphemeralPublishesByComponent.add(node, shard2ErrorPath);
+  private void createEphemeral(ConnectedComponent component, String path, Serializable content) {
+    _zkClient.createEphemeral(path, content);
+    _zkEphemeralPublishesByComponent.add(component, path);
   }
 
-  public void publishShard(Node node, AssignedShard shard, Map<String, String> metaData) {
-
-    // announce that this node serves this shard now...
-    String shardName = shard.getShardName();
-    final String shard2NodePath = _zkConf.getZKShardToNodePath(shardName, node.getName());
-    if (_zkClient.exists(shard2NodePath)) {
-      LOG.warn("detected old shard-to-node entry - deleting it..");
-      // must be an old ephemeral
-      _zkClient.delete(shard2NodePath);
-    }
-
-    DeployedShard deployedShard = new DeployedShard(shardName, metaData);
-    _zkClient.createEphemeral(shard2NodePath, deployedShard);
-    _zkEphemeralPublishesByComponent.add(node, shard2NodePath);
+  public void addLeaderOperation(LeaderOperation operation) {
+    String queuePath = _zkConf.getZKLeaderPath();
+    new DistributedBlockingQueue<LeaderOperation>(_zkClient, queuePath).offer(operation);
   }
 
-  public void unpublishShard(Node node, String shard) {
-    String shard2NodePath = _zkConf.getZKShardToNodePath(shard, node.getName());
-    if (_zkClient.exists(shard2NodePath)) {
-      _zkClient.delete(shard2NodePath);
-    }
-    _zkEphemeralPublishesByComponent.removeValue(node, shard2NodePath);
+  public OperationId addNodeOperation(String nodeName, NodeOperation nodeOperation) {
+    String queuePath = _zkConf.getZKNodeQueuePath(nodeName);
+    String elementName = new DistributedBlockingQueue<NodeOperation>(_zkClient, queuePath).offer(nodeOperation);
+    return new OperationId(nodeName, elementName);
   }
 
-  public void publishNode(Node node, NodeState nodeState) {
-    String nodeName = node.getName();
-    LOG.info("Announce node '" + nodeName + "'...");
-    final NodeMetaData metaData = new NodeMetaData(nodeName, nodeState);
-    final String nodePath = _zkConf.getZKNodePath(nodeName);
-    final String nodeMetadataPath = _zkConf.getZKNodeMetaDataPath(nodeName);
-    if (_zkClient.exists(nodeMetadataPath)) {
-      _zkClient.writeData(nodeMetadataPath, metaData);
-    } else {
-      _zkClient.createPersistent(nodeMetadataPath, metaData);
-    }
-
-    final String nodeToShardPath = _zkConf.getZKNodeToShardPath(nodeName);
-    try {
-      _zkClient.createPersistent(nodeToShardPath);
-    } catch (ZkNodeExistsException e) {
-      // ignore
-    }
-
-    if (_zkClient.exists(nodePath)) {
-      LOG.warn("Old node ephemeral '" + nodePath + "' detected, deleting it...");
-      _zkClient.delete(nodePath);
-    }
-    _zkClient.createEphemeral(nodePath);
-    _zkEphemeralPublishesByComponent.add(node, nodePath);
-    LOG.info("Node '" + nodeName + "' announced");
+  public boolean isNodeOperationQueued(OperationId operationId) {
+    String elementPath = _zkConf.getZKNodeQueueElementPath(operationId.getNodeName(), operationId.getElementName());
+    return _zkClient.exists(elementPath);
   }
 
+  public void registerNodeOperationListener(ConnectedComponent component, OperationId operationId,
+          IZkDataListener dataListener) {
+    String elementPath = _zkConf.getZKNodeQueueElementPath(operationId.getNodeName(), operationId.getElementName());
+    registerDataListener(component, elementPath, dataListener);
+  }
+
+  public void updateNodeMD(NodeMetaData nodeMetaData) {
+    _zkClient.writeData(_zkConf.getZKNodeMetaDataPath(nodeMetaData.getName()), nodeMetaData);
+  }
+
+  @Deprecated
   public void updateNodeStatus(String nodeName, NodeState state) {
     final String nodeMdPath = _zkConf.getZKNodeMetaDataPath(nodeName);
     final NodeMetaData metaData = _zkClient.readData(nodeMdPath);
@@ -538,6 +555,7 @@ public class InteractionProtocol {
     _zkClient.writeData(nodeMdPath, metaData);
   }
 
+  @Deprecated
   public void updateNodeStatus(String nodeName, float queriesPerMinute) {
     final String nodeMdPath = _zkConf.getZKNodeMetaDataPath(nodeName);
     if (_zkClient.exists(nodeMdPath)) {
@@ -548,17 +566,16 @@ public class InteractionProtocol {
   }
 
   public void addIndex(String indexName, String indexPath, int replicationLevel) {
-    final String indexZkPath = _zkConf.getZKIndexPath(indexName);
+    final String indexZkPath = _zkConf.getOldZKIndexPath(indexName);
     if (_zkClient.exists(indexZkPath)) {
       throw new IllegalArgumentException("index already exists: " + indexName);
     }
-    final IndexMetaData indexMetaData = new IndexMetaData(indexName, indexPath, replicationLevel,
-            IndexMetaData.IndexState.ANNOUNCED);
+    final IndexMetaData indexMetaData = new IndexMetaData(indexName, indexPath, replicationLevel, IndexState.ANNOUNCED);
     _zkClient.createPersistent(indexZkPath, indexMetaData);
   }
 
   public void removeIndex(String indexName) {
-    final String indexPath = _zkConf.getZKIndexPath(indexName);
+    final String indexPath = _zkConf.getOldZKIndexPath(indexName);
     if (!_zkClient.exists(indexPath)) {
       throw new IllegalArgumentException("index not exists: " + indexName);
     }
@@ -566,19 +583,23 @@ public class InteractionProtocol {
   }
 
   public boolean indexExists(String indexName) {
-    return _zkClient.exists(_zkConf.getZKIndexPath(indexName));
+    return _zkClient.exists(_zkConf.getOldZKIndexPath(indexName));
   }
 
   public List<IndexMetaData> getIndicesMDs(IndexState indexState) {
     final List<String> indexes = _zkClient.getChildren(_zkConf.getZKIndicesPath());
     final List<IndexMetaData> returnIndexes = new ArrayList<IndexMetaData>();
     for (final String index : indexes) {
-      final IndexMetaData metaData = _zkClient.readData(_zkConf.getZKIndexPath(index));
+      IndexMetaData metaData = getIndexMD(index);
       if (metaData.getState() == indexState) {
         returnIndexes.add(metaData);
       }
     }
     return returnIndexes;
+  }
+
+  public void showStructure() {
+    _zkClient.showFolders(System.out);
   }
 
   protected class IndexStateListener implements IZkChildListener {
@@ -721,7 +742,7 @@ public class InteractionProtocol {
       LOG
               .info("switching index '" + _index + "' from state " + _indexMetaData.getState() + " into state "
                       + indexState);
-      final String indexZkPath = _zkConf.getZKIndexPath(_index);
+      final String indexZkPath = _zkConf.getOldZKIndexPath(_index);
       _indexMetaData = _zkClient.readData(indexZkPath);
       if (indexState == IndexState.ERROR) {
         _indexMetaData.setState(indexState, "could not deploy shards properly, please see node logs");

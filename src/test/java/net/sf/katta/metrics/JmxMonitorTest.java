@@ -31,8 +31,8 @@ public class JmxMonitorTest extends TestCase {
     JmxMonitor monitor = new JmxMonitor();
     String nodeId = "someId";
     InteractionProtocol protocol = mock(InteractionProtocol.class);
-    monitor.startMonitoring(nodeId, protocol);
+    monitor.startMonitoring(nodeId, _protocol);
     Thread.sleep(1200);
-    verify(protocol, atLeastOnce()).setMetric(eq(nodeId), (MetricsRecord) anyObject());
+    verify(_protocol, atLeastOnce()).setMetric(eq(nodeId), (MetricsRecord) anyObject());
   }
 }

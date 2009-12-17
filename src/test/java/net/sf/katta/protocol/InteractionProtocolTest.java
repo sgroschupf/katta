@@ -16,9 +16,18 @@
 package net.sf.katta.protocol;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.withSettings;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
+import net.sf.katta.node.Node;
+import net.sf.katta.protocol.metadata.NodeMetaData;
+import net.sf.katta.protocol.operation.OperationId;
+import net.sf.katta.protocol.operation.node.NodeOperation;
 import net.sf.katta.testutil.PrintMethodNames;
 import net.sf.katta.testutil.ZkTestSystem;
 
@@ -76,5 +85,28 @@ public class InteractionProtocolTest {
     zkClient.close();
     assertEquals(2, connectCount.get());
     assertEquals(2, connectCount.get());
+  }
+
+  @Test(timeout = 7000)
+  public void testNodeQueue() throws Exception {
+    Node node = mock(Node.class);
+    String nodeName = "node1";
+    when(node.getName()).thenReturn(nodeName);
+
+    InteractionProtocol protocol = _zk.getInteractionProtocol();
+    DistributedBlockingQueue<NodeOperation> nodeQueue = protocol.publishNode(node, new NodeMetaData());
+
+    NodeOperation nodeOperation1 = mock(NodeOperation.class, withSettings().serializable().name("a"));
+    NodeOperation nodeOperation2 = mock(NodeOperation.class, withSettings().serializable().name("b"));
+    OperationId operation1Id = protocol.addNodeOperation(nodeName, nodeOperation1);
+    OperationId operation2Id = protocol.addNodeOperation(nodeName, nodeOperation2);
+
+    assertTrue(protocol.isNodeOperationQueued(operation1Id));
+    assertTrue(protocol.isNodeOperationQueued(operation2Id));
+    assertEquals(nodeOperation1.toString(), nodeQueue.poll().toString());
+    assertEquals(nodeOperation2.toString(), nodeQueue.poll().toString());
+    assertTrue(nodeQueue.isEmpty());
+    assertFalse(protocol.isNodeOperationQueued(operation1Id));
+    assertFalse(protocol.isNodeOperationQueued(operation2Id));
   }
 }

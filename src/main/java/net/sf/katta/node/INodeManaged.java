@@ -16,6 +16,7 @@
 package net.sf.katta.node;
 
 import java.io.File;
+import java.util.Collection;
 import java.util.Map;
 
 /**
@@ -57,6 +58,11 @@ public interface INodeManaged {
    * provided in addShard().
    */
   public void removeShard(String shardName) throws Exception;
+  
+  /**
+   * @return all included shards
+   */
+  public Collection<String> getShards();
   
   /**
    * The key fetched from getShardMetadata() which in order to report

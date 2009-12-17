@@ -55,9 +55,9 @@ public class KattaMiniCluster {
     for (int i = 0; i < _nodes.length; i++) {
       NodeConfiguration nodeConf = new NodeConfiguration();
       nodeConf.setShardFolder(new File(nodeConf.getShardFolder(), "" + i).getAbsolutePath());
-      _nodes[i] = new Node(protocol, nodeConf, new LuceneServer());
+      _nodes[i] = new Node(_protocol, nodeConf, new LuceneServer());
     }
-    _master = new Master(protocol, _zkServer);
+    _master = new Master(_protocol, _zkServer);
     _master.start();
     for (Node node : _nodes) {
       node.start();

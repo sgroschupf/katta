@@ -187,7 +187,7 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
 
   protected MasterStartThread startMaster(ZkConfiguration conf, MasterConfiguration masterConf) throws KattaException {
     InteractionProtocol protocol = new InteractionProtocol(_zkServer.getZkClient(), conf);
-    Master master = new Master(protocol, false, masterConf);
+    Master master = new Master(_protocol, false, masterConf);
     MasterStartThread masterStartThread = new MasterStartThread(master, _zkServer.getZkClient());
     masterStartThread.start();
     return masterStartThread;
@@ -217,7 +217,7 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
   protected NodeStartThread startNode(INodeManaged server, NodeConfiguration nodeConf, ZkConfiguration conf) {
     ZkClient zkNodeClient = ZkKattaUtil.startZkClient(conf, 30000);
     InteractionProtocol protocol = new InteractionProtocol(zkNodeClient, _conf);
-    Node node = new Node(protocol, server);
+    Node node = new Node(_protocol, server);
     NodeStartThread nodeStartThread = new NodeStartThread(node);
     nodeStartThread.start();
     return nodeStartThread;
@@ -233,7 +233,7 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
     nodeConf.setShardFolder(shardFolder);
     nodeConf.setStartPort(port);
     InteractionProtocol protocol = new InteractionProtocol(_zkServer.getZkClient(), conf);
-    Node node = new Node(protocol, nodeConf, server);
+    Node node = new Node(_protocol, nodeConf, server);
     NodeStartThread nodeStartThread = new NodeStartThread(node);
     nodeStartThread.start();
     return nodeStartThread;

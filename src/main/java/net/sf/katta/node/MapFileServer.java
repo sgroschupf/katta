@@ -19,6 +19,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -49,7 +50,7 @@ public class MapFileServer implements INodeManaged, IMapFileServer {
 
   private final Configuration _conf = new Configuration();
   private final FileSystem _fileSystem ;
-  private final Map<String, MapFile.Reader> _readers = new ConcurrentHashMap<String, MapFile.Reader>();
+  private final Map<String, MapFile.Reader> _readerByShard = new ConcurrentHashMap<String, MapFile.Reader>();
   private String _nodeName;
 
   public MapFileServer() throws IOException {
@@ -81,13 +82,18 @@ public class MapFileServer implements INodeManaged, IMapFileServer {
     }
     try {
       final MapFile.Reader reader = new MapFile.Reader(_fileSystem, shardDir.getAbsolutePath(), _conf);
-      synchronized (_readers) {
-        _readers.put(shardName, reader);
+      synchronized (_readerByShard) {
+        _readerByShard.put(shardName, reader);
       }
     } catch (IOException e) {
       LOG.error("Error opening shard " + shardName + " " + shardDir.getAbsolutePath(), e);
       throw e;
     }
+  }
+  
+  @Override
+  public Collection<String> getShards() {
+    return Collections.unmodifiableCollection(_readerByShard.keySet());
   }
 
   /**
@@ -96,8 +102,8 @@ public class MapFileServer implements INodeManaged, IMapFileServer {
    */
   public void removeShard(final String shardName) throws IOException {
     LOG.debug("LuceneServer " + _nodeName + " removing shard " + shardName);
-    synchronized (_readers) {
-      final MapFile.Reader reader = _readers.get(shardName);
+    synchronized (_readerByShard) {
+      final MapFile.Reader reader = _readerByShard.get(shardName);
       if (reader != null) {
         try {
           reader.close();
@@ -105,7 +111,7 @@ public class MapFileServer implements INodeManaged, IMapFileServer {
           LOG.error("Error closing shard " + shardName, e);
           throw e;
         }
-        _readers.remove(shardName);
+        _readerByShard.remove(shardName);
       } else {
         LOG.warn("Shard " + shardName + " not found!");
       }
@@ -124,7 +130,7 @@ public class MapFileServer implements INodeManaged, IMapFileServer {
    * @throws Exception 
    */
   public Map<String, String> getShardMetaData(String shardName) throws Exception {
-    final MapFile.Reader reader = _readers.get(shardName);
+    final MapFile.Reader reader = _readerByShard.get(shardName);
     if (reader != null) {
       int count = 0;
       synchronized (reader) {
@@ -147,14 +153,14 @@ public class MapFileServer implements INodeManaged, IMapFileServer {
    * Close all MapFiles. No further calls will be made after this one.
    */
   public void shutdown() throws IOException {
-    for (final MapFile.Reader reader : _readers.values()) {
+    for (final MapFile.Reader reader : _readerByShard.values()) {
       try {
         reader.close();
       } catch (IOException e) {
         LOG.error("Error in shutdown", e);
       }
     }
-    _readers.clear();
+    _readerByShard.clear();
   }
 
 
@@ -162,7 +168,7 @@ public class MapFileServer implements INodeManaged, IMapFileServer {
     ExecutorService executor = Executors.newCachedThreadPool();
     Collection<Future<Text>> futures = new ArrayList<Future<Text>>();
     for (String shard : shards) {
-      final MapFile.Reader reader = _readers.get(shard);
+      final MapFile.Reader reader = _readerByShard.get(shard);
       if (reader == null) {
         LOG.warn("Shard " + shard + " unknown");
         continue;

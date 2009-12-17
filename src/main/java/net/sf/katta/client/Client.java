@@ -159,7 +159,7 @@ public class Client implements IShardProxyManager {
 
   protected void addOrWatchNewIndexes(List<String> indexes) {
     for (String index : indexes) {
-      String indexZkPath = _zkConfig.getZKIndexPath(index);
+      String indexZkPath = _zkConfig.getOldZKIndexPath(index);
       IndexMetaData indexMetaData = _zkClient.readData(indexZkPath);
       if (isIndexSearchable(indexMetaData)) {
         addIndexForSearching(index, indexZkPath);
