@@ -15,6 +15,7 @@
  */
 package net.sf.katta.util;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -29,8 +30,9 @@ import java.util.Set;
  * 
  * 
  */
-public class One2ManyListMap<K, V> {
+public class One2ManyListMap<K, V> implements Serializable {
 
+  private static final long serialVersionUID = 1L;
   protected final Map<K, List<V>> _map;
 
   public One2ManyListMap() {

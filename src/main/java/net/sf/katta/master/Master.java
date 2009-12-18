@@ -22,7 +22,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 import net.sf.katta.protocol.ConnectedComponent;
-import net.sf.katta.protocol.DistributedBlockingQueue;
+import net.sf.katta.protocol.OperationQueue;
 import net.sf.katta.protocol.IAddRemoveListener;
 import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.protocol.operation.leader.CheckIndicesOperation;
@@ -52,7 +52,7 @@ public class Master implements ConnectedComponent {
   private boolean _shutdownClient;
   protected InteractionProtocol _protocol;
 
-  private DistributedBlockingQueue<LeaderOperation> _queue;
+  private OperationQueue<LeaderOperation> _queue;
 
   private IDeployPolicy _deployPolicy;
   private long _safeModeMaxTime;

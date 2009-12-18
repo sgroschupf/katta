@@ -33,8 +33,9 @@ public abstract class AbstractShardOperation implements NodeOperation {
   }
 
   @Override
-  public final void execute(NodeContext context) {
+  public final DeployResult execute(NodeContext context) {
     LOG.info(getOperationName() + " shards: " + getShardNames());
+    DeployResult result = new DeployResult(context.getNode().getName());
     for (String shardName : getShardNames()) {
       try {
         LOG.info(getOperationName() + " shard '" + shardName + "'");
@@ -42,9 +43,11 @@ public abstract class AbstractShardOperation implements NodeOperation {
       } catch (Exception e) {
         LOG.error("failed to " + getOperationName() + " shard '" + shardName + "' on node '"
                 + context.getNode().getName() + "'", e);
+        result.addShardException(shardName, e);
         onException(context, shardName, e);
       }
     }
+    return result;
   }
 
   protected abstract String getOperationName();

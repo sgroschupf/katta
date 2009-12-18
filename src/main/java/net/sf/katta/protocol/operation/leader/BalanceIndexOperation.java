@@ -17,18 +17,15 @@ package net.sf.katta.protocol.operation.leader;
 
 import java.util.List;
 
-import net.sf.katta.index.IndexMetaData.IndexState;
 import net.sf.katta.master.LeaderContext;
 import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.protocol.metadata.IndexMetaData;
 import net.sf.katta.protocol.operation.OperationId;
-
-import org.apache.hadoop.util.StringUtils;
+import net.sf.katta.protocol.operation.node.DeployResult;
 
 public class BalanceIndexOperation extends AbstractIndexOperation {
 
   private static final long serialVersionUID = 1L;
-
   private final String _indexName;
 
   public BalanceIndexOperation(String indexName) {
@@ -43,25 +40,22 @@ public class BalanceIndexOperation extends AbstractIndexOperation {
       LOG.info("skip balancing for index '" + _indexName + "' cause there is no possible optimization");
       return null;
     }
-    LOG.info("balancing shards for index '" + _indexName + "'");
 
+    LOG.info("balancing shards for index '" + _indexName + "'");
     try {
-      List<OperationId> operationIds = distributeIndexShards(context, indexMD, protocol.getNodes(), false);
+      List<OperationId> operationIds = distributeIndexShards(context, indexMD, protocol.getNodes());
       return operationIds;
     } catch (Exception e) {
-      // TODO handle appropriate
-      indexMD.setState(IndexState.ERROR, StringUtils.stringifyException(e));
-      protocol.updateIndexMD(indexMD);
+      LOG.error("failed to deploy balance " + _indexName, e);
+      handleMasterDeployException(protocol, indexMD, e);
       return null;
     }
   }
 
   @Override
-  public void nodeOperationsComplete(LeaderContext context) throws Exception {
-    // re-trigger if the index is still or again unbalanced
-    if (canAndShouldRegulateReplication(context.getProtocol(), _indexName)) {
-      context.getProtocol().addLeaderOperation(this);
-    }
+  public void nodeOperationsComplete(LeaderContext context, List<DeployResult> results) throws Exception {
+    LOG.info("balancing of index " + _indexName + " complete");
+    handleDeploymentComplete(context, results, context.getProtocol().getIndexMD(_indexName), false);
   }
 
   @Override

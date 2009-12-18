@@ -21,102 +21,94 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
 
-import net.sf.katta.index.IndexMetaData.IndexState;
 import net.sf.katta.master.LeaderContext;
 import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.protocol.metadata.IndexMetaData;
+import net.sf.katta.protocol.metadata.IndexDeployError.ErrorType;
 import net.sf.katta.protocol.metadata.IndexMetaData.Shard;
 import net.sf.katta.protocol.operation.OperationId;
+import net.sf.katta.protocol.operation.node.DeployResult;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
-import org.apache.hadoop.util.StringUtils;
-import org.apache.log4j.Logger;
 
 public class IndexDeployOperation extends AbstractIndexOperation {
 
   private static final long serialVersionUID = 1L;
-  private final static Logger LOG = Logger.getLogger(IndexDeployOperation.class);
 
+  private IndexMetaData _indexMD;
   private final String _indexName;
   private final String _indexPath;
-  private final int _replicationLevel;
 
   public IndexDeployOperation(String indexName, String indexPath, int replicationLevel) {
+    _indexMD = new IndexMetaData(indexName, indexPath, replicationLevel);
     _indexName = indexName;
     _indexPath = indexPath;
-    _replicationLevel = replicationLevel;
   }
 
   @Override
   public List<OperationId> execute(LeaderContext context) throws Exception {
     InteractionProtocol protocol = context.getProtocol();
     LOG.info("deploying index '" + _indexName + "'");
-    IndexMetaData indexMetaData = new IndexMetaData(_indexName, _indexPath, _replicationLevel, IndexState.ANNOUNCED);// avoid
 
-    List<Shard> readShards = readShardsFromFs(_indexName, indexMetaData);
-    for (Shard shard : readShards) {
-      indexMetaData.getShards().add(shard);
-    }
-    protocol.writeIndexMD(indexMetaData);
-    LOG.info("Found shards '" + readShards + "' for index '" + _indexName + "'");
     try {
-      protocol.updateIndexMD(indexMetaData);
-      List<OperationId> operationIds = distributeIndexShards(context, indexMetaData, protocol.getNodes(), true);
+      _indexMD.getShards().addAll(readShardsFromFs(_indexName, _indexPath));
+      LOG.info("Found shards '" + _indexMD.getShards() + "' for index '" + _indexName + "'");
+      List<OperationId> operationIds = distributeIndexShards(context, _indexMD, protocol.getNodes());
       return operationIds;
     } catch (Exception e) {
       LOG.error("failed to deploy index " + _indexName, e);
-      indexMetaData.setState(IndexState.ERROR, StringUtils.stringifyException(e));
-      protocol.updateIndexMD(indexMetaData);
+      protocol.publishIndex(_indexMD);
+      handleMasterDeployException(protocol, _indexMD, e);
       return null;
     }
   }
 
   @Override
   public LockInstruction getLockAlreadyObtainedInstruction() {
-    // TODO Auto-generated method stub
-    return null;
+    return LockInstruction.CANCEL_THIS_OPERATION;
   }
 
   @Override
   public boolean locksOperation(LeaderOperation operation) {
-    // TODO Auto-generated method stub
+    if (operation instanceof IndexDeployOperation) {
+      return ((IndexDeployOperation) operation)._indexName.equals(_indexName);
+    }
     return false;
   }
 
   @Override
-  public void nodeOperationsComplete(LeaderContext context) throws Exception {
-    LOG.info("deployment of index " + _indexName + " complete - triggering complete deployment operation");
-    // TODO index metadata to live / error
+  public void nodeOperationsComplete(LeaderContext context, List<DeployResult> results) throws Exception {
+    LOG.info("deployment of index " + _indexName + " complete");
+    handleDeploymentComplete(context, results, _indexMD, true);
   }
 
-  protected List<Shard> readShardsFromFs(final String index, final IndexMetaData indexMetaData)
-          throws IndexInvalidException {
-    final String indexPathString = indexMetaData.getPath();
+  protected static List<Shard> readShardsFromFs(final String indexName, final String indexPathString)
+          throws IndexDeployException {
     // get shard folders from source
     URI uri;
     try {
       uri = new URI(indexPathString);
     } catch (final URISyntaxException e) {
-      throw new IndexInvalidException("unable to parse index path uri '" + indexPathString
-              + "', make sure it starts with file:// or hdfs:// ", e);
+      throw new IndexDeployException(ErrorType.INDEX_NOT_ACCESSIBLE, "unable to parse index path uri '"
+              + indexPathString + "', make sure it starts with file:// or hdfs:// ", e);
     }
     FileSystem fileSystem;
     try {
       fileSystem = FileSystem.get(uri, new Configuration());
     } catch (final IOException e) {
-      throw new IndexInvalidException("unable to retrive file system for index path '" + indexPathString
-              + "', make sure your path starts with hadoop support prefix like file:// or hdfs://", e);
+      throw new IndexDeployException(ErrorType.INDEX_NOT_ACCESSIBLE, "unable to retrive file system for index path '"
+              + indexPathString + "', make sure your path starts with hadoop support prefix like file:// or hdfs://", e);
     }
 
     List<Shard> shards = new ArrayList<Shard>();
     try {
       final Path indexPath = new Path(indexPathString);
       if (!fileSystem.exists(indexPath)) {
-        throw new IndexInvalidException("index path '" + uri + "' does not exists");
+        throw new IndexDeployException(ErrorType.INDEX_NOT_ACCESSIBLE, "index path '" + uri + "' does not exists");
       }
       final FileStatus[] listStatus = fileSystem.listStatus(indexPath, new PathFilter() {
         public boolean accept(final Path aPath) {
@@ -126,15 +118,16 @@ public class IndexDeployOperation extends AbstractIndexOperation {
       for (final FileStatus fileStatus : listStatus) {
         String shardPath = fileStatus.getPath().toString();
         if (fileStatus.isDir() || shardPath.endsWith(".zip")) {
-          shards.add(new Shard(createShardName(index, shardPath), shardPath));
+          shards.add(new Shard(createShardName(indexName, shardPath), shardPath));
         }
       }
     } catch (final IOException e) {
-      throw new IndexInvalidException("could not access index path: " + indexPathString, e);
+      throw new IndexDeployException(ErrorType.INDEX_NOT_ACCESSIBLE, "could not access index path: " + indexPathString,
+              e);
     }
 
     if (shards.size() == 0) {
-      throw new IndexInvalidException("index does not contain any shard");
+      throw new IndexDeployException(ErrorType.INDEX_NOT_ACCESSIBLE, "index does not contain any shard");
     }
     return shards;
   }

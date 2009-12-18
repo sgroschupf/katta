@@ -42,11 +42,7 @@ public class ShardDeployOperation extends AbstractShardOperation {
 
   @Override
   protected void onException(NodeContext context, String shardName, Exception e) {
-    // IndexMetaData indexMD = _protocol.getIndexMD(indexName);
-    // TODO add error to indexMD
-    // ShardError shardError = new ShardError(t.getMessage());
-    // indexMD.addShardError(shardError);
-    // _protocol.publishShardError(this, shard, shardError);
+    context.getShardManager().uninstallShard(shardName);
   }
 
 }

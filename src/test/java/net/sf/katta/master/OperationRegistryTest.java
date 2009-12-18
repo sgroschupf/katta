@@ -13,15 +13,15 @@ import java.util.ArrayList;
 import java.util.List;
 
 import net.sf.katta.node.Node;
-import net.sf.katta.protocol.DistributedBlockingQueue;
+import net.sf.katta.protocol.OperationQueue;
 import net.sf.katta.protocol.operation.OperationId;
-import net.sf.katta.protocol.operation.leader.AbstractLeaderTest;
+import net.sf.katta.protocol.operation.leader.MockedMasterNodeTest;
 import net.sf.katta.protocol.operation.leader.LeaderOperation;
 import net.sf.katta.protocol.operation.node.NodeOperation;
 
 import org.junit.Test;
 
-public class OperationRegistryTest extends AbstractLeaderTest {
+public class OperationRegistryTest extends MockedMasterNodeTest {
 
   private final OperationRegistry _registry = new OperationRegistry(_context);
   private final List<Node> _nodes = mockNodes(5);
@@ -29,11 +29,11 @@ public class OperationRegistryTest extends AbstractLeaderTest {
 
   @Test(timeout = 10000)
   public void testAllOperationsDone() throws Exception {
-    List<DistributedBlockingQueue<NodeOperation>> nodeQueues = publisNodes(_nodes);
+    List<OperationQueue<NodeOperation>> nodeQueues = publisNodes(_nodes);
     OperationWatchdog operationWatchdog = beginLeaderOperation(_nodes, _leaderOperation);
 
     // execute node operations
-    for (DistributedBlockingQueue<NodeOperation> nodeQueue : nodeQueues) {
+    for (OperationQueue<NodeOperation> nodeQueue : nodeQueues) {
       NodeOperation nodeOperation = nodeQueue.poll();
       assertNotNull(nodeOperation);
     }
@@ -45,7 +45,7 @@ public class OperationRegistryTest extends AbstractLeaderTest {
 
   @Test(timeout = 10000)
   public void testOneOperationsMissing() throws Exception {
-    List<DistributedBlockingQueue<NodeOperation>> nodeQueues = publisNodes(_nodes);
+    List<OperationQueue<NodeOperation>> nodeQueues = publisNodes(_nodes);
     OperationWatchdog watchdog = beginLeaderOperation(_nodes, _leaderOperation);
 
     // execute operation
@@ -61,7 +61,7 @@ public class OperationRegistryTest extends AbstractLeaderTest {
 
   @Test(timeout = 10000)
   public void testOperationsDoneOrNodeGone() throws Exception {
-    List<DistributedBlockingQueue<NodeOperation>> nodeQueues = publisNodes(_nodes);
+    List<OperationQueue<NodeOperation>> nodeQueues = publisNodes(_nodes);
     OperationWatchdog watchdog = beginLeaderOperation(_nodes, _leaderOperation);
 
     nodeQueues.get(0).poll();

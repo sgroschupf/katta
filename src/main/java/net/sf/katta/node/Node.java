@@ -25,10 +25,12 @@ import java.util.TimerTask;
 
 import net.sf.katta.monitor.IMonitor;
 import net.sf.katta.protocol.ConnectedComponent;
-import net.sf.katta.protocol.DistributedBlockingQueue;
+import net.sf.katta.protocol.OperationQueue;
 import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.protocol.metadata.NodeMetaData;
+import net.sf.katta.protocol.operation.OperationId;
 import net.sf.katta.protocol.operation.node.NodeOperation;
+import net.sf.katta.protocol.operation.node.OperationResult;
 import net.sf.katta.protocol.operation.node.RedeployShardsOperation;
 import net.sf.katta.util.NetworkUtil;
 import net.sf.katta.util.NodeConfiguration;
@@ -60,7 +62,7 @@ public class Node implements ConnectedComponent {
   private IMonitor _monitor;
   private Thread _nodeOperationThread;
 
-  private NodeContext _context;
+  NodeContext _context;
 
   public static enum NodeState {
     STARTING, RECONNECTING, IN_SERVICE, LOST;
@@ -114,7 +116,7 @@ public class Node implements ConnectedComponent {
     // TODO should be done when master answers
     // removeLocalShardsWithoutServeInstruction(nodeMetaData);
 
-    DistributedBlockingQueue<NodeOperation> nodeOperationQueue = _protocol.publishNode(this, nodeMetaData);
+    OperationQueue<NodeOperation> nodeOperationQueue = _protocol.publishNode(this, nodeMetaData);
     _nodeOperationThread = new Thread(new NodeOperationProcessor(nodeOperationQueue, _context));
     _nodeOperationThread.setDaemon(true);
     _nodeOperationThread.start();
@@ -291,10 +293,10 @@ public class Node implements ConnectedComponent {
 
   private class NodeOperationProcessor implements Runnable {
 
-    private final DistributedBlockingQueue<NodeOperation> _distributedBlockingQueue;
+    private final OperationQueue<NodeOperation> _distributedBlockingQueue;
     private final NodeContext _nodeContext;
 
-    public NodeOperationProcessor(DistributedBlockingQueue<NodeOperation> distributedBlockingQueue,
+    public NodeOperationProcessor(OperationQueue<NodeOperation> distributedBlockingQueue,
             NodeContext nodeContext) {
       _distributedBlockingQueue = distributedBlockingQueue;
       _nodeContext = nodeContext;
@@ -304,19 +306,24 @@ public class Node implements ConnectedComponent {
     public void run() {
       try {
         while (true) {
-          NodeOperation operation = _distributedBlockingQueue.poll();
+          String elementName = _distributedBlockingQueue.peekElementName();
+          OperationId operationId = new OperationId(_nodeName, elementName);
+          NodeOperation operation = _distributedBlockingQueue.peek();
+          OperationResult operationResult;
           try {
-            operation.execute(_context);
+            operationResult = operation.execute(_context);
           } catch (Exception e) {
             LOG.error("failed to execute " + operation, e);
+            operationResult = new OperationResult(_nodeName, e);
           }
+          _protocol.addNodeOperationResult(_context.getNode(), operationId, operationResult);
+          _distributedBlockingQueue.poll();// only remove after finish
         }
       } catch (InterruptedException e) {
         Thread.interrupted();
       }
       LOG.info("node operation processor stopped");
     }
-
   }
 
 }

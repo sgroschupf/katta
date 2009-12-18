@@ -6,9 +6,16 @@ import net.sf.katta.node.Node;
 import net.sf.katta.node.NodeContext;
 
 /**
- * Marker interface for operations executed by an {@link Node}.
+ * An operation executed by an {@link Node}.
+ * 
+ * @param <T>
+ *          the type of the {@link OperationResult}
  */
-public interface NodeOperation extends Serializable {
+public interface NodeOperation<T extends OperationResult> extends Serializable {
 
-  void execute(NodeContext context);
+  /**
+   * @param context
+   * @return null or an {@link OperationResult}
+   */
+  T execute(NodeContext context);
 }

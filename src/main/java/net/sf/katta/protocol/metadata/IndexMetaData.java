@@ -19,8 +19,6 @@ import java.io.Serializable;
 import java.util.HashSet;
 import java.util.Set;
 
-import net.sf.katta.index.IndexMetaData.IndexState;
-
 public class IndexMetaData implements Serializable {
 
   private static final long serialVersionUID = 1L;
@@ -30,45 +28,14 @@ public class IndexMetaData implements Serializable {
   private int _replicationLevel;
   private Set<Shard> _shards = new HashSet<Shard>();
 
-  private IndexState _state;
-  private String _errorMessage = "";
-
-  public IndexMetaData(String name, String path, int replicationLevel, IndexState state) {
+  public IndexMetaData(String name, String path, int replicationLevel) {
     _name = name;
     _path = path;
     _replicationLevel = replicationLevel;
-    _state = state;
-  }
-
-  public IndexMetaData() {
-    // for serialization
   }
 
   public String getPath() {
     return _path;
-  }
-
-  public IndexState getState() {
-    return _state;
-  }
-
-  public void setState(IndexState state) {
-    if (state == IndexState.ERROR) {
-      throw new IllegalStateException("please set an error message");
-    }
-    _state = state;
-  }
-
-  public void setState(IndexState state, String errorMessage) {
-    if (errorMessage == null) {
-      throw new NullPointerException();
-    }
-    _state = state;
-    _errorMessage = errorMessage;
-  }
-
-  public String getErrorMessage() {
-    return _errorMessage;
   }
 
   public void setReplicationLevel(int replicationLevel) {
@@ -98,8 +65,7 @@ public class IndexMetaData implements Serializable {
 
   @Override
   public String toString() {
-    return "name: " + _name + ", state: " + _state + ", replication: " + _replicationLevel + ", path: " + _path
-            + ", error: " + _errorMessage;
+    return "name: " + _name + ", replication: " + _replicationLevel + ", path: " + _path;
   }
 
   public static class Shard implements Serializable {

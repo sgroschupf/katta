@@ -20,11 +20,15 @@ import java.util.List;
 
 import net.sf.katta.master.LeaderContext;
 import net.sf.katta.protocol.operation.OperationId;
+import net.sf.katta.protocol.operation.node.OperationResult;
 
 /**
  * An operation carried out by the leader node.
+ * 
+ * @param <T>
+ *          the type of the {@link OperationResult}
  */
-public interface LeaderOperation extends Serializable {
+public interface LeaderOperation<T extends OperationResult> extends Serializable {
 
   static enum LockInstruction {
     CANCEL_THIS_OPERATION, ADD_TO_QUEUE_TAIL;
@@ -40,9 +44,14 @@ public interface LeaderOperation extends Serializable {
 
   /**
    * Called when all operations are complete or the nodes of the incomplete
-   * operations went down.
+   * operations went down. This method is NOT called if
+   * {@link #execute(LeaderContext)} returns null or an emptu list of
+   * {@link OperationId}s.
+   * 
+   * @param context
+   * @param results
    */
-  void nodeOperationsComplete(LeaderContext context) throws Exception;
+  void nodeOperationsComplete(LeaderContext context, List<T> results) throws Exception;
 
   /**
    * @param operation

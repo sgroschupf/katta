@@ -17,7 +17,7 @@ package net.sf.katta.master;
 
 import java.util.List;
 
-import net.sf.katta.protocol.DistributedBlockingQueue;
+import net.sf.katta.protocol.OperationQueue;
 import net.sf.katta.protocol.operation.OperationId;
 import net.sf.katta.protocol.operation.leader.LeaderOperation;
 import net.sf.katta.protocol.operation.leader.LeaderOperation.LockInstruction;
@@ -34,13 +34,13 @@ class OperatorThread extends Thread {
   protected final static Logger LOG = Logger.getLogger(OperatorThread.class);
 
   private final LeaderContext _context;
-  private final DistributedBlockingQueue<LeaderOperation> _queue;
+  private final OperationQueue<LeaderOperation> _queue;
   private final OperationRegistry _registry;
   private final long _safeModeMaxTime;
 
   private boolean _safeMode;
 
-  public OperatorThread(final LeaderContext leaderContext, DistributedBlockingQueue<LeaderOperation> queue,
+  public OperatorThread(final LeaderContext leaderContext, OperationQueue<LeaderOperation> queue,
           final long safeModeMaxTime) {
     _context = leaderContext;
     _queue = queue;
@@ -72,7 +72,7 @@ class OperatorThread extends Thread {
       while (true) {
         // TODO jz: poll only for a certain amount of time and then execute a
         // global check operation ?
-        LeaderOperation operation = _queue.poll();
+        LeaderOperation operation = _queue.peek();
         try {
           boolean locked = _registry.isLocked(operation);
           if (locked) {
@@ -82,7 +82,11 @@ class OperatorThread extends Thread {
           }
         } catch (Exception e) {
           LOG.error("failed to execute " + operation, e);
+          if (e instanceof InterruptedException) {
+            throw (InterruptedException) e;
+          }
         }
+        _queue.remove();
       }
     } catch (final InterruptedException e) {
       // let go the thread
@@ -109,7 +113,7 @@ class OperatorThread extends Thread {
       break;
     case ADD_TO_QUEUE_TAIL:
       LOG.info("adding " + operation + " to end of queue");
-      _queue.offer(operation);
+      _queue.add(operation);
       break;
     default:
       throw new IllegalStateException("lock instruction " + lockInstruction + " not handled");

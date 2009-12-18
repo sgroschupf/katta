@@ -1,6 +1,7 @@
 package net.sf.katta.master;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
@@ -10,6 +11,7 @@ import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.protocol.operation.OperationId;
 import net.sf.katta.protocol.operation.leader.LeaderOperation;
 import net.sf.katta.protocol.operation.node.NodeOperation;
+import net.sf.katta.protocol.operation.node.OperationResult;
 
 import org.I0Itec.zkclient.IZkDataListener;
 import org.apache.log4j.Logger;
@@ -22,14 +24,14 @@ public class OperationWatchdog implements ConnectedComponent {
 
   protected final static Logger LOG = Logger.getLogger(OperationWatchdog.class);
 
-  private final List<OperationId> _deploymentOperationIds;
+  private final List<OperationId> _operationIds;
   private final LeaderContext _context;
   private final LeaderOperation _leaderOperation;
 
   public OperationWatchdog(LeaderContext context, List<OperationId> deploymentOperationIds,
           LeaderOperation leaderOperation) {
     _context = context;
-    _deploymentOperationIds = deploymentOperationIds;
+    _operationIds = deploymentOperationIds;
     _leaderOperation = leaderOperation;
     subscribeNotifications();
   }
@@ -63,7 +65,7 @@ public class OperationWatchdog implements ConnectedComponent {
         // nothing todo
       }
     };
-    for (OperationId operationId : _deploymentOperationIds) {
+    for (OperationId operationId : _operationIds) {
       protocol.registerNodeOperationListener(this, operationId, dataListener);
     }
     checkDeploymentForCompletion();
@@ -76,7 +78,7 @@ public class OperationWatchdog implements ConnectedComponent {
 
     InteractionProtocol protocol = _context.getProtocol();
     List<String> liveNodes = protocol.getNodes();
-    for (Iterator iter = _deploymentOperationIds.iterator(); iter.hasNext();) {
+    for (Iterator iter = _operationIds.iterator(); iter.hasNext();) {
       OperationId operationId = (OperationId) iter.next();
       if (!protocol.isNodeOperationQueued(operationId) || !liveNodes.contains(operationId.getNodeName())) {
         iter.remove();
@@ -85,7 +87,11 @@ public class OperationWatchdog implements ConnectedComponent {
     if (isDone()) {
       protocol.unregisterComponent(this);
       try {
-        _leaderOperation.nodeOperationsComplete(_context);
+        List<OperationResult> operationResults = new ArrayList<OperationResult>(_operationIds.size());
+        for (OperationId operationId : _operationIds) {
+          operationResults.add(protocol.getNodeOperationResult(operationId, true));
+        }
+        _leaderOperation.nodeOperationsComplete(_context, operationResults);
       } catch (Exception e) {
         LOG.info("operation complete action of " + _leaderOperation + " failed", e);
       }
@@ -101,11 +107,11 @@ public class OperationWatchdog implements ConnectedComponent {
   }
 
   public final int getOpenOperationCount() {
-    return _deploymentOperationIds.size();
+    return _operationIds.size();
   }
 
   public boolean isDone() {
-    return _deploymentOperationIds.isEmpty();
+    return _operationIds.isEmpty();
   }
 
   public final synchronized void join() throws InterruptedException {

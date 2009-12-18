@@ -15,7 +15,6 @@
  */
 package net.sf.katta.protocol.operation.leader;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -23,11 +22,12 @@ import java.util.Set;
 import net.sf.katta.master.LeaderContext;
 import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.protocol.metadata.IndexMetaData;
-import net.sf.katta.protocol.metadata.IndexMetaData.Shard;
+import net.sf.katta.protocol.operation.OperationId;
+import net.sf.katta.protocol.operation.node.OperationResult;
 import net.sf.katta.protocol.operation.node.ShardUndeployInstruction;
 import net.sf.katta.util.CollectionUtil;
 
-public class IndexUndeployOperation implements LeaderOperation {
+public class IndexUndeployOperation implements LeaderOperation<OperationResult> {
 
   private static final long serialVersionUID = 1L;
   private final String _indexName;
@@ -37,27 +37,37 @@ public class IndexUndeployOperation implements LeaderOperation {
   }
 
   @Override
-  public void execute(LeaderContext context) throws Exception {
+  public List<OperationId> execute(LeaderContext context) throws Exception {
     InteractionProtocol protocol = context.getProtocol();
     IndexMetaData indexMD = protocol.getIndexMD(_indexName);
 
-    Map<String, List<String>> shard2NodesMap = new HashMap<String, List<String>>();
-    Set<Shard> shards = indexMD.getShards();
-    for (Shard shard : shards) {
-      shard2NodesMap.put(shard.getName(), protocol.getShardNodes(shard.getName()));
-    }
-
+    Map<String, List<String>> shard2NodesMap = protocol.getShard2NodesMap(indexMD.getShards());
     Map<String, List<String>> node2ShardsMap = CollectionUtil.invertListMap(shard2NodesMap);
     Set<String> nodes = node2ShardsMap.keySet();
     for (String node : nodes) {
       List<String> nodeShards = node2ShardsMap.get(node);
       protocol.addNodeOperation(node, new ShardUndeployInstruction(nodeShards));
     }
+    protocol.unpublishIndex(_indexName);
+    return null;
   }
 
   @Override
-  public void nodeOperationsComplete(LeaderContext context) throws Exception {
+  public void nodeOperationsComplete(LeaderContext context, List<OperationResult> results) throws Exception {
     // nothing todo
+  }
+
+  @Override
+  public LockInstruction getLockAlreadyObtainedInstruction() {
+    return LockInstruction.CANCEL_THIS_OPERATION;
+  }
+
+  @Override
+  public boolean locksOperation(LeaderOperation operation) {
+    if (operation instanceof IndexUndeployOperation) {
+      return ((IndexUndeployOperation) operation)._indexName.equals(_indexName);
+    }
+    return false;
   }
 
 }

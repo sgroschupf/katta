@@ -94,7 +94,7 @@ public class InteractionProtocolTest {
     when(node.getName()).thenReturn(nodeName);
 
     InteractionProtocol protocol = _zk.getInteractionProtocol();
-    DistributedBlockingQueue<NodeOperation> nodeQueue = protocol.publishNode(node, new NodeMetaData());
+    OperationQueue<NodeOperation> nodeQueue = protocol.publishNode(node, new NodeMetaData());
 
     NodeOperation nodeOperation1 = mock(NodeOperation.class, withSettings().serializable().name("a"));
     NodeOperation nodeOperation2 = mock(NodeOperation.class, withSettings().serializable().name("b"));

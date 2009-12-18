@@ -18,6 +18,7 @@ package net.sf.katta;
 import java.io.File;
 
 import net.sf.katta.util.ZkConfiguration;
+import net.sf.katta.util.ZkConfiguration.PathDef;
 
 import org.I0Itec.zkclient.IDefaultNameSpace;
 import org.I0Itec.zkclient.ZkClient;
@@ -41,15 +42,19 @@ public class DefaultNameSpaceImpl implements IDefaultNameSpace {
   public void createDefaultNameSpace(ZkClient zkClient) {
     LOG.debug("Creating default File structure if required....");
     safeCreate(zkClient, _conf.getZKRootPath());
+    // safeCreate(zkClient, _conf.getZkPath(PathDef.MASTER));
+    safeCreate(zkClient, _conf.getZkPath(PathDef.NODES_METADATA));
+    safeCreate(zkClient, _conf.getZkPath(PathDef.NODES_LIVE));
+    safeCreate(zkClient, _conf.getZkPath(PathDef.INDICES_ERROR));
+    safeCreate(zkClient, _conf.getZkPath(PathDef.INDICES_METADATA));
+
     // safeCreate(zkClient, _conf.getZKLeaderPath());
     safeCreate(zkClient, _conf.getZKWorkPath());
     safeCreate(zkClient, _conf.getZKIndicesPath());
     safeCreate(zkClient, _conf.getZKIndexMetaDatasPath());
     safeCreate(zkClient, _conf.getZKNodesPath());
     safeCreate(zkClient, _conf.getZKNodeMetaDatasPath());
-    safeCreate(zkClient, _conf.getZKNodeToShardPath());
     safeCreate(zkClient, _conf.getZKShardToNodePath());
-    safeCreate(zkClient, _conf.getZKShardToErrorPath());
     safeCreate(zkClient, _conf.getZKLoadTestPath());
     safeCreate(zkClient, _conf.getZKMetricsPath());
   }

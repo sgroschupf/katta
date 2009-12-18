@@ -125,17 +125,53 @@ public class ZkConfiguration extends KattaConfiguration {
     return _sep.charValue();
   }
 
+  private static final String NODES = "nodes";
+  private static final String INDICES = "indices";
+  private static final String WORK = "work";
+
+  public String getZKNodeQueuePath(String node) {
+    return buildPath(getZKRootPath(), WORK, node + "-queue");
+  }
+
+  public enum PathDef {
+    MASTER("current master ephemeral", "master"), // 
+    NODES_METADATA("metadata of connected & unconnected nodes", NODES, "metadata"), // 
+    NODES_LIVE("ephemerals of connected nodes", NODES, "live"), //
+    INDICES_METADATA("metadata of live & error indices", INDICES, "metadata"), // 
+    INDICES_ERROR("metadata of failed indices", INDICES, "error"), //
+    NODE_QUEUE("metadata of failed indices", WORK, "node-queues"); //
+
+    private final String _description;
+    private final String[] _pathParts;
+
+    private PathDef(String description, String... pathParts) {
+      _description = description;
+      _pathParts = pathParts;
+    }
+
+    public String getPath(char separator) {
+      return buildPath(separator, _pathParts);
+    }
+
+    public String getDescription() {
+      return _description;
+    }
+  }
+
+  public String getZkPath(PathDef pathDef) {
+    return buildPath(getZKRootPath(), pathDef.getPath(getSeparator()));
+  }
+
+  public String getZkPath(PathDef pathDef, String name) {
+    return buildPath(getZKRootPath(), pathDef.getPath(getSeparator()), name);
+  }
+
   public static final String DEFAULT_ROOT_PATH = "/katta";
   private final String MASTER = "master";
-  private final String WORK = "work";
-  private final String NODES = "nodes";
   private final String NODES_METADATA = "nodes-metadata";
   private final String OLD_INDEXES = "indexes";
-  private final String INDICES = "indices";
-  private final String INDICES_METADATA = buildPath(INDICES, "metadata");
-  private final String NODE_TO_SHARD = "node-to-shard";
+  private final String INDICES_METADATA = "metadata";
   private final String SHARD_TO_NODE = "shard-to-node";
-  private final String SHARD_TO_ERROR = "shard-to-error";
   private final String LOADTEST_NODES = "loadtest-nodes";
   private final String SERVER_METRICS = "server-metrics";
 
@@ -181,10 +217,6 @@ public class ZkConfiguration extends KattaConfiguration {
     return buildPath(getZKRootPath(), WORK, "master -queue");
   }
 
-  public String getZKNodeQueuePath(String node) {
-    return buildPath(getZKRootPath(), WORK, node + "-queue");
-  }
-
   public String getZKNodeQueueElementPath(String node, String elementName) {
     return buildPath(getZKNodeQueuePath(node), elementName);
   }
@@ -202,7 +234,7 @@ public class ZkConfiguration extends KattaConfiguration {
   }
 
   public String getZKIndicesPath() {
-    return buildPath(getZKRootPath(), OLD_INDEXES);
+    return buildPath(getZKRootPath(), INDICES);
   }
 
   public String getOldZKIndexPath(String index) {
@@ -210,7 +242,7 @@ public class ZkConfiguration extends KattaConfiguration {
   }
 
   public String getZKIndexMetaDatasPath() {
-    return buildPath(getZKRootPath(), INDICES_METADATA);
+    return buildPath(getZKIndicesPath(), INDICES_METADATA);
   }
 
   public String getZKIndexPath(String index) {
@@ -219,18 +251,6 @@ public class ZkConfiguration extends KattaConfiguration {
 
   public String getZKShardPath(String index, String shard) {
     return buildPath(getZKRootPath(), OLD_INDEXES, index, shard);
-  }
-
-  public String getZKNodeToShardPath() {
-    return buildPath(getZKRootPath(), NODE_TO_SHARD);
-  }
-
-  public String getZKNodeToShardPath(String node) {
-    return buildPath(getZKRootPath(), NODE_TO_SHARD, node);
-  }
-
-  public String getZKNodeToShardPath(String node, String shard) {
-    return buildPath(getZKRootPath(), NODE_TO_SHARD, node, shard);
   }
 
   public String getZKShardToNodePath() {
@@ -245,28 +265,19 @@ public class ZkConfiguration extends KattaConfiguration {
     return buildPath(getZKRootPath(), SHARD_TO_NODE, shard, node);
   }
 
-  public String getZKShardToErrorPath() {
-    return buildPath(getZKRootPath(), SHARD_TO_ERROR);
-  }
-
-  public String getZKShardToErrorPath(String shard) {
-    return buildPath(getZKRootPath(), SHARD_TO_ERROR, shard);
-  }
-
-  public String getZKShardToErrorPath(String shard, String node) {
-    return buildPath(getZKRootPath(), SHARD_TO_ERROR, shard, node);
-  }
-
   public String getZKLoadTestPath() {
     return buildPath(getZKRootPath(), LOADTEST_NODES);
   }
 
   private String buildPath(String... folders) {
+    return buildPath(getSeparator(), folders);
+  }
+
+  static String buildPath(char separator, String... folders) {
     StringBuilder builder = new StringBuilder();
-    char sep = getSeparator();
     for (String folder : folders) {
       builder.append(folder);
-      builder.append(sep);
+      builder.append(separator);
     }
     if (builder.length() > 0) {
       builder.deleteCharAt(builder.length() - 1);
