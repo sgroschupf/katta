@@ -15,21 +15,17 @@
  */
 package net.sf.katta.master;
 
-import java.util.Collections;
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 
 import net.sf.katta.protocol.ConnectedComponent;
-import net.sf.katta.protocol.OperationQueue;
 import net.sf.katta.protocol.IAddRemoveListener;
 import net.sf.katta.protocol.InteractionProtocol;
+import net.sf.katta.protocol.OperationQueue;
 import net.sf.katta.protocol.operation.leader.CheckIndicesOperation;
-import net.sf.katta.protocol.operation.leader.IndexUndeployOperation;
 import net.sf.katta.protocol.operation.leader.LeaderOperation;
 import net.sf.katta.protocol.operation.leader.RemoveSuperfluousShardsOperation;
-import net.sf.katta.protocol.operation.leader.CheckIndicesOperation.CheckType;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.MasterConfiguration;
 import net.sf.katta.util.NetworkUtil;
@@ -41,20 +37,14 @@ public class Master implements ConnectedComponent {
 
   protected final static Logger LOG = Logger.getLogger(Master.class);
 
-  protected OperatorThread _manageShardThread;
+  protected volatile OperatorThread _operatorThread;
 
   private String _masterName;
-  protected boolean _isMaster;
-
-  private Lock _shutdownLock = new ReentrantLock();
-
   private ZkServer _zkServer;
   private boolean _shutdownClient;
   protected InteractionProtocol _protocol;
 
-  private OperationQueue<LeaderOperation> _queue;
-
-  private IDeployPolicy _deployPolicy;
+  private LeaderContext _context;
   private long _safeModeMaxTime;
 
   public Master(InteractionProtocol interactionProtocol, ZkServer zkServer) throws KattaException {
@@ -76,7 +66,8 @@ public class Master implements ConnectedComponent {
     final String deployPolicyClassName = masterConfiguration.getDeployPolicy();
     try {
       final Class<IDeployPolicy> policyClazz = (Class<IDeployPolicy>) Class.forName(deployPolicyClassName);
-      _deployPolicy = policyClazz.newInstance();
+      IDeployPolicy _deployPolicy = policyClazz.newInstance();
+      _context = new LeaderContext(_protocol, _deployPolicy);
     } catch (final Exception e) {
       throw new KattaException("Unable to instantiate deploy policy", e);
     }
@@ -103,102 +94,35 @@ public class Master implements ConnectedComponent {
 
   @Override
   public void disconnect() {
-    // TODO ??
+    _operatorThread.interrupt();
+    try {
+      _operatorThread.join();
+    } catch (InterruptedException e) {
+      Thread.interrupted();
+      // proceed
+    }
+    _operatorThread = null;
   }
 
   private void becomePrimaryOrSecondaryMaster() {
-    _queue = _protocol.publishMaster(this);
-    if (isMaster()) {
+    OperationQueue<LeaderOperation> queue = _protocol.publishMaster(this);
+    if (queue != null) {
       startNodeManagement();
-      LeaderContext leaderContext = new LeaderContext(_protocol, _deployPolicy, new OperationRegistry(_protocol));
-      _manageShardThread = new OperatorThread(_protocol, _queue, leaderContext, _safeModeMaxTime);
-      _manageShardThread.start();
+      _operatorThread = new OperatorThread(_context, queue, _safeModeMaxTime);
+      _operatorThread.start();
     }
   }
 
   public boolean isInSafeMode() {
-    return _manageShardThread.isInSafeMode();
+    return _operatorThread.isInSafeMode();
   }
 
-  public void shutdown() {
-    _shutdownLock.lock();
-    try {
-      if (_protocol != null) {
-        _protocol.unregisterComponent(this);
-        _manageShardThread.interrupt();
-        try {
-          _manageShardThread.join();
-        } catch (final InterruptedException e1) {
-          // proceed
-        }
-        if (_shutdownClient) {
-          _protocol.disconnect();
-        }
-        _protocol = null;
-      }
-      if (_zkServer != null) {
-        _zkServer.shutdown();
-        _zkServer = null;
-      }
-    } finally {
-      _shutdownLock.unlock();
-    }
-  }
-
-  private void startIndexManagementOLD() {
-    LOG.debug("Loading indexes...");
-    List<String> indices = _protocol.registerIndexListener(this, new IAddRemoveListener() {
-      @Override
-      public void removed(String name) {
-        // deploy client add this operation
-        _protocol.addLeaderOperation(new IndexUndeployOperation(name));
-      }
-
-      @Override
-      public void added(String name) {
-        // deploy client add this operation
-      }
-    });
-    LOG.info("found following indices connected: " + indices);
-  }
-
-  private void startNodeManagement() {
-    LOG.info("start managing nodes...");
-    List<String> nodes = _protocol.registerNodeListener(this, new IAddRemoveListener() {
-      @Override
-      public void removed(String name) {
-        _protocol.addLeaderOperation(new CheckIndicesOperation(CheckType.UNDEREPLICATED));
-      }
-
-      @Override
-      public void added(String name) {
-        _protocol.addLeaderOperation(new RemoveSuperfluousShardsOperation(name));
-        _protocol.addLeaderOperation(new CheckIndicesOperation(CheckType.ALL));
-      }
-    });
-    LOG.info("found following nodes connected: " + nodes);
-  }
-
-  protected List<String> readNodes() {
-    return _protocol.getNodes();
-  }
-
-  protected List<String> readIndexes() {
-    return _protocol.getIndices();
+  public Collection<String> getConnectedNodes() {
+    return _protocol.getLiveNodes();
   }
 
   public boolean isMaster() {
-    return _queue != null;
-  }
-
-  @Deprecated
-  public List<String> getNodes() {
-    return Collections.unmodifiableList(readNodes());
-  }
-
-  @Deprecated
-  public List<String> getIndexes() {
-    return Collections.unmodifiableList(readIndexes());
+    return _operatorThread != null;
   }
 
   public String getMasterName() {
@@ -207,6 +131,45 @@ public class Master implements ConnectedComponent {
 
   public void handleMasterDisappearedEvent() {
     becomePrimaryOrSecondaryMaster();
+  }
+
+  private void startNodeManagement() {
+    LOG.info("start managing nodes...");
+    List<String> nodes = _protocol.registerNodeListener(this, new IAddRemoveListener() {
+      @Override
+      public void removed(String name) {
+        _protocol.addLeaderOperation(new CheckIndicesOperation());
+      }
+
+      @Override
+      public void added(String name) {
+        _protocol.addLeaderOperation(new RemoveSuperfluousShardsOperation(name));
+        _protocol.addLeaderOperation(new CheckIndicesOperation());
+      }
+    });
+    LOG.info("found following nodes connected: " + nodes);
+  }
+
+  public void shutdown() {
+    if (_protocol != null) {
+      if (isMaster()) {
+        _operatorThread.interrupt();
+        try {
+          _operatorThread.join();
+        } catch (final InterruptedException e1) {
+          // proceed
+        }
+      }
+      _protocol.unregisterComponent(this);
+      if (_shutdownClient) {
+        _protocol.disconnect();
+      }
+      _protocol = null;
+    }
+    if (_zkServer != null) {
+      _zkServer.shutdown();
+      _zkServer = null;
+    }
   }
 
 }

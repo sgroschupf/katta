@@ -21,6 +21,7 @@ import java.util.List;
 import net.sf.katta.index.IndexMetaData;
 import net.sf.katta.index.IndexMetaData.IndexState;
 import net.sf.katta.protocol.InteractionProtocol;
+import net.sf.katta.protocol.operation.leader.AbstractIndexOperation;
 import net.sf.katta.protocol.operation.leader.IndexDeployOperation;
 import net.sf.katta.util.ZkConfiguration;
 
@@ -47,6 +48,10 @@ public class DeployClient implements IDeployClient {
   private void validateIndexName(String name, String indexPath) {
     if (name.trim().equals("*")) {
       throw new IllegalArgumentException("invalid index name: " + name);
+    }
+    if (name.contains(AbstractIndexOperation.INDEX_SHARD_NAME_SEPARATOR + "")) {
+      throw new IllegalArgumentException("invalid index name : " + name + " - must not contain "
+              + AbstractIndexOperation.INDEX_SHARD_NAME_SEPARATOR);
     }
   }
 

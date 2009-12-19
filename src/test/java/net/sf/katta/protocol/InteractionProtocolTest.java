@@ -103,8 +103,8 @@ public class InteractionProtocolTest {
 
     assertTrue(protocol.isNodeOperationQueued(operation1Id));
     assertTrue(protocol.isNodeOperationQueued(operation2Id));
-    assertEquals(nodeOperation1.toString(), nodeQueue.poll().toString());
-    assertEquals(nodeOperation2.toString(), nodeQueue.poll().toString());
+    assertEquals(nodeOperation1.toString(), nodeQueue.remove().toString());
+    assertEquals(nodeOperation2.toString(), nodeQueue.remove().toString());
     assertTrue(nodeQueue.isEmpty());
     assertFalse(protocol.isNodeOperationQueued(operation1Id));
     assertFalse(protocol.isNodeOperationQueued(operation2Id));

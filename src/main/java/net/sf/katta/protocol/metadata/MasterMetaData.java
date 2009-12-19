@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package net.sf.katta.master;
+package net.sf.katta.protocol.metadata;
 
 import java.io.Serializable;
 
@@ -21,8 +21,8 @@ import net.sf.katta.util.DefaultDateFormat;
 
 public class MasterMetaData implements Serializable {
 
-  private static final long serialVersionUID = 2736934599871374933L;
-  
+  private static final long serialVersionUID = 1L;
+
   private String _masterName;
   private long _startTime;
 

@@ -289,11 +289,11 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
 
       @Override
       public Integer call() throws Exception {
-        return masterThread.getMaster().getNodes().size();
+        return masterThread.getMaster().getConnectedNodes().size();
       }
     }, TimeUnit.SECONDS, 60);
 
-    assertEquals(nodeCount, masterThread.getMaster().getNodes().size());
+    assertEquals(nodeCount, masterThread.getMaster().getConnectedNodes().size());
   }
 
   protected void waitOnNodesInService(final MasterStartThread masterThread, int nodeCount) throws Exception {
@@ -301,7 +301,7 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
 
       @Override
       public Integer call() throws Exception {
-        List<String> nodes = masterThread.getMaster().getNodes();
+        List<String> nodes = masterThread.getMaster().getConnectedNodes();
         for (String node : nodes) {
           final String nodePath = _conf.getZKNodeMetaDataPath(node);
           NodeMetaData nodeMetaData = _zkServer.getZkClient().readData(nodePath);
@@ -313,7 +313,7 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
       }
     }, TimeUnit.SECONDS, 60);
 
-    assertEquals(nodeCount, masterThread.getMaster().getNodes().size());
+    assertEquals(nodeCount, masterThread.getMaster().getConnectedNodes().size());
   }
 
   public class MasterStartThread extends Thread {

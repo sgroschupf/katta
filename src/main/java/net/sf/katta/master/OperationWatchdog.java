@@ -24,14 +24,15 @@ public class OperationWatchdog implements ConnectedComponent {
 
   protected final static Logger LOG = Logger.getLogger(OperationWatchdog.class);
 
+  private final List<OperationId> _openOperationIds;
   private final List<OperationId> _operationIds;
   private final LeaderContext _context;
   private final LeaderOperation _leaderOperation;
 
-  public OperationWatchdog(LeaderContext context, List<OperationId> deploymentOperationIds,
-          LeaderOperation leaderOperation) {
+  public OperationWatchdog(LeaderContext context, List<OperationId> operationIds, LeaderOperation leaderOperation) {
     _context = context;
-    _operationIds = deploymentOperationIds;
+    _operationIds = operationIds;
+    _openOperationIds = new ArrayList<OperationId>(operationIds);
     _leaderOperation = leaderOperation;
     subscribeNotifications();
   }
@@ -65,7 +66,7 @@ public class OperationWatchdog implements ConnectedComponent {
         // nothing todo
       }
     };
-    for (OperationId operationId : _operationIds) {
+    for (OperationId operationId : _openOperationIds) {
       protocol.registerNodeOperationListener(this, operationId, dataListener);
     }
     checkDeploymentForCompletion();
@@ -77,29 +78,44 @@ public class OperationWatchdog implements ConnectedComponent {
     }
 
     InteractionProtocol protocol = _context.getProtocol();
-    List<String> liveNodes = protocol.getNodes();
-    for (Iterator iter = _operationIds.iterator(); iter.hasNext();) {
+    List<String> liveNodes = protocol.getLiveNodes();
+    for (Iterator iter = _openOperationIds.iterator(); iter.hasNext();) {
       OperationId operationId = (OperationId) iter.next();
       if (!protocol.isNodeOperationQueued(operationId) || !liveNodes.contains(operationId.getNodeName())) {
         iter.remove();
       }
     }
     if (isDone()) {
-      protocol.unregisterComponent(this);
-      try {
-        List<OperationResult> operationResults = new ArrayList<OperationResult>(_operationIds.size());
-        for (OperationId operationId : _operationIds) {
-          operationResults.add(protocol.getNodeOperationResult(operationId, true));
-        }
-        _leaderOperation.nodeOperationsComplete(_context, operationResults);
-      } catch (Exception e) {
-        LOG.info("operation complete action of " + _leaderOperation + " failed", e);
-      }
-      LOG.info("watch for " + _leaderOperation + " finished");
-      this.notifyAll();
+      finishWatchdog(protocol);
     } else {
       LOG.debug("still " + getOpenOperationCount() + " open deploy operations");
     }
+  }
+
+  public synchronized void cancel() {
+    _context.getProtocol().unregisterComponent(this);
+    this.notifyAll();
+  }
+
+  private synchronized void finishWatchdog(InteractionProtocol protocol) {
+    protocol.unregisterComponent(this);
+    try {
+      List<OperationResult> operationResults = new ArrayList<OperationResult>(_openOperationIds.size());
+      for (OperationId operationId : _operationIds) {
+        OperationResult operationResult = protocol.getNodeOperationResult(operationId, true);
+        if (operationResult != null && operationResult.getUnhandledException() != null) {
+          // TODO jz: do we need to inform the master operation ?
+          LOG.error("received unhandlde exception from node " + operationId.getNodeName(), operationResult
+                  .getUnhandledException());
+        }
+        operationResults.add(operationResult);// we add null ones
+      }
+      _leaderOperation.nodeOperationsComplete(_context, operationResults);
+    } catch (Exception e) {
+      LOG.info("operation complete action of " + _leaderOperation + " failed", e);
+    }
+    LOG.info("watch for " + _leaderOperation + " finished");
+    this.notifyAll();
   }
 
   public LeaderOperation getOperation() {
@@ -107,11 +123,11 @@ public class OperationWatchdog implements ConnectedComponent {
   }
 
   public final int getOpenOperationCount() {
-    return _operationIds.size();
+    return _openOperationIds.size();
   }
 
   public boolean isDone() {
-    return _operationIds.isEmpty();
+    return _openOperationIds.isEmpty();
   }
 
   public final synchronized void join() throws InterruptedException {

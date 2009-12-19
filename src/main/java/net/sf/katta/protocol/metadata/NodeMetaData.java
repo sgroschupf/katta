@@ -17,7 +17,6 @@ package net.sf.katta.protocol.metadata;
 
 import java.io.Serializable;
 
-import net.sf.katta.node.Node.NodeState;
 import net.sf.katta.util.DefaultDateFormat;
 
 public class NodeMetaData implements Serializable {
@@ -25,7 +24,6 @@ public class NodeMetaData implements Serializable {
   private static final long serialVersionUID = 1L;
 
   private String _name;
-  private NodeState _state;
   private float _queriesPerMinute = 0f;
   private long _startTimeStamp = System.currentTimeMillis();
 
@@ -35,9 +33,8 @@ public class NodeMetaData implements Serializable {
     // for serialization
   }
 
-  public NodeMetaData(final String name, NodeState nodeState) {
+  public NodeMetaData(final String name) {
     _name = name;
-    _state = nodeState;
   }
 
   public String getName() {
@@ -46,14 +43,6 @@ public class NodeMetaData implements Serializable {
 
   public String getStartTimeAsDate() {
     return DefaultDateFormat.longToDateString(_startTimeStamp);
-  }
-
-  public NodeState getState() {
-    return _state;
-  }
-
-  public void setState(NodeState state) {
-    _state = state;
   }
 
   public float getQueriesPerMinute() {
@@ -66,7 +55,7 @@ public class NodeMetaData implements Serializable {
 
   @Override
   public String toString() {
-    return getName() + "\t:\t" + getStartTimeAsDate() + "\t:\t" + getState();
+    return getName() + "\t:\t" + getStartTimeAsDate() + "";
   }
 
 }

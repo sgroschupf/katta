@@ -34,12 +34,12 @@ public class MetricLoggerTest {
   @Test
   public void testLogMetric() throws Exception {
     InteractionProtocol protocol = _zk.getInteractionProtocol();
-    MetricLogger metricLogger = new MetricLogger(OutputType.Log4J, _protocol);
-    _protocol.setMetric("node1", new MetricsRecord("node1"));
+    MetricLogger metricLogger = new MetricLogger(OutputType.Log4J, protocol);
+    protocol.setMetric("node1", new MetricsRecord("node1"));
     Thread.sleep(500);
-    _protocol.setMetric("node1", new MetricsRecord("node1"));
+    protocol.setMetric("node1", new MetricsRecord("node1"));
     Thread.sleep(500);
     assertEquals(2, metricLogger.getLoggedRecords());
-    _protocol.unregisterComponent(metricLogger);
+    protocol.unregisterComponent(metricLogger);
   }
 }

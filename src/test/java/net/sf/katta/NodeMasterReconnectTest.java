@@ -48,7 +48,7 @@ public class NodeMasterReconnectTest extends AbstractKattaTest {
 
     // check node-master link
     waitOnNodes(masterStartThread, 1);
-    assertTrue(master.getNodes().contains(node.getName()));
+    assertTrue(master.getConnectedNodes().contains(node.getName()));
 
     // now break the node connection
     gateway.stop();

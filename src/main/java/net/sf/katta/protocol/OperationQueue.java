@@ -46,7 +46,7 @@ public class OperationQueue<T extends Serializable> {
     return getElementPath("operation" + "-");
   }
 
-  private String getElementPath(String elementId) {
+  public String getElementPath(String elementId) {
     return _elementsPath + "/" + elementId;
   }
 
@@ -92,6 +92,11 @@ public class OperationQueue<T extends Serializable> {
     return result;
   }
 
+  public boolean containsElement(String elementId) {
+    String zkPath = getElementPath(elementId);
+    return _zkClient.exists(zkPath);
+  }
+
   public T peek() throws InterruptedException {
     Element<T> element = getFirstElement();
     if (element == null) {
@@ -121,17 +126,17 @@ public class OperationQueue<T extends Serializable> {
 
   @SuppressWarnings("unchecked")
   private Element<T> getFirstElement() throws InterruptedException {
+    final Object mutex = new Object();
+    IZkChildListener notifyListener = new IZkChildListener() {
+      @Override
+      public void handleChildChange(String parentPath, List<String> currentChilds) throws Exception {
+        synchronized (mutex) {
+          mutex.notify();
+        }
+      }
+    };
     try {
       while (true) {
-        final Object mutex = new Object();
-        IZkChildListener notifyListener = new IZkChildListener() {
-          @Override
-          public void handleChildChange(String parentPath, List<String> currentChilds) throws Exception {
-            synchronized (mutex) {
-              mutex.notify();
-            }
-          }
-        };
         List<String> elementNames = _zkClient.subscribeChildChanges(_elementsPath, notifyListener);
         while (elementNames == null || elementNames.isEmpty()) {
           synchronized (mutex) {
@@ -139,7 +144,6 @@ public class OperationQueue<T extends Serializable> {
           }
           elementNames = _zkClient.getChildren(_elementsPath);
         }
-        _zkClient.unsubscribeChildChanges(_elementsPath, notifyListener);
         String elementName = getSmallestElement(elementNames);
         try {
           String elementPath = getElementPath(elementName);
@@ -153,6 +157,8 @@ public class OperationQueue<T extends Serializable> {
       throw e;
     } catch (Exception e) {
       throw ExceptionUtil.convertToRuntimeException(e);
+    } finally {
+      _zkClient.unsubscribeChildChanges(_elementsPath, notifyListener);
     }
   }
 

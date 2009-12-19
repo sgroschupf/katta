@@ -1,5 +1,6 @@
 package net.sf.katta.protocol.operation.leader;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -15,7 +16,7 @@ public class CheckIndicesOperation extends AbstractIndexOperation {
   @Override
   public List<OperationId> execute(LeaderContext context) throws Exception {
     InteractionProtocol protocol = context.getProtocol();
-    List<String> liveNodes = protocol.getNodes();
+    List<String> liveNodes = protocol.getLiveNodes();
     addBalanceOperations(protocol, getUnderreplicatedIndexes(protocol, liveNodes.size()));
     addBalanceOperations(protocol, getOverreplicatedIndexes(protocol));
     // TODO jz: check for recoverble index errors (like no nodes)
@@ -29,6 +30,28 @@ public class CheckIndicesOperation extends AbstractIndexOperation {
         protocol.addLeaderOperation(balanceOperation);
       }
     }
+  }
+
+  protected Set<String> getUnderreplicatedIndexes(final InteractionProtocol protocol, int nodeCount) {
+    final Set<String> underreplicatedIndexes = new HashSet<String>();
+    for (final String index : protocol.getIndices()) {
+      ReplicationReport replicationReport = getReplicationReport(protocol, index);
+      if (replicationReport.isUnderreplicated() && nodeCount >= replicationReport.getMinimalShardReplicationCount()) {
+        underreplicatedIndexes.add(index);
+      }
+    }
+    return underreplicatedIndexes;
+  }
+
+  protected Set<String> getOverreplicatedIndexes(final InteractionProtocol protocol) {
+    final Set<String> overreplicatedIndexes = new HashSet<String>();
+    for (final String index : protocol.getIndices()) {
+      ReplicationReport replicationReport = getReplicationReport(protocol, index);
+      if (replicationReport.isOverreplicated()) {
+        overreplicatedIndexes.add(index);
+      }
+    }
+    return overreplicatedIndexes;
   }
 
   @Override

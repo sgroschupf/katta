@@ -10,7 +10,7 @@ import java.util.List;
 import net.sf.katta.node.Node;
 import net.sf.katta.protocol.OperationQueue;
 import net.sf.katta.protocol.operation.node.NodeOperation;
-import net.sf.katta.protocol.operation.node.ShardUndeployInstruction;
+import net.sf.katta.protocol.operation.node.ShardUndeployOperation;
 
 import org.junit.Test;
 
@@ -23,17 +23,17 @@ public class IndexUndeployOperationTest extends MockedMasterNodeTest {
     List<OperationQueue<NodeOperation>> nodeQueues = publisNodes(nodes);
     deployIndex(nodes, nodeQueues);
     assertNotNull(_protocol.getIndexMD(_indexName));
-    assertNull(_protocol.getIndexError(_indexName));
+    assertNull(_protocol.getIndexMD(_indexName).getDeployError());
 
     // balance the index does not change anything
     IndexUndeployOperation undeployOperation = new IndexUndeployOperation(_indexName);
     undeployOperation.execute(_context);
     for (OperationQueue<NodeOperation> nodeqQueue : nodeQueues) {
       assertEquals(1, nodeqQueue.size());
-      assertTrue(nodeqQueue.peek() instanceof ShardUndeployInstruction);
+      assertTrue(nodeqQueue.peek() instanceof ShardUndeployOperation);
     }
     assertNull(_protocol.getIndexMD(_indexName));
-    assertNull(_protocol.getIndexError(_indexName));
+    assertEquals(0, _protocol.getIndices().size());
   }
 
   @Test
@@ -44,17 +44,17 @@ public class IndexUndeployOperationTest extends MockedMasterNodeTest {
     deployIndexWithError();
     publisShards(nodes, nodeQueues);
     assertNotNull(_protocol.getIndexMD(_indexName));
-    assertNotNull(_protocol.getIndexError(_indexName));
+    assertNotNull(_protocol.getIndexMD(_indexName).getDeployError());
 
     // balance the index does not change anything
     IndexUndeployOperation undeployOperation = new IndexUndeployOperation(_indexName);
     undeployOperation.execute(_context);
     for (OperationQueue<NodeOperation> nodeqQueue : nodeQueues) {
       assertEquals(1, nodeqQueue.size());
-      assertTrue(nodeqQueue.peek() instanceof ShardUndeployInstruction);
+      assertTrue(nodeqQueue.peek() instanceof ShardUndeployOperation);
     }
     assertNull(_protocol.getIndexMD(_indexName));
-    assertNull(_protocol.getIndexError(_indexName));
+    assertEquals(0, _protocol.getIndices().size());
   }
 
 }

@@ -163,14 +163,14 @@ public class BalanceIndexOperationTest extends MockedMasterNodeTest {
     List<Node> nodes = mockNodes(2);
     List<OperationQueue<NodeOperation>> nodeQueues = publisNodes(nodes);
     deployIndexWithError();
-    assertNotNull(_protocol.getIndexError(_indexName));
+    assertNotNull(_protocol.getIndexMD(_indexName).getDeployError());
 
     // balance the index should remove the error
     publisShards(nodes, nodeQueues);
     BalanceIndexOperation balanceOperation = new BalanceIndexOperation(_indexName);
     balanceOperation.execute(_context);
     balanceOperation.nodeOperationsComplete(_context, Collections.EMPTY_LIST);
-    assertNull(_protocol.getIndexError(_indexName));
+    assertNull(_protocol.getIndexMD(_indexName).getDeployError());
   }
 
 }

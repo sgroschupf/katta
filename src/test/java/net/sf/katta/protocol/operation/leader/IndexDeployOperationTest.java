@@ -17,6 +17,7 @@ package net.sf.katta.protocol.operation.leader;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
@@ -57,10 +58,9 @@ public class IndexDeployOperationTest extends MockedMasterNodeTest {
   private void checkDeployError(ErrorType errorType, int shardCount) throws Exception {
     // check results
     assertEquals(1, _protocol.getIndices().size());
-    assertEquals(1, _protocol.getErrorIndices().size());
     IndexMetaData indexMD = _protocol.getIndexMD(_indexName);
     assertNotNull(indexMD);
-    IndexDeployError error = _protocol.getIndexError(_indexName);
+    IndexDeployError error = indexMD.getDeployError();
     assertNotNull(error);
     assertEquals(errorType, error.getErrorType());
     Set<Shard> shards = indexMD.getShards();
@@ -112,8 +112,8 @@ public class IndexDeployOperationTest extends MockedMasterNodeTest {
     operation.nodeOperationsComplete(_context, results);
     checkDeployError(ErrorType.SHARDS_NOT_DEPLOYABLE, _shardCount);
 
-    IndexDeployError error = _protocol.getIndexError(_indexName);
     IndexMetaData indexMD = _protocol.getIndexMD(_indexName);
+    IndexDeployError error = indexMD.getDeployError();
     Set<Shard> shards = indexMD.getShards();
     for (Shard shard : shards) {
       assertEquals(3, error.getShardErrors(shard.getName()).size());
@@ -152,9 +152,9 @@ public class IndexDeployOperationTest extends MockedMasterNodeTest {
     publisShards(nodes, nodeQueues);
     operation.nodeOperationsComplete(_context, Collections.EMPTY_LIST);
     assertEquals(1, _protocol.getIndices().size());
-    assertEquals(0, _protocol.getErrorIndices().size());
     IndexMetaData indexMD = _protocol.getIndexMD(_indexName);
     assertNotNull(indexMD);
+    assertNull(indexMD.getDeployError());
   }
 
   @Test
@@ -173,9 +173,9 @@ public class IndexDeployOperationTest extends MockedMasterNodeTest {
 
     operation.nodeOperationsComplete(_context, Collections.EMPTY_LIST);
     assertEquals(1, _protocol.getIndices().size());
-    assertEquals(0, _protocol.getErrorIndices().size());
     IndexMetaData indexMD = _protocol.getIndexMD(_indexName);
     assertNotNull(indexMD);
+    assertNull(indexMD.getDeployError());
 
     // balance index should have been be triggered
     Master master = mockMaster();

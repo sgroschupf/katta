@@ -24,7 +24,7 @@ import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.protocol.metadata.IndexMetaData;
 import net.sf.katta.protocol.operation.OperationId;
 import net.sf.katta.protocol.operation.node.OperationResult;
-import net.sf.katta.protocol.operation.node.ShardUndeployInstruction;
+import net.sf.katta.protocol.operation.node.ShardUndeployOperation;
 import net.sf.katta.util.CollectionUtil;
 
 public class IndexUndeployOperation implements LeaderOperation<OperationResult> {
@@ -46,7 +46,7 @@ public class IndexUndeployOperation implements LeaderOperation<OperationResult> 
     Set<String> nodes = node2ShardsMap.keySet();
     for (String node : nodes) {
       List<String> nodeShards = node2ShardsMap.get(node);
-      protocol.addNodeOperation(node, new ShardUndeployInstruction(nodeShards));
+      protocol.addNodeOperation(node, new ShardUndeployOperation(nodeShards));
     }
     protocol.unpublishIndex(_indexName);
     return null;

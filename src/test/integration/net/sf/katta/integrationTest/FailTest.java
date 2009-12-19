@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package net.sf.katta.master;
+package net.sf.katta.integrationTest;
 
 import junit.framework.Assert;
 import net.sf.katta.AbstractKattaTest;
@@ -22,6 +22,7 @@ import net.sf.katta.client.IDeployClient;
 import net.sf.katta.client.IIndexDeployFuture;
 import net.sf.katta.client.LuceneClient;
 import net.sf.katta.index.IndexMetaData.IndexState;
+import net.sf.katta.master.Master;
 import net.sf.katta.node.LuceneServer;
 import net.sf.katta.node.Node;
 import net.sf.katta.node.Query;

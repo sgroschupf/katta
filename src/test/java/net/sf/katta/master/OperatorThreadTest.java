@@ -2,6 +2,8 @@ package net.sf.katta.master;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Matchers.notNull;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -15,11 +17,11 @@ import java.util.List;
 import net.sf.katta.node.Node;
 import net.sf.katta.protocol.OperationQueue;
 import net.sf.katta.protocol.operation.OperationId;
-import net.sf.katta.protocol.operation.leader.MockedMasterNodeTest;
 import net.sf.katta.protocol.operation.leader.LeaderOperation;
+import net.sf.katta.protocol.operation.leader.MockedMasterNodeTest;
 import net.sf.katta.protocol.operation.leader.LeaderOperation.LockInstruction;
 import net.sf.katta.protocol.operation.node.NodeOperation;
-import net.sf.katta.testutil.SleepingAnswer;
+import net.sf.katta.testutil.mockito.SleepingAnswer;
 
 import org.junit.Test;
 import org.mockito.InOrder;
@@ -30,7 +32,7 @@ public class OperatorThreadTest extends MockedMasterNodeTest {
   public void testSafeMode() throws Exception {
     OperationQueue queue = mock(OperationQueue.class);
     final LeaderOperation leaderOperation = mock(LeaderOperation.class);
-    when(queue.poll()).thenReturn(leaderOperation).thenAnswer(new SleepingAnswer());
+    when(queue.peek()).thenReturn(leaderOperation).thenAnswer(new SleepingAnswer());
 
     long safeModeMaxTime = 200;
     OperatorThread operatorThread = new OperatorThread(_context, queue, safeModeMaxTime);
@@ -56,7 +58,7 @@ public class OperatorThreadTest extends MockedMasterNodeTest {
   @Test(timeout = 10000)
   public void testGracefulShutdownWhileInSleepMode() throws Exception {
     OperationQueue queue = mock(OperationQueue.class);
-    when(queue.poll()).thenAnswer(new SleepingAnswer());
+    when(queue.peek()).thenAnswer(new SleepingAnswer());
 
     long safeModeMaxTime = 2000;
     OperatorThread operatorThread = new OperatorThread(_context, queue, safeModeMaxTime);
@@ -71,7 +73,7 @@ public class OperatorThreadTest extends MockedMasterNodeTest {
   @Test(timeout = 10000)
   public void testGracefulShutdownWhileWaitingForOperations() throws Exception {
     OperationQueue queue = mock(OperationQueue.class);
-    when(queue.poll()).thenAnswer(new SleepingAnswer());
+    when(queue.peek()).thenAnswer(new SleepingAnswer());
 
     Node node = mockNode();
     publisNode(node);
@@ -92,7 +94,7 @@ public class OperatorThreadTest extends MockedMasterNodeTest {
     final LeaderOperation leaderOperation2 = mock(LeaderOperation.class);
     final LeaderOperation leaderOperation3 = mock(LeaderOperation.class);
     OperationQueue queue = mock(OperationQueue.class);
-    when(queue.poll()).thenReturn(leaderOperation1).thenReturn(leaderOperation2).thenReturn(leaderOperation3)
+    when(queue.peek()).thenReturn(leaderOperation1).thenReturn(leaderOperation2).thenReturn(leaderOperation3)
             .thenAnswer(new SleepingAnswer());
 
     Node node = mockNode();
@@ -122,7 +124,7 @@ public class OperatorThreadTest extends MockedMasterNodeTest {
     final LeaderOperation leaderOperation = mock(LeaderOperation.class);
     when(leaderOperation.execute(_context)).thenReturn(operationIds);
     OperationQueue queue = mock(OperationQueue.class);
-    when(queue.poll()).thenReturn(leaderOperation).thenAnswer(new SleepingAnswer());
+    when(queue.peek()).thenReturn(leaderOperation).thenAnswer(new SleepingAnswer());
 
     // start the ooperator
     long safeModeMaxTime = 200;
@@ -131,12 +133,12 @@ public class OperatorThreadTest extends MockedMasterNodeTest {
 
     Thread.sleep(safeModeMaxTime + 100);
     verify(leaderOperation, times(1)).execute(_context);
-    verify(leaderOperation, times(0)).nodeOperationsComplete(_context);
+    verify(leaderOperation, times(0)).nodeOperationsComplete(eq(_context), (List) notNull());
 
     // complete node operation
-    nodeQueue.poll();
+    nodeQueue.remove();
     Thread.sleep(safeModeMaxTime + 100);
-    verify(leaderOperation, times(1)).nodeOperationsComplete(_context);
+    verify(leaderOperation, times(1)).nodeOperationsComplete(eq(_context), (List) notNull());
 
     operatorThread.interrupt();
     operatorThread.join();
@@ -177,7 +179,7 @@ public class OperatorThreadTest extends MockedMasterNodeTest {
     when(leaderOperation1.execute(_context)).thenReturn(operationIds);
     when(leaderOperation1.locksOperation(leaderOperation2)).thenReturn(true);
     when(leaderOperation2.getLockAlreadyObtainedInstruction()).thenReturn(lockInstruction);
-    when(queue.poll()).thenReturn(leaderOperation1).thenReturn(leaderOperation2).thenAnswer(new SleepingAnswer());
+    when(queue.peek()).thenReturn(leaderOperation1).thenReturn(leaderOperation2).thenAnswer(new SleepingAnswer());
 
     // start the ooperator
     long safeModeMaxTime = 200;
@@ -189,11 +191,11 @@ public class OperatorThreadTest extends MockedMasterNodeTest {
     verify(leaderOperation1, times(1)).execute(_context);
 
     // complete node operation
-    nodeQueue.poll();
+    nodeQueue.remove();
 
     // let operation2 be executed
     Thread.sleep(safeModeMaxTime + 100);
-    verify(leaderOperation1, times(1)).nodeOperationsComplete(_context);
+    verify(leaderOperation1, times(1)).nodeOperationsComplete(eq(_context), (List) notNull());
     operatorThread.interrupt();
     operatorThread.join();
   }

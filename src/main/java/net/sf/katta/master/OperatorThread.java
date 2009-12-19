@@ -93,6 +93,7 @@ class OperatorThread extends Thread {
     } catch (ZkInterruptedException e) {
       // let go the thread
     }
+    _registry.shutdown();
     LOG.info("operator thread stopped");
   }
 
@@ -123,14 +124,14 @@ class OperatorThread extends Thread {
   private void runInSafeMode() throws InterruptedException {
     _safeMode = true;
     // List<String> knownNodes = _protocol.getKnownNodes();
-    List<String> previousLiveNodes = _context.getProtocol().getNodes();
+    List<String> previousLiveNodes = _context.getProtocol().getLiveNodes();
     long lastChange = System.currentTimeMillis();
     try {
       while (previousLiveNodes.isEmpty() || lastChange + _safeModeMaxTime > System.currentTimeMillis()) {
         LOG.info("SAFE MODE: No nodes available or state unstable within the last " + _safeModeMaxTime + " ms.");
         Thread.sleep(_safeModeMaxTime / 4);// TODO jz: listen on life nodes ?
 
-        List<String> currentLiveNodes = _context.getProtocol().getNodes();
+        List<String> currentLiveNodes = _context.getProtocol().getLiveNodes();
         if (!currentLiveNodes.equals(previousLiveNodes)) {// TODO size instead
           // ??
           lastChange = System.currentTimeMillis();

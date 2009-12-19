@@ -18,7 +18,6 @@ package net.sf.katta.protocol.operation.leader;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -33,13 +32,14 @@ import net.sf.katta.protocol.metadata.IndexMetaData.Shard;
 import net.sf.katta.protocol.operation.OperationId;
 import net.sf.katta.protocol.operation.node.DeployResult;
 import net.sf.katta.protocol.operation.node.ShardDeployOperation;
-import net.sf.katta.protocol.operation.node.ShardUndeployInstruction;
+import net.sf.katta.protocol.operation.node.ShardUndeployOperation;
 import net.sf.katta.util.CollectionUtil;
 
 import org.apache.log4j.Logger;
 
 public abstract class AbstractIndexOperation implements LeaderOperation<DeployResult> {
 
+  public static final char INDEX_SHARD_NAME_SEPARATOR = '#';
   private static final long serialVersionUID = 1L;
   protected final static Logger LOG = Logger.getLogger(AbstractIndexOperation.class);
 
@@ -77,7 +77,7 @@ public abstract class AbstractIndexOperation implements LeaderOperation<DeployRe
       }
       List<String> listOfRemoved = CollectionUtil.getListOfRemoved(currentNode2ShardsMap.get(node), nodeShards);
       if (!listOfRemoved.isEmpty()) {
-        ShardUndeployInstruction undeployInstruction = new ShardUndeployInstruction(listOfRemoved);
+        ShardUndeployOperation undeployInstruction = new ShardUndeployOperation(listOfRemoved);
         OperationId operationId = protocol.addNodeOperation(node, undeployInstruction);
         operationIds.add(operationId);
       }
@@ -115,7 +115,11 @@ public abstract class AbstractIndexOperation implements LeaderOperation<DeployRe
     if (shardFolderName.endsWith(".zip")) {
       shardFolderName = shardFolderName.substring(0, shardFolderName.length() - 4);
     }
-    return indexName + "_" + shardFolderName;
+    return indexName + INDEX_SHARD_NAME_SEPARATOR + shardFolderName;
+  }
+
+  public static String getIndexNameFromShardName(String shardName) {
+    return shardName.substring(0, shardName.indexOf(INDEX_SHARD_NAME_SEPARATOR));
   }
 
   protected boolean canAndShouldRegulateReplication(InteractionProtocol protocol, String indexName) {
@@ -124,7 +128,7 @@ public abstract class AbstractIndexOperation implements LeaderOperation<DeployRe
   }
 
   protected boolean canAndShouldRegulateReplication(InteractionProtocol protocol, ReplicationReport replicationReport) {
-    List<String> liveNodes = protocol.getNodes();
+    List<String> liveNodes = protocol.getLiveNodes();
     if (replicationReport.isBalanced()) {
       return false;
     }
@@ -158,28 +162,6 @@ public abstract class AbstractIndexOperation implements LeaderOperation<DeployRe
     return new ReplicationReport(desiredReplicationCount, minimalShardReplicationCount, maximaShardReplicationCount);
   }
 
-  protected Set<String> getUnderreplicatedIndexes(final InteractionProtocol protocol, int nodeCount) {
-    final Set<String> underreplicatedIndexes = new HashSet<String>();
-    for (final String index : protocol.getIndices()) {
-      ReplicationReport replicationReport = getReplicationReport(protocol, index);
-      if (replicationReport.isUnderreplicated() && nodeCount >= replicationReport.getMinimalShardReplicationCount()) {
-        underreplicatedIndexes.add(index);
-      }
-    }
-    return underreplicatedIndexes;
-  }
-
-  protected Set<String> getOverreplicatedIndexes(final InteractionProtocol protocol) {
-    final Set<String> overreplicatedIndexes = new HashSet<String>();
-    for (final String index : protocol.getIndices()) {
-      ReplicationReport replicationReport = getReplicationReport(protocol, index);
-      if (replicationReport.isOverreplicated()) {
-        overreplicatedIndexes.add(index);
-      }
-    }
-    return overreplicatedIndexes;
-  }
-
   protected void handleMasterDeployException(InteractionProtocol protocol, IndexMetaData indexMD, Exception e) {
     ErrorType errorType;
     if (e instanceof IndexDeployException) {
@@ -189,17 +171,15 @@ public abstract class AbstractIndexOperation implements LeaderOperation<DeployRe
     }
     IndexDeployError deployError = new IndexDeployError(indexMD.getName(), errorType);
     deployError.setException(e);
-    protocol.publishIndexError(indexMD, deployError);
+    indexMD.setDeployError(deployError);
+    protocol.updateIndexMD(indexMD);
   }
 
   protected void handleDeploymentComplete(LeaderContext context, List<DeployResult> results, IndexMetaData indexMD,
           boolean newIndex) {
     ReplicationReport replicationReport = getReplicationReport(context.getProtocol(), indexMD);
-    if (newIndex) {
-      context.getProtocol().publishIndex(indexMD);
-    }
     if (replicationReport.isDeployed()) {
-      context.getProtocol().unpublishIndexError(indexMD.getName());
+      indexMD.setDeployError(null);
       // we ignore possible shard errors
       if (canAndShouldRegulateReplication(context.getProtocol(), replicationReport)) {
         context.getProtocol().addLeaderOperation(new BalanceIndexOperation(indexMD.getName()));
@@ -211,7 +191,12 @@ public abstract class AbstractIndexOperation implements LeaderOperation<DeployRe
           deployError.addShardError(entry.getKey(), entry.getValue());
         }
       }
-      context.getProtocol().publishIndexError(indexMD, deployError);
+      indexMD.setDeployError(deployError);
+    }
+    if (newIndex) {
+      context.getProtocol().publishIndex(indexMD);
+    } else {
+      context.getProtocol().updateIndexMD(indexMD);
     }
   }
 

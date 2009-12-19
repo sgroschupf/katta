@@ -14,7 +14,6 @@ import net.sf.katta.master.DefaultDistributionPolicy;
 import net.sf.katta.master.LeaderContext;
 import net.sf.katta.master.Master;
 import net.sf.katta.node.Node;
-import net.sf.katta.node.Node.NodeState;
 import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.protocol.OperationQueue;
 import net.sf.katta.protocol.metadata.NodeMetaData;
@@ -70,7 +69,7 @@ public class MockedMasterNodeTest {
   }
 
   protected OperationQueue<NodeOperation> publisNode(Node node) {
-    return _protocol.publishNode(node, new NodeMetaData(node.getName(), NodeState.IN_SERVICE));
+    return _protocol.publishNode(node, new NodeMetaData(node.getName()));
   }
 
   protected List<OperationQueue<NodeOperation>> publisNodes(List<Node> nodes) {

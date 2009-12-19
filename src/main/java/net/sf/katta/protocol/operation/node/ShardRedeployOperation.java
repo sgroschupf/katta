@@ -25,11 +25,11 @@ import net.sf.katta.node.ShardManager;
 /**
  * Redploys shards which are already installed in {@link ShardManager}.
  */
-public class RedeployShardsOperation extends AbstractShardOperation {
+public class ShardRedeployOperation extends AbstractShardOperation {
 
   private static final long serialVersionUID = 1L;
 
-  public RedeployShardsOperation(Collection<String> installedShards) {
+  public ShardRedeployOperation(Collection<String> installedShards) {
     for (String shardName : installedShards) {
       addShard(shardName);
     }

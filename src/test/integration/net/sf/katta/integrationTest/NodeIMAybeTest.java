@@ -13,11 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package net.sf.katta.node;
+package net.sf.katta.integrationTest;
 
 import static org.mockito.Matchers.startsWith;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.io.File;
@@ -33,6 +31,13 @@ import net.sf.katta.AbstractKattaTest;
 import net.sf.katta.Katta;
 import net.sf.katta.index.IndexMetaData;
 import net.sf.katta.index.IndexMetaData.IndexState;
+import net.sf.katta.node.DocumentFrequencyWritable;
+import net.sf.katta.node.HitsMapWritable;
+import net.sf.katta.node.LuceneServer;
+import net.sf.katta.node.Node;
+import net.sf.katta.node.NodeContext;
+import net.sf.katta.node.QueryWritable;
+import net.sf.katta.node.ShardManager;
 import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.protocol.metadata.NodeMetaData;
 import net.sf.katta.protocol.operation.node.ShardDeployOperation;
@@ -42,10 +47,9 @@ import org.I0Itec.zkclient.ZkClient;
 import org.apache.lucene.analysis.KeywordAnalyzer;
 import org.apache.lucene.queryParser.QueryParser;
 import org.apache.lucene.search.Query;
-import org.mockito.Matchers;
 import org.mockito.Mockito;
 
-public class NodeTest extends AbstractKattaTest {
+public class NodeIMAybeTest extends AbstractKattaTest {
 
   public void testShardStatusSuccess() throws Exception {
     MasterStartThread masterThread = startMaster();
@@ -202,21 +206,6 @@ public class NodeTest extends AbstractKattaTest {
 
     node.undeployShard(nodeMetaData.getShards(indexName).iterator().next());
     assertEquals(3, workingFolder.list().length);
-  }
-
-  public void testShutdown_doesNotCloseZkClient() {
-    ZkClient zkClient = Mockito.mock(ZkClient.class);
-
-    NodeMetaData nodeMetaData = new NodeMetaData();
-    Mockito.when(zkClient.readData(Matchers.anyString())).thenReturn(nodeMetaData);
-
-    InteractionProtocol protocol = new InteractionProtocol(zkClient, _conf);
-    Node node = new Node(_protocol, new LuceneServer());
-    node.start();
-
-    node.shutdown();
-    verify(zkClient, never()).close();
-    verify(zkClient, never()).unsubscribeAll();
   }
 
   private static class QueryClient implements Callable<HitsMapWritable> {

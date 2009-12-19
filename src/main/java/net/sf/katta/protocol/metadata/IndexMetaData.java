@@ -27,6 +27,7 @@ public class IndexMetaData implements Serializable {
   private String _path;
   private int _replicationLevel;
   private Set<Shard> _shards = new HashSet<Shard>();
+  private IndexDeployError _deployError;
 
   public IndexMetaData(String name, String path, int replicationLevel) {
     _name = name;
@@ -61,6 +62,14 @@ public class IndexMetaData implements Serializable {
       }
     }
     return null;
+  }
+
+  public void setDeployError(IndexDeployError deployError) {
+    _deployError = deployError;
+  }
+
+  public IndexDeployError getDeployError() {
+    return _deployError;
   }
 
   @Override

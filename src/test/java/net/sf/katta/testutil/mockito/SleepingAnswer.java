@@ -1,4 +1,4 @@
-package net.sf.katta.testutil;
+package net.sf.katta.testutil.mockito;
 
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;

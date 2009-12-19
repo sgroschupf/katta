@@ -50,4 +50,12 @@ public class OperationRegistry {
     return false;
   }
 
+  public synchronized void shutdown() {
+    for (Iterator iterator = _watchdogs.iterator(); iterator.hasNext();) {
+      OperationWatchdog watchdog = (OperationWatchdog) iterator.next();
+      watchdog.cancel();
+      iterator.remove();
+    }
+  }
+
 }

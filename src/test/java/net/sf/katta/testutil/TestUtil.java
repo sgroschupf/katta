@@ -15,11 +15,14 @@
  */
 package net.sf.katta.testutil;
 
+import static org.junit.Assert.assertEquals;
+
 import java.io.File;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import net.sf.katta.master.Master;
 import net.sf.katta.util.FileUtil;
 
 import org.I0Itec.zkclient.IDefaultNameSpace;
@@ -160,6 +163,16 @@ public class TestUtil {
     ZkServer zkServer = new ZkServer(dataPath, logPath, Mockito.mock(IDefaultNameSpace.class), port, tickTime);
     zkServer.start();
     return zkServer;
+  }
+  
+  public static void waitOnLeaveSafeMode(final Master master) throws Exception {
+    TestUtil.waitUntil(false, new Callable<Boolean>() {
+      @Override
+      public Boolean call() throws Exception {
+        return master.isInSafeMode();
+      }
+    }, TimeUnit.SECONDS, 60);
+    assertEquals(false, master.isInSafeMode());
   }
 
 }

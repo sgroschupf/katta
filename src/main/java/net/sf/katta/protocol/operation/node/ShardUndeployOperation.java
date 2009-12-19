@@ -19,11 +19,11 @@ import java.util.List;
 
 import net.sf.katta.node.NodeContext;
 
-public class ShardUndeployInstruction extends AbstractShardOperation {
+public class ShardUndeployOperation extends AbstractShardOperation {
 
   private static final long serialVersionUID = 1L;
 
-  public ShardUndeployInstruction(List<String> shards) {
+  public ShardUndeployOperation(List<String> shards) {
     for (String shard : shards) {
       addShard(shard);
     }
@@ -36,8 +36,8 @@ public class ShardUndeployInstruction extends AbstractShardOperation {
 
   @Override
   protected void execute(NodeContext context, String shardName) throws Exception {
-    context.getNodeManaged().removeShard(shardName);
     context.getProtocol().unpublishShard(context.getNode(), shardName);
+    context.getNodeManaged().removeShard(shardName);
     context.getShardManager().uninstallShard(shardName);
   }
 

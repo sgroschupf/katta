@@ -38,9 +38,6 @@ public class ZkConfiguration extends KattaConfiguration {
 
   public static final String ZOOKEEPER_LOG_DATA_DIR = "zookeeper.log-data-dir";
 
-  @Deprecated
-  public static final String ZOOKEEPER_CLIENT_PORT = "zookeeper.clientPort";
-
   public static final String ZOOKEEPER_ROOT_PATH = "zookeeper.root-path";
 
   public static final String ZK_PATH_SEPERATOR = "zookeeper.path-separator";
@@ -105,11 +102,6 @@ public class ZkConfiguration extends KattaConfiguration {
     return getProperty(ZOOKEEPER_LOG_DATA_DIR);
   }
 
-  @Deprecated
-  public int getZKClientPort() {
-    return getInt(ZOOKEEPER_CLIENT_PORT);
-  }
-
   /*
    * The following methods have to do Zookeeper paths. These setting used to be
    * static fields of ZkPaths.
@@ -138,7 +130,6 @@ public class ZkConfiguration extends KattaConfiguration {
     NODES_METADATA("metadata of connected & unconnected nodes", NODES, "metadata"), // 
     NODES_LIVE("ephemerals of connected nodes", NODES, "live"), //
     INDICES_METADATA("metadata of live & error indices", INDICES, "metadata"), // 
-    INDICES_ERROR("metadata of failed indices", INDICES, "error"), //
     NODE_QUEUE("metadata of failed indices", WORK, "node-queues"); //
 
     private final String _description;
@@ -167,10 +158,7 @@ public class ZkConfiguration extends KattaConfiguration {
   }
 
   public static final String DEFAULT_ROOT_PATH = "/katta";
-  private final String MASTER = "master";
-  private final String NODES_METADATA = "nodes-metadata";
   private final String OLD_INDEXES = "indexes";
-  private final String INDICES_METADATA = "metadata";
   private final String SHARD_TO_NODE = "shard-to-node";
   private final String LOADTEST_NODES = "loadtest-nodes";
   private final String SERVER_METRICS = "server-metrics";
@@ -201,14 +189,6 @@ public class ZkConfiguration extends KattaConfiguration {
     _rootPath = null;
   }
 
-  public String getZKLeaderPath() {
-    return buildPath(getZKRootPath(), MASTER);
-  }
-
-  public String getZKNodesPath() {
-    return buildPath(getZKRootPath(), NODES);
-  }
-
   public String getZKWorkPath() {
     return buildPath(getZKRootPath(), WORK);
   }
@@ -221,36 +201,8 @@ public class ZkConfiguration extends KattaConfiguration {
     return buildPath(getZKNodeQueuePath(node), elementName);
   }
 
-  public String getZKNodePath(String node) {
-    return buildPath(getZKRootPath(), NODES, node);
-  }
-
-  public String getZKNodeMetaDatasPath() {
-    return buildPath(getZKRootPath(), NODES_METADATA);
-  }
-
-  public String getZKNodeMetaDataPath(String node) {
-    return buildPath(getZKRootPath(), NODES_METADATA, node);
-  }
-
-  public String getZKIndicesPath() {
-    return buildPath(getZKRootPath(), INDICES);
-  }
-
   public String getOldZKIndexPath(String index) {
     return buildPath(getZKRootPath(), OLD_INDEXES, index);
-  }
-
-  public String getZKIndexMetaDatasPath() {
-    return buildPath(getZKIndicesPath(), INDICES_METADATA);
-  }
-
-  public String getZKIndexPath(String index) {
-    return buildPath(getZKIndexMetaDatasPath(), index);
-  }
-
-  public String getZKShardPath(String index, String shard) {
-    return buildPath(getZKRootPath(), OLD_INDEXES, index, shard);
   }
 
   public String getZKShardToNodePath() {

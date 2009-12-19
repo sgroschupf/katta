@@ -44,7 +44,6 @@ import net.sf.katta.node.IQuery;
 import net.sf.katta.node.LuceneServer;
 import net.sf.katta.node.Node;
 import net.sf.katta.node.Query;
-import net.sf.katta.node.Node.NodeState;
 import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.protocol.metadata.NodeMetaData;
 import net.sf.katta.protocol.metadata.ShardError;
@@ -60,6 +59,8 @@ import org.I0Itec.zkclient.ZkServer;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+
+import com.sun.j3d.utils.scenegraph.io.state.javax.media.j3d.NodeState;
 
 /**
  * Provides command line access to a Katta cluster.
@@ -462,7 +463,7 @@ public class Katta {
     int totalAnnouncedShards = 0;
     long startTime = Long.MAX_VALUE;
     List<String> knownNodes = _protocol.getKnownNodes();
-    List<String> connectedNodes = _protocol.getNodes();
+    List<String> connectedNodes = _protocol.getLiveNodes();
     for (String node : knownNodes) {
       boolean isConnected = connectedNodes.contains(node);
       int shardCount = 0;
