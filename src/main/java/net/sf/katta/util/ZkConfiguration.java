@@ -194,7 +194,7 @@ public class ZkConfiguration extends KattaConfiguration {
   }
 
   public String getZKMasterQueuePath() {
-    return buildPath(getZKRootPath(), WORK, "master -queue");
+    return buildPath(getZKRootPath(), WORK, "master-queue");
   }
 
   public String getZKNodeQueueElementPath(String node, String elementName) {

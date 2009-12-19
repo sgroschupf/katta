@@ -152,6 +152,7 @@ public class Master implements ConnectedComponent {
 
   public void shutdown() {
     if (_protocol != null) {
+      _protocol.unregisterComponent(this);
       if (isMaster()) {
         _operatorThread.interrupt();
         try {
@@ -160,7 +161,6 @@ public class Master implements ConnectedComponent {
           // proceed
         }
       }
-      _protocol.unregisterComponent(this);
       if (_shutdownClient) {
         _protocol.disconnect();
       }

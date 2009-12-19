@@ -17,10 +17,9 @@ package net.sf.katta.client;
 
 import java.io.Serializable;
 
-import net.sf.katta.index.IndexMetaData;
-import net.sf.katta.index.IndexMetaData.IndexState;
 import net.sf.katta.protocol.ConnectedComponent;
 import net.sf.katta.protocol.InteractionProtocol;
+import net.sf.katta.protocol.metadata.IndexMetaData;
 
 import org.I0Itec.zkclient.IZkDataListener;
 import org.apache.log4j.Logger;
@@ -42,19 +41,29 @@ public class IndexDeployFuture implements IIndexDeployFuture, IZkDataListener, C
   }
 
   public synchronized IndexState getState() {
-    return _protocol.getOldIndexMD(_indexName).getState();
+    IndexMetaData indexMD = _protocol.getIndexMD(_indexName);
+    if (indexMD == null) {
+      return IndexState.DEPLOYING;
+    } else if (indexMD.getDeployError() != null) {
+      return IndexState.ERROR;
+    }
+    return IndexState.DEPLOYED;
+  }
+
+  private boolean isDeploymentRunning() {
+    return getState() == IndexState.DEPLOYING;
   }
 
   public synchronized IndexState joinDeployment() throws InterruptedException {
-    while (isDeploymentRunning(_protocol.getOldIndexMD(_indexName))) {
-      wait(5000);
+    while (isDeploymentRunning()) {
+      wait(3000);
     }
     return getState();
   }
 
   public synchronized IndexState joinDeployment(long maxTime) throws InterruptedException {
     long startJoin = System.currentTimeMillis();
-    while (isDeploymentRunning(_protocol.getOldIndexMD(_indexName))) {
+    while (isDeploymentRunning()) {
       wait(maxTime);
       maxTime = maxTime - (System.currentTimeMillis() - startJoin);
       if (maxTime <= 0) {
@@ -64,39 +73,30 @@ public class IndexDeployFuture implements IIndexDeployFuture, IZkDataListener, C
     return getState();
   }
 
-  private static boolean isDeploymentRunning(IndexMetaData indexMetaData) {
-    if (indexMetaData == null) {
-      return false;
-    }
-    return indexMetaData.getState() != IndexState.DEPLOYED && indexMetaData.getState() != IndexState.ERROR;
-  }
-
   @Override
   public synchronized void handleDataChange(String dataPath, Serializable data) {
-    updateIndexMetaData((IndexMetaData) data);
+    wakeSleeper();
+  }
+
+  private synchronized void wakeSleeper() {
+    if (!isDeploymentRunning()) {
+      _protocol.unregisterComponent(this);
+    }
+    notifyAll();
   }
 
   public synchronized void handleDataDeleted(String dataPath) {
-    // index got deleted
-    updateIndexMetaData(null);
-    notifyAll();
-  }
-
-  private synchronized void updateIndexMetaData(IndexMetaData data) {
-    notifyAll();
-    if (!isDeploymentRunning(data)) {
-      _protocol.unregisterComponent(this);
-    }
+    throw new IllegalStateException();
   }
 
   @Override
   public void reconnect() {
     // sg: we just want to make sure we get the very latest state of the
-    // index,
-    // since we might missed a event. With zookeeper 3.x we should still have
+    // index, since we might missed a event. With zookeeper 3.x we should still
+    // have
     // subcribed notifcatins and dont need to resubscribe
     LOG.warn("Reconnecting IndexDeployFuture");
-    updateIndexMetaData(_protocol.getOldIndexMD(_indexName));
+    wakeSleeper();
   }
 
   @Override

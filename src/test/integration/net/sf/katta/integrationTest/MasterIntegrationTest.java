@@ -1,224 +1,158 @@
 package net.sf.katta.integrationTest;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+
 import java.io.File;
-import java.util.List;
+import java.util.Set;
 
-import net.sf.katta.AbstractKattaTest;
-import net.sf.katta.Katta;
-import net.sf.katta.client.DeployClient;
-import net.sf.katta.client.IIndexDeployFuture;
-import net.sf.katta.index.IndexMetaData;
-import net.sf.katta.index.IndexMetaData.IndexState;
-import net.sf.katta.master.Master;
-import net.sf.katta.node.LuceneServer;
-import net.sf.katta.node.Node;
+import net.sf.katta.integrationTest.support.KattaMiniCluster;
+import net.sf.katta.protocol.InteractionProtocol;
+import net.sf.katta.protocol.metadata.IndexMetaData;
+import net.sf.katta.protocol.metadata.IndexDeployError.ErrorType;
+import net.sf.katta.protocol.metadata.IndexMetaData.Shard;
+import net.sf.katta.protocol.operation.leader.IndexDeployOperation;
+import net.sf.katta.protocol.operation.leader.IndexUndeployOperation;
 import net.sf.katta.testutil.TestResources;
+import net.sf.katta.testutil.TestUtil;
 import net.sf.katta.util.FileUtil;
-import net.sf.katta.util.ZkKattaUtil;
+import net.sf.katta.util.NodeConfiguration;
+import net.sf.katta.util.ZkConfiguration;
 
-import org.I0Itec.zkclient.ZkClient;
+import org.junit.After;
+import org.junit.Test;
 
-public class MasterIntegrationTest extends AbstractKattaTest {
+public class MasterIntegrationTest {
 
-  public void testDeployAndRemoveIndex() throws Exception {
-    final MasterStartThread masterStartThread = startMaster();
-    final ZkClient zkClientMaster = masterStartThread.getZkClient();
+  // TODO let the cluster run, but cleanup indices ?
+  private KattaMiniCluster _miniCluster;
+  private final static File INDEX_FILE = TestResources.INDEX1;
+  private final static String INDEX_NAME = TestResources.INDEX1.getName() + 0;
+  private final static int SHARD_COUNT = INDEX_FILE.list(FileUtil.VISIBLE_FILES_FILTER).length;
 
-    final NodeStartThread nodeStartThread1 = startNode(new LuceneServer());
-    final NodeStartThread nodeStartThread2 = startNode(new LuceneServer(), SECOND_SHARD_FOLDER);
-    final Node node1 = nodeStartThread1.getNode();
-    final Node node2 = nodeStartThread2.getNode();
-    masterStartThread.join();
-    nodeStartThread1.join();
-    nodeStartThread2.join();
-
-    waitForPath(zkClientMaster, _conf.getZKLeaderPath());
-    waitForChilds(zkClientMaster, _conf.getZKNodesPath(), 2);
-
-    final File indexFile = TestResources.INDEX1;
-    final Katta katta = new Katta(_conf);
-    final String index = "indexA";
-    katta.addIndex(index, "file://" + indexFile.getAbsolutePath(), 2);
-
-    final int shardCount = indexFile.list(FileUtil.VISIBLE_FILES_FILTER).length;
-    assertEquals(shardCount, zkClientMaster.countChildren(_conf.getOldZKIndexPath(index)));
-    assertEquals(shardCount, zkClientMaster.countChildren(_conf.getZKNodeToShardPath(node1.getName())));
-    assertEquals(shardCount, zkClientMaster.countChildren(_conf.getZKNodeToShardPath(node2.getName())));
-
-    final List<String> shards = zkClientMaster.getChildren(_conf.getZKShardToNodePath());
-    assertEquals(shardCount, shards.size());
-    for (final String shard : shards) {
-      // each shard should be on both nodes
-      assertEquals(2, zkClientMaster.getChildren(_conf.getZKShardToNodePath(shard)).size());
+  @After
+  public void tearDown() throws Exception {
+    if (_miniCluster != null) {
+      _miniCluster.stop();
     }
-
-    final IndexMetaData metaData = zkClientMaster.readData(_conf.getOldZKIndexPath(index));
-    assertEquals(IndexMetaData.IndexState.DEPLOYED, metaData.getState());
-
-    katta.removeIndex(index);
-    int count = 0;
-    while (zkClientMaster.getChildren(_conf.getZKNodeToShardPath(node1.getName())).size() != 0) {
-      Thread.sleep(500);
-      if (count++ > 40) {
-        fail("shards are still not removed from node after 20 sec.");
-      }
-    }
-    assertEquals(0, zkClientMaster.getChildren(_conf.getZKNodeToShardPath(node1.getName())).size());
-
-    katta.close();
-    nodeStartThread1.shutdown();
-    nodeStartThread2.shutdown();
-    masterStartThread.shutdown();
   }
 
-  public void testRebalanceIndexAfterNodeCrash() throws Exception {
-    final MasterStartThread masterStartThread = startMaster();
-    final ZkClient zkClientMaster = masterStartThread.getZkClient();
+  private KattaMiniCluster startMiniCluster(int nodeCount, int indexCount, int replicationCount) throws Exception {
+    ZkConfiguration conf = new ZkConfiguration();
+    FileUtil.deleteFolder(new File(conf.getZKDataDir()));
+    FileUtil.deleteFolder(new File(conf.getZKDataLogDir()));
+    FileUtil.deleteFolder(new NodeConfiguration().getShardFolder());
 
-    final NodeStartThread nodeStartThread1 = startNode(new LuceneServer());
-    final NodeStartThread nodeStartThread2 = startNode(new LuceneServer(), SECOND_SHARD_FOLDER);
-    final Node node1 = nodeStartThread1.getNode();
-    final Node node2 = nodeStartThread2.getNode();
-    masterStartThread.join();
-    nodeStartThread1.join();
-    nodeStartThread2.join();
-    waitForPath(zkClientMaster, _conf.getZKLeaderPath());
-    waitForChilds(zkClientMaster, _conf.getZKNodesPath(), 2);
+    // start katta cluster
+    KattaMiniCluster miniCluster = new KattaMiniCluster(conf, nodeCount);
+    miniCluster.start();
 
-    final File indexFile = TestResources.INDEX1;
-    DeployClient deployClient = new DeployClient(zkClientMaster, _conf);
-    final String index = "indexA";
-    IIndexDeployFuture deployFuture = deployClient.addIndex(index, "file://" + indexFile.getAbsolutePath(), 1);
-    deployFuture.joinDeployment();
-
-    final int shardCount = indexFile.list(FileUtil.VISIBLE_FILES_FILTER).length;
-    assertEquals(shardCount, zkClientMaster.countChildren(_conf.getOldZKIndexPath(index)));
-    assertEquals(shardCount / 2, zkClientMaster.countChildren(_conf.getZKNodeToShardPath(node1.getName())));
-    assertEquals(shardCount / 2, zkClientMaster.countChildren(_conf.getZKNodeToShardPath(node2.getName())));
-
-    final List<String> shards = zkClientMaster.getChildren(_conf.getZKShardToNodePath());
-    assertEquals(shardCount, shards.size());
-    for (final String shard : shards) {
-      // each shard should be on one nodes
-      assertEquals(1, zkClientMaster.getChildren(_conf.getZKShardToNodePath(shard)).size());
-    }
-
-    IndexMetaData metaData = zkClientMaster.readData(_conf.getOldZKIndexPath(index));
-    assertEquals(IndexMetaData.IndexState.DEPLOYED, metaData.getState());
-    node2.shutdown();
-
-    final long time = System.currentTimeMillis();
-    IndexState indexState;
-    do {
-      metaData = zkClientMaster.readData(_conf.getOldZKIndexPath(index));
-      indexState = metaData.getState();
-      if (System.currentTimeMillis() - time > 1000 * 60) {
-        fail("index is not in deployed state again");
-      }
-    } while (indexState != IndexState.DEPLOYED || masterStartThread.getMaster().getConnectedNodes().size() > 1);
-
-    nodeStartThread1.shutdown();
-    masterStartThread.shutdown();
+    miniCluster.deployTestIndexes(INDEX_FILE, indexCount, replicationCount);
+    return miniCluster;
   }
 
+  private int countShardDeployments(InteractionProtocol protocol, String indexName) {
+    IndexMetaData indexMD = protocol.getIndexMD(indexName);
+    int shardDeployCount = 0;
+    for (Shard shard : indexMD.getShards()) {
+      shardDeployCount += protocol.getShardNodes(shard.getName()).size();
+    }
+    return shardDeployCount;
+  }
+
+  @Test(timeout = 20000)
+  public void testDeployAndUndeployIndex() throws Exception {
+    int nodeCount = 2;
+    _miniCluster = startMiniCluster(nodeCount, 0, nodeCount);
+    final InteractionProtocol protocol = _miniCluster.getProtocol();
+
+    IndexDeployOperation deployOperation = new IndexDeployOperation(INDEX_NAME, "file://"
+            + INDEX_FILE.getAbsolutePath(), nodeCount);
+    protocol.addLeaderOperation(deployOperation);
+
+    TestUtil.waitUntilIndexDeployed(protocol, INDEX_NAME);
+    assertEquals(1, protocol.getIndices().size());
+    IndexMetaData indexMD = protocol.getIndexMD(INDEX_NAME);
+    assertEquals(null, indexMD.getDeployError());
+    assertEquals(SHARD_COUNT, indexMD.getShards().size());
+
+    Set<Shard> shards = indexMD.getShards();
+    for (Shard shard : shards) {
+      assertEquals(nodeCount, protocol.getShardNodes(shard.getName()).size());
+    }
+
+    // undeploy
+    IndexUndeployOperation undeployOperation = new IndexUndeployOperation(INDEX_NAME);
+    protocol.addLeaderOperation(undeployOperation);
+    TestUtil.waitUntilIndexUndeployed(protocol, indexMD);
+
+    assertEquals(0, protocol.getIndices().size());
+    assertEquals(null, protocol.getIndexMD(INDEX_NAME));
+    for (Shard shard : shards) {
+      assertEquals(0, protocol.getShardNodes(shard.getName()).size());
+    }
+  }
+
+  @Test(timeout = 20000)
   public void testDeployError() throws Exception {
-    final MasterStartThread masterStartThread = startMaster();
-    final ZkClient zkClientMaster = masterStartThread.getZkClient();
-
-    final NodeStartThread nodeStartThread1 = startNode(new LuceneServer());
-    final NodeStartThread nodeStartThread2 = startNode(new LuceneServer(), SECOND_SHARD_FOLDER);
-    masterStartThread.join();
-    nodeStartThread1.join();
-    nodeStartThread2.join();
-    waitForPath(zkClientMaster, _conf.getZKLeaderPath());
-    waitForChilds(zkClientMaster, _conf.getZKNodesPath(), 2);
+    int nodeCount = 2;
+    _miniCluster = startMiniCluster(nodeCount, 0, nodeCount);
+    final InteractionProtocol protocol = _miniCluster.getProtocol();
 
     final File indexFile = TestResources.INVALID_INDEX;
-    final Katta katta = new Katta(_conf);
-    final String index = "indexA";
-    katta.addIndex(index, "file://" + indexFile.getAbsolutePath(), 2);
-
-    final IndexMetaData metaData = zkClientMaster.readData(_conf.getOldZKIndexPath(index));
-    assertEquals(IndexMetaData.IndexState.ERROR, metaData.getState());
-
-    katta.close();
-    nodeStartThread1.shutdown();
-    nodeStartThread2.shutdown();
-    masterStartThread.shutdown();
+    IndexDeployOperation deployOperation = new IndexDeployOperation(INDEX_NAME,
+            "file://" + indexFile.getAbsolutePath(), nodeCount);
+    protocol.addLeaderOperation(deployOperation);
+    TestUtil.waitUntilIndexDeployed(protocol, INDEX_NAME);
+    assertEquals(1, protocol.getIndices().size());
+    IndexMetaData indexMD = protocol.getIndexMD(INDEX_NAME);
+    assertNotNull(indexMD.getDeployError());
+    assertEquals(ErrorType.SHARDS_NOT_DEPLOYABLE, indexMD.getDeployError().getErrorType());
   }
 
+  @Test(timeout = 20000)
+  public void testRebalanceIndexAfterNodeCrash() throws Exception {
+    int nodeCount = 3;
+    int replicationCount = nodeCount - 1;
+    _miniCluster = startMiniCluster(nodeCount, 1, replicationCount);
+    final InteractionProtocol protocol = _miniCluster.getProtocol();
+    assertEquals(1, protocol.getIndices().size());
+
+    int optimumShardDeployCount = SHARD_COUNT * replicationCount;
+    assertEquals(optimumShardDeployCount, countShardDeployments(protocol, INDEX_NAME));
+
+    _miniCluster.getNode(0).shutdown();
+    assertTrue(optimumShardDeployCount > countShardDeployments(protocol, INDEX_NAME));
+
+    Thread.sleep(2000);
+    assertEquals(optimumShardDeployCount, countShardDeployments(protocol, INDEX_NAME));
+  }
+
+  @Test(timeout = 20000)
   public void testIndexPickupAfterMasterRestart() throws Exception {
-    MasterStartThread masterStartThread = startMaster();
-    final ZkClient zkClientMaster = masterStartThread.getZkClient();
+    _miniCluster = startMiniCluster(3, 1, 3);
+    final InteractionProtocol protocol = _miniCluster.getProtocol();
+    assertEquals(1, protocol.getIndices().size());
 
-    final NodeStartThread nodeStartThread = startNode(new LuceneServer());
-    masterStartThread.join();
-    nodeStartThread.join();
-    waitForPath(zkClientMaster, _conf.getZKLeaderPath());
-    waitForChilds(zkClientMaster, _conf.getZKNodesPath(), 1);
-
-    // add index
-    final File indexFile = TestResources.INDEX1;
-    final int shardCount = indexFile.list(FileUtil.VISIBLE_FILES_FILTER).length;
-
-    final Katta katta = new Katta(_conf);
-    final String index = "indexA";
-    katta.addIndex(index, "file://" + indexFile.getAbsolutePath(), 2);
-    assertEquals(shardCount, zkClientMaster.countChildren(_conf.getOldZKIndexPath(index)));
-
-    // restartmaster
-    masterStartThread.shutdown();
-    masterStartThread = startMaster();
-    masterStartThread.join();
-    assertEquals(1, masterStartThread.getMaster().getIndexes().size());
-
-    katta.close();
-    nodeStartThread.shutdown();
-    masterStartThread.shutdown();
+    _miniCluster.restartMaster();
+    assertEquals(1, protocol.getIndices().size());
+    // TODO protocol get ReplictaionReport
   }
 
+  @Test
   public void testReplicateUnderreplicatedIndexesAfterNodeAdding() throws Exception {
-    final MasterStartThread masterStartThread = startMaster();
-    final ZkClient zkClientMaster = masterStartThread.getZkClient();
-    final ZkClient zkClient = ZkKattaUtil.startZkClient(_conf, 5000);
-    final Master master = masterStartThread.getMaster();
+    int nodeCount = 2;
+    int replicationCount = nodeCount + 1;
+    _miniCluster = startMiniCluster(nodeCount, 1, replicationCount);
+    final InteractionProtocol protocol = _miniCluster.getProtocol();
+    assertEquals(1, protocol.getIndices().size());
 
-    // start one node
-    final NodeStartThread nodeStartThread1 = startNode(new LuceneServer());
-    masterStartThread.join();
-    waitOnNodes(masterStartThread, 1);
+    int optimumShardDeployCount = SHARD_COUNT * replicationCount;
+    assertTrue(optimumShardDeployCount > countShardDeployments(protocol, INDEX_NAME));
 
-    // add index with replication level of 2
-    final File indexFile = TestResources.INDEX1;
-    final String index = "indexA";
-    final DeployClient deployClient = new DeployClient(zkClient, _conf);
-    final IIndexDeployFuture deployFuture = deployClient.addIndex(index, "file://" + indexFile.getAbsolutePath(), 2);
-    deployFuture.joinDeployment();
-    assertEquals(1, deployClient.getIndexes(IndexState.DEPLOYED).size());
-    final List<String> shards = zkClient.getChildren(_conf.getOldZKIndexPath(index));
-    for (final String shard : shards) {
-      assertEquals(1, zkClient.countChildren(_conf.getZKShardToNodePath(shard)));
-    }
-
-    // start node2
-    zkClientMaster.getEventLock().lock();
-    NodeStartThread nodeStartThread2;
-    try {
-      nodeStartThread2 = startNode(new LuceneServer(), SECOND_SHARD_FOLDER);
-      zkClientMaster.getEventLock().getDataChangedCondition().await();
-    } finally {
-      zkClientMaster.getEventLock().unlock();
-    }
-    assertEquals(2, master.readNodes().size());
-
-    // replication should now take place
-    for (final String shard : shards) {
-      waitForChilds(zkClient, _conf.getZKShardToNodePath(shard), 2);
-    }
-
-    zkClient.close();
-    nodeStartThread1.shutdown();
-    nodeStartThread2.shutdown();
-    masterStartThread.shutdown();
+    _miniCluster.startAdditionalNode();
+    Thread.sleep(2000);
+    assertTrue(optimumShardDeployCount == countShardDeployments(protocol, INDEX_NAME));
   }
 }

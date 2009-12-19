@@ -17,8 +17,6 @@ package net.sf.katta.client;
 
 import java.util.concurrent.Future;
 
-import net.sf.katta.index.IndexMetaData.IndexState;
-
 /**
  * 
  * Future for an index deployment.

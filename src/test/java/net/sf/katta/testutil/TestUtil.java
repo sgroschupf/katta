@@ -18,11 +18,15 @@ package net.sf.katta.testutil;
 import static org.junit.Assert.assertEquals;
 
 import java.io.File;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import net.sf.katta.master.Master;
+import net.sf.katta.protocol.InteractionProtocol;
+import net.sf.katta.protocol.metadata.IndexMetaData;
+import net.sf.katta.protocol.metadata.IndexMetaData.Shard;
 import net.sf.katta.util.FileUtil;
 
 import org.I0Itec.zkclient.IDefaultNameSpace;
@@ -164,15 +168,39 @@ public class TestUtil {
     zkServer.start();
     return zkServer;
   }
-  
+
   public static void waitOnLeaveSafeMode(final Master master) throws Exception {
     TestUtil.waitUntil(false, new Callable<Boolean>() {
       @Override
       public Boolean call() throws Exception {
         return master.isInSafeMode();
       }
-    }, TimeUnit.SECONDS, 60);
+    }, TimeUnit.SECONDS, 30);
     assertEquals(false, master.isInSafeMode());
   }
 
+  public static void waitUntilIndexDeployed(final InteractionProtocol protocol, final String indexName)
+          throws Exception {
+    TestUtil.waitUntil(false, new Callable<Boolean>() {
+      @Override
+      public Boolean call() throws Exception {
+        return protocol.getIndexMD(indexName) == null;
+      }
+    }, TimeUnit.SECONDS, 30);
+  }
+
+  public static void waitUntilIndexUndeployed(final InteractionProtocol protocol, final IndexMetaData indexMD)
+          throws Exception {
+    TestUtil.waitUntil(false, new Callable<Boolean>() {
+      @Override
+      public Boolean call() throws Exception {
+        int nodeCount = 0;
+        Set<Shard> shards = indexMD.getShards();
+        for (Shard shard : shards) {
+          nodeCount += protocol.getShardNodes(shard.getName()).size();
+        }
+        return nodeCount != 0;
+      }
+    }, TimeUnit.SECONDS, 30);
+  }
 }

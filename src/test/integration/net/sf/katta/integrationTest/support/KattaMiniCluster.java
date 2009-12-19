@@ -13,9 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package net.sf.katta.integrationTest;
+package net.sf.katta.integrationTest.support;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 
 import net.sf.katta.client.DeployClient;
 import net.sf.katta.client.IDeployClient;
@@ -23,8 +25,7 @@ import net.sf.katta.master.Master;
 import net.sf.katta.node.LuceneServer;
 import net.sf.katta.node.Node;
 import net.sf.katta.protocol.InteractionProtocol;
-import net.sf.katta.util.KattaException;
-import net.sf.katta.util.NodeConfiguration;
+import net.sf.katta.testutil.TestUtil;
 import net.sf.katta.util.ZkConfiguration;
 import net.sf.katta.util.ZkKattaUtil;
 
@@ -41,38 +42,58 @@ public class KattaMiniCluster {
 
   private final ZkConfiguration _zkConfiguration;
   private Master _master;
-  private Node[] _nodes;
+  private List<Node> _nodes = new ArrayList<Node>();
   private ZkServer _zkServer;
+  private InteractionProtocol _protocol;
+  private int _nodeCount;
 
   public KattaMiniCluster(ZkConfiguration zkConfiguration, int nodeCount) {
     _zkConfiguration = zkConfiguration;
-    _nodes = new Node[nodeCount];
+    _nodeCount = nodeCount;
   }
 
-  public void start() throws KattaException {
+  public void start() throws Exception {
     _zkServer = ZkKattaUtil.startZkServer(_zkConfiguration);
-    InteractionProtocol protocol = new InteractionProtocol(_zkServer.getZkClient(), _zkConfiguration);
-    for (int i = 0; i < _nodes.length; i++) {
-      NodeConfiguration nodeConf = new NodeConfiguration();
-      nodeConf.setShardFolder(new File(nodeConf.getShardFolder(), "" + i).getAbsolutePath());
-      _nodes[i] = new Node(_protocol, nodeConf, new LuceneServer());
+    _protocol = new InteractionProtocol(_zkServer.getZkClient(), _zkConfiguration);
+    for (int i = 0; i < _nodeCount; i++) {
+      _nodes.add(new Node(_protocol, new LuceneServer()));
     }
-    _master = new Master(_protocol, _zkServer);
+    _master = new Master(_protocol, false);
     _master.start();
     for (Node node : _nodes) {
       node.start();
     }
+    TestUtil.waitOnLeaveSafeMode(_master);
+  }
+
+  public void startAdditionalNode() {
+    Node node = new Node(_protocol, new LuceneServer());
+    _nodes.add(node);
+    node.start();
+  }
+
+  public void restartMaster() throws Exception {
+    _master.shutdown();
+    _master = new Master(_protocol, false);
+    _master.start();
+    TestUtil.waitOnLeaveSafeMode(_master);
   }
 
   public void stop() {
     for (Node node : _nodes) {
       node.shutdown();
     }
+    try {
+      Thread.sleep(100);
+    } catch (InterruptedException e) {
+      Thread.interrupted();
+    }
     _master.shutdown();
+    _zkServer.shutdown();
   }
 
   public Node getNode(int i) {
-    return _nodes[i];
+    return _nodes.get(i);
   }
 
   public void deployTestIndexes(File indexFile, int deployCount, int replicationCount) throws InterruptedException {
@@ -86,6 +107,10 @@ public class KattaMiniCluster {
     return _zkConfiguration;
   }
 
+  public InteractionProtocol getProtocol() {
+    return _protocol;
+  }
+
   public ZkServer getZkServer() {
     return _zkServer;
   }
@@ -93,4 +118,5 @@ public class KattaMiniCluster {
   public ZkClient getZkClient() {
     return _zkServer.getZkClient();
   }
+
 }

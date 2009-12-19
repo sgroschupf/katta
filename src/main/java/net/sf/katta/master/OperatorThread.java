@@ -81,20 +81,31 @@ class OperatorThread extends Thread {
             executeOperation(operation);
           }
         } catch (Exception e) {
-          LOG.error("failed to execute " + operation, e);
           if (e instanceof InterruptedException) {
             throw (InterruptedException) e;
+          } else if (e instanceof ZkInterruptedException) {
+            throw (ZkInterruptedException) e;
+          } else {
+            LOG.error("failed to execute " + operation, e);
           }
         }
         _queue.remove();
       }
     } catch (final InterruptedException e) {
+      Thread.interrupted();
       // let go the thread
     } catch (ZkInterruptedException e) {
+      Thread.interrupted();
       // let go the thread
     }
     _registry.shutdown();
     LOG.info("operator thread stopped");
+  }
+
+  @Override
+  public void interrupt() {
+    // TODO Auto-generated method stub
+    super.interrupt();
   }
 
   private void executeOperation(LeaderOperation operation) throws Exception {

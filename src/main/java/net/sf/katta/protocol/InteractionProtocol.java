@@ -120,7 +120,6 @@ public class InteractionProtocol {
     _zkConf = zkConfiguration;
     _zkConf = zkConfiguration;
     LOG.info("Using ZK root path: " + _zkConf.getZKRootPath());
-    _zkClient.subscribeStateChanges(_stateListener);
     new DefaultNameSpaceImpl(_zkConf).createDefaultNameSpace(_zkClient);
   }
 
@@ -160,6 +159,7 @@ public class InteractionProtocol {
 
   public void disconnect() {
     // TODO check if all components are unregistered ?
+    _connected = false;
     _zkClient.close();
   }
 
@@ -194,7 +194,7 @@ public class InteractionProtocol {
   }
 
   public void registerIndexMetaDataListener(ConnectedComponent component, String indexName, IZkDataListener dataListener) {
-    registerDataListener(component, _zkConf.getOldZKIndexPath(indexName), dataListener);
+    registerDataListener(component, _zkConf.getZkPath(PathDef.INDICES_METADATA, indexName), dataListener);
   }
 
   public List<String> registerMetricsNodeListener(ConnectedComponent component, IAddRemoveListener dataListener) {
@@ -300,7 +300,7 @@ public class InteractionProtocol {
       isMaster = true;
     } else {
       LOG.info(masterName + " starting as secondary master...");
-      _zkClient.subscribeDataChanges(zkMasterPath, new IZkDataListener() {
+      registerDataListener(master, zkMasterPath, new IZkDataListener() {
         public void handleDataDeleted(final String dataPath) throws KattaException {
           master.handleMasterDisappearedEvent();
         }
@@ -362,7 +362,6 @@ public class InteractionProtocol {
       _zkClient.delete(nodePath);
     }
     createEphemeral(node, nodePath, null);
-    LOG.info("node '" + node.getName() + "' published");
     return nodeQueue;
   }
 
@@ -477,7 +476,7 @@ public class InteractionProtocol {
     _zkClient.showFolders(System.out);
   }
 
-  protected static class AddRemoveListenerAdapter implements IZkChildListener {
+  protected class AddRemoveListenerAdapter implements IZkChildListener {
 
     private List<String> _cachedChilds;
     private final IAddRemoveListener _listener;

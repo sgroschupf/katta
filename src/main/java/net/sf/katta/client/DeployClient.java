@@ -23,6 +23,7 @@ import net.sf.katta.index.IndexMetaData.IndexState;
 import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.protocol.operation.leader.AbstractIndexOperation;
 import net.sf.katta.protocol.operation.leader.IndexDeployOperation;
+import net.sf.katta.protocol.operation.leader.IndexUndeployOperation;
 import net.sf.katta.util.ZkConfiguration;
 
 import org.I0Itec.zkclient.ZkClient;
@@ -56,7 +57,7 @@ public class DeployClient implements IDeployClient {
   }
 
   public void removeIndex(String indexName) {
-    _protocol.removeIndex(indexName);
+    _protocol.addLeaderOperation(new IndexUndeployOperation(indexName));
   }
 
   public boolean existsIndex(String indexName) {
