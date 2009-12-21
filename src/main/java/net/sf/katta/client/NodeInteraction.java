@@ -29,8 +29,8 @@ import org.apache.log4j.Logger;
 /**
  * This class is responsible for calling the sever node via an RPC proxy, and
  * possibly scheduling retires if errors occur. Only M-1 retries are attempted,
- * whereby M is the given maxRetryCount (M calls total). With replication
- * level N, there can be at most N-1 retries (N calls total).
+ * whereby M is the given maxRetryCount (M calls total). With replication level
+ * N, there can be at most N-1 retries (N calls total).
  */
 class NodeInteraction<T> implements Runnable {
 
@@ -51,7 +51,6 @@ class NodeInteraction<T> implements Runnable {
   private final IShardProxyManager _shardManager;
   private final IResultReceiver<T> _result;
   private final int instanceId = interactionInstanceCounter++;
-
 
   /**
    * Create a node interaction. This will make one call to one node, listing
@@ -96,8 +95,8 @@ class NodeInteraction<T> implements Runnable {
    *         retry we write the error to it.
    */
   public NodeInteraction(Method method, Object[] args, int shardArrayIndex, String node,
-      Map<String, List<String>> node2ShardsMap, int tryCount, int maxTryCount, IShardProxyManager shardManager,
-      INodeExecutor workQueue, IResultReceiver<T> result) {
+          Map<String, List<String>> node2ShardsMap, int tryCount, int maxTryCount, IShardProxyManager shardManager,
+          INodeExecutor workQueue, IResultReceiver<T> result) {
     _method = method;
     // Make a copy in case we will be modifying the shard list.
     _args = Arrays.copyOf(args, args.length);
@@ -118,10 +117,8 @@ class NodeInteraction<T> implements Runnable {
     try {
       VersionedProtocol proxy = _shardManager.getProxy(_node);
       if (proxy == null) {
-        String msg = "No proxy for node: " + _node;
-        LOG.debug(msg);
-        _result.addError(new KattaException(msg), _shards);
-        return;
+        throw new KattaException("No proxy for node: " + _node);
+        // TODO proxy should be given to constructor to simplify things
       }
       if (_shardArrayIndex >= 0) {
         // We need to pass the list of shards to the server's method.
@@ -134,6 +131,7 @@ class NodeInteraction<T> implements Runnable {
                 .getInvocationHandler(proxy), instanceId));
         startTime = System.currentTimeMillis();
       }
+      // System.out.println(_node + ":" + proxy);
       T result = (T) _method.invoke(proxy, _args);
       if (LOG.isTraceEnabled()) {
         LOG.trace(String.format("Calling %s returned %s, took %d msec (id=%d)", methodDesc, resultToString(result),
@@ -145,21 +143,21 @@ class NodeInteraction<T> implements Runnable {
       }
       _result.addResult(result, _shards);
     } catch (Throwable t) {
-      LOG.error(String.format("Error calling %s (try # %d of %d) (id=%d)", (methodDesc != null ? methodDesc : _method
-          + " on " + _node), _tryCount, _maxTryCount, instanceId), t);
+      // Notify the work queue, so it can mark the node as down.
+      _shardManager.nodeFailed(_node, t);
       if (_tryCount >= _maxTryCount) {
+        LOG.error(String.format("Error calling %s (try # %d of %d) (id=%d)", (methodDesc != null ? methodDesc : _method
+                + " on " + _node), _tryCount, _maxTryCount, instanceId), t);
         _result.addError(new KattaException(String.format("%s for shards %s failed (id=%d)",
                 getClass().getSimpleName(), _shards, instanceId), t), _shards);
         return;
       }
-      LOG.warn(String.format("Failed to interact with node %s. Trying with other node(s) %s (id=%d)", _node,
-              _node2ShardsMap.keySet(), instanceId), t);
-      // Notify the work queue, so it can mark the node as down.
-      _shardManager.nodeFailed(_node, t);
       if (!_result.isClosed()) {
         try {
           // Find new node(s) for our shards and add to global node2ShardMap
           Map<String, List<String>> retryMap = _shardManager.createNode2ShardsMap(_node2ShardsMap.get(_node));
+          LOG.warn(String.format("Failed to interact with node %s. Trying with other node(s) %s (id=%d)", _node,
+                  retryMap.keySet(), instanceId), t);
           // Execute the action again for every node
           for (String newNode : retryMap.keySet()) {
             _workQueue.execute(newNode, retryMap, _tryCount + 1, _maxTryCount);
@@ -175,33 +173,33 @@ class NodeInteraction<T> implements Runnable {
   }
 
   private String describeMethodCall(Method method, Object[] args, String nodeName) {
-    StringBuffer buf = new StringBuffer(method.getDeclaringClass().getSimpleName());
-    buf.append(".");
-    buf.append(method.getName());
-    buf.append("(");
+    StringBuilder builder = new StringBuilder(method.getDeclaringClass().getSimpleName());
+    builder.append(".");
+    builder.append(method.getName());
+    builder.append("(");
     String sep = "";
     for (int i = 0; i < args.length; i++) {
-      buf.append(sep);
+      builder.append(sep);
       if (args[i] == null) {
-        buf.append("null");
+        builder.append("null");
       } else if (args[i] instanceof String[]) {
         // TODO: all array types, lists, maps.
         String[] strs = (String[]) args[i];
         String sep2 = "";
-        buf.append("[");
+        builder.append("[");
         for (String str : strs) {
-          buf.append(sep2 + "\"" + str + "\"");
+          builder.append(sep2 + "\"" + str + "\"");
           sep2 = ", ";
         }
-        buf.append("]");
+        builder.append("]");
       } else {
-        buf.append(args[i].toString());
+        builder.append(args[i].toString());
       }
       sep = ", ";
     }
-    buf.append(") on ");
-    buf.append(nodeName);
-    return buf.toString();
+    builder.append(") on ");
+    builder.append(nodeName);
+    return builder.toString();
   }
 
   private String resultToString(T result) {
