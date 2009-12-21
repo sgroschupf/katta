@@ -138,15 +138,22 @@ public class Master implements ConnectedComponent {
     List<String> nodes = _protocol.registerNodeListener(this, new IAddRemoveListener() {
       @Override
       public void removed(String name) {
-        _protocol.addLeaderOperation(new CheckIndicesOperation());
+        if (!isInSafeMode()) {
+          _protocol.addLeaderOperation(new CheckIndicesOperation());
+        }
       }
 
       @Override
       public void added(String name) {
         _protocol.addLeaderOperation(new RemoveSuperfluousShardsOperation(name));
-        _protocol.addLeaderOperation(new CheckIndicesOperation());
+        if (!isInSafeMode()) {
+          _protocol.addLeaderOperation(new CheckIndicesOperation());
+        }
       }
     });
+    for (String node : nodes) {
+      _protocol.addLeaderOperation(new RemoveSuperfluousShardsOperation(node));
+    }
     LOG.info("found following nodes connected: " + nodes);
   }
 

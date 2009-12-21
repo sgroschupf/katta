@@ -65,6 +65,10 @@ public class ShardManager {
     return Arrays.asList(folderList);
   }
 
+  public File getShardsFolder() {
+    return _shardsFolder;
+  }
+
   public File getShardFolder(String shardName) {
     return new File(_shardsFolder, shardName);
   }

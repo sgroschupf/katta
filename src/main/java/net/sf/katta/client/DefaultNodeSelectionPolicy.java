@@ -15,6 +15,7 @@
  */
 package net.sf.katta.client;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -42,6 +43,11 @@ public class DefaultNodeSelectionPolicy implements INodeSelectionPolicy {
 
   public void update(String shard, Collection<String> nodes) {
     _shardsToNodeMap.put(shard, new CircularList<String>(nodes));
+  }
+
+  @Override
+  public Collection<String> getShardNodes(String shard) {
+    return new ArrayList<String>(_shardsToNodeMap.get(shard).asList());
   }
 
   public List<String> remove(String shard) {
@@ -75,7 +81,7 @@ public class DefaultNodeSelectionPolicy implements INodeSelectionPolicy {
     }
     return node2ShardsMap.asMap();
   }
-  
+
   @Override
   public String toString() {
     StringBuilder builder = new StringBuilder();

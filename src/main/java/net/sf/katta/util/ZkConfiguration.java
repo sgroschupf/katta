@@ -129,7 +129,8 @@ public class ZkConfiguration extends KattaConfiguration {
     MASTER("current master ephemeral", "master"), // 
     NODES_METADATA("metadata of connected & unconnected nodes", NODES, "metadata"), // 
     NODES_LIVE("ephemerals of connected nodes", NODES, "live"), //
-    INDICES_METADATA("metadata of live & error indices", INDICES, "metadata"), // 
+    INDICES_METADATA("metadata of live & error indices", INDICES, "metadata"), //
+    SHARD_TO_NODES("ephemerals of nodes serving a shard", INDICES, "shard-to-nodes"), //
     NODE_QUEUE("metadata of failed indices", WORK, "node-queues"); //
 
     private final String _description;
@@ -149,17 +150,34 @@ public class ZkConfiguration extends KattaConfiguration {
     }
   }
 
+  /**
+   * @param pathDef
+   * @return ${katta.root}/pathDef
+   */
   public String getZkPath(PathDef pathDef) {
     return buildPath(getZKRootPath(), pathDef.getPath(getSeparator()));
   }
 
+  /**
+   * @param pathDef
+   * @return ${katta.root}/pathDef/name
+   */
   public String getZkPath(PathDef pathDef, String name) {
     return buildPath(getZKRootPath(), pathDef.getPath(getSeparator()), name);
   }
 
+  /**
+   * @param pathDef
+   * @return ${katta.root}/pathDef/name1/name2/...
+   */
+  public String getZkPath(PathDef pathDef, String... names) {
+    String suffixPath = buildPath(names);
+    return buildPath(getZKRootPath(), pathDef.getPath(getSeparator()), suffixPath);
+  }
+
   public static final String DEFAULT_ROOT_PATH = "/katta";
   private final String OLD_INDEXES = "indexes";
-  private final String SHARD_TO_NODE = "shard-to-node";
+  // private final String SHARD_TO_NODE = "shard-to-node";
   private final String LOADTEST_NODES = "loadtest-nodes";
   private final String SERVER_METRICS = "server-metrics";
 
@@ -205,17 +223,17 @@ public class ZkConfiguration extends KattaConfiguration {
     return buildPath(getZKRootPath(), OLD_INDEXES, index);
   }
 
-  public String getZKShardToNodePath() {
-    return buildPath(getZKRootPath(), SHARD_TO_NODE);
-  }
-
-  public String getZKShardToNodePath(String shard) {
-    return buildPath(getZKRootPath(), SHARD_TO_NODE, shard);
-  }
-
-  public String getZKShardToNodePath(String shard, String node) {
-    return buildPath(getZKRootPath(), SHARD_TO_NODE, shard, node);
-  }
+  // public String getZKShardToNodePath() {
+  // return buildPath(getZKRootPath(), SHARD_TO_NODE);
+  // }
+  //
+  // public String getZKShardToNodePath(String shard) {
+  // return buildPath(getZKRootPath(), SHARD_TO_NODE, shard);
+  // }
+  //
+  // public String getZKShardToNodePath(String shard, String node) {
+  // return buildPath(getZKRootPath(), SHARD_TO_NODE, shard, node);
+  // }
 
   public String getZKLoadTestPath() {
     return buildPath(getZKRootPath(), LOADTEST_NODES);

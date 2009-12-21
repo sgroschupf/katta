@@ -43,6 +43,13 @@ public interface INodeSelectionPolicy {
   void update(String shard, Collection<String> nodes);
 
   /**
+   * 
+   * @param shard
+   * @return all nodes which serves the given shard
+   */
+  Collection<String> getShardNodes(String shard);
+
+  /**
    * If an index is undeployed, this method is called for each of it shards.
    * 
    * @param shard

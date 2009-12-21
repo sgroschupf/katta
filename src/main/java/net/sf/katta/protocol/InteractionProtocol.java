@@ -168,7 +168,7 @@ public class InteractionProtocol {
   }
 
   public void registerNodeMetaDataListener(ConnectedComponent component, String nodeName, IZkDataListener dataListener) {
-    registerDataListener(component, _zkConf.getZkPath(PathDef.NODES_METADATA, nodeName), dataListener);
+    registerDataListener(component, dataListener, _zkConf.getZkPath(PathDef.NODES_METADATA, nodeName));
   }
 
   private List<String> registerAddRemoveListener(final ConnectedComponent component, final IAddRemoveListener listener,
@@ -181,20 +181,38 @@ public class InteractionProtocol {
     }
   }
 
-  private void registerDataListener(ConnectedComponent component, String zkPath, IZkDataListener dataListener) {
+  private void registerDataListener(ConnectedComponent component, IZkDataListener dataListener, String zkPath) {
     _zkClient.subscribeDataChanges(zkPath, dataListener);
     _zkListenerByComponent.add(component, dataListener);
     _zkPathesByListener.add(dataListener, zkPath);
   }
 
-  private void unregisterDataListener(ConnectedComponent component, String zkPath, IZkDataListener dataListener) {
+  private void unregisterDataListener(ConnectedComponent component, IZkDataListener dataListener, String zkPath) {
     _zkClient.unsubscribeDataChanges(zkPath, dataListener);
     _zkListenerByComponent.removeValue(component, dataListener);
     _zkPathesByListener.removeValue(dataListener, zkPath);
   }
 
   public void registerIndexMetaDataListener(ConnectedComponent component, String indexName, IZkDataListener dataListener) {
-    registerDataListener(component, _zkConf.getZkPath(PathDef.INDICES_METADATA, indexName), dataListener);
+    registerDataListener(component, dataListener, _zkConf.getZkPath(PathDef.INDICES_METADATA, indexName));
+  }
+
+  public List<String> registerChildListener(ConnectedComponent component, PathDef pathDef, IAddRemoveListener listener) {
+    return registerAddRemoveListener(component, listener, _zkConf.getZkPath(pathDef));
+  }
+
+  public List<String> registerChildListener(ConnectedComponent component, PathDef pathDef, String childName,
+          IAddRemoveListener listener) {
+    return registerAddRemoveListener(component, listener, _zkConf.getZkPath(pathDef, childName));
+  }
+
+  public void registerDataListener(ConnectedComponent component, PathDef pathDef, String childName,
+          IZkDataListener listener) {
+    registerDataListener(component, listener, _zkConf.getZkPath(pathDef, childName));
+  }
+
+  public void unregisterDataChanges(ConnectedComponent component, String dataPath, IZkDataListener listener) {
+    unregisterDataListener(component, listener, dataPath);
   }
 
   public List<String> registerMetricsNodeListener(ConnectedComponent component, IAddRemoveListener dataListener) {
@@ -202,11 +220,11 @@ public class InteractionProtocol {
   }
 
   public void registerMetricsDataListener(ConnectedComponent component, String nodeName, IZkDataListener dataListener) {
-    registerDataListener(component, _zkConf.getZKMetricsPathForServer(nodeName), dataListener);
+    registerDataListener(component, dataListener, _zkConf.getZKMetricsPathForServer(nodeName));
   }
 
   public void unregisterMetricsDataListener(ConnectedComponent component, String nodeName, IZkDataListener dataListener) {
-    unregisterDataListener(component, _zkConf.getZKMetricsPathForServer(nodeName), dataListener);
+    unregisterDataListener(component, dataListener, _zkConf.getZKMetricsPathForServer(nodeName));
   }
 
   public List<String> getKnownNodes() {
@@ -239,9 +257,9 @@ public class InteractionProtocol {
 
   public Collection<String> getNodeShards(String nodeName) {
     Set<String> shards = new HashSet<String>();
-    List<String> shardNames = _zkClient.getChildren(_zkConf.getZKShardToNodePath());
+    List<String> shardNames = _zkClient.getChildren(_zkConf.getZkPath(PathDef.SHARD_TO_NODES));
     for (String shardName : shardNames) {
-      List<String> nodeNames = _zkClient.getChildren(_zkConf.getZKShardToNodePath(shardName));
+      List<String> nodeNames = _zkClient.getChildren(_zkConf.getZkPath(PathDef.SHARD_TO_NODES, shardName));
       if (nodeNames.contains(nodeName)) {
         shards.add(shardName);
       }
@@ -251,26 +269,26 @@ public class InteractionProtocol {
 
   public List<DeployedShard> getShardsMD(String shard) {
     List<DeployedShard> deployedShards = new ArrayList<DeployedShard>();
-    List<String> nodeNames = _zkClient.getChildren(_zkConf.getZKShardToNodePath(shard));
+    List<String> nodeNames = _zkClient.getChildren(_zkConf.getZkPath(PathDef.SHARD_TO_NODES, shard));
     for (String nodeName : nodeNames) {
-      DeployedShard deployedShard = _zkClient.readData(_zkConf.getZKShardToNodePath(shard, nodeName));
+      DeployedShard deployedShard = _zkClient.readData(_zkConf.getZkPath(PathDef.SHARD_TO_NODES, shard, nodeName));
       deployedShards.add(deployedShard);
     }
     return deployedShards;
   }
 
   public int getShardReplication(String shard) {
-    return _zkClient.countChildren(_zkConf.getZKShardToNodePath(shard));
+    return _zkClient.countChildren(_zkConf.getZkPath(PathDef.SHARD_TO_NODES, shard));
   }
 
   public long getShardAnnounceTime(String node, String shard) {
-    return _zkClient.getCreationTime(_zkConf.getZKShardToNodePath(shard, node));
+    return _zkClient.getCreationTime(_zkConf.getZkPath(PathDef.SHARD_TO_NODES, shard, node));
   }
 
   public Map<String, List<String>> getShard2NodesMap(Collection<Shard> shards) {
     final Map<String, List<String>> shard2NodeNames = new HashMap<String, List<String>>();
     for (final Shard shard : shards) {
-      final String shard2NodeRootPath = _zkConf.getZKShardToNodePath(shard.getName());
+      final String shard2NodeRootPath = _zkConf.getZkPath(PathDef.SHARD_TO_NODES, shard.getName());
       if (_zkClient.exists(shard2NodeRootPath)) {
         shard2NodeNames.put(shard.getName(), _zkClient.getChildren(shard2NodeRootPath));
       } else {
@@ -281,7 +299,7 @@ public class InteractionProtocol {
   }
 
   public List<String> getShardNodes(String shard) {
-    final String shard2NodeRootPath = _zkConf.getZKShardToNodePath(shard);
+    final String shard2NodeRootPath = _zkConf.getZkPath(PathDef.SHARD_TO_NODES, shard);
     if (!_zkClient.exists(shard2NodeRootPath)) {
       return Collections.<String> emptyList();
     }
@@ -300,7 +318,7 @@ public class InteractionProtocol {
       isMaster = true;
     } else {
       LOG.info(masterName + " starting as secondary master...");
-      registerDataListener(master, zkMasterPath, new IZkDataListener() {
+      registerDataListener(master, new IZkDataListener() {
         public void handleDataDeleted(final String dataPath) throws KattaException {
           master.handleMasterDisappearedEvent();
         }
@@ -309,7 +327,7 @@ public class InteractionProtocol {
         public void handleDataChange(String dataPath, Serializable data) throws Exception {
           // do nothing
         }
-      });
+      }, zkMasterPath);
       isMaster = false;
     }
 
@@ -383,19 +401,19 @@ public class InteractionProtocol {
 
   public void publishShard(Node node, String shardName, Map<String, String> metaData) {
     // announce that this node serves this shard now...
-    final String shard2NodePath = _zkConf.getZKShardToNodePath(shardName, node.getName());
+    final String shard2NodePath = _zkConf.getZkPath(PathDef.SHARD_TO_NODES, shardName, node.getName());
     if (_zkClient.exists(shard2NodePath)) {
       LOG.warn("detected old shard-to-node entry - deleting it..");
       _zkClient.delete(shard2NodePath);
     }
 
     DeployedShard deployedShard = new DeployedShard(shardName, metaData);
-    _zkClient.createPersistent(_zkConf.getZKShardToNodePath(shardName), true);
+    _zkClient.createPersistent(_zkConf.getZkPath(PathDef.SHARD_TO_NODES, shardName), true);
     createEphemeral(node, shard2NodePath, deployedShard);
   }
 
   public void unpublishShard(Node node, String shard) {
-    String shard2NodePath = _zkConf.getZKShardToNodePath(shard, node.getName());
+    String shard2NodePath = _zkConf.getZkPath(PathDef.SHARD_TO_NODES, shard, node.getName());
     if (_zkClient.exists(shard2NodePath)) {
       _zkClient.delete(shard2NodePath);
     }
@@ -445,7 +463,7 @@ public class InteractionProtocol {
   public void registerNodeOperationListener(ConnectedComponent component, OperationId operationId,
           IZkDataListener dataListener) {
     String elementPath = getNodeQueue(operationId.getNodeName()).getElementPath(operationId.getElementName());
-    registerDataListener(component, elementPath, dataListener);
+    registerDataListener(component, dataListener, elementPath);
   }
 
   private OperationQueue<NodeOperation> getNodeQueue(String nodeName) {

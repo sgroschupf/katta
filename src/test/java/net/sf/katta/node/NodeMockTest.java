@@ -17,6 +17,9 @@ package net.sf.katta.node;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyMap;
+import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Matchers.notNull;
 import static org.mockito.Mockito.mock;
@@ -25,26 +28,45 @@ import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+
+import java.io.File;
+import java.io.IOException;
+
 import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.protocol.OperationQueue;
 import net.sf.katta.protocol.metadata.NodeMetaData;
 import net.sf.katta.protocol.operation.node.NodeOperation;
+import net.sf.katta.testutil.PrintMethodNames;
+import net.sf.katta.testutil.TestResources;
 import net.sf.katta.testutil.mockito.SleepingAnswer;
+import net.sf.katta.util.NodeConfiguration;
 
+import org.apache.hadoop.fs.FileUtil;
+import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
 public class NodeMockTest {
 
+  @Rule
+  public PrintMethodNames _printMethodNames = new PrintMethodNames();
+
   private InteractionProtocol _protocol = mock(InteractionProtocol.class);
   private INodeManaged _nodeManaged = mock(INodeManaged.class);
   private Node _node = new Node(_protocol, _nodeManaged);
+  private OperationQueue<NodeOperation> _queue = mock(OperationQueue.class);
+
+  @Before
+  public void setUp() throws IOException {
+    File shardFolder = new NodeConfiguration().getShardFolder();
+    FileUtil.fullyDelete(shardFolder);
+    when(_protocol.publishNode(eq(_node), (NodeMetaData) notNull())).thenReturn(_queue);
+  }
 
   @Test
   public void testGracefulStartup_Shutdown() throws Exception {
     NodeOperation nodeOperation = mock(NodeOperation.class);
-    OperationQueue<NodeOperation> queue = mock(OperationQueue.class);
-    when(queue.peek()).thenReturn(nodeOperation).thenAnswer(new SleepingAnswer());
-    when(_protocol.publishNode(eq(_node), (NodeMetaData) notNull())).thenReturn(queue);
+    when(_queue.peek()).thenReturn(nodeOperation).thenAnswer(new SleepingAnswer());
 
     _node.start();
     assertNotNull(_node.getName());
@@ -62,29 +84,51 @@ public class NodeMockTest {
   @Test
   public void testDisconnectReconnect() throws Exception {
     NodeOperation nodeOperation = mock(NodeOperation.class);
-    OperationQueue<NodeOperation> queue = mock(OperationQueue.class);
-    when(queue.peek()).thenReturn(nodeOperation).thenAnswer(new SleepingAnswer());
-    when(_protocol.publishNode(eq(_node), (NodeMetaData) notNull())).thenReturn(queue).thenReturn(queue);
-
+    when(_queue.peek()).thenReturn(nodeOperation).thenAnswer(new SleepingAnswer());
     _node.start();
     Thread.sleep(200);
     verify(nodeOperation, times(1)).execute((NodeContext) notNull());
 
     _node.disconnect();
     NodeOperation nodeOperation2 = mock(NodeOperation.class);
-    reset(queue);
-    when(queue.peek()).thenReturn(nodeOperation2).thenAnswer(new SleepingAnswer());
+    reset(_queue);
+    when(_queue.peek()).thenReturn(nodeOperation2).thenAnswer(new SleepingAnswer());
 
     _node.reconnect();
     Thread.sleep(200);
     verify(nodeOperation, times(1)).execute((NodeContext) notNull());
     verify(nodeOperation2, times(1)).execute((NodeContext) notNull());
+    _node.shutdown();
   }
 
-  public void testShutdown_doesNotCloseZkClient() {
+  @Test
+  public void testShutdown_doesNotCloseZkClient() throws Exception {
+    when(_queue.peek()).thenAnswer(new SleepingAnswer());
     _node.start();
     _node.shutdown();
     verify(_protocol, never()).disconnect();
+  }
+
+  @Test
+  public void testRedployInstalledShards() throws Exception {
+    NodeOperation nodeOperation = mock(NodeOperation.class);
+    when(_queue.peek()).thenReturn(nodeOperation).thenAnswer(new SleepingAnswer());
+
+    // start and add shard
+    _node.start();
+    verify(_nodeManaged, times(0)).addShard(anyString(), any(File.class));
+    String shardName = "shard1";
+    File shardFile = TestResources.SHARD1;
+    _node.getContext().getShardManager().installShard(shardName, shardFile.getAbsolutePath());
+
+    // restart, node should be added
+    _node.shutdown();
+    _node = new Node(_protocol, _nodeManaged);
+    when(_protocol.publishNode(eq(_node), (NodeMetaData) notNull())).thenReturn(_queue);
+    _node.start();
+    verify(_nodeManaged, times(1)).addShard(anyString(), any(File.class));
+    verify(_protocol).publishShard(eq(_node), eq(shardName), anyMap());
+    _node.shutdown();
   }
 
 }

@@ -176,6 +176,10 @@ public class Node implements ConnectedComponent {
     return _nodeName;
   }
 
+  public NodeContext getContext() {
+    return _context;
+  }
+
   public int getRPCServerPort() {
     return _rpcServer.getListenerAddress().getPort();
   }

@@ -15,28 +15,37 @@
  */
 package net.sf.katta.master;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.Arrays;
+import java.util.List;
 
+import net.sf.katta.protocol.IAddRemoveListener;
 import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.protocol.OperationQueue;
+import net.sf.katta.protocol.operation.leader.LeaderOperation;
+import net.sf.katta.protocol.operation.leader.RemoveSuperfluousShardsOperation;
 import net.sf.katta.testutil.TestUtil;
 import net.sf.katta.testutil.mockito.SleepingAnswer;
 import net.sf.katta.util.KattaException;
 
 import org.I0Itec.zkclient.ZkServer;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 
 public class MasterMockTest {
 
+  private InteractionProtocol protocol = mock(InteractionProtocol.class);
+
   @Test
   public void testBecomeMaster() throws Exception {
-    InteractionProtocol protocol = mock(InteractionProtocol.class);
     final Master master = new Master(protocol, false);
 
     OperationQueue masterQueue = mockBlockingOperationQueue();
@@ -50,7 +59,6 @@ public class MasterMockTest {
 
   @Test
   public void testBecomeSecMaster() throws Exception {
-    InteractionProtocol protocol = mock(InteractionProtocol.class);
     final Master master = new Master(protocol, false);
 
     when(protocol.publishMaster(master)).thenReturn(null);
@@ -63,7 +71,6 @@ public class MasterMockTest {
 
   @Test
   public void testDisconnectReconnect() throws Exception {
-    InteractionProtocol protocol = mock(InteractionProtocol.class);
     final Master master = new Master(protocol, false);
 
     OperationQueue masterQueue = mockBlockingOperationQueue();
@@ -100,10 +107,31 @@ public class MasterMockTest {
     checkStartStop(false, zkServer);
   }
 
-  // TODO test disconnect ?
+  @Test
+  public void testRemoveOldNodeShards() throws Exception {
+    final Master master = new Master(protocol, false);
+
+    String nodeName = "node1";
+    OperationQueue masterQueue = mockBlockingOperationQueue();
+    when(protocol.publishMaster(master)).thenReturn(masterQueue);
+    when(protocol.getLiveNodes()).thenReturn(Arrays.asList(nodeName));
+    when(protocol.registerNodeListener(eq(master), any(IAddRemoveListener.class))).thenReturn(Arrays.asList(nodeName));
+
+    List<String> shards = Arrays.asList("shard1", "shard2");
+    when(protocol.getNodeShards(nodeName)).thenReturn(shards);
+    master.start();
+
+    assertTrue(master.isMaster());
+    TestUtil.waitOnLeaveSafeMode(master);
+    ArgumentCaptor<LeaderOperation> argument = ArgumentCaptor.forClass(LeaderOperation.class);
+    verify(protocol).addLeaderOperation(argument.capture());
+    assertTrue(argument.getValue() instanceof RemoveSuperfluousShardsOperation);
+    assertEquals(nodeName, ((RemoveSuperfluousShardsOperation) argument.getValue()).getNodeName());
+    master.shutdown();
+  }
+
   private void checkStartStop(boolean shutdownClient, ZkServer zkServer) throws KattaException, InterruptedException,
           Exception {
-    InteractionProtocol protocol = mock(InteractionProtocol.class);
     final Master master;
     if (zkServer != null) {
       master = new Master(protocol, zkServer);

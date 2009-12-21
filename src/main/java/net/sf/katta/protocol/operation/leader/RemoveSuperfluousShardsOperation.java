@@ -20,6 +20,10 @@ public class RemoveSuperfluousShardsOperation implements LeaderOperation<Operati
     _nodeName = nodeName;
   }
 
+  public String getNodeName() {
+    return _nodeName;
+  }
+
   @Override
   public List<OperationId> execute(LeaderContext context) throws Exception {
     InteractionProtocol protocol = context.getProtocol();

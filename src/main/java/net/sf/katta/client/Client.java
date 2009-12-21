@@ -30,33 +30,29 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import net.sf.katta.index.IndexMetaData;
+import net.sf.katta.protocol.ConnectedComponent;
+import net.sf.katta.protocol.IAddRemoveListener;
+import net.sf.katta.protocol.InteractionProtocol;
+import net.sf.katta.protocol.metadata.IndexMetaData;
+import net.sf.katta.protocol.metadata.IndexMetaData.Shard;
 import net.sf.katta.util.ClientConfiguration;
-import net.sf.katta.util.CollectionUtil;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.ZkConfiguration;
 import net.sf.katta.util.ZkKattaUtil;
+import net.sf.katta.util.ZkConfiguration.PathDef;
 
-import org.I0Itec.zkclient.IZkChildListener;
 import org.I0Itec.zkclient.IZkDataListener;
-import org.I0Itec.zkclient.ZkClient;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.ipc.RPC;
 import org.apache.hadoop.ipc.VersionedProtocol;
 import org.apache.log4j.Logger;
 
-public class Client implements IShardProxyManager {
+public class Client implements IShardProxyManager, ConnectedComponent {
 
   protected final static Logger LOG = Logger.getLogger(Client.class);
   private static final String[] ALL_INDICES = new String[] { "*" };
 
-  protected final ZkConfiguration _zkConfig;
-  protected ZkClient _zkClient;
   protected final Class<? extends VersionedProtocol> _serverClass;
-
-  private final IndexStateListener _indexStateListener = new IndexStateListener();
-  private final IndexPathListener _indexPathChangeListener = new IndexPathListener();
-  private final ShardNodeListener _shardNodeListener = new ShardNodeListener();
 
   protected final Map<String, List<String>> _indexToShards = new HashMap<String, List<String>>();
   protected final Map<String, VersionedProtocol> _node2ProxyMap = new HashMap<String, VersionedProtocol>();
@@ -68,6 +64,7 @@ public class Client implements IShardProxyManager {
   private Configuration _hadoopConf = new Configuration();
   private final ClientConfiguration _clientConfiguration;
   private final int _maxTryCount;
+  protected InteractionProtocol _protocol;
 
   public Client(Class<? extends VersionedProtocol> serverClass) {
     this(serverClass, new DefaultNodeSelectionPolicy(), new ZkConfiguration());
@@ -82,12 +79,18 @@ public class Client implements IShardProxyManager {
   }
 
   public Client(Class<? extends VersionedProtocol> serverClass, final INodeSelectionPolicy policy,
-      final ZkConfiguration zkConfig) {
+          final ZkConfiguration zkConfig) {
     this(serverClass, policy, zkConfig, new ClientConfiguration());
   }
 
   public Client(Class<? extends VersionedProtocol> serverClass, final INodeSelectionPolicy policy,
-      final ZkConfiguration zkConfig, ClientConfiguration clientConfiguration) {
+          final ZkConfiguration zkConfig, ClientConfiguration clientConfiguration) {
+    this(serverClass, policy, new InteractionProtocol(ZkKattaUtil.startZkClient(zkConfig, 60000), zkConfig),
+            clientConfiguration);
+  }
+
+  public Client(Class<? extends VersionedProtocol> serverClass, final INodeSelectionPolicy policy,
+          final InteractionProtocol protocol, ClientConfiguration clientConfiguration) {
     Set<String> keys = clientConfiguration.getKeys();
     for (String key : keys) {
       // simply set all properties / adding non-hadoop properties shouldn't hurt
@@ -96,39 +99,50 @@ public class Client implements IShardProxyManager {
 
     _serverClass = serverClass;
     _selectionPolicy = policy;
-    _zkConfig = zkConfig;
+    _protocol = protocol;
     _clientConfiguration = clientConfiguration;
     _maxTryCount = _clientConfiguration.getInt(ClientConfiguration.CLIENT_NODE_INTERACTION_MAXTRYCOUNT);
 
-    // TODO PVo should we really start a new ZkClient here?
-    _zkClient = ZkKattaUtil.startZkClient(zkConfig, 60000);
-    String indicesPath = zkConfig.getZKIndicesPath();
-    List<String> indexList = _zkClient.subscribeChildChanges(indicesPath, _indexPathChangeListener);
-    LOG.info("children=" + indexList);
+    List<String> indexList = _protocol.registerChildListener(this, PathDef.INDICES_METADATA, new IAddRemoveListener() {
+      @Override
+      public void removed(String name) {
+        removeIndex(name);
+      }
+
+      @Override
+      public void added(String name) {
+        IndexMetaData indexMD = _protocol.getIndexMD(name);
+        if (isIndexSearchable(indexMD)) {
+          addIndexForSearching(indexMD);
+        } else {
+          addIndexForWatching(name);
+        }
+      }
+    });
+    LOG.info("indices=" + indexList);
     addOrWatchNewIndexes(indexList);
     _startupTime = System.currentTimeMillis();
+
   }
 
   // --------------- Proxy handling ----------------------
 
-  protected void updateSelectionPolicy(final String shardName, List<String> nodes) {
-    List<String> connectedNodes = eastablishNodeProxiesIfNecessary(nodes);
-    _selectionPolicy.update(shardName, connectedNodes);
-  }
-
-  private List<String> eastablishNodeProxiesIfNecessary(List<String> nodes) {
-    List<String> connectedNodes = new ArrayList<String>(nodes);
-    for (String node : nodes) {
-      if (!_node2ProxyMap.containsKey(node)) {
-        try {
+  /**
+   * @param node
+   * @return true if connection could be or is established
+   */
+  protected boolean eastablishNodeProxyIfNecessary(String node) {
+    try {
+      synchronized (_node2ProxyMap) {
+        if (!_node2ProxyMap.containsKey(node)) {
           _node2ProxyMap.put(node, createNodeProxy(node));
-        } catch (Exception e) {
-          connectedNodes.remove(node);
-          LOG.warn("Could not create proxy for node '" + node + "' - " + e.getClass().getSimpleName());
         }
+        return true;
       }
+    } catch (Exception e) {
+      LOG.warn("Could not create proxy for node '" + node + "' - " + e.getClass().getSimpleName());
+      return false;
     }
-    return connectedNodes;
   }
 
   protected VersionedProtocol createNodeProxy(final String node) throws IOException {
@@ -150,42 +164,92 @@ public class Client implements IShardProxyManager {
 
   protected void removeIndexes(List<String> indexes) {
     for (String index : indexes) {
-      List<String> shards = _indexToShards.remove(index);
-      for (String shard : shards) {
-        _selectionPolicy.remove(shard);
-      }
+      removeIndex(index);
+    }
+  }
+
+  protected void removeIndex(String index) {
+    List<String> shards = _indexToShards.remove(index);
+    for (String shard : shards) {
+      _selectionPolicy.remove(shard);
     }
   }
 
   protected void addOrWatchNewIndexes(List<String> indexes) {
     for (String index : indexes) {
-      String indexZkPath = _zkConfig.getOldZKIndexPath(index);
-      IndexMetaData indexMetaData = _zkClient.readData(indexZkPath);
-      if (isIndexSearchable(indexMetaData)) {
-        addIndexForSearching(index, indexZkPath);
+      IndexMetaData indexMD = _protocol.getIndexMD(index);
+      if (isIndexSearchable(indexMD)) {
+        addIndexForSearching(indexMD);
       } else {
-        addIndexForWatching(indexZkPath);
+        addIndexForWatching(index);
       }
     }
   }
 
-  protected void addIndexForWatching(final String indexZkPath) {
-    _zkClient.subscribeDataChanges(indexZkPath, _indexStateListener);
+  protected void addIndexForWatching(final String indexName) {
+    _protocol.registerDataListener(this, PathDef.INDICES_METADATA, indexName, new IZkDataListener() {
+      @Override
+      public void handleDataDeleted(String dataPath) throws Exception {
+        // handled through IndexPathListener
+      }
+
+      @Override
+      public void handleDataChange(String dataPath, Serializable data) throws Exception {
+        IndexMetaData metaData = (IndexMetaData) data;
+        if (isIndexSearchable(metaData)) {
+          addIndexForSearching(metaData);
+          _protocol.unregisterDataChanges(Client.this, dataPath, this);
+        }
+      }
+    });
   }
 
-  protected void addIndexForSearching(String indexName, String indexZkPath) {
-    final List<String> shards = _zkClient.getChildren(indexZkPath);
-    _indexToShards.put(indexName, shards);
-    for (final String shardName : shards) {
-      String shardToNodePath = _zkConfig.getZKShardToNodePath(shardName);
-      List<String> nodes = _zkClient.subscribeChildChanges(shardToNodePath, _shardNodeListener);
-      updateSelectionPolicy(shardName, nodes);
+  protected void addIndexForSearching(IndexMetaData indexMD) {
+    final Set<Shard> shards = indexMD.getShards();
+    List<String> shardNames = new ArrayList<String>();
+    for (Shard shard : shards) {
+      shardNames.add(shard.getName());
+    }
+    _indexToShards.put(indexMD.getName(), shardNames);
+    for (final String shardName : shardNames) {
+      List<String> nodes = _protocol.registerChildListener(this, PathDef.SHARD_TO_NODES, shardName,
+              new IAddRemoveListener() {
+                @Override
+                public void removed(String name) {
+                  LOG.info("shard " + shardName + ": removed node " + name);
+                  Collection<String> shardNodes = _selectionPolicy.getShardNodes(shardName);
+                  shardNodes.remove(shardName);
+                  _selectionPolicy.update(shardName, shardNodes);
+                }
+
+                @Override
+                public void added(String name) {
+                  LOG.info("shard " + shardName + ": added node " + name);
+                  boolean connectionEstablished = eastablishNodeProxyIfNecessary(name);
+                  if (connectionEstablished) {
+                    Collection<String> shardNodes = _selectionPolicy.getShardNodes(shardName);
+                    shardNodes.add(shardName);
+                    _selectionPolicy.update(shardName, shardNodes);
+                  }
+                }
+              });
+      Collection<String> shardNodes = new ArrayList<String>(3);
+      for (String node : nodes) {
+        boolean connectionEstablished = eastablishNodeProxyIfNecessary(node);
+        if (connectionEstablished) {
+          shardNodes.add(node);
+        }
+      }
+      _selectionPolicy.update(shardName, shardNodes);
     }
   }
 
-  protected boolean isIndexSearchable(final IndexMetaData indexMetaData) {
-    return indexMetaData.getState() == IndexMetaData.IndexState.DEPLOYED
-            || indexMetaData.getState() == IndexMetaData.IndexState.REPLICATING;
+  protected boolean isIndexSearchable(final IndexMetaData indexMD) {
+    if (indexMD.getDeployError() != null) {
+      return false;
+    }
+    // TODO jz check replication report ?
+    return true;
   }
 
   // --------------- Distributed calls to servers ----------------------
@@ -333,7 +397,6 @@ public class Client implements IShardProxyManager {
 
     WorkQueue<T> workQueue = new WorkQueue<T>(this, allShards, method, shardArrayParamIndex, args);
 
-    
     for (String node : nodeShardsMap.keySet()) {
       workQueue.execute(node, nodeShardsMap, 1, _maxTryCount);
     }
@@ -347,7 +410,7 @@ public class Client implements IShardProxyManager {
     return results;
   }
 
-  // --------------------- IShardManager ----------------------------
+  // --------------------- IShardProxyManager ----------------------------
 
   // NodeInteractions will use these methods.
 
@@ -356,7 +419,9 @@ public class Client implements IShardProxyManager {
   }
 
   public void nodeFailed(String node, Throwable t) {
-    _node2ProxyMap.remove(node);
+    synchronized (_node2ProxyMap) {
+      _node2ProxyMap.remove(node);
+    }
     _selectionPolicy.removeNode(node);
   }
 
@@ -408,60 +473,25 @@ public class Client implements IShardProxyManager {
   }
 
   public void close() {
-    if (_zkClient != null) {
-      _zkClient.close();
+    if (_protocol != null) {
+      _protocol.disconnect();
       Collection<VersionedProtocol> proxies = _node2ProxyMap.values();
       for (VersionedProtocol search : proxies) {
         RPC.stopProxy(search);
       }
-      _zkClient = null;
+      _protocol = null;
     }
   }
 
-  protected class IndexStateListener implements IZkDataListener {
-
-    public void handleDataDeleted(String dataPath) throws KattaException {
-      // handled through IndexPathListener
-    }
-
-    public IndexMetaData createWritable() {
-      return new IndexMetaData();
-    }
-
-    @Override
-    public void handleDataChange(String dataPath, Serializable data) throws Exception {
-      IndexMetaData metaData = (IndexMetaData) data;
-      final String indexName = _zkConfig.getZKName(dataPath);
-      if (isIndexSearchable(metaData)) {
-        addIndexForSearching(indexName, dataPath);
-        _zkClient.unsubscribeDataChanges(dataPath, this);
-      }
-    }
-
+  @Override
+  public void disconnect() {
+    // nothing to do - only connection to zk dropped. Proxies might still be
+    // availible.
   }
 
-  protected class IndexPathListener implements IZkChildListener {
-
-    public void handleChildChange(String parentPath, List<String> currentIndexes) throws KattaException {
-      Set<String> indexes = _indexToShards.keySet();
-      addOrWatchNewIndexes(CollectionUtil.getListOfAdded(indexes, currentIndexes));
-
-      List<String> removedIndexes = CollectionUtil.getListOfRemoved(indexes, currentIndexes);
-      removeIndexes(removedIndexes);
-    }
-
-  }
-
-  protected class ShardNodeListener implements IZkChildListener {
-
-    public void handleChildChange(String parentPath, List<String> currentNodes) throws KattaException {
-      LOG.info("got shard (" + parentPath + ") event: " + currentNodes);
-      final String shardName = _zkConfig.getZKName(parentPath);
-
-      // update shard2Nodes mapping
-      updateSelectionPolicy(shardName, currentNodes);
-    }
-
+  @Override
+  public void reconnect() {
+    // TODO re-read index information ?
   }
 
 }

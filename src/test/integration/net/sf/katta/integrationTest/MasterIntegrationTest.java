@@ -7,7 +7,7 @@ import static org.junit.Assert.assertTrue;
 import java.io.File;
 import java.util.Set;
 
-import net.sf.katta.integrationTest.support.KattaMiniCluster;
+import net.sf.katta.integrationTest.support.AbstractIntegrationTest;
 import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.protocol.metadata.IndexMetaData;
 import net.sf.katta.protocol.metadata.IndexDeployError.ErrorType;
@@ -16,50 +16,10 @@ import net.sf.katta.protocol.operation.leader.IndexDeployOperation;
 import net.sf.katta.protocol.operation.leader.IndexUndeployOperation;
 import net.sf.katta.testutil.TestResources;
 import net.sf.katta.testutil.TestUtil;
-import net.sf.katta.util.FileUtil;
-import net.sf.katta.util.NodeConfiguration;
-import net.sf.katta.util.ZkConfiguration;
 
-import org.junit.After;
 import org.junit.Test;
 
-public class MasterIntegrationTest {
-
-  // TODO let the cluster run, but cleanup indices ?
-  private KattaMiniCluster _miniCluster;
-  private final static File INDEX_FILE = TestResources.INDEX1;
-  private final static String INDEX_NAME = TestResources.INDEX1.getName() + 0;
-  private final static int SHARD_COUNT = INDEX_FILE.list(FileUtil.VISIBLE_FILES_FILTER).length;
-
-  @After
-  public void tearDown() throws Exception {
-    if (_miniCluster != null) {
-      _miniCluster.stop();
-    }
-  }
-
-  private KattaMiniCluster startMiniCluster(int nodeCount, int indexCount, int replicationCount) throws Exception {
-    ZkConfiguration conf = new ZkConfiguration();
-    FileUtil.deleteFolder(new File(conf.getZKDataDir()));
-    FileUtil.deleteFolder(new File(conf.getZKDataLogDir()));
-    FileUtil.deleteFolder(new NodeConfiguration().getShardFolder());
-
-    // start katta cluster
-    KattaMiniCluster miniCluster = new KattaMiniCluster(conf, nodeCount);
-    miniCluster.start();
-
-    miniCluster.deployTestIndexes(INDEX_FILE, indexCount, replicationCount);
-    return miniCluster;
-  }
-
-  private int countShardDeployments(InteractionProtocol protocol, String indexName) {
-    IndexMetaData indexMD = protocol.getIndexMD(indexName);
-    int shardDeployCount = 0;
-    for (Shard shard : indexMD.getShards()) {
-      shardDeployCount += protocol.getShardNodes(shard.getName()).size();
-    }
-    return shardDeployCount;
-  }
+public class MasterIntegrationTest extends AbstractIntegrationTest {
 
   @Test(timeout = 20000)
   public void testDeployAndUndeployIndex() throws Exception {
