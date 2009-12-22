@@ -21,6 +21,7 @@ import org.apache.log4j.Logger;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 
 /**
@@ -29,6 +30,7 @@ import org.junit.Rule;
  * test method. If not restarted, the deployed indices are removed between test
  * methods. Also nodes are restarted if shut down during a test.
  */
+@Ignore
 public abstract class AbstractIntegrationTest {
 
   final static Logger LOG = Logger.getLogger(AbstractIntegrationTest.class);

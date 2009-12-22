@@ -13,15 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package net.sf.katta.client;
+package net.sf.katta.integrationTest.lib.sleep;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-import net.sf.katta.AbstractKattaTest;
-import net.sf.katta.master.Master;
-import net.sf.katta.node.Node;
+import net.sf.katta.client.DefaultNodeSelectionPolicy;
+import net.sf.katta.client.DeployClient;
+import net.sf.katta.client.IDeployClient;
+import net.sf.katta.integrationTest.support.AbstractIntegrationTest;
 import net.sf.katta.testutil.TestResources;
 import net.sf.katta.util.ClientConfiguration;
 import net.sf.katta.util.ISleepClient;
@@ -29,44 +34,37 @@ import net.sf.katta.util.KattaException;
 import net.sf.katta.util.SleepClient;
 import net.sf.katta.util.SleepServer;
 
+import org.junit.AfterClass;
+import org.junit.Test;
+
 /**
  * Test for {@link SleepClient}.
  */
-public class SleepClientTest extends AbstractKattaTest {
+public class SleepClientTest extends AbstractIntegrationTest {
 
-  private static final String INDEX1 = "index1";
-  private static final String[] INDEX_1 = { INDEX1 };
+  protected static final String INDEX1 = "index1";
+  protected static final String[] INDEX_1 = { INDEX1 };
 
-  private static Node _node1;
-  private static Master _master;
-  private static IDeployClient _deployClient;
-  private static ISleepClient _client;
+  protected static ISleepClient _client;
 
   public SleepClientTest() {
-    super(false);
+    super(SleepServer.class, 1, false, false);
   }
 
   @Override
-  protected void onBeforeClass() throws Exception {
-    MasterStartThread masterStartThread = startMaster();
-    _master = masterStartThread.getMaster();
-
-    _node1 = startNode(masterStartThread, new SleepServer());
-
-    waitOnNodes(masterStartThread, 1);
-
-    _deployClient = new DeployClient(_node1.getProtocol());
-    _deployClient.addIndex(INDEX1, TestResources.MAP_FILE_A.getAbsolutePath(), 1).joinDeployment();
-    _client = new SleepClient(new DefaultNodeSelectionPolicy(), _conf, new ClientConfiguration());
+  protected void afterClusterStart() throws Exception {
+    IDeployClient deployClient = new DeployClient(_miniCluster.getProtocol());
+    deployClient.addIndex(INDEX1, TestResources.MAP_FILE_A.getAbsolutePath(), 1).joinDeployment();
+    _client = new SleepClient(new DefaultNodeSelectionPolicy(), _miniCluster.getZkConfiguration(),
+            new ClientConfiguration());
   }
 
-  @Override
-  protected void onAfterClass() throws Exception {
+  @AfterClass
+  public static void onAfterClass() throws Exception {
     _client.close();
-    _node1.shutdown();
-    _master.shutdown();
   }
 
+  @Test
   public void testDelay() throws KattaException {
     long start = System.currentTimeMillis();
     _client.sleepIndices(0, INDEX_1);
@@ -79,6 +77,7 @@ public class SleepClientTest extends AbstractKattaTest {
     assertTrue(d2 - d1 > 200);
   }
 
+  @Test
   public void testMultiThreadedAccess() throws Exception {
     Random rand = new Random("sleepy".hashCode());
     List<Thread> threads = new ArrayList<Thread>();

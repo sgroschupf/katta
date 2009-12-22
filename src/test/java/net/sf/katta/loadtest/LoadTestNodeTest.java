@@ -15,46 +15,51 @@
  */
 package net.sf.katta.loadtest;
 
-import net.sf.katta.AbstractKattaTest;
-import net.sf.katta.client.DeployClient;
-import net.sf.katta.testutil.TestResources;
 import net.sf.katta.util.KattaException;
 
-public class LoadTestNodeTest extends AbstractKattaTest {
+import org.junit.Ignore;
+import org.junit.Test;
 
-//  private static final String INDEX1 = "index1";
+public class LoadTestNodeTest {
 
+  // private static final String INDEX1 = "index1";
+
+  @Test
+  @Ignore
   public void testShutdown() throws KattaException {
-// TODO: port load test to new client/server setup.
-//
-//    LoadTestNode node = startLoadTestNode();
-//    node.shutdown();
+    // TODO: port load test to new client/server setup.
+    //
+    // LoadTestNode node = startLoadTestNode();
+    // node.shutdown();
   }
 
+  @Test
+  @Ignore
   public void testStartSearch() throws KattaException, InterruptedException {
-// TODO: port load test to new client/server setup.
-//
-//    startMaster();
-//    startNode();
-//
-//    DeployClient deployClient = new DeployClient(_zkConf);
-//    deployClient.addIndex(INDEX1, TestResources.INDEX1.getAbsolutePath(), 1).joinDeployment();
-//
-//    LoadTestNode node = startLoadTestNode();
-//    node.initTest(10, new String[] { INDEX1 }, new String[] {"test"}, 10);
-//    node.startTest();
-//    Thread.sleep(5000);
-//    node.stopTest();
-//
-//    LoadTestQueryResult[] results = node.getResults();
-//    for (LoadTestQueryResult result : results) {
-//      assertTrue(result.getEndTime() != -1);
-//    }
-//
-//    // we should have executed 50 queries in 5s
-//    assertTrue(results.length >= 40);
-//    assertTrue("Queries per 500ms: " + results.length, results.length <= 60);
-//
-//    node.shutdown();
+    // TODO: port load test to new client/server setup.
+    //
+    // startMaster();
+    // startNode();
+    //
+    // DeployClient deployClient = new DeployClient(_zkConf);
+    // deployClient.addIndex(INDEX1, TestResources.INDEX1.getAbsolutePath(),
+    // 1).joinDeployment();
+    //
+    // LoadTestNode node = startLoadTestNode();
+    // node.initTest(10, new String[] { INDEX1 }, new String[] {"test"}, 10);
+    // node.startTest();
+    // Thread.sleep(5000);
+    // node.stopTest();
+    //
+    // LoadTestQueryResult[] results = node.getResults();
+    // for (LoadTestQueryResult result : results) {
+    // assertTrue(result.getEndTime() != -1);
+    // }
+    //
+    // // we should have executed 50 queries in 5s
+    // assertTrue(results.length >= 40);
+    // assertTrue("Queries per 500ms: " + results.length, results.length <= 60);
+    //
+    // node.shutdown();
   }
 }

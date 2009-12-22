@@ -60,7 +60,6 @@ public class NodeIntegrationTest extends AbstractIntegrationTest {
     final InteractionProtocol protocol = _miniCluster.getProtocol();
     assertEquals(1, protocol.getIndices().size());
     Node node = _miniCluster.getNode(0);
-    _protocol.showStructure();
     TestUtil.waitUntilNodeServesShards(protocol, node.getName(), SHARD_COUNT);
 
     // we should have 4 folders in our working folder now.

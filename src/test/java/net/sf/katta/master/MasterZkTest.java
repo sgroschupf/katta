@@ -21,21 +21,19 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 
-import java.util.Collections;
 import java.util.List;
 
 import net.sf.katta.AbstractZkTest;
 import net.sf.katta.node.Node;
 import net.sf.katta.protocol.metadata.NodeMetaData;
 import net.sf.katta.protocol.operation.leader.LeaderOperation;
+import net.sf.katta.protocol.operation.leader.LeaderOperation.ExecutionInstruction;
 import net.sf.katta.testutil.mockito.SerializableCountDownLatchAnswer;
 import net.sf.katta.util.KattaException;
 
 import org.junit.Test;
 
 public class MasterZkTest extends AbstractZkTest {
-
-  private static final List EMPTY_LIST = Collections.EMPTY_LIST;
 
   @Test
   public void testShutdown_shouldCleanupZkClientSubscriptions() throws KattaException {
@@ -57,8 +55,12 @@ public class MasterZkTest extends AbstractZkTest {
     LeaderOperation operation2 = mock(LeaderOperation.class, withSettings().serializable());
 
     SerializableCountDownLatchAnswer answer = new SerializableCountDownLatchAnswer(2);
-    when(operation1.execute((LeaderContext) notNull(), EMPTY_LIST)).thenAnswer(answer);
-    when(operation2.execute((LeaderContext) notNull(), EMPTY_LIST)).thenAnswer(answer);
+    when(operation1.getExecutionInstruction((List<LeaderOperation>) notNull()))
+            .thenReturn(ExecutionInstruction.EXECUTE);
+    when(operation2.getExecutionInstruction((List<LeaderOperation>) notNull()))
+            .thenReturn(ExecutionInstruction.EXECUTE);
+    when(operation1.execute((LeaderContext) notNull(), (List<LeaderOperation>) notNull())).thenAnswer(answer);
+    when(operation2.execute((LeaderContext) notNull(), (List<LeaderOperation>) notNull())).thenAnswer(answer);
     _protocol.addLeaderOperation(operation1);
     _protocol.addLeaderOperation(operation2);
     answer.getCountDownLatch().await();

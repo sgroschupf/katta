@@ -93,6 +93,10 @@ public class ZkTestSystem extends ExternalResource {
     return new InteractionProtocol(_zkServer.getZkClient(), _conf);
   }
 
+  public InteractionProtocol createInteractionProtocol() {
+    return new InteractionProtocol(createZkClient(), _conf);
+  }
+
   public ZkConfiguration getZkConf() {
     return _conf;
   }

@@ -15,53 +15,59 @@
  */
 package net.sf.katta;
 
+import static org.junit.Assert.assertEquals;
 import net.sf.katta.master.Master;
 import net.sf.katta.node.LuceneServer;
 import net.sf.katta.node.Node;
 import net.sf.katta.protocol.InteractionProtocol;
+import net.sf.katta.testutil.TestUtil;
+import net.sf.katta.util.FileUtil;
+import net.sf.katta.util.NodeConfiguration;
 import net.sf.katta.util.ZkConfiguration;
 import net.sf.katta.util.ZkKattaUtil;
 
 import org.I0Itec.zkclient.Gateway;
 import org.I0Itec.zkclient.ZkClient;
+import org.junit.Test;
 
-public class NodeMasterReconnectTest extends AbstractKattaTest {
+public class NodeMasterReconnectTest extends AbstractZkTest {
 
   private static final int GATEWAY_PORT = 2190;
-  private static final int ZK_SERVER_PORT = 2181;
 
+  @Test(timeout = 50000)
   public void testReconnectNode() throws Exception {
+    final Master master = new Master(_zk.getInteractionProtocol(), false);
+
+    // startup node over gateway
     final ZkConfiguration gatewayConf = new ZkConfiguration();
+    gatewayConf.setZKRootPath(_zk.getZkConf().getZKRootPath());
     gatewayConf.setZKServers("localhost:" + GATEWAY_PORT);
-
-    // startup the system
-    Gateway gateway = new Gateway(GATEWAY_PORT, ZK_SERVER_PORT);
+    Gateway gateway = new Gateway(GATEWAY_PORT, _zk.getServerPort());
     gateway.start();
-
-    final MasterStartThread masterStartThread = startMaster();
-    final Master master = masterStartThread.getMaster();
     final ZkClient zkGatewayClient = ZkKattaUtil.startZkClient(gatewayConf, 30000);
     InteractionProtocol gatewayProtocol = new InteractionProtocol(zkGatewayClient, gatewayConf);
+    FileUtil.deleteFolder(new NodeConfiguration().getShardFolder());
     final Node node = new Node(gatewayProtocol, new LuceneServer());
     node.start();
-    masterStartThread.join();
 
     // check node-master link
-    waitOnNodes(masterStartThread, 1);
-    assertTrue(master.getConnectedNodes().contains(node.getName()));
+    master.start();
+    TestUtil.waitOnLeaveSafeMode(master);
+    TestUtil.waitUntilNumberOfLiveNode(_protocol, 1);
+    assertEquals(1, _protocol.getLiveNodes().size());
 
     // now break the node connection
     gateway.stop();
-    waitOnNodesInService(masterStartThread, 0);
+    TestUtil.waitUntilNumberOfLiveNode(_protocol, 0);
 
     // now fix the node connection
     gateway.start();
-    waitOnNodesInService(masterStartThread, 1);
+    TestUtil.waitUntilNumberOfLiveNode(_protocol, 1);
 
     // cleanup
     node.shutdown();
+    master.shutdown();
     zkGatewayClient.close();
-    masterStartThread.shutdown();
     gateway.stop();
   }
 }

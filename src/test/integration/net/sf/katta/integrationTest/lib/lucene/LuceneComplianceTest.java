@@ -97,6 +97,7 @@ public class LuceneComplianceTest extends AbstractIntegrationTest {
 
   @AfterClass
   public static void afterClass() {
+    _client.close();
     FileUtil.deleteFolder(_kattaIndex);
     FileUtil.deleteFolder(_luceneIndex);
   }

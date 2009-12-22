@@ -66,8 +66,14 @@ public class KattaMiniCluster {
     _nodeStartPort = nodeStartPort;
   }
 
+  public void setZkServer(ZkServer zkServer) {
+    _zkServer = zkServer;
+  }
+
   public void start() throws Exception {
-    _zkServer = ZkKattaUtil.startZkServer(_zkConfiguration);
+    if (_zkServer == null) {
+      _zkServer = ZkKattaUtil.startZkServer(_zkConfiguration);
+    }
     _protocol = new InteractionProtocol(_zkServer.getZkClient(), _zkConfiguration);
     NodeConfiguration nodeConfiguration = new NodeConfiguration();
     nodeConfiguration.setStartPort(_nodeStartPort);
@@ -107,6 +113,10 @@ public class KattaMiniCluster {
   }
 
   public void stop() {
+    stop(true);
+  }
+
+  public void stop(boolean stopZookeeper) {
     for (Node node : _nodes) {
       if (node.isRunning()) {
         node.shutdown();
@@ -121,7 +131,9 @@ public class KattaMiniCluster {
       _secondaryMaster.shutdown();
     }
     _master.shutdown();
-    _zkServer.shutdown();
+    if (stopZookeeper) {
+      _zkServer.shutdown();
+    }
   }
 
   public Node getNode(int i) {

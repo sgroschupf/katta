@@ -53,7 +53,6 @@ import org.apache.lucene.queryParser.ParseException;
 import org.apache.lucene.queryParser.QueryParser;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.Sort;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -75,12 +74,6 @@ public class LuceneClientTest extends AbstractIntegrationTest {
     super(2);
   }
 
-  @Before
-  public void setupClient() {
-    // TODO Auto-generated method stub
-
-  }
-
   @Test
   public void testInstantiateClientBeforeIndex() throws Exception {
     ILuceneClient client = new LuceneClient(_miniCluster.getZkConfiguration());
@@ -89,6 +82,7 @@ public class LuceneClientTest extends AbstractIntegrationTest {
     for (Node node : nodes) {
       TestUtil.waitUntilNodeServesShards(_protocol, node.getName(), SHARD_COUNT);
     }
+    Thread.sleep(2000);
 
     final Query query = new QueryParser("", new KeywordAnalyzer()).parse("content: the");
     client.count(query, new String[] { INDEX_NAME });

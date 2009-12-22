@@ -13,70 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package net.sf.katta;
+package net.sf.katta.client.lucene;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 
-import net.sf.katta.client.ILuceneClient;
-import net.sf.katta.client.LuceneClient;
 import net.sf.katta.node.Hit;
 import net.sf.katta.node.Hits;
-import net.sf.katta.node.LuceneServer;
-import net.sf.katta.node.Query;
-import net.sf.katta.testutil.TestResources;
-import net.sf.katta.util.KattaException;
 
-import org.I0Itec.zkclient.ZkClient;
+import org.junit.Test;
 
-public class PerformanceTest extends AbstractKattaTest {
+public class HitSortPerformanceTest {
 
   final int _hitCount = 200000;
 
-  public static void main(final String[] args) throws InterruptedException, KattaException {
-    final PerformanceTest p = new PerformanceTest();
-    p.start();
-  }
-
-  private void start() throws InterruptedException, KattaException {
-    startZkServer();
-    MasterStartThread masterStartThread = startMaster();
-    final ZkClient zkClientMaster = masterStartThread.getZkClient();
-
-    NodeStartThread nodeStartThread1 = startNode(new LuceneServer());
-    NodeStartThread nodeStartThread2 = startNode(new LuceneServer());
-    masterStartThread.join();
-    nodeStartThread1.join();
-    nodeStartThread2.join();
-    waitForChilds(zkClientMaster, _conf.getZKNodesPath(), 2);
-
-    final Katta katta = new Katta(_conf);
-    katta.addIndex("index1", TestResources.INDEX1.getAbsolutePath(), 1);
-    katta.addIndex("index2", TestResources.INDEX2.getAbsolutePath(), 1);
-
-    final ILuceneClient client = new LuceneClient(_conf);
-    final Query query = new Query("foo: bar");
-    long start = System.currentTimeMillis();
-    for (int i = 0; i < 10000; i++) {
-      client.search(query, new String[] { "index2", "index1" });
-    }
-    System.out.println("search took: " + (System.currentTimeMillis() - start));
-
-    start = System.currentTimeMillis();
-    for (int i = 0; i < 10000; i++) {
-      client.count(query, new String[] { "index2", "index1" });
-    }
-    System.out.println("count took: " + (System.currentTimeMillis() - start));
-    katta.close();
-    client.close();
-    nodeStartThread1.shutdown();
-    nodeStartThread2.shutdown();
-    masterStartThread.shutdown();
-    stopZkServer();
-  }
-
+  @Test
   public void testSortSpeed() {
     sortCollection(setupHits());
     sortMerge(setupHits());
@@ -84,6 +37,7 @@ public class PerformanceTest extends AbstractKattaTest {
     sortOtherII(setupHits());
   }
 
+  @Test
   public void testSortSpeedWithSortedSublists() {
     sortCollection(setupHitsWithSortedSubLists());
     sortMerge(setupHitsWithSortedSubLists());

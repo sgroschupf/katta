@@ -40,7 +40,7 @@ import net.sf.katta.protocol.operation.node.ShardDeployOperation;
 
 import org.junit.Test;
 
-public class IndexDeployOperationTest extends MockedMasterNodeTest {
+public class IndexDeployOperationTest extends AbstractMasterNodeZkTest {
 
   @Test
   public void testDeployError_NoNodes() throws Exception {

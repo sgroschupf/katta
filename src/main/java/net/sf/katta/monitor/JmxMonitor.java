@@ -48,6 +48,7 @@ public class JmxMonitor implements IMonitor {
   @Override
   public void stopMonitoring() {
     _thread.interrupt();
+    _thread.stop();// TODO KATTA-97 improve
   }
 
   private class JmxMonitorThread extends Thread {

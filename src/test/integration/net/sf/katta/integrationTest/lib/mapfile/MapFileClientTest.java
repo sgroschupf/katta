@@ -36,6 +36,7 @@ import net.sf.katta.testutil.TestResources;
 import net.sf.katta.util.KattaException;
 
 import org.apache.log4j.Logger;
+import org.junit.AfterClass;
 import org.junit.Test;
 
 /**
@@ -67,6 +68,11 @@ public class MapFileClientTest extends AbstractIntegrationTest {
     _client = new MapFileClient(_miniCluster.getZkConfiguration());
   }
 
+  @AfterClass
+  public static void onAfterClass() throws Exception {
+    _client.close();
+  }
+
   @Test
   public void testGetA() throws KattaException {
     assertEquals("This is a test", getOneResult("a.txt", INDEX_1));
@@ -80,7 +86,6 @@ public class MapFileClientTest extends AbstractIntegrationTest {
 
   @Test
   public void testGetB() throws KattaException {
-    _protocol.showStructure();
     assertEquals("Test U text", getOneResult("u.txt", INDEX_2));
     assertEquals("xrays ionize", getOneResult("x.txt", INDEX_2));
     assertMissing("a.txt", INDEX_2);

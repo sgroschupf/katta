@@ -225,4 +225,15 @@ public class TestUtil {
     assertEquals(shardCount, protocol.getNodeShards(nodeName).size());
   }
 
+  public static void waitUntilNumberOfLiveNode(final InteractionProtocol protocol, final int nodeCount)
+          throws Exception {
+    waitUntil(true, new Callable<Boolean>() {
+      @Override
+      public Boolean call() throws Exception {
+        return protocol.getLiveNodes().size() == nodeCount;
+      }
+    }, TimeUnit.SECONDS, 30);
+    assertEquals(nodeCount, protocol.getLiveNodes().size());
+  }
+
 }

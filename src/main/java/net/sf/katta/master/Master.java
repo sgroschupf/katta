@@ -114,6 +114,9 @@ public class Master implements ConnectedComponent {
   }
 
   public boolean isInSafeMode() {
+    if (!isMaster()) {
+      return true;
+    }
     return _operatorThread.isInSafeMode();
   }
 

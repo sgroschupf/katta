@@ -29,10 +29,9 @@ import net.sf.katta.client.DeployClient;
 import net.sf.katta.client.IDeployClient;
 import net.sf.katta.client.IIndexDeployFuture;
 import net.sf.katta.client.ILuceneClient;
+import net.sf.katta.client.IndexState;
 import net.sf.katta.client.LuceneClient;
 import net.sf.katta.index.DeployedShard;
-import net.sf.katta.index.IndexMetaData;
-import net.sf.katta.index.IndexMetaData.IndexState;
 import net.sf.katta.index.indexer.SampleIndexGenerator;
 import net.sf.katta.master.Master;
 import net.sf.katta.monitor.MetricLogger;
@@ -45,8 +44,11 @@ import net.sf.katta.node.LuceneServer;
 import net.sf.katta.node.Node;
 import net.sf.katta.node.Query;
 import net.sf.katta.protocol.InteractionProtocol;
+import net.sf.katta.protocol.ReplicationReport;
+import net.sf.katta.protocol.metadata.IndexDeployError;
+import net.sf.katta.protocol.metadata.IndexMetaData;
 import net.sf.katta.protocol.metadata.NodeMetaData;
-import net.sf.katta.protocol.metadata.ShardError;
+import net.sf.katta.protocol.metadata.IndexMetaData.Shard;
 import net.sf.katta.tool.ZkTool;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.VersionInfo;
@@ -59,8 +61,6 @@ import org.I0Itec.zkclient.ZkServer;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-
-import com.sun.j3d.utils.scenegraph.io.state.javax.media.j3d.NodeState;
 
 /**
  * Provides command line access to a Katta cluster.
@@ -153,11 +153,6 @@ public class Katta {
           replication = Integer.parseInt(args[3]);
         }
         katta.addIndex(args[1], args[2], replication);
-      } else if (command.endsWith("setState")) {
-        if (args.length < 3) {
-          printUsageAndExit();
-        }
-        katta.setState(args[1], args[2]);
       } else if (command.endsWith("removeIndex")) {
         katta.removeIndex(args[1]);
       } else if (command.endsWith("listIndexes") || command.endsWith("listIndices")) {
@@ -269,47 +264,49 @@ public class Katta {
   }
 
   private void redeployIndex(final String indexName) {
-    IndexMetaData indexMetaData = _protocol.getOldIndexMD(indexName);
-    if (indexMetaData == null) {
+    IndexMetaData indexMD = _protocol.getIndexMD(indexName);
+    if (indexMD == null) {
       printError("index '" + indexName + "' does not exist");
       return;
     }
-
     try {
       removeIndex(indexName);
       Thread.sleep(5000);
-      addIndex(indexName, indexMetaData.getPath(), indexMetaData.getReplicationLevel());
+      addIndex(indexName, indexMD.getPath(), indexMD.getReplicationLevel());
     } catch (InterruptedException e) {
       printError("Redeployment of index '" + indexName + "' interrupted.");
     }
-
   }
 
   public void showErrors(final String indexName) {
-    IndexMetaData indexMetaData = _protocol.getOldIndexMD(indexName);
-    if (indexMetaData == null) {
+    IndexMetaData indexMD = _protocol.getIndexMD(indexName);
+    if (indexMD == null) {
       printError("index '" + indexName + "' does not exist");
       return;
     }
-    System.out.println("Error: " + indexMetaData.getErrorMessage());
+    IndexDeployError deployError = indexMD.getDeployError();
+    if (deployError == null) {
+      System.out.println("No error for index '" + indexName + "'");
+      return;
+    }
+    System.out.println("Error Type: " + deployError.getErrorType());
+    if (deployError.getException() != null) {
+      System.out.println("Error Message: " + deployError.getException().getMessage());
+    }
     System.out.println("List of node-errors:");
-    List<String> shards = _protocol.getIndexShards(indexName);
-    Map<String, List<ShardError>> shard2ErrorMap = _protocol.getShard2ErrorMap(shards);
-    for (String shardName : shards) {
-      System.out.println("Shard: " + shardName);
-      if (!shard2ErrorMap.get(shardName).isEmpty()) {
-        List<ShardError> errors = shard2ErrorMap.get(shardName);
-        for (ShardError shardError : errors) {
-          // FIXME jz: shard error should contain node
-          // System.out.print("\tNode: " + shardError.);
-          System.out.println("\tError: " + shardError.getErrorMsg());
+    Set<Shard> shards = indexMD.getShards();
+    for (Shard shard : shards) {
+      List<Exception> shardErrors = deployError.getShardErrors(shard.getName());
+      if (shardErrors != null && !shardErrors.isEmpty()) {
+        System.out.println("errors for shard " + shard.getName() + ": ");
+        for (Exception exception : shardErrors) {
+          System.out.println("\t" + exception.getMessage());
         }
       }
     }
   }
 
   private static void showVersion() {
-    System.out.println("WTF");
     VersionInfo versionInfo = new VersionInfo();
     System.out.println("Katta '" + versionInfo.getVersion() + "'");
     System.out.println("Git-Revision '" + versionInfo.getRevision() + "'");
@@ -423,8 +420,12 @@ public class Katta {
     List<String> indexes = _protocol.getIndices();
     CounterMap<IndexState> indexStateCounterMap = new CounterMap<IndexState>();
     for (String index : indexes) {
-      IndexMetaData indexMetaData = _protocol.getOldIndexMD(index);
-      indexStateCounterMap.increment(indexMetaData.getState());
+      IndexMetaData indexMD = _protocol.getIndexMD(index);
+      if (indexMD.getDeployError() != null) {
+        indexStateCounterMap.increment(IndexState.ERROR);
+      } else {
+        indexStateCounterMap.increment(IndexState.DEPLOYED);
+      }
     }
     Table tableIndexStates = new Table("Index State", "Count");
     Set<IndexState> keySet = indexStateCounterMap.keySet();
@@ -440,16 +441,17 @@ public class Katta {
     System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
     for (String index : indexes) {
       System.out.println("checking " + index + " ...");
-      IndexMetaData indexMetaData = _protocol.getOldIndexMD(index);
-      List<String> shards = _protocol.getIndexShards(index);
-      for (String shard : shards) {
-        int shardReplication = _protocol.getShardReplication(shard);
-        if (shardReplication < indexMetaData.getReplicationLevel()) {
+      IndexMetaData indexMD = _protocol.getIndexMD(index);
+      ReplicationReport replicationReport = _protocol.getReplicationReport(_protocol, indexMD);
+      Set<Shard> shards = indexMD.getShards();
+      for (Shard shard : shards) {
+        int shardReplication = replicationReport.getReplicationCount(shard.getName());
+        if (shardReplication < indexMD.getReplicationLevel()) {
           System.out.println("\tshard " + shard + " is under-replicated (" + shardReplication + "/"
-                  + indexMetaData.getReplicationLevel() + ")");
-        } else if (shardReplication > indexMetaData.getReplicationLevel()) {
+                  + indexMD.getReplicationLevel() + ")");
+        } else if (shardReplication > indexMD.getReplicationLevel()) {
           System.out.println("\tshard " + shard + " is over-replicated (" + shardReplication + "/"
-                  + indexMetaData.getReplicationLevel() + ")");
+                  + indexMD.getReplicationLevel() + ")");
         }
       }
     }
@@ -505,20 +507,17 @@ public class Katta {
   }
 
   public void listNodes() {
-    final List<String> nodes = _protocol.getKnownNodes();
-    int inServiceNodeCount = 0;
+    final List<String> knownNodes = _protocol.getKnownNodes();
+    final List<String> liveNodes = _protocol.getLiveNodes();
     final Table table = new Table();
     int numNodes = 0;
-    for (final String node : nodes) {
+    for (final String node : knownNodes) {
       numNodes++;
       NodeMetaData nodeMetaData = _protocol.getNodeMD(node);
-      NodeState nodeState = nodeMetaData.getState();
-      if (nodeState == NodeState.IN_SERVICE) {
-        inServiceNodeCount++;
-      }
-      table.addRow(nodeMetaData.getName(), nodeMetaData.getStartTimeAsDate(), nodeState.name());
+      table.addRow(nodeMetaData.getName(), nodeMetaData.getStartTimeAsDate(), liveNodes.contains(node) ? "CONNECTED"
+              : "DISCONNECTED");
     }
-    table.setHeader("Name (" + inServiceNodeCount + "/" + numNodes + " nodes connected)", "Start time", "State");
+    table.setHeader("Name (" + liveNodes.size() + "/" + knownNodes.size() + " nodes connected)", "Start time", "State");
     System.out.println(table.toString());
   }
 
@@ -532,15 +531,15 @@ public class Katta {
 
     List<String> indices = _protocol.getIndices();
     for (final String index : indices) {
-      final IndexMetaData metaData = _protocol.getOldIndexMD(index);
-      String state = metaData.getState().toString();
-      List<String> shards = _protocol.getIndexShards(index);
+      final IndexMetaData indexMD = _protocol.getIndexMD(index);
+      Set<Shard> shards = indexMD.getShards();
       int size = calculateIndexSize(shards);
-      long indexBytes = calculateIndexDiskUsage(metaData.getPath());
+      long indexBytes = calculateIndexDiskUsage(indexMD.getPath());
+      String state = indexMD.getDeployError() == null ? "DEPLOYED" : "ERROR";
       if (!detailedView) {
-        table.addRow(index, state, metaData.getPath(), shards.size(), size, indexBytes);
+        table.addRow(index, state, indexMD.getPath(), shards.size(), size, indexBytes);
       } else {
-        table.addRow(index, state, metaData.getPath(), shards.size(), size, indexBytes, metaData.getReplicationLevel());
+        table.addRow(index, state, indexMD.getPath(), shards.size(), size, indexBytes, indexMD.getReplicationLevel());
       }
     }
     if (!indices.isEmpty()) {
@@ -564,10 +563,10 @@ public class Katta {
     }
   }
 
-  private int calculateIndexSize(List<String> shards) {
+  private int calculateIndexSize(Set<Shard> shards) {
     int docCount = 0;
-    for (String shard : shards) {
-      List<DeployedShard> shardsMD = _protocol.getShardsMD(shard);
+    for (Shard shard : shards) {
+      List<DeployedShard> shardsMD = _protocol.getShardsMD(shard.getName());
       if (!shardsMD.isEmpty()) {
         Map<String, String> metaData = shardsMD.get(0).getMetaData();
         if (metaData != null) {
@@ -600,7 +599,7 @@ public class Katta {
         if (deployFuture.getState() == IndexState.DEPLOYED) {
           System.out.println("deployed index " + name);
           break;
-        } else if (deployFuture.getState() == IndexMetaData.IndexState.ERROR) {
+        } else if (deployFuture.getState() == IndexState.ERROR) {
           System.err.println("not deployed index " + name);
           break;
         }
@@ -766,25 +765,6 @@ public class Katta {
       }
 
       return sizes;
-    }
-  }
-
-  private void setState(String index, String stateName) {
-    try {
-      IndexState state = IndexState.valueOf(stateName.toUpperCase());
-      IndexMetaData indexMetaData = _protocol.getOldIndexMD(index);
-      indexMetaData.setState(state, "");
-      _protocol.updateIndexMD(indexMetaData);
-      System.out.println("Updated state of index " + index + " to DEPLOYED");
-    } catch (IllegalArgumentException e) {
-      String err = "Index state " + stateName + " unknown. Valid values are: ";
-      String sep = "";
-      for (IndexState s : IndexState.values()) {
-        err += sep;
-        err += s.name();
-        sep = ", ";
-      }
-      System.err.println(err);
     }
   }
 

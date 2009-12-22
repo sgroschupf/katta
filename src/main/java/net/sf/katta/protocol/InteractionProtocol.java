@@ -306,6 +306,27 @@ public class InteractionProtocol {
     return _zkClient.getChildren(shard2NodeRootPath);
   }
 
+  public ReplicationReport getReplicationReport(InteractionProtocol protocol, IndexMetaData indexMD) {
+    int desiredReplicationCount = indexMD.getReplicationLevel();
+    int minimalShardReplicationCount = indexMD.getReplicationLevel();
+    int maximaShardReplicationCount = 0;
+
+    Map<String, Integer> replicationCountByShardMap = new HashMap<String, Integer>();
+    final Set<Shard> shards = indexMD.getShards();
+    for (final Shard shard : shards) {
+      final int servingNodesCount = protocol.getShardNodes(shard.getName()).size();
+      replicationCountByShardMap.put(shard.getName(), servingNodesCount);
+      if (servingNodesCount < minimalShardReplicationCount) {
+        minimalShardReplicationCount = servingNodesCount;
+      }
+      if (servingNodesCount > maximaShardReplicationCount) {
+        maximaShardReplicationCount = servingNodesCount;
+      }
+    }
+    return new ReplicationReport(replicationCountByShardMap, desiredReplicationCount, minimalShardReplicationCount,
+            maximaShardReplicationCount);
+  }
+
   public OperationQueue<LeaderOperation> publishMaster(final Master master) {
     String masterName = master.getMasterName();
     String zkMasterPath = _zkConf.getZkPath(PathDef.MASTER);

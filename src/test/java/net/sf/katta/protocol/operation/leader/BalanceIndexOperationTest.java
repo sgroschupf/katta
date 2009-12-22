@@ -31,7 +31,7 @@ import net.sf.katta.protocol.operation.node.NodeOperation;
 
 import org.junit.Test;
 
-public class BalanceIndexOperationTest extends MockedMasterNodeTest {
+public class BalanceIndexOperationTest extends AbstractMasterNodeZkTest {
 
   @Test
   public void testGetExecutionInstruction() throws Exception {

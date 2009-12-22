@@ -13,7 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package net.sf.katta;
+package net.sf.katta.integrationTest;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -23,27 +26,37 @@ import java.util.Random;
 
 import net.sf.katta.client.DeployClient;
 import net.sf.katta.client.IIndexDeployFuture;
+import net.sf.katta.integrationTest.support.KattaMiniCluster;
 import net.sf.katta.master.Master;
 import net.sf.katta.node.Node;
+import net.sf.katta.protocol.InteractionProtocol;
+import net.sf.katta.testutil.PrintMethodNames;
 import net.sf.katta.testutil.TestResources;
+import net.sf.katta.testutil.TestUtil;
 import net.sf.katta.util.ISleepClient;
 import net.sf.katta.util.KattaException;
-import net.sf.katta.util.NodeConfiguration;
 import net.sf.katta.util.SleepClient;
 import net.sf.katta.util.SleepServer;
 import net.sf.katta.util.ZkConfiguration;
+import net.sf.katta.util.ZkKattaUtil;
 
-import org.I0Itec.zkclient.ZkClient;
+import org.I0Itec.zkclient.ZkServer;
 import org.apache.log4j.Logger;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.Rule;
+import org.junit.Test;
 
 /**
  * This class tests the situation where you using 2 instances of Katta to talk
  * to 2 pools of nodes at the same time.
  */
-public class MultiInstanceTest extends AbstractKattaTest {
+public class MultiClusterTest {
 
-  private static final Logger LOG = Logger.getLogger(MultiInstanceTest.class);
-  
+  protected static final Logger LOG = Logger.getLogger(MultiClusterTest.class);
+  @Rule
+  public PrintMethodNames _printMethodNames = new PrintMethodNames();
+
   public static final String INDEX1 = "pool1";
   public static final String INDEX2 = "pool2";
 
@@ -51,8 +64,8 @@ public class MultiInstanceTest extends AbstractKattaTest {
   private static List<Node> _nodes2 = new ArrayList<Node>();
   private static Master _master1;
   private static Master _master2;
-  private static ISleepClient _client1;
-  private static ISleepClient _client2;
+  protected static ISleepClient _client1;
+  protected static ISleepClient _client2;
 
   private static final int POOL_SIZE_1 = 18;
   private static final int POOL_SIZE_2 = 16;
@@ -60,61 +73,29 @@ public class MultiInstanceTest extends AbstractKattaTest {
   private static final int NUM_SHARDS_1 = 300;
   private static final int NUM_SHARDS_2 = 150;
 
-  // Don't reset ZK data between each test.
-  public MultiInstanceTest() {
-    super(false);
-  }
+  private static ZkServer _zkServer;
+  private static KattaMiniCluster _cluster1;
+  private static KattaMiniCluster _cluster2;
 
-  @Override
-  protected void onBeforeClass() throws Exception {
-    LOG.info("MultiInstanceTest");
+  @BeforeClass
+  public static void onBeforeClass() throws Exception {
     ZkConfiguration conf1 = new ZkConfiguration();
-    conf1.setZKRootPath("MultiInstanceTest/pool1");
     ZkConfiguration conf2 = new ZkConfiguration();
-    conf2.setZKRootPath("MultiInstanceTest/pool2");
+    conf1.setZKRootPath("MultiClusterTest/pool1");
+    conf2.setZKRootPath("MultiClusterTest/pool2");
 
-    new DefaultNameSpaceImpl(conf1).createDefaultNameSpace(_zkServer.getZkClient());
-    new DefaultNameSpaceImpl(conf2).createDefaultNameSpace(_zkServer.getZkClient());
+    _zkServer = ZkKattaUtil.startZkServer(new ZkConfiguration());
+    _cluster1 = new KattaMiniCluster(SleepServer.class, conf1, POOL_SIZE_1, 30000);
+    _cluster2 = new KattaMiniCluster(SleepServer.class, conf2, POOL_SIZE_2, 40000);
+    _cluster1.setZkServer(_zkServer);
+    _cluster2.setZkServer(_zkServer);
+    _cluster1.start();
+    _cluster2.start();
 
-    NodeConfiguration nConf = new NodeConfiguration();
-    int startPort = nConf.getStartPort();
-    String shardDir = nConf.getShardFolder().getAbsolutePath();
-
-    // Start waiting for pool1 nodes to appear.
-    MasterStartThread masterStartThread1 = startMaster(conf1);
-    _master1 = masterStartThread1.getMaster();
-
-    // Create pool1.
-    LOG.info("Creating pool 1");
-    List<NodeStartThread> nodeThreads1 = new ArrayList<NodeStartThread>();
-    for (int i = 0; i < POOL_SIZE_1; i++) {
-      NodeStartThread nodeStartThread = startNode(new SleepServer(), startPort, shardDir, conf1);
-      nodeThreads1.add(nodeStartThread);
-      _nodes1.add(nodeStartThread.getNode());
-    }
-    masterStartThread1.join();
-    for (NodeStartThread nodeStartThread : nodeThreads1) {
-      nodeStartThread.join();
-    }
-    waitOnNodes(masterStartThread1, POOL_SIZE_1);
-
-    // Start waiting for pool1 nodes to appear.
-    MasterStartThread masterStartThread2 = startMaster(conf2);
-    _master2 = masterStartThread2.getMaster();
-
-    // Create pool2.
-    LOG.info("Creating pool 2");
-    List<NodeStartThread> nodeThreads2 = new ArrayList<NodeStartThread>();
-    for (int i = 0; i < POOL_SIZE_2; i++) {
-      NodeStartThread nodeStartThread = startNode(new SleepServer(), startPort, shardDir, conf2);
-      nodeThreads2.add(nodeStartThread);
-      _nodes2.add(nodeStartThread.getNode());
-    }
-    masterStartThread2.join();
-    for (NodeStartThread nst : nodeThreads1) {
-      nst.join();
-    }
-    waitOnNodes(masterStartThread2, POOL_SIZE_2);
+    TestUtil.waitOnLeaveSafeMode(_cluster1.getMaster());
+    TestUtil.waitOnLeaveSafeMode(_cluster2.getMaster());
+    TestUtil.waitUntilNumberOfLiveNode(_cluster1.getProtocol(), POOL_SIZE_1);
+    TestUtil.waitUntilNumberOfLiveNode(_cluster2.getProtocol(), POOL_SIZE_2);
 
     // Create lots of empty shards. SleepServer does not use the directory, but
     // Node does.
@@ -124,11 +105,11 @@ public class MultiInstanceTest extends AbstractKattaTest {
 
     // Deploy shards to pool1.
     LOG.info("Deploying index 1");
-    deployIndex(conf1, masterStartThread1.getZkClient(), INDEX1, TestResources.EMPTY1_INDEX);
+    deployIndex(_cluster1.getProtocol(), INDEX1, TestResources.EMPTY1_INDEX);
 
     // Deploy shards to pool2.
     LOG.info("Deploying index 2");
-    deployIndex(conf2, masterStartThread2.getZkClient(), INDEX2, TestResources.EMPTY2_INDEX);
+    deployIndex(_cluster2.getProtocol(), INDEX2, TestResources.EMPTY2_INDEX);
 
     // Verify setup.
     // LOG.info("\n\nPOOL 1 STRUCTURE:\n");
@@ -146,14 +127,30 @@ public class MultiInstanceTest extends AbstractKattaTest {
     _client2 = new SleepClient(conf2);
   }
 
-  private void deployIndex(ZkConfiguration conf1, ZkClient zkClient, String indexName, File index) throws InterruptedException {
-    DeployClient deployClient1 = new DeployClient(zkClient, conf1);
+  @AfterClass
+  public static void onAfterClass() throws Exception {
+    _client1.close();
+    _client2.close();
+    _cluster1.stop(false);
+    _cluster2.stop(false);
+    _zkServer.shutdown();
+    for (File f : TestResources.EMPTY1_INDEX.listFiles()) {
+      deleteFiles(f);
+    }
+    for (File f : TestResources.EMPTY2_INDEX.listFiles()) {
+      deleteFiles(f);
+    }
+  }
+
+  private static void deployIndex(InteractionProtocol protocol, String indexName, File index)
+          throws InterruptedException {
+    DeployClient deployClient1 = new DeployClient(protocol);
     IIndexDeployFuture deployment = deployClient1.addIndex(indexName, index.getAbsolutePath(), 1);
     LOG.info("Joining deployment on " + deployment.getClass().getName());
     deployment.joinDeployment();
   }
 
-  private void setupIndex(File index, int size) {
+  private static void setupIndex(File index, int size) {
     if (index.exists() && index.isDirectory()) {
       for (File f : index.listFiles()) {
         deleteFiles(f);
@@ -161,13 +158,13 @@ public class MultiInstanceTest extends AbstractKattaTest {
     }
     for (int i = 0; i < size; i++) {
       File f = new File(index, "shard" + i);
-      if(!f.mkdirs()){
-        throw new RuntimeException("unable to create folder: "+ f.getAbsolutePath());
+      if (!f.mkdirs()) {
+        throw new RuntimeException("unable to create folder: " + f.getAbsolutePath());
       }
     }
   }
 
-  private void deleteFiles(File f) {
+  private static void deleteFiles(File f) {
     if (f.getName().startsWith(".")) {
       return;
     }
@@ -177,26 +174,7 @@ public class MultiInstanceTest extends AbstractKattaTest {
     f.delete();
   }
 
-  @Override
-  protected void onAfterClass() throws Exception {
-    _client1.close();
-    _client2.close();
-    for (Node node : _nodes1) {
-      node.shutdown();
-    }
-    for (Node node : _nodes2) {
-      node.shutdown();
-    }
-    _master1.shutdown();
-    _master2.shutdown();
-    for (File f : TestResources.EMPTY1_INDEX.listFiles()) {
-      deleteFiles(f);
-    }
-    for (File f : TestResources.EMPTY2_INDEX.listFiles()) {
-      deleteFiles(f);
-    }
-  }
-
+  @Test
   public void testSerial() throws KattaException {
     assertEquals(NUM_SHARDS_1, _client1.sleep(0L));
     assertEquals(NUM_SHARDS_2, _client2.sleep(0L));
@@ -212,6 +190,7 @@ public class MultiInstanceTest extends AbstractKattaTest {
     }
   }
 
+  @Test
   public void testParallel() throws InterruptedException {
     LOG.info("Testing multithreaded access to multiple Katta instances...");
     Long start = System.currentTimeMillis();
@@ -220,7 +199,7 @@ public class MultiInstanceTest extends AbstractKattaTest {
     final List<Throwable> throwables = Collections.synchronizedList(new ArrayList<Throwable>());
     for (int i = 0; i < 15; i++) {
       final Random rand2 = new Random(rand.nextInt());
-      Thread t = new Thread(new Runnable() {
+      Thread thread = new Thread(new Runnable() {
         public void run() {
           try {
             for (int j = 0; j < 400; j++) {
@@ -237,8 +216,8 @@ public class MultiInstanceTest extends AbstractKattaTest {
           }
         }
       });
-      threads.add(t);
-      t.start();
+      threads.add(thread);
+      thread.start();
     }
     for (Thread t : threads) {
       t.join();

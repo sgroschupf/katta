@@ -49,6 +49,7 @@
 			<batchtest fork="yes" todir="${build.dir.it-reports}">
 				<fileset dir="${it.src.dir}">
 					<include name="**/*Test*.java" unless="testcase" />
+					<exclude name="**/Abstract*.java" unless="testcase" />
 				</fileset>
 			</batchtest>
 		</junit>

@@ -25,6 +25,7 @@ import java.util.Map.Entry;
 
 import net.sf.katta.master.LeaderContext;
 import net.sf.katta.protocol.InteractionProtocol;
+import net.sf.katta.protocol.ReplicationReport;
 import net.sf.katta.protocol.metadata.IndexDeployError;
 import net.sf.katta.protocol.metadata.IndexMetaData;
 import net.sf.katta.protocol.metadata.IndexDeployError.ErrorType;
@@ -142,25 +143,7 @@ public abstract class AbstractIndexOperation implements LeaderOperation {
 
   protected ReplicationReport getReplicationReport(InteractionProtocol protocol, String indexName) {
     final IndexMetaData indexMD = protocol.getIndexMD(indexName);
-    return getReplicationReport(protocol, indexMD);
-  }
-
-  protected ReplicationReport getReplicationReport(InteractionProtocol protocol, IndexMetaData indexMD) {
-    int desiredReplicationCount = indexMD.getReplicationLevel();
-    int minimalShardReplicationCount = indexMD.getReplicationLevel();
-    int maximaShardReplicationCount = 0;
-
-    final Set<Shard> shards = indexMD.getShards();
-    for (final Shard shard : shards) {
-      final int servingNodesCount = protocol.getShardNodes(shard.getName()).size();
-      if (servingNodesCount < minimalShardReplicationCount) {
-        minimalShardReplicationCount = servingNodesCount;
-      }
-      if (servingNodesCount > maximaShardReplicationCount) {
-        maximaShardReplicationCount = servingNodesCount;
-      }
-    }
-    return new ReplicationReport(desiredReplicationCount, minimalShardReplicationCount, maximaShardReplicationCount);
+    return protocol.getReplicationReport(protocol, indexMD);
   }
 
   protected void handleMasterDeployException(InteractionProtocol protocol, IndexMetaData indexMD, Exception e) {
@@ -178,7 +161,7 @@ public abstract class AbstractIndexOperation implements LeaderOperation {
 
   protected void handleDeploymentComplete(LeaderContext context, List<OperationResult> results, IndexMetaData indexMD,
           boolean newIndex) {
-    ReplicationReport replicationReport = getReplicationReport(context.getProtocol(), indexMD);
+    ReplicationReport replicationReport = context.getProtocol().getReplicationReport(context.getProtocol(), indexMD);
     if (replicationReport.isDeployed()) {
       indexMD.setDeployError(null);
       // we ignore possible shard errors
@@ -186,7 +169,6 @@ public abstract class AbstractIndexOperation implements LeaderOperation {
         context.getProtocol().addLeaderOperation(new BalanceIndexOperation(indexMD.getName()));
       }
     } else {
-      context.getProtocol().showStructure();
       IndexDeployError deployError = new IndexDeployError(indexMD.getName(), ErrorType.SHARDS_NOT_DEPLOYABLE);
       for (OperationResult operationResult : results) {
         DeployResult deployResult = (DeployResult) operationResult;
@@ -201,58 +183,6 @@ public abstract class AbstractIndexOperation implements LeaderOperation {
     } else {
       context.getProtocol().updateIndexMD(indexMD);
     }
-  }
-
-  static class ReplicationReport {
-
-    private final int _desiredReplicationCount;
-    private final int _minimalShardReplicationCount;
-    private final int _maximalShardReplicationCount;
-
-    public ReplicationReport(int desiredReplicationCount, int minimalShardReplicationCount,
-            int maximalShardReplicationCount) {
-      _desiredReplicationCount = desiredReplicationCount;
-      _minimalShardReplicationCount = minimalShardReplicationCount;
-      _maximalShardReplicationCount = maximalShardReplicationCount;
-    }
-
-    public int getDesiredReplicationCount() {
-      return _desiredReplicationCount;
-    }
-
-    public int getMinimalShardReplicationCount() {
-      return _minimalShardReplicationCount;
-    }
-
-    public int getMaximalShardReplicationCount() {
-      return _maximalShardReplicationCount;
-    }
-
-    public boolean isUnderreplicated() {
-      return getMinimalShardReplicationCount() < getDesiredReplicationCount();
-    }
-
-    public boolean isOverreplicated() {
-      return getMaximalShardReplicationCount() > getDesiredReplicationCount();
-    }
-
-    public boolean isBalanced() {
-      return !isUnderreplicated() && !isOverreplicated();
-    }
-
-    /**
-     * @return true if each shard is deployed at least once
-     */
-    public boolean isDeployed() {
-      return getMinimalShardReplicationCount() > 0;
-    }
-
-    @Override
-    public String toString() {
-      return String.format("desiredReplication: %s | minimalShardReplication: %s | maximalShardReplication: %s",
-              _desiredReplicationCount, _minimalShardReplicationCount, _maximalShardReplicationCount);
-    }
-
   }
 
   static class IndexDeployException extends Exception {
