@@ -23,7 +23,7 @@ import org.junit.Test;
 public class MasterIntegrationTest extends AbstractIntegrationTest {
 
   public MasterIntegrationTest() {
-    super(2, false);
+    super(2);
   }
 
   @Test(timeout = 20000)

@@ -44,7 +44,7 @@ import org.I0Itec.zkclient.ZkServer;
  * Also it always have a zk-server running.
  * 
  */
-public abstract class AbstractKattaTest extends ExtendedTestCase {
+public abstract class AbstractKatta23Test extends ExtendedTestCase {
 
   protected static ZkServer _zkServer;
   protected final ZkConfiguration _conf;
@@ -52,16 +52,16 @@ public abstract class AbstractKattaTest extends ExtendedTestCase {
   protected File _nodeConfFile;
   protected NodeConfiguration _nodeConf;
 
-  public AbstractKattaTest() {
+  public Abstract34KattaTest() {
     this(true);
   }
 
-  public AbstractKattaTest(ZkConfiguration conf, boolean resetZkNamespaceBetweenTests) {
+  public Abstract34KattaTest(ZkConfiguration conf, boolean resetZkNamespaceBetweenTests) {
     _conf = conf;
     _resetZkNamespaceBetweenTests = resetZkNamespaceBetweenTests;
   }
 
-  public AbstractKattaTest(boolean resetZkNamespaceBetweenTests) {
+  public Abstract34KattaTest(boolean resetZkNamespaceBetweenTests) {
     String confPath = getZkConfigurationResourceName();
     if (confPath == null) {
       _conf = new ZkConfiguration();

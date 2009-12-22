@@ -13,24 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package net.sf.katta;
+package net.sf.katta.integrationTest.lib.lucene;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import net.sf.katta.client.DefaultNodeSelectionPolicy;
 import net.sf.katta.client.DeployClient;
 import net.sf.katta.client.IDeployClient;
 import net.sf.katta.client.ILuceneClient;
+import net.sf.katta.client.IndexState;
 import net.sf.katta.client.LuceneClient;
-import net.sf.katta.index.IndexMetaData.IndexState;
-import net.sf.katta.master.Master;
+import net.sf.katta.integrationTest.support.AbstractIntegrationTest;
 import net.sf.katta.node.Hit;
 import net.sf.katta.node.Hits;
-import net.sf.katta.node.LuceneServer;
-import net.sf.katta.node.Node;
+import net.sf.katta.util.FileUtil;
 
 import org.apache.hadoop.io.WritableComparable;
 import org.apache.lucene.analysis.KeywordAnalyzer;
@@ -49,117 +50,104 @@ import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.SortField;
 import org.apache.lucene.search.TopDocs;
+import org.junit.AfterClass;
+import org.junit.Test;
 
 /**
  * Test common lucene operations on sharded indices through katta interface
  * versus pure lucene interface one big index.
  * 
  */
-public class LuceneComplianceTest extends AbstractKattaTest {
+public class LuceneComplianceTest extends AbstractIntegrationTest {
 
-  private static Node _node1;
-  private static Node _node2;
-  private static Master _master;
-  private static IDeployClient _deployClient;
   private static ILuceneClient _client;
 
   // index related fields
   private static String FIELD_NAME = "text";
-  private static File kattaIndex;
-  private static File luceneIndex;
-  private static List<Document> documents1;
-  private static List<Document> documents2;
+  private static File _kattaIndex;
+  private static File _luceneIndex;
+  private static List<Document> _documents1;
+  private static List<Document> _documents2;
 
   public LuceneComplianceTest() {
-    super(false);
+    super(2, false, false);
   }
 
   @Override
-  protected void onBeforeClass() throws Exception {
-    MasterStartThread masterStartThread = startMaster();
-    _master = masterStartThread.getMaster();
-
-    NodeStartThread nodeStartThread1 = startNode(new LuceneServer());
-    NodeStartThread nodeStartThread2 = startNode(new LuceneServer());
-    _node1 = nodeStartThread1.getNode();
-    _node2 = nodeStartThread2.getNode();
-    masterStartThread.join();
-    nodeStartThread1.join();
-    nodeStartThread2.join();
-    waitOnNodes(masterStartThread, 2);
-
+  protected void afterClusterStart() throws Exception {
+    IDeployClient _deployClient = new DeployClient(_miniCluster.getProtocol());
     // generate 3 index (2 shards + once combined index)
-    _deployClient = new DeployClient(masterStartThread.getZkClient(), _conf);
-    kattaIndex = createClassWideFile("kattaIndex");
-    File shard1 = new File(kattaIndex, "shard1");
-    File shard2 = new File(kattaIndex, "shard2");
-    luceneIndex = createClassWideFile("luceneIndex");
-    documents1 = createSimpleNumberDocuments(FIELD_NAME, 123);
-    documents2 = createSimpleNumberDocuments(FIELD_NAME, 78);
+    _luceneIndex = File.createTempFile(LuceneClientTest.class.getSimpleName(), "-lucene");
+    _kattaIndex = File.createTempFile(LuceneClientTest.class.getSimpleName(), "-katta");
+    _kattaIndex.delete();
+    _luceneIndex.delete();
+    File shard1 = new File(_kattaIndex, "shard1");
+    File shard2 = new File(_kattaIndex, "shard2");
+    _documents1 = createSimpleNumberDocuments(FIELD_NAME, 123);
+    _documents2 = createSimpleNumberDocuments(FIELD_NAME, 78);
 
-    writeIndex(shard1, documents1);
-    writeIndex(shard2, documents2);
-    writeIndex(luceneIndex, combineDocuments(documents1, documents2));
+    writeIndex(shard1, _documents1);
+    writeIndex(shard2, _documents2);
+    writeIndex(_luceneIndex, combineDocuments(_documents1, _documents2));
 
     // deploy 2 indexes to katta
-    deployIndexToKatta(_deployClient, kattaIndex, 2);
-
-    _client = new LuceneClient(new DefaultNodeSelectionPolicy(), _conf);
+    deployIndexToKatta(_deployClient, _kattaIndex, 2);
+    _client = new LuceneClient(_miniCluster.getZkConfiguration());
   }
 
-  @Override
-  protected void onAfterClass() throws Exception {
-    _client.close();
-    _node1.shutdown();
-    _node2.shutdown();
-    _master.shutdown();
+  @AfterClass
+  public static void afterClass() {
+    FileUtil.deleteFolder(_kattaIndex);
+    FileUtil.deleteFolder(_luceneIndex);
   }
 
+  @Test
   public void testScoreSort() throws Exception {
     // query and compare
-    IndexSearcher indexSearcher = new IndexSearcher(luceneIndex.getAbsolutePath());
-    checkQueryResults(indexSearcher, kattaIndex.getName(), FIELD_NAME, "0", null);
-    checkQueryResults(indexSearcher, kattaIndex.getName(), FIELD_NAME, "1", null);
-    checkQueryResults(indexSearcher, kattaIndex.getName(), FIELD_NAME, "2", null);
-    checkQueryResults(indexSearcher, kattaIndex.getName(), FIELD_NAME, "15", null);
-    checkQueryResults(indexSearcher, kattaIndex.getName(), FIELD_NAME, "23", null);
-    checkQueryResults(indexSearcher, kattaIndex.getName(), FIELD_NAME, "2 23", null);
-    checkQueryResults(indexSearcher, kattaIndex.getName(), FIELD_NAME, "nothing", null);
+    IndexSearcher indexSearcher = new IndexSearcher(_luceneIndex.getAbsolutePath());
+    checkQueryResults(indexSearcher, _kattaIndex.getName(), FIELD_NAME, "0", null);
+    checkQueryResults(indexSearcher, _kattaIndex.getName(), FIELD_NAME, "1", null);
+    checkQueryResults(indexSearcher, _kattaIndex.getName(), FIELD_NAME, "2", null);
+    checkQueryResults(indexSearcher, _kattaIndex.getName(), FIELD_NAME, "15", null);
+    checkQueryResults(indexSearcher, _kattaIndex.getName(), FIELD_NAME, "23", null);
+    checkQueryResults(indexSearcher, _kattaIndex.getName(), FIELD_NAME, "2 23", null);
+    checkQueryResults(indexSearcher, _kattaIndex.getName(), FIELD_NAME, "nothing", null);
   }
 
+  @Test
   public void testFieldSort() throws Exception {
     // query and compare (auto types)
-    IndexSearcher indexSearcher = new IndexSearcher(luceneIndex.getAbsolutePath());
+    IndexSearcher indexSearcher = new IndexSearcher(_luceneIndex.getAbsolutePath());
     Sort sort = new Sort(new SortField[] { new SortField(FIELD_NAME) });
-    checkQueryResults(indexSearcher, kattaIndex.getName(), FIELD_NAME, "0", sort);
-    checkQueryResults(indexSearcher, kattaIndex.getName(), FIELD_NAME, "1", sort);
-    checkQueryResults(indexSearcher, kattaIndex.getName(), FIELD_NAME, "2", sort);
-    checkQueryResults(indexSearcher, kattaIndex.getName(), FIELD_NAME, "15", sort);
-    checkQueryResults(indexSearcher, kattaIndex.getName(), FIELD_NAME, "23", sort);
-    checkQueryResults(indexSearcher, kattaIndex.getName(), FIELD_NAME, "2 23", sort);
-    checkQueryResults(indexSearcher, kattaIndex.getName(), FIELD_NAME, "nothing", sort);
+    checkQueryResults(indexSearcher, _kattaIndex.getName(), FIELD_NAME, "0", sort);
+    checkQueryResults(indexSearcher, _kattaIndex.getName(), FIELD_NAME, "1", sort);
+    checkQueryResults(indexSearcher, _kattaIndex.getName(), FIELD_NAME, "2", sort);
+    checkQueryResults(indexSearcher, _kattaIndex.getName(), FIELD_NAME, "15", sort);
+    checkQueryResults(indexSearcher, _kattaIndex.getName(), FIELD_NAME, "23", sort);
+    checkQueryResults(indexSearcher, _kattaIndex.getName(), FIELD_NAME, "2 23", sort);
+    checkQueryResults(indexSearcher, _kattaIndex.getName(), FIELD_NAME, "nothing", sort);
 
     // check for explicit types
     sort = new Sort(new SortField[] { new SortField(FIELD_NAME, SortField.BYTE) });
-    checkQueryResults(indexSearcher, kattaIndex.getName(), FIELD_NAME, "1", sort);
+    checkQueryResults(indexSearcher, _kattaIndex.getName(), FIELD_NAME, "1", sort);
     sort = new Sort(new SortField[] { new SortField(FIELD_NAME, SortField.INT) });
-    checkQueryResults(indexSearcher, kattaIndex.getName(), FIELD_NAME, "1", sort);
+    checkQueryResults(indexSearcher, _kattaIndex.getName(), FIELD_NAME, "1", sort);
     sort = new Sort(new SortField[] { new SortField(FIELD_NAME, SortField.LONG) });
-    checkQueryResults(indexSearcher, kattaIndex.getName(), FIELD_NAME, "1", sort);
+    checkQueryResults(indexSearcher, _kattaIndex.getName(), FIELD_NAME, "1", sort);
   }
 
   private void checkQueryResults(IndexSearcher indexSearcher, String kattaIndexName, String fieldName,
-      String queryTerm, Sort sort) throws Exception {
+          String queryTerm, Sort sort) throws Exception {
     // check all documents
     checkQueryResults(indexSearcher, kattaIndexName, fieldName, queryTerm, Short.MAX_VALUE, sort);
 
     // check top n documents
-    checkQueryResults(indexSearcher, kattaIndexName, fieldName, queryTerm, (documents1.size() + documents2.size()) / 2,
-        sort);
+    checkQueryResults(indexSearcher, kattaIndexName, fieldName, queryTerm,
+            (_documents1.size() + _documents2.size()) / 2, sort);
   }
 
   private void checkQueryResults(IndexSearcher indexSearcher, String kattaIndexName, String fieldName,
-      String queryTerm, int resultCount, Sort sort) throws Exception {
+          String queryTerm, int resultCount, Sort sort) throws Exception {
     final Query query = new QueryParser("", new KeywordAnalyzer()).parse(fieldName + ": " + queryTerm);
     final TopDocs searchResultsLucene;
     final Hits searchResultsKatta;
@@ -177,7 +165,7 @@ public class LuceneComplianceTest extends AbstractKattaTest {
     List<Hit> hits = searchResultsKatta.getHits();
     if (sort == null) {
       for (int i = 0; i < scoreDocs.length; i++) {
-        assertEquals(scoreDocs[i].score, hits.get(i).getScore());
+        assertEquals(scoreDocs[i].score, hits.get(i).getScore(), 0.0);
       }
     } else {
       for (int i = 0; i < scoreDocs.length; i++) {
@@ -193,7 +181,7 @@ public class LuceneComplianceTest extends AbstractKattaTest {
     }
   }
 
-  private List<Document> createSimpleNumberDocuments(String textFieldName, int count) {
+  private static List<Document> createSimpleNumberDocuments(String textFieldName, int count) {
     List<Document> documents = new ArrayList<Document>();
     for (int i = 0; i < count; i++) {
       String fieldContent = i + " " + (count - i);
@@ -209,7 +197,7 @@ public class LuceneComplianceTest extends AbstractKattaTest {
     return documents;
   }
 
-  private List<Document> combineDocuments(List<Document>... documentLists) {
+  private static List<Document> combineDocuments(List<Document>... documentLists) {
     ArrayList<Document> list = new ArrayList<Document>();
     for (List<Document> documentsList : documentLists) {
       list.addAll(documentsList);
@@ -218,7 +206,9 @@ public class LuceneComplianceTest extends AbstractKattaTest {
     return list;
   }
 
-  private void writeIndex(File file, List<Document> documents) throws IOException {
+  private static void writeIndex(File file, List<Document> documents) throws IOException {
+    file.mkdirs();
+    assertTrue(file.exists());
     IndexWriter indexWriter = new IndexWriter(file, new StandardAnalyzer(), true, MaxFieldLength.UNLIMITED);
     for (Document document : documents) {
       indexWriter.addDocument(document);
@@ -228,12 +218,11 @@ public class LuceneComplianceTest extends AbstractKattaTest {
 
   }
 
-  private void deployIndexToKatta(IDeployClient deployClient, File file, int replicationLevel)
-      throws InterruptedException {
+  private static void deployIndexToKatta(IDeployClient deployClient, File file, int replicationLevel)
+          throws InterruptedException {
     IndexState indexState = deployClient.addIndex(file.getName(), file.getAbsolutePath(), replicationLevel)
-        .joinDeployment();
+            .joinDeployment();
     assertEquals(IndexState.DEPLOYED, indexState);
-    Thread.sleep(1000);// wait until lucene client is aware of the index
   }
 
 }

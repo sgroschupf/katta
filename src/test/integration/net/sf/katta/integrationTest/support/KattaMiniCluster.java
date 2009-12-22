@@ -22,6 +22,7 @@ import java.util.List;
 import net.sf.katta.client.DeployClient;
 import net.sf.katta.client.IDeployClient;
 import net.sf.katta.master.Master;
+import net.sf.katta.node.INodeManaged;
 import net.sf.katta.node.LuceneServer;
 import net.sf.katta.node.Node;
 import net.sf.katta.protocol.InteractionProtocol;
@@ -42,6 +43,7 @@ import org.I0Itec.zkclient.ZkServer;
  */
 public class KattaMiniCluster {
 
+  private final Class<? extends INodeManaged> _nodeServerClass;
   private final ZkConfiguration _zkConfiguration;
   private Master _master;
   private Master _secondaryMaster;
@@ -53,10 +55,12 @@ public class KattaMiniCluster {
   private int _startedNodes;
 
   public KattaMiniCluster(ZkConfiguration zkConfiguration, int nodeCount) {
-    this(zkConfiguration, nodeCount, 20000);
+    this(LuceneServer.class, zkConfiguration, nodeCount, 20000);
   }
 
-  public KattaMiniCluster(ZkConfiguration zkConfiguration, int nodeCount, int nodeStartPort) {
+  public KattaMiniCluster(Class<? extends INodeManaged> nodeServerClass, ZkConfiguration zkConfiguration,
+          int nodeCount, int nodeStartPort) {
+    _nodeServerClass = nodeServerClass;
     _zkConfiguration = zkConfiguration;
     _nodeCount = nodeCount;
     _nodeStartPort = nodeStartPort;
@@ -68,7 +72,7 @@ public class KattaMiniCluster {
     NodeConfiguration nodeConfiguration = new NodeConfiguration();
     nodeConfiguration.setStartPort(_nodeStartPort);
     for (int i = 0; i < _nodeCount; i++) {
-      _nodes.add(new Node(_protocol, nodeConfiguration, new LuceneServer()));
+      _nodes.add(new Node(_protocol, nodeConfiguration, _nodeServerClass.newInstance()));
     }
     _master = new Master(_protocol, false);
     _master.start();
@@ -79,10 +83,10 @@ public class KattaMiniCluster {
     TestUtil.waitOnLeaveSafeMode(_master);
   }
 
-  public Node startAdditionalNode() {
+  public Node startAdditionalNode() throws Exception {
     NodeConfiguration nodeConfiguration = new NodeConfiguration();
     nodeConfiguration.setStartPort(_nodeStartPort + _startedNodes);
-    Node node = new Node(_protocol, nodeConfiguration, new LuceneServer());
+    Node node = new Node(_protocol, nodeConfiguration, _nodeServerClass.newInstance());
     _nodes.add(node);
     node.start();
     _startedNodes++;

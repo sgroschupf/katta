@@ -15,9 +15,7 @@
  */
 package net.sf.katta.node;
 
-import static org.mockito.Matchers.startsWith;
-import static org.mockito.Mockito.when;
-
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -27,15 +25,17 @@ import java.util.concurrent.Future;
 
 import junit.framework.Assert;
 import junit.framework.TestCase;
-import net.sf.katta.protocol.InteractionProtocol;
-import net.sf.katta.protocol.metadata.NodeMetaData;
-import net.sf.katta.protocol.operation.node.ShardDeployOperation;
+import net.sf.katta.node.DocumentFrequencyWritable;
+import net.sf.katta.node.Hit;
+import net.sf.katta.node.HitsMapWritable;
+import net.sf.katta.node.LuceneServer;
+import net.sf.katta.node.QueryWritable;
+import net.sf.katta.node.LuceneServer.KattaHitQueue;
+import net.sf.katta.testutil.TestResources;
 
-import org.I0Itec.zkclient.ZkClient;
 import org.apache.lucene.analysis.KeywordAnalyzer;
 import org.apache.lucene.queryParser.QueryParser;
 import org.apache.lucene.search.Query;
-import org.mockito.Mockito;
 
 public class LuceneServerTest extends TestCase {
 
@@ -261,38 +261,23 @@ public class LuceneServerTest extends TestCase {
   //
 
   public void testMultiThreadSearch() throws Exception {
-    ZkClient zkClient = Mockito.mock(ZkClient.class);
-    NodeMetaData nodeMetaData = new NodeMetaData();
-    String indexName = "index1";
-    nodeMetaData.addShard(indexName, "aIndex", "src/test/testIndexA/aIndex");
-    nodeMetaData.addShard(indexName, "bIndex", "src/test/testIndexA/bIndex");
-    nodeMetaData.addShard(indexName, "cIndex", "src/test/testIndexA/cIndex");
-    nodeMetaData.addShard(indexName, "dIndex", "src/test/testIndexA/dIndex");
-    when(zkClient.exists(startsWith(_conf.getZKNodeMetaDatasPath()))).thenReturn(true);
-    when(zkClient.readData(startsWith(_conf.getZKNodeMetaDatasPath()))).thenReturn(nodeMetaData);
-
     LuceneServer server = new LuceneServer();
-    InteractionProtocol protocol = new InteractionProtocol(zkClient, _conf);
-    Node node = new Node(_protocol, server);
-    node.start();
-
-    NodeContext nodeContext = new NodeContext(node, server, new ShardManager(createFile("test")), _protocol);
-    for (ShardDeployOperation deployInstruction : nodeMetaData.getDeployInstructions()) {
-      deployInstruction.execute(nodeContext);
+    File[] shards = TestResources.INDEX1.listFiles();
+    String[] shardNames = TestResources.INDEX1.list();
+    for (File shard : shards) {
+      server.addShard(shard.getName(), shard);
     }
 
     QueryParser parser = new QueryParser("field", new KeywordAnalyzer());
     Query query = parser.parse("foo: bar");
     QueryWritable writable = new QueryWritable(query);
 
-    String[] shardArray = nodeMetaData.getShards(indexName).toArray(
-            new String[nodeMetaData.getShards(indexName).size()]);
-    DocumentFrequencyWritable freqs = server.getDocFreqs(writable, shardArray);
+    DocumentFrequencyWritable freqs = server.getDocFreqs(writable, shardNames);
 
     ExecutorService es = Executors.newFixedThreadPool(100);
     List<Future<HitsMapWritable>> tasks = new ArrayList<Future<HitsMapWritable>>();
     for (int i = 0; i < 10000; i++) {
-      QueryClient client = new QueryClient(server, freqs, writable, shardArray);
+      QueryClient client = new QueryClient(server, freqs, writable, shardNames);
       Future<HitsMapWritable> future = es.submit(client);
       tasks.add(future);
     }

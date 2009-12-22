@@ -37,7 +37,7 @@ import org.junit.Test;
 public class NodeIntegrationTest extends AbstractIntegrationTest {
 
   public NodeIntegrationTest() {
-    super(2, false);
+    super(2);
   }
 
   @Test

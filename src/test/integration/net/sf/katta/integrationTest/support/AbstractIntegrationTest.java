@@ -4,6 +4,8 @@ import java.io.File;
 import java.util.List;
 
 import net.sf.katta.client.DeployClient;
+import net.sf.katta.node.INodeManaged;
+import net.sf.katta.node.LuceneServer;
 import net.sf.katta.node.Node;
 import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.protocol.metadata.IndexMetaData;
@@ -43,10 +45,28 @@ public abstract class AbstractIntegrationTest {
   public PrintMethodNames _printMethodNames = new PrintMethodNames();
   private final int _nodeCount;
   private final boolean _shutdownAfterEachTest;
+  private final boolean _undeployIndicesAfterEachTest;
 
-  public AbstractIntegrationTest(int nodeCount, boolean shutdownAfterEachTest) {
+  private final Class<? extends INodeManaged> _nodeServerClass;
+
+  public AbstractIntegrationTest(int nodeCount) {
+    this(LuceneServer.class, nodeCount);
+  }
+
+  public AbstractIntegrationTest(Class<? extends INodeManaged> nodeServerClass, int nodeCount) {
+    this(nodeServerClass, nodeCount, false, true);
+  }
+
+  public AbstractIntegrationTest(int nodeCount, boolean shutdownAfterEachTest, boolean undeployIndicesAfterEachTest) {
+    this(LuceneServer.class, nodeCount, shutdownAfterEachTest, undeployIndicesAfterEachTest);
+  }
+
+  public AbstractIntegrationTest(Class<? extends INodeManaged> nodeServerClass, int nodeCount,
+          boolean shutdownAfterEachTest, boolean undeployIndicesAfterEachTest) {
+    _nodeServerClass = nodeServerClass;
     _nodeCount = nodeCount;
     _shutdownAfterEachTest = shutdownAfterEachTest;
+    _undeployIndicesAfterEachTest = undeployIndicesAfterEachTest;
   }
 
   @AfterClass
@@ -75,6 +95,7 @@ public abstract class AbstractIntegrationTest {
     LOG.info("~~~~~~~~~~~~~~~~~~" + "SETUP CLUSTER" + "~~~~~~~~~~~~~~~~~~");
     if (_miniCluster == null) {
       startMiniCluster(_nodeCount, 0, 0);
+      afterClusterStart();
     } else if (!_shutdownAfterEachTest) {
       // restart nodes
       LOG.info("nodes " + _miniCluster.getNodes() + " running.");
@@ -93,15 +114,21 @@ public abstract class AbstractIntegrationTest {
         }
       }
       // remove all indices
-      List<String> indices = _protocol.getIndices();
-      for (String index : indices) {
-        IndexMetaData indexMD = _protocol.getIndexMD(index);
-        DeployClient deployClient = new DeployClient(_protocol);
-        deployClient.removeIndex(index);
-        TestUtil.waitUntilShardsUndeployed(_protocol, indexMD);
+      if (_undeployIndicesAfterEachTest) {
+        List<String> indices = _protocol.getIndices();
+        for (String index : indices) {
+          IndexMetaData indexMD = _protocol.getIndexMD(index);
+          DeployClient deployClient = new DeployClient(_protocol);
+          deployClient.removeIndex(index);
+          TestUtil.waitUntilShardsUndeployed(_protocol, indexMD);
+        }
       }
       LOG.info("~~~~~~~~~~~~~~~~~~" + "FIN SETUP CLUSTER" + "~~~~~~~~~~~~~~~~~~");
     }
+  }
+
+  protected void afterClusterStart() throws Exception {
+    // subclasses may override
   }
 
   public int getNodeCount() {
@@ -115,7 +142,7 @@ public abstract class AbstractIntegrationTest {
     FileUtil.deleteFolder(new NodeConfiguration().getShardFolder());
 
     // start katta cluster
-    _miniCluster = new KattaMiniCluster(conf, nodeCount, _lastNodeStartPort);
+    _miniCluster = new KattaMiniCluster(_nodeServerClass, conf, nodeCount, _lastNodeStartPort);
     // we permanently start the node on other
     // ports because hadoop rpc seems to make
     // some trouble if a rpc server is restarted on the same port immediately

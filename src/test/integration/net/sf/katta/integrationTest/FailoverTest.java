@@ -48,7 +48,7 @@ import org.junit.Test;
 public class FailoverTest extends AbstractIntegrationTest {
 
   public FailoverTest() {
-    super(3, true);
+    super(3, true, true);
   }
 
   @Test(timeout = 20000)

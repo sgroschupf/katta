@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package net.sf.katta.integrationTest.lucene;
+package net.sf.katta.integrationTest.lib.lucene;
 
 import static org.junit.Assert.assertEquals;
 
@@ -38,7 +38,7 @@ public class LuceneSearchIntegrationTest extends AbstractIntegrationTest {
   private static final int QUERY_TIME = 7000;
 
   public LuceneSearchIntegrationTest() {
-    super(5, false);
+    super(5);
   }
 
   @Test
@@ -141,7 +141,7 @@ public class LuceneSearchIntegrationTest extends AbstractIntegrationTest {
     checkResults(startTime, QUERY_TIME, firedQueries, unexpectedResultCount, exceptions);
   }
 
-  private void startAndStopNodes(long queryTime) throws InterruptedException {
+  private void startAndStopNodes(long queryTime) throws Exception {
     Thread.sleep(queryTime / 4);
     _miniCluster.shutdownNode(0);
 

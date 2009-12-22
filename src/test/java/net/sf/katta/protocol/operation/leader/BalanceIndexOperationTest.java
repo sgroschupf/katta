@@ -16,18 +16,17 @@
 package net.sf.katta.protocol.operation.leader;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
 import net.sf.katta.node.Node;
 import net.sf.katta.protocol.OperationQueue;
 import net.sf.katta.protocol.metadata.IndexMetaData;
+import net.sf.katta.protocol.operation.leader.LeaderOperation.ExecutionInstruction;
 import net.sf.katta.protocol.operation.node.NodeOperation;
 
 import org.junit.Test;
@@ -35,20 +34,13 @@ import org.junit.Test;
 public class BalanceIndexOperationTest extends MockedMasterNodeTest {
 
   @Test
-  public void testLocksOperation() throws Exception {
+  public void testGetExecutionInstruction() throws Exception {
     // only lock operations on same index
     LeaderOperation op1 = new BalanceIndexOperation("index1");
     LeaderOperation op2 = new BalanceIndexOperation("index1");
-    LeaderOperation op3 = new BalanceIndexOperation("index2");
-    LeaderOperation otherOp = mock(LeaderOperation.class);
 
-    assertTrue(op1.locksOperation(op1));
-    assertTrue(op1.locksOperation(op2));
-    assertTrue(op2.locksOperation(op1));
-    assertFalse(op1.locksOperation(op3));
-    assertFalse(op1.locksOperation(otherOp));
-    assertFalse(op3.locksOperation(op1));
-    assertFalse(otherOp.locksOperation(op1));
+    assertEquals(ExecutionInstruction.EXECUTE, op1.getExecutionInstruction(EMPTY_LIST));
+    assertEquals(ExecutionInstruction.CANCEL, op2.getExecutionInstruction(Arrays.asList(op1)));
   }
 
   @Test

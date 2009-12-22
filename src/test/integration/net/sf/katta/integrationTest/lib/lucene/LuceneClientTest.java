@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package net.sf.katta.integrationTest.lucene;
+package net.sf.katta.integrationTest.lib.lucene;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -72,7 +72,7 @@ public class LuceneClientTest extends AbstractIntegrationTest {
   public TemporaryFolder _temporaryFolder = new TemporaryFolder();
 
   public LuceneClientTest() {
-    super(2, false);
+    super(2);
   }
 
   @Before

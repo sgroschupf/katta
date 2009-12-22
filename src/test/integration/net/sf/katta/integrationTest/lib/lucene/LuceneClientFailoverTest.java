@@ -1,4 +1,4 @@
-package net.sf.katta.integrationTest.lucene;
+package net.sf.katta.integrationTest.lib.lucene;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -17,7 +17,7 @@ import org.junit.Test;
 public class LuceneClientFailoverTest extends AbstractIntegrationTest {
 
   public LuceneClientFailoverTest() {
-    super(2, false);
+    super(2);
   }
 
   @Test
