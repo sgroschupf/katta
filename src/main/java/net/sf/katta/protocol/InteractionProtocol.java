@@ -76,7 +76,7 @@ public class InteractionProtocol {
 
   protected volatile boolean _connected = true;
   protected final ZkClient _zkClient;
-  protected ZkConfiguration _zkConf;
+  protected final ZkConfiguration _zkConf;
 
   // we govern the various listener and ephemerals to remove burden from
   // listener-users to unregister/delete them
@@ -118,8 +118,7 @@ public class InteractionProtocol {
   public InteractionProtocol(ZkClient zkClient, ZkConfiguration zkConfiguration) {
     _zkClient = zkClient;
     _zkConf = zkConfiguration;
-    _zkConf = zkConfiguration;
-    LOG.info("Using ZK root path: " + _zkConf.getZkRootPath());
+    LOG.debug("Using ZK root path: " + _zkConf.getZkRootPath());
     new DefaultNameSpaceImpl(_zkConf).createDefaultNameSpace(_zkClient);
   }
 
@@ -350,14 +349,16 @@ public class InteractionProtocol {
 
     OperationQueue<LeaderOperation> queue = null;
     if (isMaster) {
+      LOG.info("master '" + master.getMasterName() + "' published");
       String queuePath = _zkConf.getZkPath(PathDef.MASTER_QUEUE);
       if (!_zkClient.exists(queuePath)) {
         _zkClient.createPersistent(queuePath);
       }
       queue = new OperationQueue<LeaderOperation>(_zkClient, queuePath);
+    } else {
+      LOG.info("secondary master '" + master.getMasterName() + "' registered");
     }
 
-    LOG.info("master '" + master.getMasterName() + "' published");
     return queue;
   }
 

@@ -293,14 +293,14 @@ public class Katta {
     if (deployError.getException() != null) {
       System.out.println("Error Message: " + deployError.getException().getMessage());
     }
-    System.out.println("List of node-errors:");
+    System.out.println("List of shard-errors:");
     Set<Shard> shards = indexMD.getShards();
     for (Shard shard : shards) {
       List<Exception> shardErrors = deployError.getShardErrors(shard.getName());
       if (shardErrors != null && !shardErrors.isEmpty()) {
-        System.out.println("errors for shard " + shard.getName() + ": ");
+        System.out.println("\t" + shard.getName() + ": ");
         for (Exception exception : shardErrors) {
-          System.out.println("\t" + exception.getMessage());
+          System.out.println("\t\t" + exception.getMessage());
         }
       }
     }
@@ -517,29 +517,34 @@ public class Katta {
       table.addRow(nodeMetaData.getName(), nodeMetaData.getStartTimeAsDate(), liveNodes.contains(node) ? "CONNECTED"
               : "DISCONNECTED");
     }
-    table.setHeader("Name (" + liveNodes.size() + "/" + knownNodes.size() + " nodes connected)", "Start time", "State");
+    table.setHeader("Name (" + liveNodes.size() + "/" + knownNodes.size() + " connected)", "Start time", "State");
     System.out.println(table.toString());
   }
 
-  public void listIndex(boolean detailedView) throws IOException {
+  public void listIndex(boolean detailedView) {
     final Table table;
     if (!detailedView) {
-      table = new Table(new String[] { "Name", "Status", "Path", "Shards", "Size", "Disk Usage" });
+      table = new Table(new String[] { "Name", "Status", "Path", "Shards", "Entries", "Disk Usage" });
     } else {
-      table = new Table(new String[] { "Name", "Status", "Path", "Shards", "Size", "Disk Usage", "Replication" });
+      table = new Table(new String[] { "Name", "Status", "Path", "Shards", "Entries", "Disk Usage", "Replication" });
     }
 
     List<String> indices = _protocol.getIndices();
     for (final String index : indices) {
       final IndexMetaData indexMD = _protocol.getIndexMD(index);
       Set<Shard> shards = indexMD.getShards();
-      int size = calculateIndexSize(shards);
+      String entries = "n/a";
+      if (indexMD.getDeployError() == null) {
+        entries = "" + calculateIndexEntries(shards);
+      }
       long indexBytes = calculateIndexDiskUsage(indexMD.getPath());
       String state = indexMD.getDeployError() == null ? "DEPLOYED" : "ERROR";
       if (!detailedView) {
-        table.addRow(index, state, indexMD.getPath(), shards.size(), size, indexBytes);
+        table.addRow(index, state, indexMD.getPath(), shards.size(), entries, indexBytes);
       } else {
-        table.addRow(index, state, indexMD.getPath(), shards.size(), size, indexBytes, indexMD.getReplicationLevel());
+        table
+                .addRow(index, state, indexMD.getPath(), shards.size(), entries, indexBytes, indexMD
+                        .getReplicationLevel());
       }
     }
     if (!indices.isEmpty()) {
@@ -563,7 +568,7 @@ public class Katta {
     }
   }
 
-  private int calculateIndexSize(Set<Shard> shards) {
+  private int calculateIndexEntries(Set<Shard> shards) {
     int docCount = 0;
     for (Shard shard : shards) {
       List<DeployedShard> shardsMD = _protocol.getShardsMD(shard.getName());
@@ -666,7 +671,6 @@ public class Katta {
     System.err
             .println("\taddIndex <index name> <path to index> [<replication level>]\tAdd a index to a Katta installation.");
     System.err.println("\tremoveIndex <index name>\tRemove a index from a Katta installation.");
-    System.err.println("\tsetState <index name> <state>\tOverwrite the state of an index.");
     System.err.println("\tredeployIndex <index name>\tUndeploys and deploys an index.");
     System.err.println("\tlistErrors <index name>\t\tLists all deploy errors for a specified index.");
     System.err.println("\tsearch <index name>[,<index name>,...] \"<query>\" [count]\tSearch in supplied indexes. "

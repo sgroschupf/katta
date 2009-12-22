@@ -105,8 +105,6 @@ public class ZkConfiguration extends KattaConfiguration {
   }
 
   public static final String DEFAULT_ROOT_PATH = "/katta";
-  private final String LOADTEST_NODES = "loadtest-nodes";
-  private final String SERVER_METRICS = "server-metrics";
   private static final String NODES = "nodes";
   private static final String WORK = "work";
 

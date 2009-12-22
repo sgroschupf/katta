@@ -94,14 +94,16 @@ public class Master implements ConnectedComponent {
 
   @Override
   public synchronized void disconnect() {
-    _operatorThread.interrupt();
-    try {
-      _operatorThread.join();
-    } catch (InterruptedException e) {
-      Thread.interrupted();
-      // proceed
+    if (isMaster()) {
+      _operatorThread.interrupt();
+      try {
+        _operatorThread.join();
+      } catch (InterruptedException e) {
+        Thread.interrupted();
+        // proceed
+      }
+      _operatorThread = null;
     }
-    _operatorThread = null;
   }
 
   private void becomePrimaryOrSecondaryMaster() {

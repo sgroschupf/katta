@@ -37,7 +37,6 @@ import org.apache.lucene.index.IndexWriter;
  * Generates a test index, for example used for benchmarking
  * 
  */
-
 public class SampleIndexGenerator {
 
   public void createIndex(String input, String output, int wordsPerDoc, int indexSize) {
@@ -56,7 +55,7 @@ public class SampleIndexGenerator {
       throw new RuntimeException("Unable to read sample text", e);
     }
 
-    File index = new File(output, hostname+"-"+UUID.randomUUID().toString());
+    File index = new File(output, hostname + "-" + UUID.randomUUID().toString());
 
     int count = wordList.length;
     Random random = new Random(System.currentTimeMillis());
@@ -74,7 +73,7 @@ public class SampleIndexGenerator {
         document.add(new Field("key", hostname + "_" + i, Store.NO, Index.UN_TOKENIZED));
         document.add(new Field("text", text.toString(), Store.NO, Index.TOKENIZED));
         indexWriter.addDocument(document);
-     
+
       }
       indexWriter.optimize();
       indexWriter.close();
