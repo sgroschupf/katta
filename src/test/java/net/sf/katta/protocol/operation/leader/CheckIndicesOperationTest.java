@@ -25,13 +25,13 @@ public class CheckIndicesOperationTest extends MockedMasterNodeTest {
 
     // balance the index does not change anything
     CheckIndicesOperation checkOperation = new CheckIndicesOperation();
-    checkOperation.execute(_context);
+    checkOperation.execute(_context, EMPTY_LIST);
     assertEquals(0, masterQueue.size());
 
     // add node and then balance again
     Node node3 = mockNode();
     publisNode(node3);
-    checkOperation.execute(_context);
+    checkOperation.execute(_context, EMPTY_LIST);
     assertEquals(1, masterQueue.size());
   }
 
@@ -47,14 +47,14 @@ public class CheckIndicesOperationTest extends MockedMasterNodeTest {
 
     // balance the index does not change anything
     CheckIndicesOperation balanceOperation = new CheckIndicesOperation();
-    balanceOperation.execute(_context);
+    balanceOperation.execute(_context, EMPTY_LIST);
     assertEquals(0, masterQueue.size());
 
     // decrease the replication count and then balance again
     IndexMetaData indexMD = _protocol.getIndexMD(_indexName);
     indexMD.setReplicationLevel(2);
     _protocol.updateIndexMD(indexMD);
-    balanceOperation.execute(_context);
+    balanceOperation.execute(_context, EMPTY_LIST);
     assertEquals(1, masterQueue.size());
   }
 

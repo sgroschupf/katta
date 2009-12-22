@@ -27,7 +27,7 @@ public class IndexUndeployOperationTest extends MockedMasterNodeTest {
 
     // balance the index does not change anything
     IndexUndeployOperation undeployOperation = new IndexUndeployOperation(_indexName);
-    undeployOperation.execute(_context);
+    undeployOperation.execute(_context, EMPTY_LIST);
     for (OperationQueue<NodeOperation> nodeqQueue : nodeQueues) {
       assertEquals(1, nodeqQueue.size());
       assertTrue(nodeqQueue.peek() instanceof ShardUndeployOperation);
@@ -48,7 +48,7 @@ public class IndexUndeployOperationTest extends MockedMasterNodeTest {
 
     // balance the index does not change anything
     IndexUndeployOperation undeployOperation = new IndexUndeployOperation(_indexName);
-    undeployOperation.execute(_context);
+    undeployOperation.execute(_context, EMPTY_LIST);
     for (OperationQueue<NodeOperation> nodeqQueue : nodeQueues) {
       assertEquals(1, nodeqQueue.size());
       assertTrue(nodeqQueue.peek() instanceof ShardUndeployOperation);

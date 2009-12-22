@@ -27,8 +27,9 @@ import net.sf.katta.protocol.metadata.IndexMetaData;
 import net.sf.katta.protocol.metadata.IndexDeployError.ErrorType;
 import net.sf.katta.protocol.metadata.IndexMetaData.Shard;
 import net.sf.katta.protocol.operation.OperationId;
-import net.sf.katta.protocol.operation.node.DeployResult;
+import net.sf.katta.protocol.operation.node.OperationResult;
 
+import org.I0Itec.zkclient.ExceptionUtil;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -49,8 +50,13 @@ public class IndexDeployOperation extends AbstractIndexOperation {
     _indexPath = indexPath;
   }
 
+  public String getIndexName() {
+    return _indexName;
+  }
+
   @Override
-  public List<OperationId> execute(LeaderContext context) throws Exception {
+  public List<OperationId> execute(LeaderContext context, List<LeaderOperation> runningOperations) throws Exception,
+          InterruptedException {
     InteractionProtocol protocol = context.getProtocol();
     LOG.info("deploying index '" + _indexName + "'");
 
@@ -60,6 +66,7 @@ public class IndexDeployOperation extends AbstractIndexOperation {
       List<OperationId> operationIds = distributeIndexShards(context, _indexMD, protocol.getLiveNodes());
       return operationIds;
     } catch (Exception e) {
+      ExceptionUtil.rethrowInterruptedException(e);
       LOG.error("failed to deploy index " + _indexName, e);
       protocol.publishIndex(_indexMD);
       handleMasterDeployException(protocol, _indexMD, e);
@@ -68,22 +75,24 @@ public class IndexDeployOperation extends AbstractIndexOperation {
   }
 
   @Override
-  public LockInstruction getLockAlreadyObtainedInstruction() {
-    return LockInstruction.CANCEL_THIS_OPERATION;
-  }
-
-  @Override
-  public boolean locksOperation(LeaderOperation operation) {
-    if (operation instanceof IndexDeployOperation) {
-      return ((IndexDeployOperation) operation)._indexName.equals(_indexName);
-    }
-    return false;
-  }
-
-  @Override
-  public void nodeOperationsComplete(LeaderContext context, List<DeployResult> results) throws Exception {
+  public void nodeOperationsComplete(LeaderContext context, List<OperationResult> results) throws Exception {
     LOG.info("deployment of index " + _indexName + " complete");
     handleDeploymentComplete(context, results, _indexMD, true);
+  }
+
+  @Override
+  public ExecutionInstruction getExecutionInstruction(List<LeaderOperation> runningOperations) throws Exception {
+    for (LeaderOperation operation : runningOperations) {
+      if (operation instanceof IndexDeployOperation && ((IndexDeployOperation) operation)._indexName.equals(_indexName)) {
+        return ExecutionInstruction.CANCEL;
+      }
+    }
+    return ExecutionInstruction.EXECUTE;
+  }
+
+  @Override
+  public String toString() {
+    return "deploy index " + _indexName;
   }
 
   protected static List<Shard> readShardsFromFs(final String indexName, final String indexPathString)
@@ -98,7 +107,10 @@ public class IndexDeployOperation extends AbstractIndexOperation {
     }
     FileSystem fileSystem;
     try {
-      fileSystem = FileSystem.get(uri, new Configuration());
+      synchronized (FileSystem.class) {
+        // had once a ConcurrentModificationException
+        fileSystem = FileSystem.get(uri, new Configuration());
+      }
     } catch (final IOException e) {
       throw new IndexDeployException(ErrorType.INDEX_NOT_ACCESSIBLE, "unable to retrive file system for index path '"
               + indexPathString + "', make sure your path starts with hadoop support prefix like file:// or hdfs://", e);

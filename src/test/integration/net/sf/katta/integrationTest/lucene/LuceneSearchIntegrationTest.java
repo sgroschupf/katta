@@ -13,74 +13,65 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package net.sf.katta.integrationTest;
+package net.sf.katta.integrationTest.lucene;
 
-import java.io.File;
+import static org.junit.Assert.assertEquals;
+
 import java.util.ArrayList;
 import java.util.List;
 
-import junit.framework.TestCase;
 import net.sf.katta.client.ILuceneClient;
 import net.sf.katta.client.LuceneClient;
-import net.sf.katta.integrationTest.support.KattaMiniCluster;
+import net.sf.katta.integrationTest.support.AbstractIntegrationTest;
 import net.sf.katta.node.Hits;
-import net.sf.katta.node.LuceneServer;
-import net.sf.katta.node.Node;
-import net.sf.katta.node.Query;
-import net.sf.katta.protocol.InteractionProtocol;
-import net.sf.katta.testutil.TestResources;
-import net.sf.katta.util.FileUtil;
-import net.sf.katta.util.KattaException;
-import net.sf.katta.util.NodeConfiguration;
 import net.sf.katta.util.StringUtil;
-import net.sf.katta.util.ZkConfiguration;
 
 import org.apache.log4j.Logger;
+import org.apache.lucene.analysis.KeywordAnalyzer;
+import org.apache.lucene.queryParser.QueryParser;
+import org.apache.lucene.search.Query;
+import org.junit.Test;
 
-public class SearchIntegrationTest extends TestCase {
+public class LuceneSearchIntegrationTest extends AbstractIntegrationTest {
 
-  private KattaMiniCluster _miniCluster;
+  private static final int SEARCH_THREAD_COUNT = 9;
+  private static final int QUERY_TIME = 7000;
 
-  @Override
-  protected void tearDown() throws Exception {
-    if (_miniCluster != null) {
-      _miniCluster.stop();
-    }
-    super.tearDown();
+  public LuceneSearchIntegrationTest() {
+    super(5, false);
   }
 
+  @Test
   public void testSearch() throws Exception {
     long startTime = System.currentTimeMillis();
-    _miniCluster = startMiniCluster(5, 3, 3);
+    deployTestIndices(3, 3);
 
     // start search threads
     int expectedHitCount = 12;
     SearchThread searchThread = new SearchThread(expectedHitCount);
     searchThread.start();
 
-    // stop everything
-    int queryTime = 20000;
-    Thread.sleep(queryTime);
+    Thread.sleep(QUERY_TIME);
     searchThread.interrupt();
     searchThread.join();
 
-    checkResults(startTime, queryTime, searchThread.getFiredQueryCount(), searchThread.getUnexpectedResultCount(),
+    checkResults(startTime, QUERY_TIME, searchThread.getFiredQueryCount(), searchThread.getUnexpectedResultCount(),
             searchThread.getThrownExceptions());
   }
 
+  @Test
   public void testMultithreadedSearchWithMultipleClients() throws Exception {
     long startTime = System.currentTimeMillis();
-    _miniCluster = startMiniCluster(5, 3, 3);
+    deployTestIndices(3, 3);
 
     // start search threads
     int expectedHitCount = 12;
-    SearchThread[] searchThreads = new SearchThread[25];
+    SearchThread[] searchThreads = new SearchThread[SEARCH_THREAD_COUNT];
     for (int i = 0; i < searchThreads.length; i++) {
       searchThreads[i] = new SearchThread(expectedHitCount);
       searchThreads[i].start();
     }
-    long queryTime = 20000;
-    Thread.sleep(queryTime);
+    Thread.sleep(QUERY_TIME);
 
     // stop everything
     long firedQueries = 0;
@@ -94,94 +85,82 @@ public class SearchIntegrationTest extends TestCase {
       exceptions.addAll(searchThread.getThrownExceptions());
     }
 
-    checkResults(startTime, queryTime, firedQueries, unexpectedResultCount, exceptions);
+    checkResults(startTime, QUERY_TIME, firedQueries, unexpectedResultCount, exceptions);
   }
 
+  @Test
   public void testSearchWhileStartingAndStoppingNodes() throws Exception {
     long startTime = System.currentTimeMillis();
-    _miniCluster = startMiniCluster(3, 3, 3);
+    deployTestIndices(3, 3);
 
     // start search threads
     int expectedHitCount = 12;
     SearchThread searchThread = new SearchThread(expectedHitCount);
     searchThread.start();
 
-    long queryTime = 20000;
-
-    startAndStopNodes(queryTime);
+    startAndStopNodes(QUERY_TIME);
 
     // stop everything
     searchThread.interrupt();
     searchThread.join();
-    _miniCluster.stop();
-
-    checkResults(startTime, queryTime, searchThread.getFiredQueryCount(), searchThread.getUnexpectedResultCount(),
+    checkResults(startTime, QUERY_TIME, searchThread.getFiredQueryCount(), searchThread.getUnexpectedResultCount(),
             searchThread.getThrownExceptions());
   }
 
-  private void startAndStopNodes(long queryTime) throws InterruptedException {
-    Node node1 = _miniCluster.getNode(0);
-    Node node2 = _miniCluster.getNode(1);
-
-    assertNotNull(node1);
-    assertNotNull(node2);
-
-    Thread.sleep(queryTime / 4);
-    node1.shutdown();
-
-    Thread.sleep(queryTime / 4);
-    node2.getRpcServer().stop();
-
-    Thread.sleep(queryTime / 4);
-    NodeConfiguration nodeConf = new NodeConfiguration();
-    nodeConf.setShardFolder(new File(nodeConf.getShardFolder(), "-new").getAbsolutePath());
-    InteractionProtocol protocol = new InteractionProtocol(_miniCluster.getZkClient(), _miniCluster
-            .getZkConfiguration());
-    Node newNode = new Node(protocol, nodeConf, new LuceneServer());
-    newNode.start();
-
-    Thread.sleep(queryTime / 4);
-
-    newNode.shutdown();
-  }
-
+  @Test
   public void testMultithreadedSearchWithOneClientWhileStartingAndStoppingNodes() throws Exception {
     long startTime = System.currentTimeMillis();
-    _miniCluster = startMiniCluster(3, 3, 3);
+    deployTestIndices(3, 3);
 
     // start search threads
     int expectedHitCount = 12;
-    SearchThread[] searchThreads = new SearchThread[25];
+    SearchThread[] searchThreads = new SearchThread[SEARCH_THREAD_COUNT];
     ILuceneClient searchClient = new LuceneClient();
     for (int i = 0; i < searchThreads.length; i++) {
       searchThreads[i] = new SearchThread(searchClient, expectedHitCount);
       searchThreads[i].start();
     }
 
-    long queryTime = 20000;
-    startAndStopNodes(queryTime);
+    startAndStopNodes(QUERY_TIME);
 
     // stop everything
     long firedQueries = 0;
     long unexpectedResultCount = 0;
     List<Exception> exceptions = new ArrayList<Exception>();
+    int i = 0;
     for (SearchThread searchThread : searchThreads) {
       searchThread.interrupt();
       searchThread.join();
       firedQueries += searchThread.getFiredQueryCount();
       unexpectedResultCount += searchThread.getUnexpectedResultCount();
       exceptions.addAll(searchThread.getThrownExceptions());
+      i++;
     }
     searchClient.close();
 
-    checkResults(startTime, queryTime, firedQueries, unexpectedResultCount, exceptions);
+    checkResults(startTime, QUERY_TIME, firedQueries, unexpectedResultCount, exceptions);
+  }
+
+  private void startAndStopNodes(long queryTime) throws InterruptedException {
+    Thread.sleep(queryTime / 4);
+    _miniCluster.shutdownNode(0);
+
+    Thread.sleep(queryTime / 4);
+    _miniCluster.shutdownNode(0);
+
+    Thread.sleep(queryTime / 4);
+    _miniCluster.startAdditionalNode();
+
+    Thread.sleep(queryTime / 4);
+
+    _miniCluster.shutdownNode(_miniCluster.getRunningNodeCount() - 1);
   }
 
   private void checkResults(long startTime, long queryTime, long firedQueries, long unexpectedResultCount,
           List<Exception> exceptions) throws Exception {
     // print results
     System.out.println("===========================================");
-    System.out.println("Results of " + getName() + ":");
+    System.out.println("Results of " + _printMethodNames.getCurrentMethodName() + ":");
     System.out.println("search time: " + StringUtil.formatTimeDuration(queryTime));
     System.out.println("fired queries: " + firedQueries);
     System.out.println("wrong results: " + unexpectedResultCount);
@@ -191,25 +170,9 @@ public class SearchIntegrationTest extends TestCase {
 
     // assert results
     if (!exceptions.isEmpty()) {
-      throw new IllegalStateException("Found exception.", exceptions.get(0));
+      throw new IllegalStateException(exceptions.size() + " exception during search", exceptions.get(0));
     }
     assertEquals("wrong hit count", 0, unexpectedResultCount);
-  }
-
-  private KattaMiniCluster startMiniCluster(int nodeCount, int indexCount, int replicationCount) throws KattaException,
-          InterruptedException {
-    ZkConfiguration conf = new ZkConfiguration();
-    FileUtil.deleteFolder(new File(conf.getZKDataDir()));
-    FileUtil.deleteFolder(new File(conf.getZKDataLogDir()));
-    FileUtil.deleteFolder(new NodeConfiguration().getShardFolder());
-
-    // start katta cluster
-    KattaMiniCluster miniCluster = new KattaMiniCluster(conf, nodeCount);
-    miniCluster.start();
-
-    // deploy indexes
-    miniCluster.deployTestIndexes(TestResources.INDEX1, indexCount, replicationCount);
-    return miniCluster;
   }
 
   protected static class SearchThread extends Thread {
@@ -244,7 +207,8 @@ public class SearchIntegrationTest extends TestCase {
           client = _client;
         }
         while (!_stopped) {
-          Hits hits = client.search(new Query("foo:bar"), new String[] { "*" });
+          final Query query = new QueryParser("", new KeywordAnalyzer()).parse("foo:bar");
+          Hits hits = client.search(query, new String[] { "*" });
           _firedQueryCount++;
           if (hits.size() != _expectedTotalHitCount) {
             _unexpectedResultCount++;

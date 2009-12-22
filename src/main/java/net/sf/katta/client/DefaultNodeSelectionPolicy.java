@@ -15,7 +15,6 @@
  */
 package net.sf.katta.client;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -30,24 +29,17 @@ public class DefaultNodeSelectionPolicy implements INodeSelectionPolicy {
 
   private Map<String, CircularList<String>> _shardsToNodeMap = new ConcurrentHashMap<String, CircularList<String>>();
 
-  // public void update(Map<String, List<String>> shardsToNode) {
-  // Map<String, CircularList<String>> newShard2NodesMap = new HashMap<String,
-  // CircularList<String>>(shardsToNode.size());
-  // Set<String> shards = shardsToNode.keySet();
-  // for (String shard : shards) {
-  // newShard2NodesMap.put(shard, new
-  // CircularList<String>(shardsToNode.get(shard)));
-  // }
-  // _shardsToNodeMap = newShard2NodesMap;
-  // }
-
   public void update(String shard, Collection<String> nodes) {
     _shardsToNodeMap.put(shard, new CircularList<String>(nodes));
   }
 
   @Override
   public Collection<String> getShardNodes(String shard) {
-    return new ArrayList<String>(_shardsToNodeMap.get(shard).asList());
+    CircularList<String> nodeList = _shardsToNodeMap.get(shard);
+    if (nodeList == null) {
+      return Collections.EMPTY_LIST;
+    }
+    return nodeList.asList();
   }
 
   public List<String> remove(String shard) {

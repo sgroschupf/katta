@@ -170,7 +170,7 @@ public class TestUtil {
   }
 
   public static void waitOnLeaveSafeMode(final Master master) throws Exception {
-    TestUtil.waitUntil(false, new Callable<Boolean>() {
+    waitUntil(false, new Callable<Boolean>() {
       @Override
       public Boolean call() throws Exception {
         return master.isInSafeMode();
@@ -179,9 +179,19 @@ public class TestUtil {
     assertEquals(false, master.isInSafeMode());
   }
 
+  public static void waitUntilBecomeMaster(final Master master) throws Exception {
+    waitUntil(false, new Callable<Boolean>() {
+      @Override
+      public Boolean call() throws Exception {
+        return !master.isMaster();
+      }
+    }, TimeUnit.SECONDS, 30);
+    assertEquals(true, master.isMaster());
+  }
+
   public static void waitUntilIndexDeployed(final InteractionProtocol protocol, final String indexName)
           throws Exception {
-    TestUtil.waitUntil(false, new Callable<Boolean>() {
+    waitUntil(false, new Callable<Boolean>() {
       @Override
       public Boolean call() throws Exception {
         return protocol.getIndexMD(indexName) == null;
@@ -189,7 +199,7 @@ public class TestUtil {
     }, TimeUnit.SECONDS, 30);
   }
 
-  public static void waitUntilIndexUndeployed(final InteractionProtocol protocol, final IndexMetaData indexMD)
+  public static void waitUntilShardsUndeployed(final InteractionProtocol protocol, final IndexMetaData indexMD)
           throws Exception {
     TestUtil.waitUntil(false, new Callable<Boolean>() {
       @Override
@@ -203,4 +213,16 @@ public class TestUtil {
       }
     }, TimeUnit.SECONDS, 30);
   }
+
+  public static void waitUntilNodeServesShards(final InteractionProtocol protocol, final String nodeName,
+          final int shardCount) throws Exception {
+    waitUntil(true, new Callable<Boolean>() {
+      @Override
+      public Boolean call() throws Exception {
+        return protocol.getNodeShards(nodeName).size() == shardCount;
+      }
+    }, TimeUnit.SECONDS, 30);
+    assertEquals(shardCount, protocol.getNodeShards(nodeName).size());
+  }
+
 }

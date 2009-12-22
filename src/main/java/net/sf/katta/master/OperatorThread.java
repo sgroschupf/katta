@@ -20,8 +20,9 @@ import java.util.List;
 import net.sf.katta.protocol.OperationQueue;
 import net.sf.katta.protocol.operation.OperationId;
 import net.sf.katta.protocol.operation.leader.LeaderOperation;
-import net.sf.katta.protocol.operation.leader.LeaderOperation.LockInstruction;
+import net.sf.katta.protocol.operation.leader.LeaderOperation.ExecutionInstruction;
 
+import org.I0Itec.zkclient.ExceptionUtil;
 import org.I0Itec.zkclient.exception.ZkInterruptedException;
 import org.apache.log4j.Logger;
 
@@ -74,20 +75,12 @@ class OperatorThread extends Thread {
         // global check operation ?
         LeaderOperation operation = _queue.peek();
         try {
-          boolean locked = _registry.isLocked(operation);
-          if (locked) {
-            handleLockedOperation(operation);
-          } else {
-            executeOperation(operation);
-          }
+          List<LeaderOperation> runningOperations = _registry.getRunningOperations();
+          ExecutionInstruction instruction = operation.getExecutionInstruction(runningOperations);
+          executeOperation(operation, instruction, runningOperations);
         } catch (Exception e) {
-          if (e instanceof InterruptedException) {
-            throw (InterruptedException) e;
-          } else if (e instanceof ZkInterruptedException) {
-            throw (ZkInterruptedException) e;
-          } else {
-            LOG.error("failed to execute " + operation, e);
-          }
+          ExceptionUtil.rethrowInterruptedException(e);
+          LOG.error("failed to execute " + operation, e);
         }
         _queue.remove();
       }
@@ -102,33 +95,26 @@ class OperatorThread extends Thread {
     LOG.info("operator thread stopped");
   }
 
-  @Override
-  public void interrupt() {
-    // TODO Auto-generated method stub
-    super.interrupt();
-  }
-
-  private void executeOperation(LeaderOperation operation) throws Exception {
-    LOG.info("executing operation " + operation + " ");
-    List<OperationId> operationIds = operation.execute(_context);
-    if (operationIds != null && !operationIds.isEmpty()) {
-      _registry.watchFor(operationIds, operation);
-    }
-  }
-
-  private void handleLockedOperation(LeaderOperation operation) {
-    LockInstruction lockInstruction = operation.getLockAlreadyObtainedInstruction();
-    switch (lockInstruction) {
-    case CANCEL_THIS_OPERATION:
+  private void executeOperation(LeaderOperation operation, ExecutionInstruction instruction,
+          List<LeaderOperation> runningOperations) throws Exception {
+    switch (instruction) {
+    case EXECUTE:
+      LOG.info("executing operation '" + operation + "'");
+      List<OperationId> operationIds = operation.execute(_context, runningOperations);
+      if (operationIds != null && !operationIds.isEmpty()) {
+        _registry.watchFor(operationIds, operation);
+      }
+      break;
+    case CANCEL:
       // just do nothing
-      LOG.info("skipping locked " + operation + " ");
+      LOG.info("skipping operation '" + operation + "'");
       break;
     case ADD_TO_QUEUE_TAIL:
-      LOG.info("adding " + operation + " to end of queue");
+      LOG.info("adding operation '" + operation + "' to end of queue");
       _queue.add(operation);
       break;
     default:
-      throw new IllegalStateException("lock instruction " + lockInstruction + " not handled");
+      throw new IllegalStateException("execution instruction " + instruction + " not handled");
     }
   }
 

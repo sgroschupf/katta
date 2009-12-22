@@ -35,6 +35,7 @@ import net.sf.katta.protocol.metadata.IndexDeployError.ErrorType;
 import net.sf.katta.protocol.metadata.IndexMetaData.Shard;
 import net.sf.katta.protocol.operation.node.DeployResult;
 import net.sf.katta.protocol.operation.node.NodeOperation;
+import net.sf.katta.protocol.operation.node.OperationResult;
 import net.sf.katta.protocol.operation.node.ShardDeployOperation;
 
 import org.junit.Test;
@@ -44,14 +45,14 @@ public class IndexDeployOperationTest extends MockedMasterNodeTest {
   @Test
   public void testDeployError_NoNodes() throws Exception {
     IndexDeployOperation deployCommand = new IndexDeployOperation(_indexName, _indexPath, 3);
-    deployCommand.execute(_context);
+    deployCommand.execute(_context, EMPTY_LIST);
     checkDeployError(ErrorType.NO_NODES_AVAILIBLE, _shardCount);
   }
 
   @Test
   public void testDeployError_IndexNotAccessable() throws Exception {
     IndexDeployOperation deployCommand = new IndexDeployOperation(_indexName, "wrongIndexPath", 3);
-    deployCommand.execute(_context);
+    deployCommand.execute(_context, EMPTY_LIST);
     checkDeployError(ErrorType.INDEX_NOT_ACCESSIBLE, 0);
   }
 
@@ -79,7 +80,7 @@ public class IndexDeployOperationTest extends MockedMasterNodeTest {
     // add index
     int replicationLevel = 3;
     IndexDeployOperation operation = new IndexDeployOperation(_indexName, _indexPath, replicationLevel);
-    operation.execute(_context);
+    operation.execute(_context, EMPTY_LIST);
 
     // now complete the deployment
     operation.nodeOperationsComplete(_context, Collections.EMPTY_LIST);
@@ -95,10 +96,10 @@ public class IndexDeployOperationTest extends MockedMasterNodeTest {
     // add index
     int replicationLevel = 3;
     IndexDeployOperation operation = new IndexDeployOperation(_indexName, _indexPath, replicationLevel);
-    operation.execute(_context);
+    operation.execute(_context, EMPTY_LIST);
 
     // now complete the deployment
-    List<DeployResult> results = new ArrayList<DeployResult>();
+    List<OperationResult> results = new ArrayList<OperationResult>();
     for (OperationQueue<NodeOperation> nodeQueue : nodeQueues) {
       NodeOperation nodeOperation = nodeQueue.peek();
       DeployResult deployResult = new DeployResult(_indexName);
@@ -129,7 +130,7 @@ public class IndexDeployOperationTest extends MockedMasterNodeTest {
     // add index
     int replicationLevel = 3;
     IndexDeployOperation operation = new IndexDeployOperation(_indexName, _indexPath, replicationLevel);
-    operation.execute(_context);
+    operation.execute(_context, EMPTY_LIST);
 
     // check results
     Set<String> shards = new HashSet<String>();
@@ -166,7 +167,7 @@ public class IndexDeployOperationTest extends MockedMasterNodeTest {
     // add index
     int replicationLevel = 3;
     IndexDeployOperation operation = new IndexDeployOperation(_indexName, _indexPath, replicationLevel);
-    operation.execute(_context);
+    operation.execute(_context, EMPTY_LIST);
 
     // publis only for one node
     publisShard(nodes.get(0), nodeQueues.get(0));

@@ -66,7 +66,7 @@ public class BalanceIndexOperationTest extends MockedMasterNodeTest {
 
     // balance the index does not change anything
     BalanceIndexOperation balanceOperation = new BalanceIndexOperation(_indexName);
-    balanceOperation.execute(_context);
+    balanceOperation.execute(_context, EMPTY_LIST);
     for (OperationQueue<NodeOperation> nodeqQueue : nodeQueues) {
       assertEquals(0, nodeqQueue.size());
     }
@@ -76,7 +76,7 @@ public class BalanceIndexOperationTest extends MockedMasterNodeTest {
     OperationQueue<NodeOperation> nodeQueue3 = publisNode(node3);
     assertEquals(0, nodeQueue3.size());
 
-    balanceOperation.execute(_context);
+    balanceOperation.execute(_context, EMPTY_LIST);
     for (OperationQueue<NodeOperation> nodeqQueue : nodeQueues) {
       assertEquals(0, nodeqQueue.size());
     }
@@ -98,7 +98,7 @@ public class BalanceIndexOperationTest extends MockedMasterNodeTest {
 
     // balance the index does not change anything
     BalanceIndexOperation balanceOperation = new BalanceIndexOperation(_indexName);
-    balanceOperation.execute(_context);
+    balanceOperation.execute(_context, EMPTY_LIST);
     for (OperationQueue<NodeOperation> nodeqQueue : nodeQueues) {
       assertEquals(0, nodeqQueue.size());
     }
@@ -107,7 +107,7 @@ public class BalanceIndexOperationTest extends MockedMasterNodeTest {
     IndexMetaData indexMD = _protocol.getIndexMD(_indexName);
     indexMD.setReplicationLevel(2);
     _protocol.updateIndexMD(indexMD);
-    balanceOperation.execute(_context);
+    balanceOperation.execute(_context, EMPTY_LIST);
     for (OperationQueue<NodeOperation> nodeqQueue : nodeQueues) {
       assertEquals(1, nodeqQueue.size());
     }
@@ -128,7 +128,7 @@ public class BalanceIndexOperationTest extends MockedMasterNodeTest {
 
     // balance the index does not change anything
     BalanceIndexOperation balanceOperation = new BalanceIndexOperation(_indexName);
-    balanceOperation.execute(_context);
+    balanceOperation.execute(_context, EMPTY_LIST);
     for (OperationQueue<NodeOperation> nodeqQueue : nodeQueues) {
       assertEquals(0, nodeqQueue.size());
     }
@@ -148,7 +148,7 @@ public class BalanceIndexOperationTest extends MockedMasterNodeTest {
 
     // now do the balance
     assertEquals(0, nodeQueue3.size());
-    balanceOperation.execute(_context);
+    balanceOperation.execute(_context, EMPTY_LIST);
     assertEquals(1, nodeQueue3.size());
     publisShard(node3, nodeQueue3);
 
@@ -168,7 +168,7 @@ public class BalanceIndexOperationTest extends MockedMasterNodeTest {
     // balance the index should remove the error
     publisShards(nodes, nodeQueues);
     BalanceIndexOperation balanceOperation = new BalanceIndexOperation(_indexName);
-    balanceOperation.execute(_context);
+    balanceOperation.execute(_context, EMPTY_LIST);
     balanceOperation.nodeOperationsComplete(_context, Collections.EMPTY_LIST);
     assertNull(_protocol.getIndexMD(_indexName).getDeployError());
   }

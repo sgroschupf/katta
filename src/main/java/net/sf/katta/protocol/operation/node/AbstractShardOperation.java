@@ -7,6 +7,7 @@ import java.util.Set;
 import net.sf.katta.node.NodeContext;
 import net.sf.katta.util.KattaException;
 
+import org.I0Itec.zkclient.ExceptionUtil;
 import org.apache.log4j.Logger;
 
 public abstract class AbstractShardOperation implements NodeOperation {
@@ -33,7 +34,7 @@ public abstract class AbstractShardOperation implements NodeOperation {
   }
 
   @Override
-  public final DeployResult execute(NodeContext context) {
+  public final DeployResult execute(NodeContext context) throws InterruptedException {
     LOG.info(getOperationName() + " shards: " + getShardNames());
     DeployResult result = new DeployResult(context.getNode().getName());
     for (String shardName : getShardNames()) {
@@ -41,6 +42,7 @@ public abstract class AbstractShardOperation implements NodeOperation {
         LOG.info(getOperationName() + " shard '" + shardName + "'");
         execute(context, shardName);
       } catch (Exception e) {
+        ExceptionUtil.rethrowInterruptedException(e);
         LOG.error("failed to " + getOperationName() + " shard '" + shardName + "' on node '"
                 + context.getNode().getName() + "'", e);
         result.addShardException(shardName, e);

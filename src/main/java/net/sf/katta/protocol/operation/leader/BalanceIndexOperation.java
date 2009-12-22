@@ -21,7 +21,9 @@ import net.sf.katta.master.LeaderContext;
 import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.protocol.metadata.IndexMetaData;
 import net.sf.katta.protocol.operation.OperationId;
-import net.sf.katta.protocol.operation.node.DeployResult;
+import net.sf.katta.protocol.operation.node.OperationResult;
+
+import org.I0Itec.zkclient.ExceptionUtil;
 
 public class BalanceIndexOperation extends AbstractIndexOperation {
 
@@ -33,7 +35,7 @@ public class BalanceIndexOperation extends AbstractIndexOperation {
   }
 
   @Override
-  public List<OperationId> execute(LeaderContext context) throws Exception {
+  public List<OperationId> execute(LeaderContext context, List<LeaderOperation> runningOperations) throws Exception {
     InteractionProtocol protocol = context.getProtocol();
     IndexMetaData indexMD = protocol.getIndexMD(_indexName);
     if (!canAndShouldRegulateReplication(protocol, _indexName)) {
@@ -46,6 +48,7 @@ public class BalanceIndexOperation extends AbstractIndexOperation {
       List<OperationId> operationIds = distributeIndexShards(context, indexMD, protocol.getLiveNodes());
       return operationIds;
     } catch (Exception e) {
+      ExceptionUtil.rethrowInterruptedException(e);
       LOG.error("failed to deploy balance " + _indexName, e);
       handleMasterDeployException(protocol, indexMD, e);
       return null;
@@ -53,21 +56,20 @@ public class BalanceIndexOperation extends AbstractIndexOperation {
   }
 
   @Override
-  public void nodeOperationsComplete(LeaderContext context, List<DeployResult> results) throws Exception {
+  public void nodeOperationsComplete(LeaderContext context, List<OperationResult> results) throws Exception {
     LOG.info("balancing of index " + _indexName + " complete");
     handleDeploymentComplete(context, results, context.getProtocol().getIndexMD(_indexName), false);
   }
 
   @Override
-  public LockInstruction getLockAlreadyObtainedInstruction() {
-    return LockInstruction.CANCEL_THIS_OPERATION;
+  public ExecutionInstruction getExecutionInstruction(List<LeaderOperation> runningOperations) throws Exception {
+    for (LeaderOperation operation : runningOperations) {
+      if (operation instanceof BalanceIndexOperation
+              && ((BalanceIndexOperation) operation)._indexName.equals(_indexName)) {
+        return ExecutionInstruction.CANCEL;
+      }
+    }
+    return ExecutionInstruction.EXECUTE;
   }
 
-  @Override
-  public boolean locksOperation(LeaderOperation operation) {
-    if (operation instanceof BalanceIndexOperation) {
-      return ((BalanceIndexOperation) operation)._indexName.equals(_indexName);
-    }
-    return false;
-  }
 }

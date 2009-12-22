@@ -17,6 +17,8 @@ package net.sf.katta.protocol;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -24,24 +26,19 @@ import static org.mockito.Mockito.withSettings;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
+import net.sf.katta.AbstractZkTest;
+import net.sf.katta.master.Master;
 import net.sf.katta.node.Node;
 import net.sf.katta.protocol.metadata.NodeMetaData;
 import net.sf.katta.protocol.operation.OperationId;
+import net.sf.katta.protocol.operation.leader.LeaderOperation;
 import net.sf.katta.protocol.operation.node.NodeOperation;
-import net.sf.katta.testutil.PrintMethodNames;
-import net.sf.katta.testutil.ZkTestSystem;
 
 import org.I0Itec.zkclient.Gateway;
 import org.I0Itec.zkclient.ZkClient;
-import org.junit.Rule;
 import org.junit.Test;
 
-public class InteractionProtocolTest {
-
-  @Rule
-  public ZkTestSystem _zk = ZkTestSystem.getInstance();
-  @Rule
-  public PrintMethodNames _printMethodNames = new PrintMethodNames();
+public class InteractionProtocolTest extends AbstractZkTest {
 
   @Test(timeout = 7000)
   public void testLifecycle() throws Exception {
@@ -108,5 +105,24 @@ public class InteractionProtocolTest {
     assertTrue(nodeQueue.isEmpty());
     assertFalse(protocol.isNodeOperationQueued(operation1Id));
     assertFalse(protocol.isNodeOperationQueued(operation2Id));
+  }
+
+  @Test(timeout = 7000)
+  public void testPublishMaster() throws Exception {
+    Master master1 = mock(Master.class);
+    Master master2 = mock(Master.class);
+    when(master1.getMasterName()).thenReturn("master1");
+    when(master2.getMasterName()).thenReturn("master2");
+    InteractionProtocol protocol = _zk.getInteractionProtocol();
+    OperationQueue<LeaderOperation> masterQueue = protocol.publishMaster(master1);
+    assertNotNull(masterQueue);
+
+    // same again
+    masterQueue = protocol.publishMaster(master1);
+    assertNotNull(masterQueue);
+
+    // second master
+    masterQueue = protocol.publishMaster(master2);
+    assertNull(masterQueue);
   }
 }

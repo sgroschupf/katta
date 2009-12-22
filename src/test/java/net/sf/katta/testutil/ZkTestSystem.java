@@ -16,7 +16,6 @@
 package net.sf.katta.testutil;
 
 import net.sf.katta.DefaultNameSpaceImpl;
-import net.sf.katta.Katta;
 import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.util.ZkConfiguration;
 
@@ -107,8 +106,7 @@ public class ZkTestSystem extends ExternalResource {
   }
 
   public void showStructure() {
-    Katta katta = new Katta(getZkConf());
-    katta.showStructure();
+    getInteractionProtocol().showStructure();
   }
 
   // LuceneComplianceTest (zk, lucene server)

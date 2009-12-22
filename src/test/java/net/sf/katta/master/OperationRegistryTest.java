@@ -8,7 +8,6 @@ import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -114,15 +113,10 @@ public class OperationRegistryTest extends MockedMasterNodeTest {
   }
 
   @Test(timeout = 10000)
-  public void testOperationsLock() throws Exception {
-    LeaderOperation leaderOperation2 = mock(LeaderOperation.class);
-    assertFalse(_registry.isLocked(leaderOperation2));
-
+  public void testGetRunningOperations() throws Exception {
     publisNodes(_nodes);
     beginLeaderOperation(_nodes, _leaderOperation);
-    assertFalse(_registry.isLocked(leaderOperation2));
-    when(_leaderOperation.locksOperation(leaderOperation2)).thenReturn(true);
-    assertTrue(_registry.isLocked(leaderOperation2));
+    assertEquals(1, _registry.getRunningOperations().size());
     _registry.shutdown();
   }
 

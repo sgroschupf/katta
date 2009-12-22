@@ -27,7 +27,7 @@ import net.sf.katta.protocol.operation.node.OperationResult;
 import net.sf.katta.protocol.operation.node.ShardUndeployOperation;
 import net.sf.katta.util.CollectionUtil;
 
-public class IndexUndeployOperation implements LeaderOperation<OperationResult> {
+public class IndexUndeployOperation implements LeaderOperation {
 
   private static final long serialVersionUID = 1L;
   private final String _indexName;
@@ -37,7 +37,7 @@ public class IndexUndeployOperation implements LeaderOperation<OperationResult> 
   }
 
   @Override
-  public List<OperationId> execute(LeaderContext context) throws Exception {
+  public List<OperationId> execute(LeaderContext context, List<LeaderOperation> runningOperations) throws Exception {
     InteractionProtocol protocol = context.getProtocol();
     IndexMetaData indexMD = protocol.getIndexMD(_indexName);
 
@@ -58,16 +58,14 @@ public class IndexUndeployOperation implements LeaderOperation<OperationResult> 
   }
 
   @Override
-  public LockInstruction getLockAlreadyObtainedInstruction() {
-    return LockInstruction.CANCEL_THIS_OPERATION;
-  }
-
-  @Override
-  public boolean locksOperation(LeaderOperation operation) {
-    if (operation instanceof IndexUndeployOperation) {
-      return ((IndexUndeployOperation) operation)._indexName.equals(_indexName);
+  public ExecutionInstruction getExecutionInstruction(List<LeaderOperation> runningOperations) throws Exception {
+    for (LeaderOperation operation : runningOperations) {
+      if (operation instanceof IndexUndeployOperation
+              && ((IndexUndeployOperation) operation)._indexName.equals(_indexName)) {
+        return ExecutionInstruction.CANCEL;
+      }
     }
-    return false;
+    return ExecutionInstruction.EXECUTE;
   }
 
 }

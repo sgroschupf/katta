@@ -27,6 +27,7 @@ import net.sf.katta.integrationTest.support.AbstractIntegrationTest;
 import net.sf.katta.node.Node;
 import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.protocol.operation.node.ShardUndeployOperation;
+import net.sf.katta.testutil.TestUtil;
 
 import org.apache.lucene.analysis.KeywordAnalyzer;
 import org.apache.lucene.queryParser.QueryParser;
@@ -35,44 +36,48 @@ import org.junit.Test;
 
 public class NodeIntegrationTest extends AbstractIntegrationTest {
 
+  public NodeIntegrationTest() {
+    super(2, false);
+  }
+
   @Test
   public void testDeployShardAfterRestart() throws Exception {
-    _miniCluster = startMiniCluster(2, 1, 1);
+    deployTestIndices(1, getNodeCount());
     final InteractionProtocol protocol = _miniCluster.getProtocol();
     assertEquals(1, protocol.getIndices().size());
 
-    Node node = _miniCluster.getNode(0);
-    Collection<String> deployedShards = protocol.getNodeShards(node.getName());
+    Collection<String> deployedShards = protocol.getNodeShards(_miniCluster.getNode(0).getName());
     assertFalse(deployedShards.isEmpty());
 
     // restart node
-    node.shutdown();
-    node = new Node(protocol, node.getContext().getNodeManaged());
-    node.start();
+    Node node = _miniCluster.restartNode(0);
     assertEquals(deployedShards, protocol.getNodeShards(node.getName()));
   }
 
   @Test
   public void testUndeployShard() throws Exception {
-    _miniCluster = startMiniCluster(1, 1, 1);
+    deployTestIndices(1, getNodeCount());
     final InteractionProtocol protocol = _miniCluster.getProtocol();
     assertEquals(1, protocol.getIndices().size());
+    Node node = _miniCluster.getNode(0);
+    _protocol.showStructure();
+    TestUtil.waitUntilNodeServesShards(protocol, node.getName(), SHARD_COUNT);
 
     // we should have 4 folders in our working folder now.
-    Node node = _miniCluster.getNode(0);
     File shardsFolder = node.getContext().getShardManager().getShardsFolder();
     assertEquals(SHARD_COUNT, shardsFolder.list().length);
 
     ShardUndeployOperation undeployOperation = new ShardUndeployOperation(Arrays.asList(protocol.getNodeShards(
             node.getName()).iterator().next()));
     protocol.addNodeOperation(node.getName(), undeployOperation);
-    Thread.sleep(2000);
+    TestUtil.waitUntilNodeServesShards(protocol, node.getName(), 3);
+    // Thread.sleep(2000);
     assertEquals(3, shardsFolder.list().length);
   }
 
   @Test
   public void testNodeManaged() throws Exception {
-    _miniCluster = startMiniCluster(1, 1, 1);
+    deployTestIndices(1, getNodeCount());
     final InteractionProtocol protocol = _miniCluster.getProtocol();
     assertEquals(1, protocol.getIndices().size());
 

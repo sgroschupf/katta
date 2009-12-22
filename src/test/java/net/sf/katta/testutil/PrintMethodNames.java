@@ -21,8 +21,11 @@ import org.junit.runners.model.Statement;
 
 public class PrintMethodNames implements MethodRule {
 
+  private String _methodName;
+
   @Override
   public Statement apply(final Statement statement, final FrameworkMethod method, Object target) {
+    _methodName = method.getName();
     return new Statement() {
       @Override
       public void evaluate() throws Throwable {
@@ -32,5 +35,9 @@ public class PrintMethodNames implements MethodRule {
         System.out.println("~~~~~~~~~~~~~~~ FIN " + testClassName + "#" + method.getName() + "() ~~~~~~~~~~~~~~~");
       }
     };
+  }
+
+  public String getCurrentMethodName() {
+    return _methodName;
   }
 }

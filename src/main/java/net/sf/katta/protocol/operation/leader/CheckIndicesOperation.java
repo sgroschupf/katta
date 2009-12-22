@@ -7,14 +7,14 @@ import java.util.Set;
 import net.sf.katta.master.LeaderContext;
 import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.protocol.operation.OperationId;
-import net.sf.katta.protocol.operation.node.DeployResult;
+import net.sf.katta.protocol.operation.node.OperationResult;
 
 public class CheckIndicesOperation extends AbstractIndexOperation {
 
   private static final long serialVersionUID = 1L;
 
   @Override
-  public List<OperationId> execute(LeaderContext context) throws Exception {
+  public List<OperationId> execute(LeaderContext context, List<LeaderOperation> runningOperations) throws Exception {
     InteractionProtocol protocol = context.getProtocol();
     List<String> liveNodes = protocol.getLiveNodes();
     addBalanceOperations(protocol, getUnderreplicatedIndexes(protocol, liveNodes.size()));
@@ -55,17 +55,17 @@ public class CheckIndicesOperation extends AbstractIndexOperation {
   }
 
   @Override
-  public LockInstruction getLockAlreadyObtainedInstruction() {
-    return LockInstruction.ADD_TO_QUEUE_TAIL;
-  }
-
-  @Override
-  public boolean locksOperation(LeaderOperation operation) {
-    return operation instanceof CheckIndicesOperation;
-  }
-
-  @Override
-  public void nodeOperationsComplete(LeaderContext context, List<DeployResult> results) throws Exception {
+  public void nodeOperationsComplete(LeaderContext context, List<OperationResult> results) throws Exception {
     // nothing to do
+  }
+
+  @Override
+  public ExecutionInstruction getExecutionInstruction(List<LeaderOperation> runningOperations) throws Exception {
+    for (LeaderOperation operation : runningOperations) {
+      if (operation instanceof CheckIndicesOperation) {
+        return ExecutionInstruction.ADD_TO_QUEUE_TAIL;
+      }
+    }
+    return ExecutionInstruction.EXECUTE;
   }
 }

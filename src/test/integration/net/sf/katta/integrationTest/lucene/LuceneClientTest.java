@@ -13,20 +13,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package net.sf.katta.client;
+package net.sf.katta.integrationTest.lucene;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.io.File;
 import java.util.List;
 import java.util.Set;
 
-import net.sf.katta.AbstractKattaTest;
-import net.sf.katta.index.IndexMetaData.IndexState;
-import net.sf.katta.master.Master;
+import net.sf.katta.client.DeployClient;
+import net.sf.katta.client.ILuceneClient;
+import net.sf.katta.client.IndexState;
+import net.sf.katta.client.LuceneClient;
+import net.sf.katta.integrationTest.support.AbstractIntegrationTest;
 import net.sf.katta.node.Hit;
 import net.sf.katta.node.Hits;
-import net.sf.katta.node.LuceneServer;
 import net.sf.katta.node.Node;
 import net.sf.katta.testutil.TestResources;
+import net.sf.katta.testutil.TestUtil;
 import net.sf.katta.util.KattaException;
 
 import org.apache.hadoop.io.MapWritable;
@@ -45,86 +53,88 @@ import org.apache.lucene.queryParser.ParseException;
 import org.apache.lucene.queryParser.QueryParser;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.Sort;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 /**
  * Test for {@link LuceneClient}.
  */
-public class LuceneClientTest extends AbstractKattaTest {
+public class LuceneClientTest extends AbstractIntegrationTest {
 
   private static Logger LOG = Logger.getLogger(LuceneClientTest.class);
 
   private static final String INDEX1 = "index1";
   private static final String INDEX2 = "index2";
   private static final String INDEX3 = "index3";
-
-  private static Node _node1;
-  private static Node _node2;
-  private static Master _master;
-  private static IDeployClient _deployClient;
-  private static ILuceneClient _client;
+  @Rule
+  public TemporaryFolder _temporaryFolder = new TemporaryFolder();
 
   public LuceneClientTest() {
-    super(false);
+    super(2, false);
   }
 
-  @Override
-  protected void onBeforeClass() throws Exception {
-    MasterStartThread masterStartThread = startMaster();
-    _master = masterStartThread.getMaster();
+  @Before
+  public void setupClient() {
+    // TODO Auto-generated method stub
 
-    NodeStartThread nodeStartThread1 = startNode(new LuceneServer());
-    NodeStartThread nodeStartThread2 = startNode(new LuceneServer());
-    _node1 = nodeStartThread1.getNode();
-    _node2 = nodeStartThread2.getNode();
-    masterStartThread.join();
-    nodeStartThread1.join();
-    nodeStartThread2.join();
-    waitOnNodes(masterStartThread, 2);
-
-    _deployClient = new DeployClient(masterStartThread.getZkClient(), _conf);
-    _deployClient.addIndex(INDEX1, TestResources.INDEX1.getAbsolutePath(), 1).joinDeployment();
-    _deployClient.addIndex(INDEX2, TestResources.INDEX1.getAbsolutePath(), 1).joinDeployment();
-    _deployClient.addIndex(INDEX3, TestResources.INDEX1.getAbsolutePath(), 1).joinDeployment();
-    _client = new LuceneClient(new DefaultNodeSelectionPolicy(), _conf);
   }
 
-  @Override
-  protected void onAfterClass() throws Exception {
-    _client.close();
-    _node1.shutdown();
-    _node2.shutdown();
-    _master.shutdown();
-  }
+  @Test
+  public void testInstantiateClientBeforeIndex() throws Exception {
+    ILuceneClient client = new LuceneClient(_miniCluster.getZkConfiguration());
+    deployTestIndices(1, getNodeCount());
+    List<Node> nodes = _miniCluster.getNodes();
+    for (Node node : nodes) {
+      TestUtil.waitUntilNodeServesShards(_protocol, node.getName(), SHARD_COUNT);
+    }
 
-  public void testCount() throws KattaException, ParseException {
     final Query query = new QueryParser("", new KeywordAnalyzer()).parse("content: the");
-    final int count = _client.count(query, new String[] { INDEX1 });
+    client.count(query, new String[] { INDEX_NAME });
+    client.close();
+  }
+
+  @Test
+  public void testCount() throws Exception {
+    deployTestIndices(1, 1);
+    ILuceneClient client = new LuceneClient(_miniCluster.getZkConfiguration());
+    final Query query = new QueryParser("", new KeywordAnalyzer()).parse("content: the");
+    final int count = client.count(query, new String[] { INDEX_NAME });
     assertEquals(937, count);
+    client.close();
   }
 
-  public void testGetDetails() throws KattaException, ParseException {
+  @Test
+  public void testGetDetails() throws Exception {
+    deployTestIndices(1, 1);
+    ILuceneClient client = new LuceneClient(_miniCluster.getZkConfiguration());
     final Query query = new QueryParser("", new KeywordAnalyzer()).parse("content: the");
-    final Hits hits = _client.search(query, new String[] { INDEX1 }, 10);
+    final Hits hits = client.search(query, new String[] { INDEX_NAME }, 10);
     assertNotNull(hits);
     assertEquals(10, hits.getHits().size());
     for (final Hit hit : hits.getHits()) {
-      final MapWritable details = _client.getDetails(hit);
+      final MapWritable details = client.getDetails(hit);
       final Set<Writable> keySet = details.keySet();
       assertFalse(keySet.isEmpty());
       final Writable writable = details.get(new Text("path"));
       assertNotNull(writable);
     }
+    client.close();
   }
 
+  @Test
   public void testGetDetailsConcurrently() throws KattaException, ParseException, InterruptedException {
+    deployTestIndices(1, 1);
+    ILuceneClient client = new LuceneClient(_miniCluster.getZkConfiguration());
     final Query query = new QueryParser("", new KeywordAnalyzer()).parse("content: the");
-    final Hits hits = _client.search(query, new String[] { INDEX1 }, 10);
+    final Hits hits = client.search(query, new String[] { INDEX_NAME }, 10);
     assertNotNull(hits);
     assertEquals(10, hits.getHits().size());
-    List<MapWritable> detailList = _client.getDetails(hits.getHits());
+    List<MapWritable> detailList = client.getDetails(hits.getHits());
     assertEquals(hits.getHits().size(), detailList.size());
     for (int i = 0; i < detailList.size(); i++) {
-      final MapWritable details1 = _client.getDetails(hits.getHits().get(i));
+      final MapWritable details1 = client.getDetails(hits.getHits().get(i));
       final MapWritable details2 = detailList.get(i);
       assertEquals(details1.entrySet(), details2.entrySet());
       final Set<Writable> keySet = details2.keySet();
@@ -134,20 +144,25 @@ public class LuceneClientTest extends AbstractKattaTest {
     }
   }
 
-  public void testSearch() throws KattaException, ParseException {
+  @Test
+  public void testSearch() throws Exception {
+    deploy3Indices();
+    ILuceneClient client = new LuceneClient(_miniCluster.getZkConfiguration());
     final Query query = new QueryParser("", new KeywordAnalyzer()).parse("foo: bar");
-    final Hits hits = _client.search(query, new String[] { INDEX3, INDEX2 });
+    final Hits hits = client.search(query, new String[] { INDEX3, INDEX2 });
     assertNotNull(hits);
     for (final Hit hit : hits.getHits()) {
       writeToLog(hit);
     }
     assertEquals(8, hits.size());
     assertEquals(8, hits.getHits().size());
+    client.close();
   }
 
+  @Test
   public void testSortedSearch() throws Exception {
     // write and deploy test index
-    File sortIndex = createFile("sortIndex");
+    File sortIndex = _temporaryFolder.newFolder("sortIndex");
     String queryTerm = "2";
     String sortFieldName = "sortField";
     String textFieldName = "textField";
@@ -166,15 +181,16 @@ public class LuceneClientTest extends AbstractKattaTest {
     }
     indexWriter.optimize();
     indexWriter.close();
-    IndexState indexState = _deployClient.addIndex(sortIndex.getName(), sortIndex.getParentFile().getAbsolutePath(), 1)
-        .joinDeployment();
+    DeployClient deployClient = new DeployClient(_miniCluster.getProtocol());
+    IndexState indexState = deployClient.addIndex(sortIndex.getName(), sortIndex.getParentFile().getAbsolutePath(), 1)
+            .joinDeployment();
     assertEquals(IndexState.DEPLOYED, indexState);
-    Thread.sleep(1000);// wait until lucene client is aware of the index
 
     // query and compare results
+    ILuceneClient client = new LuceneClient(_miniCluster.getZkConfiguration());
     final Query query = new QueryParser("", new KeywordAnalyzer()).parse(textFieldName + ": " + queryTerm);
     Sort sort = new Sort(new String[] { "sortField" });
-    final Hits hits = _client.search(query, new String[] { sortIndex.getName() }, 20, sort);
+    final Hits hits = client.search(query, new String[] { sortIndex.getName() }, 20, sort);
     assertNotNull(hits);
     List<Hit> hitsList = hits.getHits();
     for (final Hit hit : hitsList) {
@@ -187,11 +203,15 @@ public class LuceneClientTest extends AbstractKattaTest {
       int compareTo = hitsList.get(i).getSortFields()[0].compareTo(hitsList.get(i + 1).getSortFields()[0]);
       assertTrue("results not after field", compareTo == 0 || compareTo == -1);
     }
+    client.close();
   }
 
-  public void testSearchLimit() throws KattaException, ParseException {
+  @Test
+  public void testSearchLimit() throws Exception {
+    deploy3Indices();
+    ILuceneClient client = new LuceneClient(_miniCluster.getZkConfiguration());
     final Query query = new QueryParser("", new KeywordAnalyzer()).parse("foo: bar");
-    final Hits hits = _client.search(query, new String[] { INDEX3, INDEX2 }, 1);
+    final Hits hits = client.search(query, new String[] { INDEX3, INDEX2 }, 1);
     assertNotNull(hits);
     for (final Hit hit : hits.getHits()) {
       writeToLog(hit);
@@ -203,9 +223,12 @@ public class LuceneClientTest extends AbstractKattaTest {
     }
   }
 
-  public void testKatta20SearchLimitMaxNumberOfHits() throws KattaException, ParseException {
+  @Test
+  public void testKatta20SearchLimitMaxNumberOfHits() throws Exception {
+    deployTestIndices(1, getNodeCount());
     final Query query = new QueryParser("", new KeywordAnalyzer()).parse("foo: bar");
-    final Hits expectedHits = _client.search(query, new String[] { INDEX1 }, 4);
+    ILuceneClient client = new LuceneClient(_miniCluster.getZkConfiguration());
+    final Hits expectedHits = client.search(query, new String[] { INDEX_NAME }, 4);
     assertNotNull(expectedHits);
     LOG.info("Expected hits:");
     for (final Hit hit : expectedHits.getHits()) {
@@ -214,28 +237,27 @@ public class LuceneClientTest extends AbstractKattaTest {
     assertEquals(4, expectedHits.getHits().size());
 
     for (int i = 0; i < 100; i++) {
-      // Now we redo the search, but limit the max number of hits. We expect the same
-      // ordering of hits.
+      // Now we redo the search, but limit the max number of hits. We expect the
+      // same ordering of hits.
       for (int maxHits = 1; maxHits < expectedHits.size() + 1; maxHits++) {
-        final Hits hits = _client.search(query, new String[] { INDEX1 }, maxHits);
+        final Hits hits = client.search(query, new String[] { INDEX_NAME }, maxHits);
         assertNotNull(hits);
         assertEquals(maxHits, hits.getHits().size());
         for (int j = 0; j < hits.getHits().size(); j++) {
-//           writeToLog("expected: ", expectedHits.getHits().get(j));
-//           writeToLog("actual : ", hits.getHits().get(j));
-          assertEquals(expectedHits.getHits().get(j).getScore(), hits.getHits().get(j).getScore());
+          // writeToLog("expected: ", expectedHits.getHits().get(j));
+          // writeToLog("actual : ", hits.getHits().get(j));
+          assertEquals(expectedHits.getHits().get(j).getScore(), hits.getHits().get(j).getScore(), 0.0);
         }
       }
     }
   }
 
-  private void writeToLog(Hit hit) {
-    LOG.info(hit.getNode() + " -- " + hit.getShard() + " -- " + hit.getScore() + " -- " + hit.getDocId());
-  }
-
-  public void testSearchSimiliarity() throws KattaException, ParseException {
+  @Test
+  public void testSearchSimiliarity() throws Exception {
+    deploy3Indices();
+    ILuceneClient client = new LuceneClient(_miniCluster.getZkConfiguration());
     final Query query = new QueryParser("", new KeywordAnalyzer()).parse("foo: bar");
-    final Hits hits = _client.search(query, new String[] { INDEX2 });
+    final Hits hits = client.search(query, new String[] { INDEX2 });
     assertNotNull(hits);
     assertEquals(4, hits.getHits().size());
     for (final Hit hit : hits.getHits()) {
@@ -243,15 +265,27 @@ public class LuceneClientTest extends AbstractKattaTest {
     }
   }
 
+  @Test
   public void testNonExistentShard() throws Exception {
     final Query query = new QueryParser("", new KeywordAnalyzer()).parse("foo: bar");
+    ILuceneClient client = new LuceneClient(_miniCluster.getZkConfiguration());
     try {
-      _client.search(query, new String[] { "doesNotExist" });
+      client.search(query, new String[] { "doesNotExist" });
       fail("Should have failed.");
     } catch (KattaException e) {
       assertEquals("No shards for indices: [doesNotExist]", e.getMessage());
     }
   }
 
+  private void writeToLog(Hit hit) {
+    LOG.info(hit.getNode() + " -- " + hit.getShard() + " -- " + hit.getScore() + " -- " + hit.getDocId());
+  }
+
+  private void deploy3Indices() throws Exception {
+    DeployClient deployClient = new DeployClient(_miniCluster.getProtocol());
+    deployClient.addIndex(INDEX1, TestResources.INDEX1.getAbsolutePath(), 1).joinDeployment();
+    deployClient.addIndex(INDEX2, TestResources.INDEX1.getAbsolutePath(), 1).joinDeployment();
+    deployClient.addIndex(INDEX3, TestResources.INDEX1.getAbsolutePath(), 1).joinDeployment();
+  }
 
 }

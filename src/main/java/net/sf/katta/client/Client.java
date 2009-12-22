@@ -122,7 +122,6 @@ public class Client implements IShardProxyManager, ConnectedComponent {
     LOG.info("indices=" + indexList);
     addOrWatchNewIndexes(indexList);
     _startupTime = System.currentTimeMillis();
-
   }
 
   // --------------- Proxy handling ----------------------
@@ -140,7 +139,8 @@ public class Client implements IShardProxyManager, ConnectedComponent {
         return true;
       }
     } catch (Exception e) {
-      LOG.warn("Could not create proxy for node '" + node + "' - " + e.getClass().getSimpleName());
+      LOG.warn("Could not create proxy for node '" + node + "' - " + e.getClass().getSimpleName() + ": "
+              + e.getMessage());
       return false;
     }
   }
@@ -217,8 +217,8 @@ public class Client implements IShardProxyManager, ConnectedComponent {
                 @Override
                 public void removed(String name) {
                   LOG.info("shard " + shardName + ": removed node " + name);
-                  Collection<String> shardNodes = _selectionPolicy.getShardNodes(shardName);
-                  shardNodes.remove(shardName);
+                  Collection<String> shardNodes = new ArrayList<String>(_selectionPolicy.getShardNodes(shardName));
+                  shardNodes.remove(name);
                   _selectionPolicy.update(shardName, shardNodes);
                 }
 
@@ -227,8 +227,8 @@ public class Client implements IShardProxyManager, ConnectedComponent {
                   LOG.info("shard " + shardName + ": added node " + name);
                   boolean connectionEstablished = eastablishNodeProxyIfNecessary(name);
                   if (connectionEstablished) {
-                    Collection<String> shardNodes = _selectionPolicy.getShardNodes(shardName);
-                    shardNodes.add(shardName);
+                    Collection<String> shardNodes = new ArrayList<String>(_selectionPolicy.getShardNodes(shardName));
+                    shardNodes.add(name);
                     _selectionPolicy.update(shardName, shardNodes);
                   }
                 }
@@ -418,9 +418,18 @@ public class Client implements IShardProxyManager, ConnectedComponent {
     return _node2ProxyMap.get(node);
   }
 
+  @Override
+  public String toString() {
+    // /TODO remove
+    return _node2ProxyMap.toString();
+  }
+
   public void nodeFailed(String node, Throwable t) {
+    // TODO jz: maybe we should inspect the exception to identify if its really
+    // an proxy problem ?
     synchronized (_node2ProxyMap) {
-      _node2ProxyMap.remove(node);
+      VersionedProtocol proxy = _node2ProxyMap.remove(node);
+      RPC.stopProxy(proxy);
     }
     _selectionPolicy.removeNode(node);
   }

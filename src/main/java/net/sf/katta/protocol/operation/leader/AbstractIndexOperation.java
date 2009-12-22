@@ -31,13 +31,14 @@ import net.sf.katta.protocol.metadata.IndexDeployError.ErrorType;
 import net.sf.katta.protocol.metadata.IndexMetaData.Shard;
 import net.sf.katta.protocol.operation.OperationId;
 import net.sf.katta.protocol.operation.node.DeployResult;
+import net.sf.katta.protocol.operation.node.OperationResult;
 import net.sf.katta.protocol.operation.node.ShardDeployOperation;
 import net.sf.katta.protocol.operation.node.ShardUndeployOperation;
 import net.sf.katta.util.CollectionUtil;
 
 import org.apache.log4j.Logger;
 
-public abstract class AbstractIndexOperation implements LeaderOperation<DeployResult> {
+public abstract class AbstractIndexOperation implements LeaderOperation {
 
   public static final char INDEX_SHARD_NAME_SEPARATOR = '#';
   private static final long serialVersionUID = 1L;
@@ -175,7 +176,7 @@ public abstract class AbstractIndexOperation implements LeaderOperation<DeployRe
     protocol.updateIndexMD(indexMD);
   }
 
-  protected void handleDeploymentComplete(LeaderContext context, List<DeployResult> results, IndexMetaData indexMD,
+  protected void handleDeploymentComplete(LeaderContext context, List<OperationResult> results, IndexMetaData indexMD,
           boolean newIndex) {
     ReplicationReport replicationReport = getReplicationReport(context.getProtocol(), indexMD);
     if (replicationReport.isDeployed()) {
@@ -185,8 +186,10 @@ public abstract class AbstractIndexOperation implements LeaderOperation<DeployRe
         context.getProtocol().addLeaderOperation(new BalanceIndexOperation(indexMD.getName()));
       }
     } else {
+      context.getProtocol().showStructure();
       IndexDeployError deployError = new IndexDeployError(indexMD.getName(), ErrorType.SHARDS_NOT_DEPLOYABLE);
-      for (DeployResult deployResult : results) {
+      for (OperationResult operationResult : results) {
+        DeployResult deployResult = (DeployResult) operationResult;
         for (Entry<String, Exception> entry : deployResult.getShardExceptions()) {
           deployError.addShardError(entry.getKey(), entry.getValue());
         }

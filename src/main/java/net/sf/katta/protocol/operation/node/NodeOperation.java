@@ -7,15 +7,13 @@ import net.sf.katta.node.NodeContext;
 
 /**
  * An operation executed by an {@link Node}.
- * 
- * @param <T>
- *          the type of the {@link OperationResult}
  */
-public interface NodeOperation<T extends OperationResult> extends Serializable {
+public interface NodeOperation extends Serializable {
 
   /**
    * @param context
    * @return null or an {@link OperationResult}
+   * @throws InterruptedException
    */
-  T execute(NodeContext context);
+  OperationResult execute(NodeContext context) throws InterruptedException;
 }

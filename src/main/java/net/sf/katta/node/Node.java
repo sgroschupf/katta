@@ -31,6 +31,7 @@ import net.sf.katta.protocol.operation.node.ShardRedeployOperation;
 import net.sf.katta.util.NetworkUtil;
 import net.sf.katta.util.NodeConfiguration;
 
+import org.I0Itec.zkclient.ExceptionUtil;
 import org.I0Itec.zkclient.exception.ZkInterruptedException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.ipc.RPC;
@@ -50,6 +51,7 @@ public class Node implements ConnectedComponent {
 
   private IMonitor _monitor;
   private Thread _nodeOperatorThread;
+  private boolean _stopped;
 
   public Node(InteractionProtocol protocol, INodeManaged server) {
     this(protocol, new NodeConfiguration(), server);
@@ -68,7 +70,7 @@ public class Node implements ConnectedComponent {
    * Boots the node
    */
   public void start() {
-    if (_protocol == null) {
+    if (_stopped) {
       throw new IllegalStateException("Node cannot be started again after it was shutdown.");
     }
     LOG.debug("Starting rpc server...");
@@ -92,28 +94,31 @@ public class Node implements ConnectedComponent {
 
     NodeMetaData nodeMetaData = new NodeMetaData(_nodeName);
     OperationQueue<NodeOperation> nodeOperationQueue = _protocol.publishNode(this, nodeMetaData);
-    _nodeOperatorThread = new Thread(new NodeOperationProcessor(nodeOperationQueue, _context));
-    _nodeOperatorThread.setDaemon(true);
-    _nodeOperatorThread.start();
+    startOperatorThread(nodeOperationQueue);
 
     // deploy previous served shards
     redeployInstalledShards();
     LOG.info("Started node: " + _nodeName + "...");
   }
 
-  @Override
-  public void reconnect() {
-    LOG.info(_nodeName + " reconnected");
-    redeployInstalledShards();
-    NodeMetaData nodeMetaData = new NodeMetaData(_nodeName);
-    OperationQueue<NodeOperation> nodeOperationQueue = _protocol.publishNode(this, nodeMetaData);
+  private void startOperatorThread(OperationQueue<NodeOperation> nodeOperationQueue) {
     _nodeOperatorThread = new Thread(new NodeOperationProcessor(nodeOperationQueue, _context));
+    _nodeOperatorThread.setName(NodeOperationProcessor.class.getSimpleName() + ": " + getName());
     _nodeOperatorThread.setDaemon(true);
     _nodeOperatorThread.start();
   }
 
   @Override
-  public void disconnect() {
+  public synchronized void reconnect() {
+    LOG.info(_nodeName + " reconnected");
+    redeployInstalledShards();
+    NodeMetaData nodeMetaData = new NodeMetaData(_nodeName);
+    OperationQueue<NodeOperation> nodeOperationQueue = _protocol.publishNode(this, nodeMetaData);
+    startOperatorThread(nodeOperationQueue);
+  }
+
+  @Override
+  public synchronized void disconnect() {
     LOG.info(_nodeName + " disconnected");
     _nodeOperatorThread.interrupt();
     try {
@@ -127,7 +132,11 @@ public class Node implements ConnectedComponent {
   private void redeployInstalledShards() {
     Collection<String> installedShards = _context.getShardManager().getInstalledShards();
     ShardRedeployOperation redeployOperation = new ShardRedeployOperation(installedShards);
-    redeployOperation.execute(_context);
+    try {
+      redeployOperation.execute(_context);
+    } catch (InterruptedException e) {
+      ExceptionUtil.convertToRuntimeException(e);
+    }
   }
 
   private void startMonitor(String nodeName, NodeConfiguration conf) {
@@ -145,11 +154,12 @@ public class Node implements ConnectedComponent {
   }
 
   public void shutdown() {
-    if (_protocol == null) {
-      return;
+    if (_stopped) {
+      throw new IllegalStateException("already stopped");
     }
-
     LOG.info("shutdown " + _nodeName + " ...");
+    _stopped = true;
+
     if (_monitor != null) {
       _monitor.stopMonitoring();
     }
@@ -162,13 +172,11 @@ public class Node implements ConnectedComponent {
 
     _protocol.unregisterComponent(this);
     _rpcServer.stop();
-    _rpcServer = null;
     try {
       _context.getNodeManaged().shutdown();
     } catch (Throwable t) {
       LOG.error("Error shutting down server", t);
     }
-    _protocol = null;
     LOG.info("shutdown " + _nodeName + " finished");
   }
 
@@ -182,6 +190,11 @@ public class Node implements ConnectedComponent {
 
   public int getRPCServerPort() {
     return _rpcServer.getListenerAddress().getPort();
+  }
+
+  public boolean isRunning() {
+    // TODO jz: improve this whole start/stop/isRunning thing
+    return _context != null && !_stopped;
   }
 
   public void join() throws InterruptedException {
@@ -251,7 +264,7 @@ public class Node implements ConnectedComponent {
     @Override
     public void run() {
       try {
-        while (true) {
+        while (_nodeContext.getNode().isRunning()) {
           NodeOperation operation = _operationQueue.peek();
           OperationResult operationResult;
           try {

@@ -10,6 +10,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Set;
 
+import net.sf.katta.AbstractZkTest;
 import net.sf.katta.master.DefaultDistributionPolicy;
 import net.sf.katta.master.LeaderContext;
 import net.sf.katta.master.Master;
@@ -19,18 +20,11 @@ import net.sf.katta.protocol.OperationQueue;
 import net.sf.katta.protocol.metadata.NodeMetaData;
 import net.sf.katta.protocol.operation.node.NodeOperation;
 import net.sf.katta.protocol.operation.node.ShardDeployOperation;
-import net.sf.katta.testutil.PrintMethodNames;
 import net.sf.katta.testutil.TestResources;
-import net.sf.katta.testutil.ZkTestSystem;
 
-import org.junit.Rule;
+public class MockedMasterNodeTest extends AbstractZkTest {
 
-public class MockedMasterNodeTest {
-
-  @Rule
-  public ZkTestSystem _zk = ZkTestSystem.getInstance();
-  @Rule
-  public PrintMethodNames _printMethodNames = new PrintMethodNames();
+  protected static final List EMPTY_LIST = Collections.EMPTY_LIST;
 
   protected InteractionProtocol _protocol = new InteractionProtocol(_zk.getZkClient(), _zk.getZkConf());
   protected LeaderContext _context = new LeaderContext(_protocol, new DefaultDistributionPolicy());
@@ -82,13 +76,13 @@ public class MockedMasterNodeTest {
 
   protected void deployIndexWithError() throws Exception {
     IndexDeployOperation deployOperation = new IndexDeployOperation(_indexName, _indexPath, 3);
-    deployOperation.execute(_context);
+    deployOperation.execute(_context, EMPTY_LIST);
     deployOperation.nodeOperationsComplete(_context, Collections.EMPTY_LIST);
   }
 
   protected void deployIndex(List<Node> nodes, List<OperationQueue<NodeOperation>> nodeQueues) throws Exception {
     IndexDeployOperation deployOperation = new IndexDeployOperation(_indexName, _indexPath, 3);
-    deployOperation.execute(_context);
+    deployOperation.execute(_context, EMPTY_LIST);
     publisShards(nodes, nodeQueues);
     deployOperation.nodeOperationsComplete(_context, Collections.EMPTY_LIST);
   }

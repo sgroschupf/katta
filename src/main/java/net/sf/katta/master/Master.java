@@ -57,12 +57,12 @@ public class Master implements ConnectedComponent {
   }
 
   @SuppressWarnings("unchecked")
-  public Master(InteractionProtocol interactionProtocol, boolean shutdownClient, MasterConfiguration masterConfiguration)
+  public Master(InteractionProtocol protocol, boolean shutdownClient, MasterConfiguration masterConfiguration)
           throws KattaException {
-    _protocol = interactionProtocol;
+    _protocol = protocol;
     _masterName = NetworkUtil.getLocalhostName() + "_" + UUID.randomUUID().toString();
     _shutdownClient = shutdownClient;
-    interactionProtocol.registerComponent(this);
+    protocol.registerComponent(this);
     final String deployPolicyClassName = masterConfiguration.getDeployPolicy();
     try {
       final Class<IDeployPolicy> policyClazz = (Class<IDeployPolicy>) Class.forName(deployPolicyClassName);
@@ -88,12 +88,12 @@ public class Master implements ConnectedComponent {
   }
 
   @Override
-  public void reconnect() {
+  public synchronized void reconnect() {
     becomePrimaryOrSecondaryMaster();
   }
 
   @Override
-  public void disconnect() {
+  public synchronized void disconnect() {
     _operatorThread.interrupt();
     try {
       _operatorThread.join();

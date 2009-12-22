@@ -26,10 +26,6 @@ public class MasterMetaData implements Serializable {
   private String _masterName;
   private long _startTime;
 
-  public MasterMetaData() {
-    // needed for serialization
-  }
-
   public MasterMetaData(final String masterName, final long startTime) {
     _masterName = masterName;
     _startTime = startTime;

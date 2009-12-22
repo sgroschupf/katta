@@ -25,22 +25,38 @@ import net.sf.katta.protocol.operation.node.OperationResult;
 /**
  * An operation carried out by the leader node.
  * 
- * @param <T>
- *          the type of the {@link OperationResult}
+ * If an {@link InterruptedException} is thrown during the operations
+ * {@link #execute(LeaderContext)} method (which can happen during master change
+ * or zookeeper reconnect) the operation can either catch and handle or rethrow
+ * it. Rethrowing it will lead to complete reexecution of the operation.
+ * 
  */
-public interface LeaderOperation<T extends OperationResult> extends Serializable {
+public interface LeaderOperation extends Serializable {
 
-  static enum LockInstruction {
-    CANCEL_THIS_OPERATION, ADD_TO_QUEUE_TAIL;
+  static enum ExecutionInstruction {
+    EXECUTE, CANCEL, ADD_TO_QUEUE_TAIL;
   }
 
   /**
+   * Called before {@link #execute(LeaderContext, List)} to evaluate if this
+   * operation is blocked, delayed, etc by another running
+   * {@link LeaderOperation}.
+   * 
+   * @param runningOperations
+   * @return instruction
+   * @throws Exception
+   */
+  ExecutionInstruction getExecutionInstruction(List<LeaderOperation> runningOperations) throws Exception;
+
+  /**
    * @param context
+   * @param runningOperations
+   *          currently running {@link LeaderOperation}s
    * @return null or a list of operationId which have to be completed before
    *         {@link #nodeOperationsComplete(LeaderContext)} method is called.
    * @throws Exception
    */
-  List<OperationId> execute(LeaderContext context) throws Exception;
+  List<OperationId> execute(LeaderContext context, List<LeaderOperation> runningOperations) throws Exception;
 
   /**
    * Called when all operations are complete or the nodes of the incomplete
@@ -51,20 +67,6 @@ public interface LeaderOperation<T extends OperationResult> extends Serializable
    * @param context
    * @param results
    */
-  void nodeOperationsComplete(LeaderContext context, List<T> results) throws Exception;
-
-  /**
-   * @param operation
-   * @return true if the current operation, while running, locks the given
-   *         operation, false otherwise
-   */
-  boolean locksOperation(LeaderOperation operation);
-
-  /**
-   * This method is called, if the operation is locked by another one.
-   * 
-   * @return a {@link LockInstruction}
-   */
-  LockInstruction getLockAlreadyObtainedInstruction();
+  void nodeOperationsComplete(LeaderContext context, List<OperationResult> results) throws Exception;
 
 }

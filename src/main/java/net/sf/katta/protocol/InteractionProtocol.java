@@ -314,7 +314,7 @@ public class InteractionProtocol {
     boolean isMaster;
     if (!_zkClient.exists(zkMasterPath)) {
       LOG.info(masterName + " starting as master...");
-      createEphemeral(master, zkMasterPath, null);
+      createEphemeral(master, zkMasterPath, new MasterMetaData(masterName, System.currentTimeMillis()));
       isMaster = true;
     } else {
       LOG.info(masterName + " starting as secondary master...");
@@ -368,10 +368,10 @@ public class InteractionProtocol {
 
     // create queue for incoming node operations
     String queuePath = _zkConf.getZkPath(PathDef.NODE_QUEUE, node.getName());
-    // String queuePath = _zkConf.getZKNodeQueuePath(node.getName());
     if (_zkClient.exists(queuePath)) {
       _zkClient.deleteRecursive(queuePath);
     }
+
     OperationQueue<NodeOperation> nodeQueue = new OperationQueue<NodeOperation>(_zkClient, queuePath);
 
     // mark the node as connected

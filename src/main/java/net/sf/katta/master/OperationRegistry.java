@@ -22,7 +22,7 @@ public class OperationRegistry {
   }
 
   public synchronized OperationWatchdog watchFor(List<OperationId> operationIds, LeaderOperation operation) {
-    LOG.info("watch operation " + operation + " for node operations " + operationIds);
+    LOG.info("watch operation '" + operation + "' for node operations " + operationIds);
     releaseDoneWatchdogs(); // lazy cleaning
     OperationWatchdog watchdog = new OperationWatchdog(_context, operationIds, operation);
     _watchdogs.add(watchdog);
@@ -38,16 +38,17 @@ public class OperationRegistry {
     }
   }
 
-  public synchronized boolean isLocked(LeaderOperation operation) {
+  public synchronized List<LeaderOperation> getRunningOperations() {
+    List<LeaderOperation> operations = new ArrayList<LeaderOperation>();
     for (Iterator iterator = _watchdogs.iterator(); iterator.hasNext();) {
       OperationWatchdog watchdog = (OperationWatchdog) iterator.next();
       if (watchdog.isDone()) {
         iterator.remove(); // lazy cleaning
-      } else if (watchdog.getOperation().locksOperation(operation)) {
-        return true;
+      } else {
+        operations.add(watchdog.getOperation());
       }
     }
-    return false;
+    return operations;
   }
 
   public synchronized void shutdown() {
