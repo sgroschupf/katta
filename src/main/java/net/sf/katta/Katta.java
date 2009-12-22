@@ -31,7 +31,6 @@ import net.sf.katta.client.IIndexDeployFuture;
 import net.sf.katta.client.ILuceneClient;
 import net.sf.katta.client.IndexState;
 import net.sf.katta.client.LuceneClient;
-import net.sf.katta.index.DeployedShard;
 import net.sf.katta.index.indexer.SampleIndexGenerator;
 import net.sf.katta.master.Master;
 import net.sf.katta.monitor.MetricLogger;
@@ -45,6 +44,7 @@ import net.sf.katta.node.Node;
 import net.sf.katta.node.Query;
 import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.protocol.ReplicationReport;
+import net.sf.katta.protocol.metadata.DeployedShard;
 import net.sf.katta.protocol.metadata.IndexDeployError;
 import net.sf.katta.protocol.metadata.IndexMetaData;
 import net.sf.katta.protocol.metadata.NodeMetaData;
@@ -582,18 +582,17 @@ public class Katta {
   }
 
   public void addIndex(final String name, final String path, final int replicationLevel) {
-    final String indexZkPath = _conf.getOldZKIndexPath(name);
+    IDeployClient deployClient = new DeployClient(_zkClient, _conf);
     if (name.trim().equals("*")) {
       printError("Index with name " + name + " isn't allowed.");
       return;
     }
-    if (_zkClient.exists(indexZkPath)) {
+    if (deployClient.existsIndex(name)) {
       printError("Index with name " + name + " already exists.");
       return;
     }
 
     try {
-      IDeployClient deployClient = new DeployClient(_zkClient, _conf);
       IIndexDeployFuture deployFuture = deployClient.addIndex(name, path, replicationLevel);
       while (true) {
         if (deployFuture.getState() == IndexState.DEPLOYED) {

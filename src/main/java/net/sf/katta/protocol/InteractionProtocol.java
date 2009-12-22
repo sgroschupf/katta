@@ -26,10 +26,10 @@ import java.util.Map;
 import java.util.Set;
 
 import net.sf.katta.DefaultNameSpaceImpl;
-import net.sf.katta.index.DeployedShard;
 import net.sf.katta.master.Master;
 import net.sf.katta.monitor.MetricsRecord;
 import net.sf.katta.node.Node;
+import net.sf.katta.protocol.metadata.DeployedShard;
 import net.sf.katta.protocol.metadata.IndexMetaData;
 import net.sf.katta.protocol.metadata.MasterMetaData;
 import net.sf.katta.protocol.metadata.NodeMetaData;
@@ -119,7 +119,7 @@ public class InteractionProtocol {
     _zkClient = zkClient;
     _zkConf = zkConfiguration;
     _zkConf = zkConfiguration;
-    LOG.info("Using ZK root path: " + _zkConf.getZKRootPath());
+    LOG.info("Using ZK root path: " + _zkConf.getZkRootPath());
     new DefaultNameSpaceImpl(_zkConf).createDefaultNameSpace(_zkClient);
   }
 
@@ -216,15 +216,15 @@ public class InteractionProtocol {
   }
 
   public List<String> registerMetricsNodeListener(ConnectedComponent component, IAddRemoveListener dataListener) {
-    return registerAddRemoveListener(component, dataListener, _zkConf.getZKMetricsPath());
+    return registerAddRemoveListener(component, dataListener, _zkConf.getZkPath(PathDef.NODE_METRICS));
   }
 
   public void registerMetricsDataListener(ConnectedComponent component, String nodeName, IZkDataListener dataListener) {
-    registerDataListener(component, dataListener, _zkConf.getZKMetricsPathForServer(nodeName));
+    registerDataListener(component, dataListener, _zkConf.getZkPath(PathDef.NODE_METRICS, nodeName));
   }
 
   public void unregisterMetricsDataListener(ConnectedComponent component, String nodeName, IZkDataListener dataListener) {
-    unregisterDataListener(component, dataListener, _zkConf.getZKMetricsPathForServer(nodeName));
+    unregisterDataListener(component, dataListener, _zkConf.getZkPath(PathDef.NODE_METRICS, nodeName));
   }
 
   public List<String> getKnownNodes() {
@@ -241,10 +241,6 @@ public class InteractionProtocol {
 
   public NodeMetaData getNodeMD(String node) {
     return (NodeMetaData) readZkData(_zkConf.getZkPath(PathDef.NODES_METADATA, node));
-  }
-
-  public net.sf.katta.index.IndexMetaData getOldIndexMD(String index) {
-    return (net.sf.katta.index.IndexMetaData) readZkData(_zkConf.getOldZKIndexPath(index));
   }
 
   private Serializable readZkData(String zkPath) {
@@ -354,7 +350,7 @@ public class InteractionProtocol {
 
     OperationQueue<LeaderOperation> queue = null;
     if (isMaster) {
-      String queuePath = _zkConf.getZKMasterQueuePath();
+      String queuePath = _zkConf.getZkPath(PathDef.MASTER_QUEUE);
       if (!_zkClient.exists(queuePath)) {
         _zkClient.createPersistent(queuePath);
       }
@@ -442,7 +438,7 @@ public class InteractionProtocol {
   }
 
   public void setMetric(String nodeName, MetricsRecord metricsRecord) {
-    String metricsPath = _zkConf.getZKMetricsPathForServer(nodeName);
+    String metricsPath = _zkConf.getZkPath(PathDef.NODE_METRICS, nodeName);
     try {
       _zkClient.writeData(metricsPath, metricsRecord);
     } catch (ZkNoNodeException e) {
@@ -455,7 +451,7 @@ public class InteractionProtocol {
   }
 
   public MetricsRecord getMetric(String nodeName) {
-    return (MetricsRecord) readZkData(_zkConf.getZKMetricsPathForServer(nodeName));
+    return (MetricsRecord) readZkData(_zkConf.getZkPath(PathDef.NODE_METRICS, nodeName));
   }
 
   private void createEphemeral(ConnectedComponent component, String path, Serializable content) {
@@ -464,7 +460,7 @@ public class InteractionProtocol {
   }
 
   public void addLeaderOperation(LeaderOperation operation) {
-    String queuePath = _zkConf.getZKMasterQueuePath();
+    String queuePath = _zkConf.getZkPath(PathDef.MASTER_QUEUE);
     new OperationQueue<LeaderOperation>(_zkClient, queuePath).add(operation);
   }
 
@@ -513,6 +509,25 @@ public class InteractionProtocol {
 
   public void showStructure() {
     _zkClient.showFolders(System.out);
+  }
+
+  public void explainStructure() {
+    for (PathDef pathDef : PathDef.values()) {
+      String zkPath = _zkConf.getZkPath(pathDef);
+      System.out.println(getWithWhiteSpaceFilled(zkPath, 40) + "\t" + pathDef.getDescription());
+    }
+  }
+
+  private String getWithWhiteSpaceFilled(String zkPath, int length) {
+    int neededWhiteSpace = length - zkPath.length();
+    if (neededWhiteSpace > 0) {
+      StringBuilder builder = new StringBuilder(zkPath);
+      for (int i = 0; i < neededWhiteSpace; i++) {
+        builder.append(" ");
+      }
+      return builder.toString();
+    }
+    return zkPath;
   }
 
   protected class AddRemoveListenerAdapter implements IZkChildListener {

@@ -40,7 +40,7 @@ public class NodeMasterReconnectTest extends AbstractZkTest {
 
     // startup node over gateway
     final ZkConfiguration gatewayConf = new ZkConfiguration();
-    gatewayConf.setZKRootPath(_zk.getZkConf().getZKRootPath());
+    gatewayConf.setZKRootPath(_zk.getZkConf().getZkRootPath());
     gatewayConf.setZKServers("localhost:" + GATEWAY_PORT);
     Gateway gateway = new Gateway(GATEWAY_PORT, _zk.getServerPort());
     gateway.start();

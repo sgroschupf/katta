@@ -19,22 +19,14 @@ import java.io.IOException;
 
 import net.sf.katta.client.DeployClient;
 import net.sf.katta.master.Master;
-import net.sf.katta.testutil.PrintMethodNames;
-import net.sf.katta.testutil.ZkTestSystem;
 import net.sf.katta.util.ZkConfiguration;
 import net.sf.katta.util.ZkKattaUtil;
 
 import org.I0Itec.zkclient.ZkClient;
 import org.I0Itec.zkclient.ZkServer;
-import org.junit.Rule;
 import org.junit.Test;
 
-public class KattaTest {
-
-  @Rule
-  public ZkTestSystem _zk = ZkTestSystem.getInstance();
-  @Rule
-  public PrintMethodNames _printMethodNames = new PrintMethodNames();
+public class KattaTest extends AbstractZkTest {
 
   @Test
   public void testShowStructure() {

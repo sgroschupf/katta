@@ -41,18 +41,13 @@ public class DefaultNameSpaceImpl implements IDefaultNameSpace {
   @Override
   public void createDefaultNameSpace(ZkClient zkClient) {
     LOG.debug("Creating default File structure if required....");
-    safeCreate(zkClient, _conf.getZKRootPath());
-    // safeCreate(zkClient, _conf.getZkPath(PathDef.MASTER));
-    safeCreate(zkClient, _conf.getZkPath(PathDef.NODES_METADATA));
-    safeCreate(zkClient, _conf.getZkPath(PathDef.NODES_LIVE));
-    safeCreate(zkClient, _conf.getZkPath(PathDef.INDICES_METADATA));
-    safeCreate(zkClient, _conf.getZkPath(PathDef.SHARD_TO_NODES));
-
-    // safeCreate(zkClient, _conf.getZKLeaderPath());
-    safeCreate(zkClient, _conf.getZKWorkPath());
-    // safeCreate(zkClient, _conf.getZKShardToNodePath());
-    safeCreate(zkClient, _conf.getZKLoadTestPath());
-    safeCreate(zkClient, _conf.getZKMetricsPath());
+    safeCreate(zkClient, _conf.getZkRootPath());
+    PathDef[] values = PathDef.values();
+    for (PathDef pathDef : values) {
+      if (pathDef != PathDef.MASTER) {
+        safeCreate(zkClient, _conf.getZkPath(pathDef));
+      }
+    }
   }
 
   private void safeCreate(ZkClient zkClient, String path) {

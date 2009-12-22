@@ -13,16 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package net.sf.katta.index;
+package net.sf.katta.protocol.metadata;
 
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 
-@Deprecated
 public class DeployedShard implements Serializable {
 
-  private String _shardName = "";
+  private static final long serialVersionUID = 1L;
+  private String _shardName;
   private Map<String, String> _metaData = new HashMap<String, String>();
 
   public DeployedShard() {

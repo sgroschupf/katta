@@ -15,12 +15,10 @@
  */
 package net.sf.katta.client;
 
-import java.util.ArrayList;
 import java.util.List;
 
-import net.sf.katta.index.IndexMetaData;
-import net.sf.katta.index.IndexMetaData.IndexState;
 import net.sf.katta.protocol.InteractionProtocol;
+import net.sf.katta.protocol.metadata.IndexMetaData;
 import net.sf.katta.protocol.operation.leader.AbstractIndexOperation;
 import net.sf.katta.protocol.operation.leader.IndexDeployOperation;
 import net.sf.katta.protocol.operation.leader.IndexUndeployOperation;
@@ -40,13 +38,18 @@ public class DeployClient implements IDeployClient {
     _protocol = interactionProtocol;
   }
 
+  @Override
   public IIndexDeployFuture addIndex(String indexName, String indexPath, int replicationLevel) {
-    validateIndexName(indexName, indexPath);
+    validateIndexData(indexName, replicationLevel);
     _protocol.addLeaderOperation(new IndexDeployOperation(indexName, indexPath, replicationLevel));
     return new IndexDeployFuture(_protocol, indexName);
   }
 
-  private void validateIndexName(String name, String indexPath) {
+  private void validateIndexData(String name, int replicationLevel) {
+    // TODO jz: try to access path already ?
+    if (replicationLevel <= 0) {
+      throw new IllegalArgumentException("replication level must be 1 or greater");
+    }
     if (name.trim().equals("*")) {
       throw new IllegalArgumentException("invalid index name: " + name);
     }
@@ -56,31 +59,26 @@ public class DeployClient implements IDeployClient {
     }
   }
 
+  @Override
   public void removeIndex(String indexName) {
+    if (!existsIndex(indexName)) {
+      throw new IllegalArgumentException("index with name '" + indexName + "' does not exists");
+    }
     _protocol.addLeaderOperation(new IndexUndeployOperation(indexName));
   }
 
+  @Override
   public boolean existsIndex(String indexName) {
     return _protocol.indexExists(indexName);
   }
 
-  public List<IndexMetaData> getIndexes(IndexState indexState) {
-    // TODO index by state
-    return null;
-    // return _protocol.getIndicesMDs(indexState);
-
-  }
-
-  public List<String> getIndexNames(IndexState indexState) {
-    List<IndexMetaData> indexesMds = getIndexes(indexState);
-    final List<String> returnIndexes = new ArrayList<String>();
-    for (final IndexMetaData indexMD : indexesMds) {
-      returnIndexes.add(indexMD.getName());
-    }
-    return returnIndexes;
-  }
-
+  @Override
   public IndexMetaData getIndexMetaData(String indexName) {
-    return _protocol.getOldIndexMD(indexName);
+    return _protocol.getIndexMD(indexName);
+  }
+
+  @Override
+  public List<String> getIndices() {
+    return _protocol.getIndices();
   }
 }

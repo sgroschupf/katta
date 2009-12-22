@@ -23,23 +23,15 @@ public class ZkConfiguration extends KattaConfiguration {
   public static final String KATTA_PROPERTY_NAME = "katta.zk.propertyName";
 
   public static final String ZOOKEEPER_EMBEDDED = "zookeeper.embedded";
-
   public static final String ZOOKEEPER_SERVERS = "zookeeper.servers";
-
   public static final String ZOOKEEPER_TIMEOUT = "zookeeper.timeout";
-
   public static final String ZOOKEEPER_TICK_TIME = "zookeeper.tick-time";
-
   public static final String ZOOKEEPER_INIT_LIMIT = "zookeeper.init-limit";
-
   public static final String ZOOKEEPER_SYNC_LIMIT = "zookeeper.sync-limit";
-
   public static final String ZOOKEEPER_DATA_DIR = "zookeeper.data-dir";
-
   public static final String ZOOKEEPER_LOG_DATA_DIR = "zookeeper.log-data-dir";
 
   public static final String ZOOKEEPER_ROOT_PATH = "zookeeper.root-path";
-
   public static final String ZK_PATH_SEPERATOR = "zookeeper.path-separator";
 
   public ZkConfiguration() {
@@ -102,11 +94,6 @@ public class ZkConfiguration extends KattaConfiguration {
     return getProperty(ZOOKEEPER_LOG_DATA_DIR);
   }
 
-  /*
-   * The following methods have to do Zookeeper paths. These setting used to be
-   * static fields of ZkPaths.
-   */
-
   private Character _sep;
 
   public char getSeparator() {
@@ -117,21 +104,26 @@ public class ZkConfiguration extends KattaConfiguration {
     return _sep.charValue();
   }
 
+  public static final String DEFAULT_ROOT_PATH = "/katta";
+  private final String LOADTEST_NODES = "loadtest-nodes";
+  private final String SERVER_METRICS = "server-metrics";
   private static final String NODES = "nodes";
-  private static final String INDICES = "indices";
   private static final String WORK = "work";
 
   public String getZKNodeQueuePath(String node) {
-    return buildPath(getZKRootPath(), WORK, node + "-queue");
+    return buildPath(getZkRootPath(), WORK, node + "-queue");
   }
 
   public enum PathDef {
     MASTER("current master ephemeral", "master"), // 
     NODES_METADATA("metadata of connected & unconnected nodes", NODES, "metadata"), // 
     NODES_LIVE("ephemerals of connected nodes", NODES, "live"), //
-    INDICES_METADATA("metadata of live & error indices", INDICES, "metadata"), //
-    SHARD_TO_NODES("ephemerals of nodes serving a shard", INDICES, "shard-to-nodes"), //
-    NODE_QUEUE("metadata of failed indices", WORK, "node-queues"); //
+    NODE_METRICS("metrics information of nodes", NODES, "metrics"), //
+    NODE_LOADTESTS("loadtest information of nodes", NODES, "loadtest"), //
+    INDICES_METADATA("metadata of live & error indices", "indicies"), //
+    SHARD_TO_NODES("ephemerals of nodes serving a shard", "shard-to-nodes"), //
+    MASTER_QUEUE("master operations", WORK, "master-queue"), //
+    NODE_QUEUE("node operations and results", WORK, "node-queues"); //
 
     private final String _description;
     private final String[] _pathParts;
@@ -152,34 +144,15 @@ public class ZkConfiguration extends KattaConfiguration {
 
   /**
    * @param pathDef
-   * @return ${katta.root}/pathDef
-   */
-  public String getZkPath(PathDef pathDef) {
-    return buildPath(getZKRootPath(), pathDef.getPath(getSeparator()));
-  }
-
-  /**
-   * @param pathDef
-   * @return ${katta.root}/pathDef/name
-   */
-  public String getZkPath(PathDef pathDef, String name) {
-    return buildPath(getZKRootPath(), pathDef.getPath(getSeparator()), name);
-  }
-
-  /**
-   * @param pathDef
    * @return ${katta.root}/pathDef/name1/name2/...
    */
   public String getZkPath(PathDef pathDef, String... names) {
+    if (names.length == 0) {
+      return buildPath(getZkRootPath(), pathDef.getPath(getSeparator()));
+    }
     String suffixPath = buildPath(names);
-    return buildPath(getZKRootPath(), pathDef.getPath(getSeparator()), suffixPath);
+    return buildPath(getZkRootPath(), pathDef.getPath(getSeparator()), suffixPath);
   }
-
-  public static final String DEFAULT_ROOT_PATH = "/katta";
-  private final String OLD_INDEXES = "indexes";
-  // private final String SHARD_TO_NODE = "shard-to-node";
-  private final String LOADTEST_NODES = "loadtest-nodes";
-  private final String SERVER_METRICS = "server-metrics";
 
   private String _rootPath;
 
@@ -189,7 +162,7 @@ public class ZkConfiguration extends KattaConfiguration {
    * 
    * @return The root path, or null if not found.
    */
-  public String getZKRootPath() {
+  public String getZkRootPath() {
     if (_rootPath == null) {
       _rootPath = getProperty(ZOOKEEPER_ROOT_PATH, DEFAULT_ROOT_PATH).trim();
       if (_rootPath.endsWith("/")) {
@@ -207,36 +180,8 @@ public class ZkConfiguration extends KattaConfiguration {
     _rootPath = null;
   }
 
-  public String getZKWorkPath() {
-    return buildPath(getZKRootPath(), WORK);
-  }
-
-  public String getZKMasterQueuePath() {
-    return buildPath(getZKRootPath(), WORK, "master-queue");
-  }
-
-  public String getZKNodeQueueElementPath(String node, String elementName) {
-    return buildPath(getZKNodeQueuePath(node), elementName);
-  }
-
-  public String getOldZKIndexPath(String index) {
-    return buildPath(getZKRootPath(), OLD_INDEXES, index);
-  }
-
-  // public String getZKShardToNodePath() {
-  // return buildPath(getZKRootPath(), SHARD_TO_NODE);
-  // }
-  //
-  // public String getZKShardToNodePath(String shard) {
-  // return buildPath(getZKRootPath(), SHARD_TO_NODE, shard);
-  // }
-  //
-  // public String getZKShardToNodePath(String shard, String node) {
-  // return buildPath(getZKRootPath(), SHARD_TO_NODE, shard, node);
-  // }
-
-  public String getZKLoadTestPath() {
-    return buildPath(getZKRootPath(), LOADTEST_NODES);
+  public String getZKName(String path) {
+    return path.substring(path.lastIndexOf(getSeparator()) + 1);
   }
 
   private String buildPath(String... folders) {
@@ -253,18 +198,6 @@ public class ZkConfiguration extends KattaConfiguration {
       builder.deleteCharAt(builder.length() - 1);
     }
     return builder.toString();
-  }
-
-  public String getZKName(String path) {
-    return path.substring(path.lastIndexOf(getSeparator()) + 1);
-  }
-
-  public String getZKMetricsPathForServer(String serverId) {
-    return buildPath(getZKRootPath(), SERVER_METRICS, serverId);
-  }
-
-  public String getZKMetricsPath() {
-    return buildPath(getZKRootPath(), SERVER_METRICS);
   }
 
 }

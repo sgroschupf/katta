@@ -60,7 +60,7 @@ public class ZkTestSystem extends ExternalResource {
 
   private void cleanupZk() {
     LOG.info("cleanup zk namespace");
-    getZkClient().deleteRecursive(_conf.getZKRootPath());
+    getZkClient().deleteRecursive(_conf.getZkRootPath());
     new DefaultNameSpaceImpl(_conf).createDefaultNameSpace(getZkClient());
     LOG.info("unsubscribing " + getZkClient().numberOfListeners() + " listeners");
     getZkClient().unsubscribeAll();

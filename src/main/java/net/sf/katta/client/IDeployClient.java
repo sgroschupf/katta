@@ -17,8 +17,7 @@ package net.sf.katta.client;
 
 import java.util.List;
 
-import net.sf.katta.index.IndexMetaData;
-import net.sf.katta.index.IndexMetaData.IndexState;
+import net.sf.katta.protocol.metadata.IndexMetaData;
 
 public interface IDeployClient {
 
@@ -28,10 +27,8 @@ public interface IDeployClient {
 
   boolean existsIndex(String name);
 
-  List<IndexMetaData> getIndexes(IndexState indexState);
-
-  List<String> getIndexNames(IndexState indexState);
-
   IndexMetaData getIndexMetaData(String name);
+
+  List<String> getIndices();
 
 }

@@ -26,8 +26,8 @@ public class ZkConfigurationTest extends TestCase {
       System.setProperty(ZkConfiguration.KATTA_PROPERTY_NAME, "/katta.zk.properties_alt_root");
       ZkConfiguration conf2 = new ZkConfiguration();
       //
-      assertEquals("/katta", conf1.getZKRootPath());
-      assertEquals("/test/katta20090510153800", conf2.getZKRootPath());
+      assertEquals("/katta", conf1.getZkRootPath());
+      assertEquals("/test/katta20090510153800", conf2.getZkRootPath());
       //
       try {
         System.setProperty(ZkConfiguration.KATTA_PROPERTY_NAME, "/not-found");

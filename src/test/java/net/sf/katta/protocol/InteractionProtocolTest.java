@@ -125,4 +125,9 @@ public class InteractionProtocolTest extends AbstractZkTest {
     masterQueue = protocol.publishMaster(master2);
     assertNull(masterQueue);
   }
+
+  @Test(timeout = 7000)
+  public void testExplainStructure() throws Exception {
+    _protocol.explainStructure();
+  }
 }
