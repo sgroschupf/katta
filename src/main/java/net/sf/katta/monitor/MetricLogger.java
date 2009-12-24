@@ -23,6 +23,7 @@ import net.sf.katta.protocol.ConnectedComponent;
 import net.sf.katta.protocol.IAddRemoveListener;
 import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.util.ZkConfiguration;
+import net.sf.katta.util.ZkConfiguration.PathDef;
 
 import org.I0Itec.zkclient.IZkDataListener;
 import org.I0Itec.zkclient.ZkClient;
@@ -55,7 +56,7 @@ public class MetricLogger implements IZkDataListener, ConnectedComponent {
     _protocol = protocol;
     _outputType = outputType;
     _protocol.registerComponent(this);
-    List<String> children = _protocol.registerMetricsNodeListener(this, new IAddRemoveListener() {
+    List<String> children = _protocol.registerChildListener(this, PathDef.NODE_METRICS, new IAddRemoveListener() {
       @Override
       public void removed(String name) {
         unsubscribeDataUpdates(name);
@@ -76,11 +77,11 @@ public class MetricLogger implements IZkDataListener, ConnectedComponent {
   }
 
   protected void subscribeDataUpdates(String nodeName) {
-    _protocol.registerMetricsDataListener(this, nodeName, this);
+    _protocol.registerDataListener(this, PathDef.NODE_METRICS, nodeName, this);
   }
 
   protected void unsubscribeDataUpdates(String nodeName) {
-    _protocol.unregisterMetricsDataListener(this, nodeName, this);
+    _protocol.unregisterDataChanges(this, PathDef.NODE_METRICS, nodeName, this);
   }
 
   @Override

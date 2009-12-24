@@ -148,6 +148,7 @@ public class Master implements ConnectedComponent {
         }
       }
     });
+    _protocol.addLeaderOperation(new CheckIndicesOperation());
     for (String node : nodes) {
       _protocol.addLeaderOperation(new RemoveSuperfluousShardsOperation(node));
     }

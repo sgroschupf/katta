@@ -26,6 +26,8 @@ import net.sf.katta.protocol.operation.OperationId;
 import net.sf.katta.protocol.operation.node.OperationResult;
 import net.sf.katta.protocol.operation.node.ShardUndeployOperation;
 
+import org.mortbay.log.Log;
+
 public class RemoveSuperfluousShardsOperation implements LeaderOperation {
 
   private static final long serialVersionUID = 1L;
@@ -55,10 +57,15 @@ public class RemoveSuperfluousShardsOperation implements LeaderOperation {
           List<LeaderOperation> runningOperations) {
     List<String> obsoletShards = new ArrayList<String>();
     for (String shardName : nodeShards) {
-      String indexName = AbstractIndexOperation.getIndexNameFromShardName(shardName);
-      IndexMetaData indexMD = protocol.getIndexMD(indexName);
-      if (indexMD == null && !containsDeployOperation(runningOperations, indexName)) {
-        // index has been removed
+      try {
+        String indexName = AbstractIndexOperation.getIndexNameFromShardName(shardName);
+        IndexMetaData indexMD = protocol.getIndexMD(indexName);
+        if (indexMD == null && !containsDeployOperation(runningOperations, indexName)) {
+          // index has been removed
+          obsoletShards.add(shardName);
+        }
+      } catch (IllegalArgumentException e) {
+        Log.warn("found shard with invalid name '" + shardName + "' - instruct removal");
         obsoletShards.add(shardName);
       }
     }

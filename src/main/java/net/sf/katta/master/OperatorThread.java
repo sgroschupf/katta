@@ -61,15 +61,6 @@ class OperatorThread extends Thread {
       LOG.info("starting...");
       runInSafeMode();
 
-      try {
-        doStartupCheck();
-      } catch (final Exception e) {
-        if (e.getCause() instanceof InterruptedException) {
-          throw (InterruptedException) e.getCause();
-        }
-        LOG.error("Failed to execute startup check", e);
-      }
-
       while (true) {
         // TODO jz: poll only for a certain amount of time and then execute a
         // global check operation ?
@@ -139,22 +130,6 @@ class OperatorThread extends Thread {
     } finally {
       _safeMode = false;
     }
-  }
-
-  private void doStartupCheck() {
-    LOG.info("do startup check...");
-    // TODO startup check
-    // distributeIndexes(getIndexesInState(IndexState.DEPLOYING),
-    // IndexState.DEPLOYING, liveNodes);
-    // distributeIndexes(getIndexesInState(IndexState.REPLICATING),
-    // IndexState.REPLICATING, liveNodes);
-    // distributeIndexes(getIndexesInState(IndexState.ANNOUNCED),
-    // IndexState.DEPLOYING, liveNodes);
-    // distributeIndexes(getUnbalancedIndexes(liveNodes.size()),
-    // IndexState.REPLICATING, liveNodes);
-
-    // TODO jz: check namespace structure ??
-    LOG.info("startup check done");
   }
 
 }

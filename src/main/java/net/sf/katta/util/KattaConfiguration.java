@@ -19,8 +19,6 @@ import java.io.File;
 import java.util.Properties;
 import java.util.Set;
 
-import org.apache.hadoop.fs.Path;
-
 public class KattaConfiguration {
 
   protected Properties _properties;
@@ -94,10 +92,6 @@ public class KattaConfiguration {
 
   public File getFile(final String key) {
     return new File(getProperty(key));
-  }
-
-  public Path getPath(final String key) {
-    return new Path(getProperty(key));
   }
 
   public Class<?> getClass(final String key) {

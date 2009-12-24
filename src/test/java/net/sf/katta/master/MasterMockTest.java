@@ -21,6 +21,7 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -30,19 +31,24 @@ import java.util.List;
 import net.sf.katta.protocol.IAddRemoveListener;
 import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.protocol.OperationQueue;
+import net.sf.katta.protocol.operation.leader.CheckIndicesOperation;
 import net.sf.katta.protocol.operation.leader.LeaderOperation;
 import net.sf.katta.protocol.operation.leader.RemoveSuperfluousShardsOperation;
+import net.sf.katta.testutil.PrintMethodNames;
 import net.sf.katta.testutil.TestUtil;
 import net.sf.katta.testutil.mockito.SleepingAnswer;
 import net.sf.katta.util.KattaException;
 
 import org.I0Itec.zkclient.ZkServer;
+import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 
 public class MasterMockTest {
 
   private InteractionProtocol protocol = mock(InteractionProtocol.class);
+  @Rule
+  public PrintMethodNames _printMethodNames = new PrintMethodNames();
 
   @Test
   public void testBecomeMaster() throws Exception {
@@ -124,9 +130,10 @@ public class MasterMockTest {
     assertTrue(master.isMaster());
     TestUtil.waitOnLeaveSafeMode(master);
     ArgumentCaptor<LeaderOperation> argument = ArgumentCaptor.forClass(LeaderOperation.class);
-    verify(protocol).addLeaderOperation(argument.capture());
-    assertTrue(argument.getValue() instanceof RemoveSuperfluousShardsOperation);
-    assertEquals(nodeName, ((RemoveSuperfluousShardsOperation) argument.getValue()).getNodeName());
+    verify(protocol, times(2)).addLeaderOperation(argument.capture());
+    assertTrue(argument.getAllValues().get(0) instanceof CheckIndicesOperation);
+    assertTrue(argument.getAllValues().get(1) instanceof RemoveSuperfluousShardsOperation);
+    assertEquals(nodeName, ((RemoveSuperfluousShardsOperation) argument.getAllValues().get(1)).getNodeName());
     master.shutdown();
   }
 

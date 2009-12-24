@@ -205,21 +205,32 @@ public class InteractionProtocol {
     registerDataListener(component, listener, _zkConf.getZkPath(pathDef, childName));
   }
 
+  public void unregisterDataChanges(ConnectedComponent component, PathDef pathDef, String childName,
+          IZkDataListener listener) {
+    unregisterDataListener(component, listener, _zkConf.getZkPath(pathDef, childName));
+  }
+
   public void unregisterDataChanges(ConnectedComponent component, String dataPath, IZkDataListener listener) {
     unregisterDataListener(component, listener, dataPath);
   }
 
-  public List<String> registerMetricsNodeListener(ConnectedComponent component, IAddRemoveListener dataListener) {
-    return registerAddRemoveListener(component, dataListener, _zkConf.getZkPath(PathDef.NODE_METRICS));
-  }
-
-  public void registerMetricsDataListener(ConnectedComponent component, String nodeName, IZkDataListener dataListener) {
-    registerDataListener(component, dataListener, _zkConf.getZkPath(PathDef.NODE_METRICS, nodeName));
-  }
-
-  public void unregisterMetricsDataListener(ConnectedComponent component, String nodeName, IZkDataListener dataListener) {
-    unregisterDataListener(component, dataListener, _zkConf.getZkPath(PathDef.NODE_METRICS, nodeName));
-  }
+  // public List<String> registerMetricsNodeListener(ConnectedComponent
+  // component, IAddRemoveListener dataListener) {
+  // return registerAddRemoveListener(component, dataListener,
+  // _zkConf.getZkPath(PathDef.NODE_METRICS));
+  // }
+  //
+  // public void registerMetricsDataListener(ConnectedComponent component,
+  // String nodeName, IZkDataListener dataListener) {
+  // registerDataListener(component, dataListener,
+  // _zkConf.getZkPath(PathDef.NODE_METRICS, nodeName));
+  // }
+  //
+  // public void unregisterMetricsDataListener(ConnectedComponent component,
+  // String nodeName, IZkDataListener dataListener) {
+  // unregisterDataListener(component, dataListener,
+  // _zkConf.getZkPath(PathDef.NODE_METRICS, nodeName));
+  // }
 
   public List<String> getKnownNodes() {
     return _zkClient.getChildren(_zkConf.getZkPath(PathDef.NODES_METADATA));
@@ -231,6 +242,10 @@ public class InteractionProtocol {
 
   public List<String> getIndices() {
     return _zkClient.getChildren(_zkConf.getZkPath(PathDef.INDICES_METADATA));
+  }
+
+  public MasterMetaData getMasterMD() {
+    return (MasterMetaData) readZkData(_zkConf.getZkPath(PathDef.MASTER));
   }
 
   public NodeMetaData getNodeMD(String node) {

@@ -59,7 +59,7 @@ public class OperationWatchdog implements ConnectedComponent {
     }
 
     InteractionProtocol protocol = _context.getProtocol();
-    protocol.registerMetricsNodeListener(this, new IAddRemoveListener() {
+    protocol.registerNodeListener(this, new IAddRemoveListener() {
       @Override
       public void removed(String name) {
         checkDeploymentForCompletion();

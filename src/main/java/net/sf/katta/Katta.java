@@ -323,7 +323,7 @@ public class Katta {
   }
 
   public static Master startMaster(final ZkConfiguration conf) throws KattaException {
-    Master master;
+    final Master master;
     if (conf.isEmbedded()) {
       ZkServer zkServer = ZkKattaUtil.startZkServer(conf);
       master = new Master(new InteractionProtocol(zkServer.getZkClient(), conf), zkServer);
@@ -331,6 +331,12 @@ public class Katta {
       ZkClient zkClient = ZkKattaUtil.startZkClient(conf, 30000);
       master = new Master(new InteractionProtocol(zkClient, conf), true);
     }
+    Runtime.getRuntime().addShutdownHook(new Thread() {
+      @Override
+      public void run() {
+        master.shutdown();
+      }
+    });
     master.start();
     return master;
   }

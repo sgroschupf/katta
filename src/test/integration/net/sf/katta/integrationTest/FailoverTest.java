@@ -92,7 +92,7 @@ public class FailoverTest extends AbstractIntegrationTest {
     assertEquals(4, client.count(query, new String[] { INDEX_NAME }));
   }
 
-  @Test(timeout = 50000)
+  @Test(timeout = 100000)
   public void testZkMasterReconnectDuringDeployment() throws Exception {
     deployTestIndices(1, getNodeCount());
     _miniCluster.getMaster().shutdown();
@@ -114,6 +114,7 @@ public class FailoverTest extends AbstractIntegrationTest {
       zkClient.getEventLock().unlock();
       IndexState indexState = deployFuture.joinDeployment();
       assertEquals(IndexState.DEPLOYED, indexState);
+
       if (indexState == IndexState.ERROR) {
         IndexDeployError deployError = protocol.getIndexMD(indexName).getDeployError();
         Set<Shard> shards = protocol.getIndexMD(indexName).getShards();

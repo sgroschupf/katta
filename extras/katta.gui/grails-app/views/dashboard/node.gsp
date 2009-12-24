@@ -55,9 +55,9 @@
                     <tbody>
                     <g:each in="${shards}" status="i" var="shard">
                         <tr class="${(i % 2) == 0 ? 'odd' : 'even'}">
-                            <td>${shard.shardName}</td>
-                         	<td>${shard.indexName}</td>
-                         	<td>${shard.shardPath}</td>
+                        <td>${shard}</td>
+                        <td>${shardIndices[i]}</td>
+                        <td>${shardPathes[i]}</td>
                         </tr>
                     </g:each>
                     </tbody>

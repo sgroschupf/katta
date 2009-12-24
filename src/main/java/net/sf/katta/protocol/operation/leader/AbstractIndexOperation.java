@@ -121,7 +121,11 @@ public abstract class AbstractIndexOperation implements LeaderOperation {
   }
 
   public static String getIndexNameFromShardName(String shardName) {
-    return shardName.substring(0, shardName.indexOf(INDEX_SHARD_NAME_SEPARATOR));
+    try {
+      return shardName.substring(0, shardName.indexOf(INDEX_SHARD_NAME_SEPARATOR));
+    } catch (IndexOutOfBoundsException e) {
+      throw new IllegalArgumentException(shardName + " is not a valid shard name");
+    }
   }
 
   protected boolean canAndShouldRegulateReplication(InteractionProtocol protocol, IndexMetaData indexMD) {
