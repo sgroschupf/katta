@@ -38,7 +38,7 @@ public class BalanceIndexOperation extends AbstractIndexOperation {
   public List<OperationId> execute(LeaderContext context, List<LeaderOperation> runningOperations) throws Exception {
     InteractionProtocol protocol = context.getProtocol();
     IndexMetaData indexMD = protocol.getIndexMD(_indexName);
-    if (!canAndShouldRegulateReplication(protocol, _indexName)) {
+    if (!canAndShouldRegulateReplication(protocol, indexMD)) {
       LOG.info("skip balancing for index '" + _indexName + "' cause there is no possible optimization");
       return null;
     }

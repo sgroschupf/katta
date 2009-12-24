@@ -15,13 +15,13 @@
  */
 package net.sf.katta.protocol.operation.leader;
 
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 import net.sf.katta.master.LeaderContext;
 import net.sf.katta.protocol.InteractionProtocol;
-import net.sf.katta.protocol.ReplicationReport;
+import net.sf.katta.protocol.metadata.IndexDeployError;
+import net.sf.katta.protocol.metadata.IndexMetaData;
+import net.sf.katta.protocol.metadata.IndexDeployError.ErrorType;
 import net.sf.katta.protocol.operation.OperationId;
 import net.sf.katta.protocol.operation.node.OperationResult;
 
@@ -33,41 +33,23 @@ public class CheckIndicesOperation extends AbstractIndexOperation {
   public List<OperationId> execute(LeaderContext context, List<LeaderOperation> runningOperations) throws Exception {
     InteractionProtocol protocol = context.getProtocol();
     List<String> liveNodes = protocol.getLiveNodes();
-    addBalanceOperations(protocol, getUnderreplicatedIndexes(protocol, liveNodes.size()));
-    addBalanceOperations(protocol, getOverreplicatedIndexes(protocol));
-    // TODO jz: check for recoverble index errors (like no nodes)
+    List<String> indices = protocol.getIndices();
+
+    for (String indexName : indices) {
+      IndexMetaData indexMD = protocol.getIndexMD(indexName);
+      if ((indexMD.hasDeployError() && isRecoverable(indexMD.getDeployError(), liveNodes.size()))
+              || canAndShouldRegulateReplication(protocol, indexMD)) {
+        protocol.addLeaderOperation(new BalanceIndexOperation(indexName));
+      }
+    }
     return null;
   }
 
-  private void addBalanceOperations(InteractionProtocol protocol, Set<String> indices) {
-    for (String index : indices) {
-      if (canAndShouldRegulateReplication(protocol, index)) {
-        BalanceIndexOperation balanceOperation = new BalanceIndexOperation(index);
-        protocol.addLeaderOperation(balanceOperation);
-      }
+  private boolean isRecoverable(IndexDeployError deployError, int nodeCount) {
+    if (deployError.getErrorType() == ErrorType.NO_NODES_AVAILIBLE && nodeCount > 0) {
+      return true;
     }
-  }
-
-  protected Set<String> getUnderreplicatedIndexes(final InteractionProtocol protocol, int nodeCount) {
-    final Set<String> underreplicatedIndexes = new HashSet<String>();
-    for (final String index : protocol.getIndices()) {
-      ReplicationReport replicationReport = getReplicationReport(protocol, index);
-      if (replicationReport.isUnderreplicated() && nodeCount >= replicationReport.getMinimalShardReplicationCount()) {
-        underreplicatedIndexes.add(index);
-      }
-    }
-    return underreplicatedIndexes;
-  }
-
-  protected Set<String> getOverreplicatedIndexes(final InteractionProtocol protocol) {
-    final Set<String> overreplicatedIndexes = new HashSet<String>();
-    for (final String index : protocol.getIndices()) {
-      ReplicationReport replicationReport = getReplicationReport(protocol, index);
-      if (replicationReport.isOverreplicated()) {
-        overreplicatedIndexes.add(index);
-      }
-    }
-    return overreplicatedIndexes;
+    return false;
   }
 
   @Override

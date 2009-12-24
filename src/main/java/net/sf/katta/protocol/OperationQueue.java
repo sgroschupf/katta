@@ -152,12 +152,13 @@ public class OperationQueue<T extends Serializable> {
     };
     try {
       while (true) {
-        List<String> elementNames = _zkClient.subscribeChildChanges(_elementsPath, notifyListener);
-        while (elementNames == null || elementNames.isEmpty()) {
-          synchronized (mutex) {
+        List<String> elementNames;
+        synchronized (mutex) {
+          elementNames = _zkClient.subscribeChildChanges(_elementsPath, notifyListener);
+          while (elementNames == null || elementNames.isEmpty()) {
             mutex.wait();
+            elementNames = _zkClient.getChildren(_elementsPath);
           }
-          elementNames = _zkClient.getChildren(_elementsPath);
         }
         String elementName = getSmallestElement(elementNames);
         try {

@@ -44,7 +44,7 @@ public class IndexDeployFuture implements IIndexDeployFuture, IZkDataListener, C
     IndexMetaData indexMD = _protocol.getIndexMD(_indexName);
     if (indexMD == null) {
       return IndexState.DEPLOYING;
-    } else if (indexMD.getDeployError() != null) {
+    } else if (indexMD.hasDeployError()) {
       return IndexState.ERROR;
     }
     return IndexState.DEPLOYED;

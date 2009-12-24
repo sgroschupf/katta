@@ -245,7 +245,7 @@ public class Client implements IShardProxyManager, ConnectedComponent {
   }
 
   protected boolean isIndexSearchable(final IndexMetaData indexMD) {
-    if (indexMD.getDeployError() != null) {
+    if (indexMD.hasDeployError()) {
       return false;
     }
     // TODO jz check replication report ?
@@ -418,12 +418,6 @@ public class Client implements IShardProxyManager, ConnectedComponent {
     return _node2ProxyMap.get(node);
   }
 
-  @Override
-  public String toString() {
-    // /TODO remove
-    return _node2ProxyMap.toString();
-  }
-
   public void nodeFailed(String node, Throwable t) {
     // TODO jz: maybe we should inspect the exception to identify if its really
     // an proxy problem ?
@@ -500,7 +494,7 @@ public class Client implements IShardProxyManager, ConnectedComponent {
 
   @Override
   public void reconnect() {
-    // TODO re-read index information ?
+    // TODO jz: re-read index information ?
   }
 
 }

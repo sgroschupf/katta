@@ -89,9 +89,6 @@ public class Node implements ConnectedComponent {
 
     startMonitor(_nodeName, _nodeConf);
 
-    // TODO should be done when master answers
-    // removeLocalShardsWithoutServeInstruction(nodeMetaData);
-
     NodeMetaData nodeMetaData = new NodeMetaData(_nodeName);
     OperationQueue<NodeOperation> nodeOperationQueue = _protocol.publishNode(this, nodeMetaData);
     startOperatorThread(nodeOperationQueue);

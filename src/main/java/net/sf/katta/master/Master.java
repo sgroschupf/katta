@@ -72,15 +72,7 @@ public class Master implements ConnectedComponent {
       throw new KattaException("Unable to instantiate deploy policy", e);
     }
 
-    _safeModeMaxTime = 10000;
-    if (!masterConfiguration.containsProperty(MasterConfiguration.SAFE_MODE_MAX_TIME)) {
-      LOG.warn(MasterConfiguration.SAFE_MODE_MAX_TIME + " not configured in master configuration");
-      // TODO jz: remove that check once we can assume all config files has been
-      // updated
-    } else {
-      _safeModeMaxTime = masterConfiguration.getInt(MasterConfiguration.SAFE_MODE_MAX_TIME);
-    }
-
+    _safeModeMaxTime = masterConfiguration.getInt(MasterConfiguration.SAFE_MODE_MAX_TIME);
   }
 
   public void start() {

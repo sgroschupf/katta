@@ -72,6 +72,10 @@ public class IndexMetaData implements Serializable {
     return _deployError;
   }
 
+  public boolean hasDeployError() {
+    return _deployError != null;
+  }
+
   @Override
   public String toString() {
     return "name: " + _name + ", replication: " + _replicationLevel + ", path: " + _path;

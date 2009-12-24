@@ -124,8 +124,8 @@ public abstract class AbstractIndexOperation implements LeaderOperation {
     return shardName.substring(0, shardName.indexOf(INDEX_SHARD_NAME_SEPARATOR));
   }
 
-  protected boolean canAndShouldRegulateReplication(InteractionProtocol protocol, String indexName) {
-    ReplicationReport replicationReport = getReplicationReport(protocol, indexName);
+  protected boolean canAndShouldRegulateReplication(InteractionProtocol protocol, IndexMetaData indexMD) {
+    ReplicationReport replicationReport = protocol.getReplicationReport(indexMD);
     return canAndShouldRegulateReplication(protocol, replicationReport);
   }
 
@@ -139,11 +139,6 @@ public abstract class AbstractIndexOperation implements LeaderOperation {
       return false;
     }
     return true;
-  }
-
-  protected ReplicationReport getReplicationReport(InteractionProtocol protocol, String indexName) {
-    final IndexMetaData indexMD = protocol.getIndexMD(indexName);
-    return protocol.getReplicationReport(protocol, indexMD);
   }
 
   protected void handleMasterDeployException(InteractionProtocol protocol, IndexMetaData indexMD, Exception e) {
@@ -161,7 +156,7 @@ public abstract class AbstractIndexOperation implements LeaderOperation {
 
   protected void handleDeploymentComplete(LeaderContext context, List<OperationResult> results, IndexMetaData indexMD,
           boolean newIndex) {
-    ReplicationReport replicationReport = context.getProtocol().getReplicationReport(context.getProtocol(), indexMD);
+    ReplicationReport replicationReport = context.getProtocol().getReplicationReport(indexMD);
     if (replicationReport.isDeployed()) {
       indexMD.setDeployError(null);
       // we ignore possible shard errors

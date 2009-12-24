@@ -61,6 +61,7 @@ public class IndexDeployOperationTest extends AbstractMasterNodeZkTest {
     assertEquals(1, _protocol.getIndices().size());
     IndexMetaData indexMD = _protocol.getIndexMD(_indexName);
     assertNotNull(indexMD);
+    assertTrue(indexMD.hasDeployError());
     IndexDeployError error = indexMD.getDeployError();
     assertNotNull(error);
     assertEquals(errorType, error.getErrorType());

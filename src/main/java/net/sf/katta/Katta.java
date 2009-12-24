@@ -284,11 +284,11 @@ public class Katta {
       printError("index '" + indexName + "' does not exist");
       return;
     }
-    IndexDeployError deployError = indexMD.getDeployError();
-    if (deployError == null) {
+    if (!indexMD.hasDeployError()) {
       System.out.println("No error for index '" + indexName + "'");
       return;
     }
+    IndexDeployError deployError = indexMD.getDeployError();
     System.out.println("Error Type: " + deployError.getErrorType());
     if (deployError.getException() != null) {
       System.out.println("Error Message: " + deployError.getException().getMessage());
@@ -421,7 +421,7 @@ public class Katta {
     CounterMap<IndexState> indexStateCounterMap = new CounterMap<IndexState>();
     for (String index : indexes) {
       IndexMetaData indexMD = _protocol.getIndexMD(index);
-      if (indexMD.getDeployError() != null) {
+      if (indexMD.hasDeployError()) {
         indexStateCounterMap.increment(IndexState.ERROR);
       } else {
         indexStateCounterMap.increment(IndexState.DEPLOYED);
@@ -442,7 +442,7 @@ public class Katta {
     for (String index : indexes) {
       System.out.println("checking " + index + " ...");
       IndexMetaData indexMD = _protocol.getIndexMD(index);
-      ReplicationReport replicationReport = _protocol.getReplicationReport(_protocol, indexMD);
+      ReplicationReport replicationReport = _protocol.getReplicationReport(indexMD);
       Set<Shard> shards = indexMD.getShards();
       for (Shard shard : shards) {
         int shardReplication = replicationReport.getReplicationCount(shard.getName());
@@ -534,7 +534,7 @@ public class Katta {
       final IndexMetaData indexMD = _protocol.getIndexMD(index);
       Set<Shard> shards = indexMD.getShards();
       String entries = "n/a";
-      if (indexMD.getDeployError() == null) {
+      if (!indexMD.hasDeployError()) {
         entries = "" + calculateIndexEntries(shards);
       }
       long indexBytes = calculateIndexDiskUsage(indexMD.getPath());

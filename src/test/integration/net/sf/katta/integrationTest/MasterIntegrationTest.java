@@ -97,7 +97,7 @@ public class MasterIntegrationTest extends AbstractIntegrationTest {
 
     _miniCluster.restartMaster();
     assertEquals(1, protocol.getIndices().size());
-    // TODO protocol get ReplictaionReport
+    assertTrue(protocol.getReplicationReport(protocol.getIndexMD(INDEX_NAME)).isDeployed());
   }
 
   @Test

@@ -18,6 +18,7 @@ package net.sf.katta.protocol.operation.leader;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -155,6 +156,7 @@ public class BalanceIndexOperationTest extends AbstractMasterNodeZkTest {
     List<Node> nodes = mockNodes(2);
     List<OperationQueue<NodeOperation>> nodeQueues = publisNodes(nodes);
     deployIndexWithError();
+    assertTrue(_protocol.getIndexMD(_indexName).hasDeployError());
     assertNotNull(_protocol.getIndexMD(_indexName).getDeployError());
 
     // balance the index should remove the error

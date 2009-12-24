@@ -56,19 +56,9 @@ import org.apache.zookeeper.Watcher.Event.KeeperState;
  * Abstracts the interaction between master and nodes via zookeeper files and
  * folders.
  * 
- * TODO explainStructure() *
  * <p>
- * ZK Structure:<br>
- * + root<br>
- * ...|+ version (katta version information)<br>
- * ...|+ master (the master ephemeral)<br>
- * ...|+ nodes<br>
- * ........|+ metadata (persistents of connected & unconnected nodes) <br>
- * ........|+ live (ephemerals of connected nodes) <br>
- * ...|+ indices<br>
- * ........|+ live (persistents of indices) <br>
- * ........|+ error (persistents of error indices) <br>
- * ...|+ work (contains intermittent data of operations)<br>
+ * For inspecting and understanding the zookeeper structure see
+ * {@link #explainStructure()} and {@link #showStructure()}.
  */
 public class InteractionProtocol {
 
@@ -157,7 +147,12 @@ public class InteractionProtocol {
   }
 
   public void disconnect() {
-    // TODO check if all components are unregistered ?
+    if (_zkListenerByComponent.size() > 0) {
+      LOG.warn("following components still connected:" + _zkListenerByComponent.keySet());
+    }
+    if (_zkEphemeralPublishesByComponent.size() > 0) {
+      LOG.warn("following ephemeral still exists:" + _zkEphemeralPublishesByComponent.keySet());
+    }
     _connected = false;
     _zkClient.close();
   }
@@ -301,7 +296,7 @@ public class InteractionProtocol {
     return _zkClient.getChildren(shard2NodeRootPath);
   }
 
-  public ReplicationReport getReplicationReport(InteractionProtocol protocol, IndexMetaData indexMD) {
+  public ReplicationReport getReplicationReport(IndexMetaData indexMD) {
     int desiredReplicationCount = indexMD.getReplicationLevel();
     int minimalShardReplicationCount = indexMD.getReplicationLevel();
     int maximaShardReplicationCount = 0;
@@ -309,7 +304,7 @@ public class InteractionProtocol {
     Map<String, Integer> replicationCountByShardMap = new HashMap<String, Integer>();
     final Set<Shard> shards = indexMD.getShards();
     for (final Shard shard : shards) {
-      final int servingNodesCount = protocol.getShardNodes(shard.getName()).size();
+      final int servingNodesCount = getShardNodes(shard.getName()).size();
       replicationCountByShardMap.put(shard.getName(), servingNodesCount);
       if (servingNodesCount < minimalShardReplicationCount) {
         minimalShardReplicationCount = servingNodesCount;

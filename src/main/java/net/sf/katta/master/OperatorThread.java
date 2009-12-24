@@ -120,7 +120,8 @@ class OperatorThread extends Thread {
 
   private void runInSafeMode() throws InterruptedException {
     _safeMode = true;
-    // List<String> knownNodes = _protocol.getKnownNodes();
+    // List<String> knownNodes = _protocol.getKnownNodes(); //TODO jz: use known
+    // nodes ?
     List<String> previousLiveNodes = _context.getProtocol().getLiveNodes();
     long lastChange = System.currentTimeMillis();
     try {
@@ -129,8 +130,7 @@ class OperatorThread extends Thread {
         Thread.sleep(_safeModeMaxTime / 4);// TODO jz: listen on life nodes ?
 
         List<String> currentLiveNodes = _context.getProtocol().getLiveNodes();
-        if (!currentLiveNodes.equals(previousLiveNodes)) {// TODO size instead
-          // ??
+        if (currentLiveNodes.size() != previousLiveNodes.size()) {
           lastChange = System.currentTimeMillis();
           previousLiveNodes = currentLiveNodes;
         }
