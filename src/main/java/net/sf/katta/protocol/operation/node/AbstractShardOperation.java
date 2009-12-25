@@ -28,7 +28,7 @@ import org.apache.log4j.Logger;
 public abstract class AbstractShardOperation implements NodeOperation {
 
   private static final long serialVersionUID = 1L;
-  protected final static Logger LOG = Logger.getLogger(AbstractShardOperation.class);
+  private final static Logger LOG = Logger.getLogger(AbstractShardOperation.class);
 
   private Map<String, String> _shardPathesByShardNames = new HashMap<String, String>(3);
 
@@ -50,7 +50,6 @@ public abstract class AbstractShardOperation implements NodeOperation {
 
   @Override
   public final DeployResult execute(NodeContext context) throws InterruptedException {
-    LOG.info(getOperationName() + " shards: " + getShardNames());
     DeployResult result = new DeployResult(context.getNode().getName());
     for (String shardName : getShardNames()) {
       try {
@@ -85,6 +84,11 @@ public abstract class AbstractShardOperation implements NodeOperation {
       throw new KattaException("Error retrieving shard metadata for " + shardName, t);
     }
     context.getProtocol().publishShard(context.getNode(), shardName, metaData);
+  }
+
+  @Override
+  public final String toString() {
+    return getClass().getSimpleName() + ":" + Integer.toHexString(hashCode()) + ":" + getShardNames();
   }
 
 }

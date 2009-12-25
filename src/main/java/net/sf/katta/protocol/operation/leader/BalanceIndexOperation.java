@@ -24,10 +24,12 @@ import net.sf.katta.protocol.operation.OperationId;
 import net.sf.katta.protocol.operation.node.OperationResult;
 
 import org.I0Itec.zkclient.ExceptionUtil;
+import org.apache.log4j.Logger;
 
 public class BalanceIndexOperation extends AbstractIndexOperation {
 
   private static final long serialVersionUID = 1L;
+  private final static Logger LOG = Logger.getLogger(AbstractIndexOperation.class);
   private final String _indexName;
 
   public BalanceIndexOperation(String indexName) {
@@ -72,4 +74,8 @@ public class BalanceIndexOperation extends AbstractIndexOperation {
     return ExecutionInstruction.EXECUTE;
   }
 
+  @Override
+  public String toString() {
+    return getClass().getSimpleName() + ":" + Integer.toHexString(hashCode()) + ":" + _indexName;
+  }
 }

@@ -35,10 +35,12 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
+import org.apache.log4j.Logger;
 
 public class IndexDeployOperation extends AbstractIndexOperation {
 
   private static final long serialVersionUID = 1L;
+  private final static Logger LOG = Logger.getLogger(AbstractIndexOperation.class);
 
   private IndexMetaData _indexMD;
   private final String _indexName;
@@ -58,8 +60,6 @@ public class IndexDeployOperation extends AbstractIndexOperation {
   public List<OperationId> execute(LeaderContext context, List<LeaderOperation> runningOperations) throws Exception,
           InterruptedException {
     InteractionProtocol protocol = context.getProtocol();
-    LOG.info("deploying index '" + _indexName + "'");
-
     try {
       _indexMD.getShards().addAll(readShardsFromFs(_indexName, _indexPath));
       LOG.info("Found shards '" + _indexMD.getShards() + "' for index '" + _indexName + "'");
@@ -92,7 +92,7 @@ public class IndexDeployOperation extends AbstractIndexOperation {
 
   @Override
   public String toString() {
-    return "deploy index " + _indexName;
+    return getClass().getSimpleName() + ":" + Integer.toHexString(hashCode()) + ":" + _indexName;
   }
 
   protected static List<Shard> readShardsFromFs(final String indexName, final String indexPathString)

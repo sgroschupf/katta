@@ -434,9 +434,6 @@ public class ClientResultTest extends ExtendedTestCase {
     ClientResult<String> r = new ClientResult<String>(null, "a", "b", "c");
     boolean ok = true;
     for (ClientResult<String>.Entry e : r) {
-      if (false) {
-        System.out.println(e);
-      }
       ok = false;
     }
     assertTrue(ok);

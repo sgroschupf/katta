@@ -148,14 +148,12 @@ public class WorkQueueTest extends ExtendedTestCase {
 
   // Does user calling close() wake up the work queue?
   public void testUserCloseEvent() throws Exception {
-    for (IResultPolicy<String> policy : new IResultPolicy[] {
-            new ResultCompletePolicy<String>(4000),
-            new ResultCompletePolicy<String>(4000, true),
-            new ResultCompletePolicy<String>(4000, false),
+    for (IResultPolicy<String> policy : new IResultPolicy[] { new ResultCompletePolicy<String>(4000),
+            new ResultCompletePolicy<String>(4000, true), new ResultCompletePolicy<String>(4000, false),
             new ResultCompletePolicy<String>(50, 950, 0.99, true),
             new ResultCompletePolicy<String>(950, 50, 0.99, true),
-            new ResultCompletePolicy<String>(50, 950, 0.99, false), 
-            new ResultCompletePolicy<String>(950, 50, 0.99, false)}) {
+            new ResultCompletePolicy<String>(50, 950, 0.99, false),
+            new ResultCompletePolicy<String>(950, 50, 0.99, false) }) {
       INodeInteractionFactory<String> factory = nullFactory();
       TestShardManager sm = new TestShardManager();
       Method method = Object.class.getMethod("toString");
@@ -191,40 +189,41 @@ public class WorkQueueTest extends ExtendedTestCase {
 
   // Does IResultPolicy calling close() wake up the work queue?
   public void testPolicyCloseEvent() throws Exception {
-      INodeInteractionFactory<String> factory = nullFactory();
-      TestShardManager sm = new TestShardManager();
-      Method method = Object.class.getMethod("toString");
-      WorkQueue.resetInstanceCounter();
-      IResultPolicy<String> policy = new IResultPolicy<String>() {
-        private long now = System.currentTimeMillis();
-        private long closeTime = now + 100;
-        private long stopTime = now + 1000;
-        public long waitTime(ClientResult<String> result) {
-          final long now = System.currentTimeMillis();
-          if (now >= closeTime) {
-            result.close();
-          }
-          if (now >= stopTime) {
-            return 0; 
-          } else if (now >= closeTime) {
-            return stopTime - now;
-          } else {
-            return closeTime - now;
-          }
+    INodeInteractionFactory<String> factory = nullFactory();
+    TestShardManager sm = new TestShardManager();
+    Method method = Object.class.getMethod("toString");
+    WorkQueue.resetInstanceCounter();
+    IResultPolicy<String> policy = new IResultPolicy<String>() {
+      private long now = System.currentTimeMillis();
+      private long closeTime = now + 100;
+      private long stopTime = now + 1000;
+
+      public long waitTime(ClientResult<String> result) {
+        final long now = System.currentTimeMillis();
+        if (now >= closeTime) {
+          result.close();
         }
-      };
-      WorkQueue<String> wq = new WorkQueue<String>(factory, sm, sm.allShards(), method, -1);
-      sleep(10);
-      long startTime = System.currentTimeMillis();
-      ClientResult<String> result = wq.getResults(policy);
-      long time = System.currentTimeMillis() - startTime;
-      assertTrue(result.isClosed());
-      //
-      if (time <= 50 || time >= 200) {
-        System.err.println("Took " + time + ", expected 100. Policy = " + policy);
+        if (now >= stopTime) {
+          return 0;
+        } else if (now >= closeTime) {
+          return stopTime - now;
+        } else {
+          return closeTime - now;
+        }
       }
-      assertTrue(time > 50);
-      assertTrue(time < 200);
+    };
+    WorkQueue<String> wq = new WorkQueue<String>(factory, sm, sm.allShards(), method, -1);
+    sleep(10);
+    long startTime = System.currentTimeMillis();
+    ClientResult<String> result = wq.getResults(policy);
+    long time = System.currentTimeMillis() - startTime;
+    assertTrue(result.isClosed());
+    //
+    if (time <= 50 || time >= 200) {
+      System.err.println("Took " + time + ", expected 100. Policy = " + policy);
+    }
+    assertTrue(time > 50);
+    assertTrue(time < 200);
   }
 
   public void testPolling() throws Exception {
@@ -442,7 +441,6 @@ public class WorkQueueTest extends ExtendedTestCase {
     }
   }
 
-
   /** Returns an interaction factory that ignores all calls and does nothing. */
   public static <T> INodeInteractionFactory<T> nullFactory() {
     return new INodeInteractionFactory<T>() {
@@ -454,7 +452,6 @@ public class WorkQueueTest extends ExtendedTestCase {
     };
   }
 
-
   private static void sleep(long msec) {
     long now = System.currentTimeMillis();
     long stop = now + msec;
@@ -462,6 +459,7 @@ public class WorkQueueTest extends ExtendedTestCase {
       try {
         Thread.sleep(stop - now);
       } catch (InterruptedException e) {
+        // proceed
       }
       now = System.currentTimeMillis();
     }

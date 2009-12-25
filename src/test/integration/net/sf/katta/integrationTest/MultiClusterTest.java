@@ -27,8 +27,6 @@ import java.util.Random;
 import net.sf.katta.client.DeployClient;
 import net.sf.katta.client.IIndexDeployFuture;
 import net.sf.katta.integrationTest.support.KattaMiniCluster;
-import net.sf.katta.master.Master;
-import net.sf.katta.node.Node;
 import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.testutil.PrintMethodNames;
 import net.sf.katta.testutil.TestResources;
@@ -60,10 +58,6 @@ public class MultiClusterTest {
   public static final String INDEX1 = "pool1";
   public static final String INDEX2 = "pool2";
 
-  private static List<Node> _nodes1 = new ArrayList<Node>();
-  private static List<Node> _nodes2 = new ArrayList<Node>();
-  private static Master _master1;
-  private static Master _master2;
   protected static ISleepClient _client1;
   protected static ISleepClient _client2;
 

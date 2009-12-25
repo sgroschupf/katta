@@ -37,13 +37,10 @@ import net.sf.katta.protocol.operation.node.ShardDeployOperation;
 import net.sf.katta.protocol.operation.node.ShardUndeployOperation;
 import net.sf.katta.util.CollectionUtil;
 
-import org.apache.log4j.Logger;
-
 public abstract class AbstractIndexOperation implements LeaderOperation {
 
   public static final char INDEX_SHARD_NAME_SEPARATOR = '#';
   private static final long serialVersionUID = 1L;
-  protected final static Logger LOG = Logger.getLogger(AbstractIndexOperation.class);
 
   protected List<OperationId> distributeIndexShards(LeaderContext context, final IndexMetaData indexMD,
           Collection<String> liveNodes) throws IndexDeployException {

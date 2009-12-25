@@ -66,4 +66,9 @@ public class CheckIndicesOperation extends AbstractIndexOperation {
     }
     return ExecutionInstruction.EXECUTE;
   }
+
+  @Override
+  public String toString() {
+    return getClass().getSimpleName() + ":" + Integer.toHexString(hashCode());
+  }
 }

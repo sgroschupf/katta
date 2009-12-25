@@ -91,7 +91,7 @@ public class LowestShardCountDistributionPolicy implements IDeployPolicy {
       }
       return "[ " + bucket.getKey() + '=' + bucket.getValue().get() + "] ";
     }
-  };
+  }
 
   private TreeSet<OrderedBucket> produceOrdedNodeList(final Map<String, List<String>> currentNode2ShardsMap,
           List<String> aliveNodes) {
@@ -229,7 +229,6 @@ public class LowestShardCountDistributionPolicy implements IDeployPolicy {
       while (neededDeployments < 0 && ordered.hasNext()) {
         final OrderedBucket nodeShards = ordered.next();
 
-        int maxShardServingCount = 0;
         String maxShardServingNode = null;
         List<String> nodeNames = currentShard2NodesMap.get(shard);
         HashSet<String> nodeNameMap = new HashSet<String>(nodeNames);

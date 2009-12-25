@@ -19,7 +19,6 @@ import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FilenameFilter;
 import java.io.IOException;
@@ -67,21 +66,36 @@ public class FileUtil {
     } catch (final Exception e) {
       throw new RuntimeException("unable to expand upgrade files for " + sourceZip + " to " + targetFolder, e);
     } finally {
-      if (fis!=null) { try { fis.close(); } catch (Exception ignore) {} }
+      if (fis != null) {
+        try {
+          fis.close();
+        } catch (Exception ignore) {
+          // ignore
+        }
+      }
     }
   }
-  
+
   /**
    * Simply unzips the content from the source zip to the target folder. The
    * first level folder of the zip content is removed.
    * 
-   * @param sourceZip the path to the source zip file, hadoop's IO services are used to open this path
-   * @param targetFolder The directory that the zip file will be unpacked into
-   * @param fileSystem the hadoop file system object to use to open <code>sourceZip</code>
-   * @param localSpool If true, the zip file is copied to the local file system before being unzipped. The name used is <code>targetFolder.zip</code>. If false, the unzip is streamed.
+   * @param sourceZip
+   *          the path to the source zip file, hadoop's IO services are used to
+   *          open this path
+   * @param targetFolder
+   *          The directory that the zip file will be unpacked into
+   * @param fileSystem
+   *          the hadoop file system object to use to open
+   *          <code>sourceZip</code>
+   * @param localSpool
+   *          If true, the zip file is copied to the local file system before
+   *          being unzipped. The name used is <code>targetFolder.zip</code>. If
+   *          false, the unzip is streamed.
    * 
    */
-  public static void unzip(final Path sourceZip, final File targetFolder, final FileSystem fileSystem, final boolean localSpool) {
+  public static void unzip(final Path sourceZip, final File targetFolder, final FileSystem fileSystem,
+          final boolean localSpool) {
     try {
       if (localSpool) {
         targetFolder.mkdirs();
@@ -102,48 +116,54 @@ public class FileUtil {
           ZipInputStream zis = new ZipInputStream(fis);
           unzip(zis, targetFolder);
         } finally {
-          if (fis!=null) { try { fis.close(); } catch (Exception ignore) {} }
+          if (fis != null) {
+            try {
+              fis.close();
+            } catch (Exception ignore) {
+              // ignore
+            }
+          }
         }
       }
-    } catch(IOException e) {
+    } catch (IOException e) {
       throw new RuntimeException("unable to expand upgrade files for " + sourceZip + " to " + targetFolder, e);
     }
-    
+
   }
 
-  /** Unpack a zip stream to a directory usually called by {@link #unzip(File, File)} or {@link #unzip(Path, File, FileSystem, boolean).
+/** Unpack a zip stream to a directory usually called by {@link #unzip(File, File)} or {@link #unzip(Path, File, FileSystem, boolean).
    * 
    * @param zis Zip data strip to unpack
    * @param targetFolder The folder to unpack to. This directory and path is created if needed.
    * @throws IOException If there is an error.
    */
   public static void unzip(final ZipInputStream zis, final File targetFolder) throws IOException {
-      ZipEntry entry;
-      BufferedOutputStream dest = null;
+    ZipEntry entry;
+    BufferedOutputStream dest = null;
 
-      targetFolder.mkdirs();
-      while ((entry = zis.getNextEntry()) != null) {
-        LOG.debug("Extracting:   " + entry);
-        // we need to remove the first element of the path since the
-        // folder was compressed but we only want the folders content
-        final String entryPath = entry.getName();
-        final int indexOf = entryPath.indexOf("/");
-        final String cleanUpPath = entryPath.substring(indexOf + 1, entryPath.length());
-        final File targetFile = new File(targetFolder, cleanUpPath);
-        if (entry.isDirectory()) {
-          targetFile.mkdirs();
-        } else {
-          int count;
-          final byte data[] = new byte[BUFFER];
-          final FileOutputStream fos = new FileOutputStream(targetFile);
-          dest = new BufferedOutputStream(fos, BUFFER);
-          while ((count = zis.read(data, 0, BUFFER)) != -1) {
-            dest.write(data, 0, count);
-          }
-          dest.flush();
-          dest.close();
+    targetFolder.mkdirs();
+    while ((entry = zis.getNextEntry()) != null) {
+      LOG.debug("Extracting:   " + entry);
+      // we need to remove the first element of the path since the
+      // folder was compressed but we only want the folders content
+      final String entryPath = entry.getName();
+      final int indexOf = entryPath.indexOf("/");
+      final String cleanUpPath = entryPath.substring(indexOf + 1, entryPath.length());
+      final File targetFile = new File(targetFolder, cleanUpPath);
+      if (entry.isDirectory()) {
+        targetFile.mkdirs();
+      } else {
+        int count;
+        final byte data[] = new byte[BUFFER];
+        final FileOutputStream fos = new FileOutputStream(targetFile);
+        dest = new BufferedOutputStream(fos, BUFFER);
+        while ((count = zis.read(data, 0, BUFFER)) != -1) {
+          dest.write(data, 0, count);
         }
+        dest.flush();
+        dest.close();
       }
+    }
 
   }
 
@@ -156,7 +176,7 @@ public class FileUtil {
   }
 
   private static void addFolderToZip(final String path, final File folder, final ZipOutputStream zip)
-      throws IOException {
+          throws IOException {
     final String zipEnry = path + (path.equals("") ? "" : File.separator) + folder.getName();
     final File[] listFiles = folder.listFiles();
     for (final File file : listFiles) {
