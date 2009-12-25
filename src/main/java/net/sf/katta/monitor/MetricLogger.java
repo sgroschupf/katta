@@ -22,11 +22,9 @@ import java.util.concurrent.locks.ReentrantLock;
 import net.sf.katta.protocol.ConnectedComponent;
 import net.sf.katta.protocol.IAddRemoveListener;
 import net.sf.katta.protocol.InteractionProtocol;
-import net.sf.katta.util.ZkConfiguration;
 import net.sf.katta.util.ZkConfiguration.PathDef;
 
 import org.I0Itec.zkclient.IZkDataListener;
-import org.I0Itec.zkclient.ZkClient;
 import org.apache.log4j.Logger;
 
 public class MetricLogger implements IZkDataListener, ConnectedComponent {
@@ -42,15 +40,6 @@ public class MetricLogger implements IZkDataListener, ConnectedComponent {
 
   protected final InteractionProtocol _protocol;
   private long _loggedRecords = 0;
-
-  /**
-   * @deprecated use
-   *             {@link MetricLogger#MetricLogger(OutputType, InteractionProtocol)}
-   *             instead
-   */
-  public MetricLogger(OutputType outputType, ZkClient zkClient, ZkConfiguration zkConf) {
-    this(outputType, new InteractionProtocol(zkClient, zkConf));
-  }
 
   public MetricLogger(OutputType outputType, InteractionProtocol protocol) {
     _protocol = protocol;

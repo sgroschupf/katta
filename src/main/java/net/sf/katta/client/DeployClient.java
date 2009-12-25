@@ -17,11 +17,11 @@ package net.sf.katta.client;
 
 import java.util.List;
 
+import net.sf.katta.operation.master.AbstractIndexOperation;
+import net.sf.katta.operation.master.IndexDeployOperation;
+import net.sf.katta.operation.master.IndexUndeployOperation;
 import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.protocol.metadata.IndexMetaData;
-import net.sf.katta.protocol.operation.leader.AbstractIndexOperation;
-import net.sf.katta.protocol.operation.leader.IndexDeployOperation;
-import net.sf.katta.protocol.operation.leader.IndexUndeployOperation;
 import net.sf.katta.util.ZkConfiguration;
 
 import org.I0Itec.zkclient.ZkClient;
@@ -30,6 +30,9 @@ public class DeployClient implements IDeployClient {
 
   private final InteractionProtocol _protocol;
 
+  /**
+   *@deprecated use {@link #DeployClient(InteractionProtocol)} instead
+   */
   public DeployClient(ZkClient zkClient, ZkConfiguration configuration) {
     this(new InteractionProtocol(zkClient, configuration));
   }
@@ -41,7 +44,7 @@ public class DeployClient implements IDeployClient {
   @Override
   public IIndexDeployFuture addIndex(String indexName, String indexPath, int replicationLevel) {
     validateIndexData(indexName, replicationLevel);
-    _protocol.addLeaderOperation(new IndexDeployOperation(indexName, indexPath, replicationLevel));
+    _protocol.addMasterOperation(new IndexDeployOperation(indexName, indexPath, replicationLevel));
     return new IndexDeployFuture(_protocol, indexName);
   }
 
@@ -64,7 +67,7 @@ public class DeployClient implements IDeployClient {
     if (!existsIndex(indexName)) {
       throw new IllegalArgumentException("index with name '" + indexName + "' does not exists");
     }
-    _protocol.addLeaderOperation(new IndexUndeployOperation(indexName));
+    _protocol.addMasterOperation(new IndexUndeployOperation(indexName));
   }
 
   @Override

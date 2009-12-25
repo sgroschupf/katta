@@ -29,10 +29,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import net.sf.katta.AbstractZkTest;
 import net.sf.katta.master.Master;
 import net.sf.katta.node.Node;
+import net.sf.katta.operation.OperationId;
+import net.sf.katta.operation.master.MasterOperation;
+import net.sf.katta.operation.node.NodeOperation;
 import net.sf.katta.protocol.metadata.NodeMetaData;
-import net.sf.katta.protocol.operation.OperationId;
-import net.sf.katta.protocol.operation.leader.LeaderOperation;
-import net.sf.katta.protocol.operation.node.NodeOperation;
 
 import org.I0Itec.zkclient.Gateway;
 import org.I0Itec.zkclient.ZkClient;
@@ -114,7 +114,7 @@ public class InteractionProtocolTest extends AbstractZkTest {
     when(master1.getMasterName()).thenReturn("master1");
     when(master2.getMasterName()).thenReturn("master2");
     InteractionProtocol protocol = _zk.getInteractionProtocol();
-    OperationQueue<LeaderOperation> masterQueue = protocol.publishMaster(master1);
+    OperationQueue<MasterOperation> masterQueue = protocol.publishMaster(master1);
     assertNotNull(masterQueue);
 
     // same again

@@ -19,8 +19,8 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-import net.sf.katta.protocol.operation.OperationId;
-import net.sf.katta.protocol.operation.leader.LeaderOperation;
+import net.sf.katta.operation.OperationId;
+import net.sf.katta.operation.master.MasterOperation;
 
 import org.apache.log4j.Logger;
 
@@ -29,14 +29,14 @@ public class OperationRegistry {
 
   private final static Logger LOG = Logger.getLogger(OperationRegistry.class);
 
-  private final LeaderContext _context;
+  private final MasterContext _context;
   private final List<OperationWatchdog> _watchdogs = new ArrayList<OperationWatchdog>();
 
-  public OperationRegistry(LeaderContext context) {
+  public OperationRegistry(MasterContext context) {
     _context = context;
   }
 
-  public synchronized OperationWatchdog watchFor(List<OperationId> operationIds, LeaderOperation operation) {
+  public synchronized OperationWatchdog watchFor(List<OperationId> operationIds, MasterOperation operation) {
     LOG.info("watch operation '" + operation + "' for node operations " + operationIds);
     releaseDoneWatchdogs(); // lazy cleaning
     OperationWatchdog watchdog = new OperationWatchdog(_context, operationIds, operation);
@@ -53,8 +53,8 @@ public class OperationRegistry {
     }
   }
 
-  public synchronized List<LeaderOperation> getRunningOperations() {
-    List<LeaderOperation> operations = new ArrayList<LeaderOperation>();
+  public synchronized List<MasterOperation> getRunningOperations() {
+    List<MasterOperation> operations = new ArrayList<MasterOperation>();
     for (Iterator iterator = _watchdogs.iterator(); iterator.hasNext();) {
       OperationWatchdog watchdog = (OperationWatchdog) iterator.next();
       if (watchdog.isDone()) {

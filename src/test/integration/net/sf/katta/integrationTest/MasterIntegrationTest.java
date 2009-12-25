@@ -9,12 +9,12 @@ import java.util.Set;
 
 import net.sf.katta.integrationTest.support.AbstractIntegrationTest;
 import net.sf.katta.node.Node;
+import net.sf.katta.operation.master.IndexDeployOperation;
+import net.sf.katta.operation.master.IndexUndeployOperation;
 import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.protocol.metadata.IndexMetaData;
 import net.sf.katta.protocol.metadata.IndexDeployError.ErrorType;
 import net.sf.katta.protocol.metadata.IndexMetaData.Shard;
-import net.sf.katta.protocol.operation.leader.IndexDeployOperation;
-import net.sf.katta.protocol.operation.leader.IndexUndeployOperation;
 import net.sf.katta.testutil.TestResources;
 import net.sf.katta.testutil.TestUtil;
 
@@ -32,7 +32,7 @@ public class MasterIntegrationTest extends AbstractIntegrationTest {
 
     IndexDeployOperation deployOperation = new IndexDeployOperation(INDEX_NAME, "file://"
             + INDEX_FILE.getAbsolutePath(), getNodeCount());
-    protocol.addLeaderOperation(deployOperation);
+    protocol.addMasterOperation(deployOperation);
 
     TestUtil.waitUntilIndexDeployed(protocol, INDEX_NAME);
     assertEquals(1, protocol.getIndices().size());
@@ -47,7 +47,7 @@ public class MasterIntegrationTest extends AbstractIntegrationTest {
 
     // undeploy
     IndexUndeployOperation undeployOperation = new IndexUndeployOperation(INDEX_NAME);
-    protocol.addLeaderOperation(undeployOperation);
+    protocol.addMasterOperation(undeployOperation);
     TestUtil.waitUntilShardsUndeployed(protocol, indexMD);
 
     assertEquals(0, protocol.getIndices().size());
@@ -64,7 +64,7 @@ public class MasterIntegrationTest extends AbstractIntegrationTest {
     final File indexFile = TestResources.INVALID_INDEX;
     IndexDeployOperation deployOperation = new IndexDeployOperation(INDEX_NAME,
             "file://" + indexFile.getAbsolutePath(), getNodeCount());
-    protocol.addLeaderOperation(deployOperation);
+    protocol.addMasterOperation(deployOperation);
     TestUtil.waitUntilIndexDeployed(protocol, INDEX_NAME);
     assertEquals(1, protocol.getIndices().size());
     IndexMetaData indexMD = protocol.getIndexMD(INDEX_NAME);

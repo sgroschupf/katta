@@ -21,7 +21,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 import net.sf.katta.AbstractZkTest;
-import net.sf.katta.protocol.operation.node.NodeOperation;
+import net.sf.katta.operation.node.NodeOperation;
 import net.sf.katta.testutil.mockito.SerializableCountDownLatchAnswer;
 
 import org.junit.Test;

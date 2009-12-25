@@ -29,15 +29,15 @@ import net.sf.katta.DefaultNameSpaceImpl;
 import net.sf.katta.master.Master;
 import net.sf.katta.monitor.MetricsRecord;
 import net.sf.katta.node.Node;
+import net.sf.katta.operation.OperationId;
+import net.sf.katta.operation.master.MasterOperation;
+import net.sf.katta.operation.node.NodeOperation;
+import net.sf.katta.operation.node.OperationResult;
 import net.sf.katta.protocol.metadata.DeployedShard;
 import net.sf.katta.protocol.metadata.IndexMetaData;
 import net.sf.katta.protocol.metadata.MasterMetaData;
 import net.sf.katta.protocol.metadata.NodeMetaData;
 import net.sf.katta.protocol.metadata.IndexMetaData.Shard;
-import net.sf.katta.protocol.operation.OperationId;
-import net.sf.katta.protocol.operation.leader.LeaderOperation;
-import net.sf.katta.protocol.operation.node.NodeOperation;
-import net.sf.katta.protocol.operation.node.OperationResult;
 import net.sf.katta.util.CollectionUtil;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.One2ManyListMap;
@@ -334,7 +334,7 @@ public class InteractionProtocol {
             maximaShardReplicationCount);
   }
 
-  public OperationQueue<LeaderOperation> publishMaster(final Master master) {
+  public OperationQueue<MasterOperation> publishMaster(final Master master) {
     String masterName = master.getMasterName();
     String zkMasterPath = _zkConf.getZkPath(PathDef.MASTER);
     cleanupOldMasterData(masterName, zkMasterPath);
@@ -359,14 +359,14 @@ public class InteractionProtocol {
       isMaster = false;
     }
 
-    OperationQueue<LeaderOperation> queue = null;
+    OperationQueue<MasterOperation> queue = null;
     if (isMaster) {
       LOG.info("master '" + master.getMasterName() + "' published");
       String queuePath = _zkConf.getZkPath(PathDef.MASTER_QUEUE);
       if (!_zkClient.exists(queuePath)) {
         _zkClient.createPersistent(queuePath);
       }
-      queue = new OperationQueue<LeaderOperation>(_zkClient, queuePath);
+      queue = new OperationQueue<MasterOperation>(_zkClient, queuePath);
     } else {
       LOG.info("secondary master '" + master.getMasterName() + "' registered");
     }
@@ -472,9 +472,9 @@ public class InteractionProtocol {
     _zkEphemeralPublishesByComponent.add(component, path);
   }
 
-  public void addLeaderOperation(LeaderOperation operation) {
+  public void addMasterOperation(MasterOperation operation) {
     String queuePath = _zkConf.getZkPath(PathDef.MASTER_QUEUE);
-    new OperationQueue<LeaderOperation>(_zkClient, queuePath).add(operation);
+    new OperationQueue<MasterOperation>(_zkClient, queuePath).add(operation);
   }
 
   public OperationId addNodeOperation(String nodeName, NodeOperation nodeOperation) {

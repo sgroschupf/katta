@@ -71,8 +71,6 @@ import org.apache.hadoop.fs.Path;
 @SuppressWarnings("deprecation")
 public class Katta {
 
-  private final ZkClient _zkClient;
-  private final ZkConfiguration _conf;
   private final InteractionProtocol _protocol;
 
   public Katta() {
@@ -80,14 +78,10 @@ public class Katta {
   }
 
   public Katta(final ZkConfiguration configuration) {
-    _conf = configuration;
-    _zkClient = ZkKattaUtil.startZkClient(configuration, 10000);
-    _protocol = new InteractionProtocol(_zkClient, configuration);
+    this(configuration, ZkKattaUtil.startZkClient(configuration, 10000));
   }
 
   public Katta(final ZkConfiguration configuration, ZkClient zkClient) {
-    _conf = configuration;
-    _zkClient = zkClient;
     _protocol = new InteractionProtocol(zkClient, configuration);
   }
 
@@ -408,7 +402,7 @@ public class Katta {
 
   // TODO sg: does this need to throw a katta exception?
   public void removeIndex(final String indexName) {
-    IDeployClient deployClient = new DeployClient(_zkClient, _conf);
+    IDeployClient deployClient = new DeployClient(_protocol);
     if (!deployClient.existsIndex(indexName)) {
       printError("index '" + indexName + "' does not exist");
       return;
@@ -599,7 +593,7 @@ public class Katta {
   }
 
   public void addIndex(final String name, final String path, final int replicationLevel) {
-    IDeployClient deployClient = new DeployClient(_zkClient, _conf);
+    IDeployClient deployClient = new DeployClient(_protocol);
     if (name.trim().equals("*")) {
       printError("Index with name " + name + " isn't allowed.");
       return;
@@ -653,8 +647,8 @@ public class Katta {
   }
 
   public void close() {
-    if (_zkClient != null) {
-      _zkClient.close();
+    if (_protocol != null) {
+      _protocol.disconnect();
     }
   }
 

@@ -25,9 +25,9 @@ import java.util.List;
 
 import net.sf.katta.AbstractZkTest;
 import net.sf.katta.node.Node;
+import net.sf.katta.operation.master.MasterOperation;
+import net.sf.katta.operation.master.MasterOperation.ExecutionInstruction;
 import net.sf.katta.protocol.metadata.NodeMetaData;
-import net.sf.katta.protocol.operation.leader.LeaderOperation;
-import net.sf.katta.protocol.operation.leader.LeaderOperation.ExecutionInstruction;
 import net.sf.katta.testutil.mockito.SerializableCountDownLatchAnswer;
 import net.sf.katta.util.KattaException;
 
@@ -51,18 +51,18 @@ public class MasterZkTest extends AbstractZkTest {
     _protocol.publishNode(node, new NodeMetaData("node1"));
     master.start();
 
-    LeaderOperation operation1 = mock(LeaderOperation.class, withSettings().serializable());
-    LeaderOperation operation2 = mock(LeaderOperation.class, withSettings().serializable());
+    MasterOperation operation1 = mock(MasterOperation.class, withSettings().serializable());
+    MasterOperation operation2 = mock(MasterOperation.class, withSettings().serializable());
 
     SerializableCountDownLatchAnswer answer = new SerializableCountDownLatchAnswer(2);
-    when(operation1.getExecutionInstruction((List<LeaderOperation>) notNull()))
+    when(operation1.getExecutionInstruction((List<MasterOperation>) notNull()))
             .thenReturn(ExecutionInstruction.EXECUTE);
-    when(operation2.getExecutionInstruction((List<LeaderOperation>) notNull()))
+    when(operation2.getExecutionInstruction((List<MasterOperation>) notNull()))
             .thenReturn(ExecutionInstruction.EXECUTE);
-    when(operation1.execute((LeaderContext) notNull(), (List<LeaderOperation>) notNull())).thenAnswer(answer);
-    when(operation2.execute((LeaderContext) notNull(), (List<LeaderOperation>) notNull())).thenAnswer(answer);
-    _protocol.addLeaderOperation(operation1);
-    _protocol.addLeaderOperation(operation2);
+    when(operation1.execute((MasterContext) notNull(), (List<MasterOperation>) notNull())).thenAnswer(answer);
+    when(operation2.execute((MasterContext) notNull(), (List<MasterOperation>) notNull())).thenAnswer(answer);
+    _protocol.addMasterOperation(operation1);
+    _protocol.addMasterOperation(operation2);
     answer.getCountDownLatch().await();
 
     master.shutdown();

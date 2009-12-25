@@ -32,10 +32,10 @@ import static org.mockito.Mockito.when;
 import java.io.File;
 import java.io.IOException;
 
+import net.sf.katta.operation.node.NodeOperation;
 import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.protocol.OperationQueue;
 import net.sf.katta.protocol.metadata.NodeMetaData;
-import net.sf.katta.protocol.operation.node.NodeOperation;
 import net.sf.katta.testutil.PrintMethodNames;
 import net.sf.katta.testutil.TestResources;
 import net.sf.katta.testutil.mockito.SleepingAnswer;

@@ -3,7 +3,7 @@ import java.util.List;
 
 import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.protocol.metadata.IndexMetaData;
-import net.sf.katta.protocol.operation.leader.AbstractIndexOperation;
+import net.sf.katta.operation.master.AbstractIndexOperation;
 import net.sf.katta.protocol.metadata.MasterMetaData;
 import net.sf.katta.protocol.metadata.NodeMetaData;
 

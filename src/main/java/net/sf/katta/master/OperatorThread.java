@@ -17,35 +17,34 @@ package net.sf.katta.master;
 
 import java.util.List;
 
+import net.sf.katta.operation.OperationId;
+import net.sf.katta.operation.master.MasterOperation;
+import net.sf.katta.operation.master.MasterOperation.ExecutionInstruction;
 import net.sf.katta.protocol.OperationQueue;
-import net.sf.katta.protocol.operation.OperationId;
-import net.sf.katta.protocol.operation.leader.LeaderOperation;
-import net.sf.katta.protocol.operation.leader.LeaderOperation.ExecutionInstruction;
 
 import org.I0Itec.zkclient.ExceptionUtil;
 import org.I0Itec.zkclient.exception.ZkInterruptedException;
 import org.apache.log4j.Logger;
 
 /**
- * Responsible for executing all {@link LeaderOperation}s which are offered to
+ * Responsible for executing all {@link MasterOperation}s which are offered to
  * the master queue sequentially.
  */
 class OperatorThread extends Thread {
 
   protected final static Logger LOG = Logger.getLogger(OperatorThread.class);
 
-  private final LeaderContext _context;
-  private final OperationQueue<LeaderOperation> _queue;
+  private final MasterContext _context;
+  private final OperationQueue<MasterOperation> _queue;
   private final OperationRegistry _registry;
   private final long _safeModeMaxTime;
 
   private boolean _safeMode;
 
-  public OperatorThread(final LeaderContext leaderContext, OperationQueue<LeaderOperation> queue,
-          final long safeModeMaxTime) {
-    _context = leaderContext;
+  public OperatorThread(final MasterContext context, OperationQueue<MasterOperation> queue, final long safeModeMaxTime) {
+    _context = context;
     _queue = queue;
-    _registry = new OperationRegistry(leaderContext);
+    _registry = new OperationRegistry(context);
     setDaemon(true);
     setName(getClass().getSimpleName());
     _safeModeMaxTime = safeModeMaxTime;
@@ -64,9 +63,9 @@ class OperatorThread extends Thread {
       while (true) {
         // TODO jz: poll only for a certain amount of time and then execute a
         // global check operation ?
-        LeaderOperation operation = _queue.peek();
+        MasterOperation operation = _queue.peek();
         try {
-          List<LeaderOperation> runningOperations = _registry.getRunningOperations();
+          List<MasterOperation> runningOperations = _registry.getRunningOperations();
           ExecutionInstruction instruction = operation.getExecutionInstruction(runningOperations);
           executeOperation(operation, instruction, runningOperations);
         } catch (Exception e) {
@@ -86,8 +85,8 @@ class OperatorThread extends Thread {
     LOG.info("operator thread stopped");
   }
 
-  private void executeOperation(LeaderOperation operation, ExecutionInstruction instruction,
-          List<LeaderOperation> runningOperations) throws Exception {
+  private void executeOperation(MasterOperation operation, ExecutionInstruction instruction,
+          List<MasterOperation> runningOperations) throws Exception {
     switch (instruction) {
     case EXECUTE:
       LOG.info("executing operation '" + operation + "'");

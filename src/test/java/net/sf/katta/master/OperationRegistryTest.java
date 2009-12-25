@@ -28,12 +28,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 import net.sf.katta.node.Node;
+import net.sf.katta.operation.OperationId;
+import net.sf.katta.operation.master.AbstractMasterNodeZkTest;
+import net.sf.katta.operation.master.MasterOperation;
+import net.sf.katta.operation.node.NodeOperation;
+import net.sf.katta.operation.node.OperationResult;
 import net.sf.katta.protocol.OperationQueue;
-import net.sf.katta.protocol.operation.OperationId;
-import net.sf.katta.protocol.operation.leader.LeaderOperation;
-import net.sf.katta.protocol.operation.leader.AbstractMasterNodeZkTest;
-import net.sf.katta.protocol.operation.node.NodeOperation;
-import net.sf.katta.protocol.operation.node.OperationResult;
 
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
@@ -42,12 +42,12 @@ public class OperationRegistryTest extends AbstractMasterNodeZkTest {
 
   private final OperationRegistry _registry = new OperationRegistry(_context);
   private final List<Node> _nodes = mockNodes(5);
-  private final LeaderOperation _leaderOperation = mock(LeaderOperation.class);
+  private final MasterOperation _masterOperation = mock(MasterOperation.class);
 
   @Test(timeout = 10000)
   public void testAllOperationsDoneWithoutResults() throws Exception {
     List<OperationQueue<NodeOperation>> nodeQueues = publisNodes(_nodes);
-    OperationWatchdog operationWatchdog = beginLeaderOperation(_nodes, _leaderOperation);
+    OperationWatchdog operationWatchdog = beginMasterOperation(_nodes, _masterOperation);
 
     // execute node operations
     List<OperationResult> operationResults = new ArrayList<OperationResult>();
@@ -60,13 +60,13 @@ public class OperationRegistryTest extends AbstractMasterNodeZkTest {
     operationWatchdog.join();
     assertTrue(operationWatchdog.isDone());
     assertEquals(0, operationWatchdog.getOpenOperationCount());
-    verify(_leaderOperation, times(1)).nodeOperationsComplete(_context, operationResults);
+    verify(_masterOperation, times(1)).nodeOperationsComplete(_context, operationResults);
   }
 
   @Test(timeout = 10000)
   public void testAllOperationsDone() throws Exception {
     List<OperationQueue<NodeOperation>> nodeQueues = publisNodes(_nodes);
-    OperationWatchdog operationWatchdog = beginLeaderOperation(_nodes, _leaderOperation);
+    OperationWatchdog operationWatchdog = beginMasterOperation(_nodes, _masterOperation);
 
     // execute node operations
     List<OperationResult> operationResults = new ArrayList<OperationResult>();
@@ -84,7 +84,7 @@ public class OperationRegistryTest extends AbstractMasterNodeZkTest {
     assertEquals(0, operationWatchdog.getOpenOperationCount());
     ArgumentCaptor<List> argument = ArgumentCaptor.forClass(List.class);
 
-    verify(_leaderOperation, times(1)).nodeOperationsComplete(eq(_context), argument.capture());
+    verify(_masterOperation, times(1)).nodeOperationsComplete(eq(_context), argument.capture());
     List<OperationResult> capturedResults = argument.getValue();
     assertEquals(operationResults.size(), capturedResults.size());
     for (OperationResult result : capturedResults) {
@@ -96,7 +96,7 @@ public class OperationRegistryTest extends AbstractMasterNodeZkTest {
   @Test(timeout = 10000)
   public void testOneOperationsMissing() throws Exception {
     List<OperationQueue<NodeOperation>> nodeQueues = publisNodes(_nodes);
-    OperationWatchdog watchdog = beginLeaderOperation(_nodes, _leaderOperation);
+    OperationWatchdog watchdog = beginMasterOperation(_nodes, _masterOperation);
 
     // execute operation
     nodeQueues.get(0).remove();
@@ -113,7 +113,7 @@ public class OperationRegistryTest extends AbstractMasterNodeZkTest {
   @Test(timeout = 10000)
   public void testOperationsDoneOrNodeGone() throws Exception {
     List<OperationQueue<NodeOperation>> nodeQueues = publisNodes(_nodes);
-    OperationWatchdog watchdog = beginLeaderOperation(_nodes, _leaderOperation);
+    OperationWatchdog watchdog = beginMasterOperation(_nodes, _masterOperation);
 
     nodeQueues.get(0).remove();
     nodeQueues.get(1).remove();
@@ -130,18 +130,18 @@ public class OperationRegistryTest extends AbstractMasterNodeZkTest {
   @Test(timeout = 10000)
   public void testGetRunningOperations() throws Exception {
     publisNodes(_nodes);
-    beginLeaderOperation(_nodes, _leaderOperation);
+    beginMasterOperation(_nodes, _masterOperation);
     assertEquals(1, _registry.getRunningOperations().size());
     _registry.shutdown();
   }
 
-  private OperationWatchdog beginLeaderOperation(List<Node> nodes, LeaderOperation leaderOperation) {
+  private OperationWatchdog beginMasterOperation(List<Node> nodes, MasterOperation operation) {
     List<OperationId> operationIds = new ArrayList<OperationId>();
     for (Node node : nodes) {
       OperationId operationId = _protocol.addNodeOperation(node.getName(), mock(NodeOperation.class));
       operationIds.add(operationId);
     }
-    OperationWatchdog watchdog = _registry.watchFor(operationIds, leaderOperation);
+    OperationWatchdog watchdog = _registry.watchFor(operationIds, operation);
     assertFalse(watchdog.isDone());
     assertEquals(nodes.size(), watchdog.getOpenOperationCount());
     return watchdog;

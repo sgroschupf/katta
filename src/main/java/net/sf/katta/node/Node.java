@@ -21,13 +21,13 @@ import java.net.BindException;
 import java.util.Collection;
 
 import net.sf.katta.monitor.IMonitor;
+import net.sf.katta.operation.node.NodeOperation;
+import net.sf.katta.operation.node.OperationResult;
+import net.sf.katta.operation.node.ShardRedeployOperation;
 import net.sf.katta.protocol.ConnectedComponent;
 import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.protocol.OperationQueue;
 import net.sf.katta.protocol.metadata.NodeMetaData;
-import net.sf.katta.protocol.operation.node.NodeOperation;
-import net.sf.katta.protocol.operation.node.OperationResult;
-import net.sf.katta.protocol.operation.node.ShardRedeployOperation;
 import net.sf.katta.util.NetworkUtil;
 import net.sf.katta.util.NodeConfiguration;
 

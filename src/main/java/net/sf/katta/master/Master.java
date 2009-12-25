@@ -19,13 +19,13 @@ import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
+import net.sf.katta.operation.master.CheckIndicesOperation;
+import net.sf.katta.operation.master.MasterOperation;
+import net.sf.katta.operation.master.RemoveSuperfluousShardsOperation;
 import net.sf.katta.protocol.ConnectedComponent;
 import net.sf.katta.protocol.IAddRemoveListener;
 import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.protocol.OperationQueue;
-import net.sf.katta.protocol.operation.leader.CheckIndicesOperation;
-import net.sf.katta.protocol.operation.leader.LeaderOperation;
-import net.sf.katta.protocol.operation.leader.RemoveSuperfluousShardsOperation;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.MasterConfiguration;
 import net.sf.katta.util.NetworkUtil;
@@ -44,7 +44,7 @@ public class Master implements ConnectedComponent {
   private boolean _shutdownClient;
   protected InteractionProtocol _protocol;
 
-  private LeaderContext _context;
+  private MasterContext _context;
   private long _safeModeMaxTime;
 
   public Master(InteractionProtocol interactionProtocol, ZkServer zkServer) throws KattaException {
@@ -67,7 +67,7 @@ public class Master implements ConnectedComponent {
     try {
       final Class<IDeployPolicy> policyClazz = (Class<IDeployPolicy>) Class.forName(deployPolicyClassName);
       IDeployPolicy _deployPolicy = policyClazz.newInstance();
-      _context = new LeaderContext(_protocol, _deployPolicy);
+      _context = new MasterContext(_protocol, _deployPolicy);
     } catch (final Exception e) {
       throw new KattaException("Unable to instantiate deploy policy", e);
     }
@@ -99,7 +99,7 @@ public class Master implements ConnectedComponent {
   }
 
   private void becomePrimaryOrSecondaryMaster() {
-    OperationQueue<LeaderOperation> queue = _protocol.publishMaster(this);
+    OperationQueue<MasterOperation> queue = _protocol.publishMaster(this);
     if (queue != null) {
       startNodeManagement();
       _operatorThread = new OperatorThread(_context, queue, _safeModeMaxTime);
@@ -136,21 +136,21 @@ public class Master implements ConnectedComponent {
       @Override
       public void removed(String name) {
         if (!isInSafeMode()) {
-          _protocol.addLeaderOperation(new CheckIndicesOperation());
+          _protocol.addMasterOperation(new CheckIndicesOperation());
         }
       }
 
       @Override
       public void added(String name) {
-        _protocol.addLeaderOperation(new RemoveSuperfluousShardsOperation(name));
+        _protocol.addMasterOperation(new RemoveSuperfluousShardsOperation(name));
         if (!isInSafeMode()) {
-          _protocol.addLeaderOperation(new CheckIndicesOperation());
+          _protocol.addMasterOperation(new CheckIndicesOperation());
         }
       }
     });
-    _protocol.addLeaderOperation(new CheckIndicesOperation());
+    _protocol.addMasterOperation(new CheckIndicesOperation());
     for (String node : nodes) {
-      _protocol.addLeaderOperation(new RemoveSuperfluousShardsOperation(node));
+      _protocol.addMasterOperation(new RemoveSuperfluousShardsOperation(node));
     }
     LOG.info("found following nodes connected: " + nodes);
   }

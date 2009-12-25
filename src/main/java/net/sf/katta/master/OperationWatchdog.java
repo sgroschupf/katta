@@ -20,13 +20,13 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+import net.sf.katta.operation.OperationId;
+import net.sf.katta.operation.master.MasterOperation;
+import net.sf.katta.operation.node.NodeOperation;
+import net.sf.katta.operation.node.OperationResult;
 import net.sf.katta.protocol.ConnectedComponent;
 import net.sf.katta.protocol.IAddRemoveListener;
 import net.sf.katta.protocol.InteractionProtocol;
-import net.sf.katta.protocol.operation.OperationId;
-import net.sf.katta.protocol.operation.leader.LeaderOperation;
-import net.sf.katta.protocol.operation.node.NodeOperation;
-import net.sf.katta.protocol.operation.node.OperationResult;
 
 import org.I0Itec.zkclient.IZkDataListener;
 import org.apache.log4j.Logger;
@@ -41,14 +41,14 @@ public class OperationWatchdog implements ConnectedComponent {
 
   private final List<OperationId> _openOperationIds;
   private final List<OperationId> _operationIds;
-  private final LeaderContext _context;
-  private final LeaderOperation _leaderOperation;
+  private final MasterContext _context;
+  private final MasterOperation _masterOperation;
 
-  public OperationWatchdog(LeaderContext context, List<OperationId> operationIds, LeaderOperation leaderOperation) {
+  public OperationWatchdog(MasterContext context, List<OperationId> operationIds, MasterOperation masterOperation) {
     _context = context;
     _operationIds = operationIds;
     _openOperationIds = new ArrayList<OperationId>(operationIds);
-    _leaderOperation = leaderOperation;
+    _masterOperation = masterOperation;
     subscribeNotifications();
   }
 
@@ -125,16 +125,16 @@ public class OperationWatchdog implements ConnectedComponent {
         }
         operationResults.add(operationResult);// we add null ones
       }
-      _leaderOperation.nodeOperationsComplete(_context, operationResults);
+      _masterOperation.nodeOperationsComplete(_context, operationResults);
     } catch (Exception e) {
-      LOG.info("operation complete action of " + _leaderOperation + " failed", e);
+      LOG.info("operation complete action of " + _masterOperation + " failed", e);
     }
-    LOG.info("watch for " + _leaderOperation + " finished");
+    LOG.info("watch for " + _masterOperation + " finished");
     this.notifyAll();
   }
 
-  public LeaderOperation getOperation() {
-    return _leaderOperation;
+  public MasterOperation getOperation() {
+    return _masterOperation;
   }
 
   public final int getOpenOperationCount() {
@@ -157,12 +157,12 @@ public class OperationWatchdog implements ConnectedComponent {
 
   @Override
   public final void disconnect() {
-    // handled by leader
+    // handled by master
   }
 
   @Override
   public final void reconnect() {
-    // handled by leader
+    // handled by master
   }
 
 }

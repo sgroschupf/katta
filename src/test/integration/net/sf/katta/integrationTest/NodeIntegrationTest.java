@@ -25,8 +25,8 @@ import java.util.Collection;
 import net.sf.katta.client.LuceneClient;
 import net.sf.katta.integrationTest.support.AbstractIntegrationTest;
 import net.sf.katta.node.Node;
+import net.sf.katta.operation.node.ShardUndeployOperation;
 import net.sf.katta.protocol.InteractionProtocol;
-import net.sf.katta.protocol.operation.node.ShardUndeployOperation;
 import net.sf.katta.testutil.TestUtil;
 
 import org.apache.lucene.analysis.KeywordAnalyzer;

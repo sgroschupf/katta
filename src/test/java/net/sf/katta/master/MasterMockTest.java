@@ -28,12 +28,12 @@ import static org.mockito.Mockito.when;
 import java.util.Arrays;
 import java.util.List;
 
+import net.sf.katta.operation.master.CheckIndicesOperation;
+import net.sf.katta.operation.master.MasterOperation;
+import net.sf.katta.operation.master.RemoveSuperfluousShardsOperation;
 import net.sf.katta.protocol.IAddRemoveListener;
 import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.protocol.OperationQueue;
-import net.sf.katta.protocol.operation.leader.CheckIndicesOperation;
-import net.sf.katta.protocol.operation.leader.LeaderOperation;
-import net.sf.katta.protocol.operation.leader.RemoveSuperfluousShardsOperation;
 import net.sf.katta.testutil.PrintMethodNames;
 import net.sf.katta.testutil.TestUtil;
 import net.sf.katta.testutil.mockito.SleepingAnswer;
@@ -129,8 +129,8 @@ public class MasterMockTest {
 
     assertTrue(master.isMaster());
     TestUtil.waitOnLeaveSafeMode(master);
-    ArgumentCaptor<LeaderOperation> argument = ArgumentCaptor.forClass(LeaderOperation.class);
-    verify(protocol, times(2)).addLeaderOperation(argument.capture());
+    ArgumentCaptor<MasterOperation> argument = ArgumentCaptor.forClass(MasterOperation.class);
+    verify(protocol, times(2)).addMasterOperation(argument.capture());
     assertTrue(argument.getAllValues().get(0) instanceof CheckIndicesOperation);
     assertTrue(argument.getAllValues().get(1) instanceof RemoveSuperfluousShardsOperation);
     assertEquals(nodeName, ((RemoveSuperfluousShardsOperation) argument.getAllValues().get(1)).getNodeName());

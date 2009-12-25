@@ -18,9 +18,9 @@ package net.sf.katta.client;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import net.sf.katta.operation.master.AbstractIndexOperation;
+import net.sf.katta.operation.master.IndexDeployOperation;
 import net.sf.katta.protocol.InteractionProtocol;
-import net.sf.katta.protocol.operation.leader.AbstractIndexOperation;
-import net.sf.katta.protocol.operation.leader.IndexDeployOperation;
 
 import org.junit.Test;
 
@@ -32,7 +32,7 @@ public class DeployClientTest {
   public void testAddIndex() throws Exception {
     DeployClient deployClient = new DeployClient(_protocol);
     deployClient.addIndex("i1", "iP", 1);
-    verify(_protocol).addLeaderOperation(any(IndexDeployOperation.class));
+    verify(_protocol).addMasterOperation(any(IndexDeployOperation.class));
   }
 
   @Test(expected = IllegalArgumentException.class)
