@@ -31,7 +31,8 @@ public class KattaTest extends AbstractZkTest {
   @Test
   public void testShowStructure() {
     Katta katta = new Katta(_zk.getZkConf());
-    katta.showStructure();
+    katta.showStructure(false);
+    katta.showStructure(true);
   }
 
   @Test
