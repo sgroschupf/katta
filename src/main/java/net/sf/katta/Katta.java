@@ -166,7 +166,13 @@ public class Katta {
       } else if (command.endsWith("listNodes")) {
         katta.listNodes();
       } else if (command.endsWith("showStructure")) {
-        katta.showStructure();
+        boolean detailedView = false;
+        for (String arg : args) {
+          if (arg.equals("-d")) {
+            detailedView = true;
+          }
+        }
+        katta.showStructure(detailedView);
       } else if (command.endsWith("check")) {
         katta.check();
       } else if (command.endsWith("listErrors")) {
@@ -415,8 +421,8 @@ public class Katta {
   // _zkClient.showFolders(arg != null && arg.startsWith("-a"), System.out);
   // }
 
-  public void showStructure() {
-    _zkClient.showFolders(System.out);
+  public void showStructure(boolean detailedView) {
+    _protocol.showStructure(detailedView);
   }
 
   private void check() {
@@ -671,7 +677,7 @@ public class Katta {
             .println("\tstartMetricsLogger [sys|log4j]\t\tSubscribes to the Metrics updates and logs them to log file or console.");
     System.err.println("\tstartGui [-war <pathToWar>] [-port <port>]\t\tStarts the web based katta.gui.");
 
-    System.err.println("\tshowStructure [-all]\t\tShows the structure of a Katta installation.");
+    System.err.println("\tshowStructure [-d]\t\tShows the structure of a Katta installation. -d for detailed view.");
     System.err.println("\tcheck\t\t\tAnalyze index/shard/node status.");
     System.err.println("\tversion\t\t\tPrint the version.");
     System.err

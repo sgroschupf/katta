@@ -110,7 +110,7 @@ public class ZkTestSystem extends ExternalResource {
   }
 
   public void showStructure() {
-    getInteractionProtocol().showStructure();
+    getInteractionProtocol().showStructure(true);
   }
 
   // LuceneComplianceTest (zk, lucene server)

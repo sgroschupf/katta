@@ -113,21 +113,23 @@ public class ZkConfiguration extends KattaConfiguration {
   }
 
   public enum PathDef {
-    MASTER("current master ephemeral", "master"), // 
-    NODES_METADATA("metadata of connected & unconnected nodes", NODES, "metadata"), // 
-    NODES_LIVE("ephemerals of connected nodes", NODES, "live"), //
-    NODE_METRICS("metrics information of nodes", NODES, "metrics"), //
-    NODE_LOADTESTS("loadtest information of nodes", NODES, "loadtest"), //
-    INDICES_METADATA("metadata of live & error indices", "indicies"), //
-    SHARD_TO_NODES("ephemerals of nodes serving a shard", "shard-to-nodes"), //
-    MASTER_QUEUE("master operations", WORK, "master-queue"), //
-    NODE_QUEUE("node operations and results", WORK, "node-queues"); //
+    MASTER("current master ephemeral", true, "master"), // 
+    NODES_METADATA("metadata of connected & unconnected nodes", true, NODES, "metadata"), // 
+    NODES_LIVE("ephemerals of connected nodes", true, NODES, "live"), //
+    NODE_METRICS("metrics information of nodes", false, NODES, "metrics"), //
+    NODE_LOADTESTS("loadtest information of nodes", false, NODES, "loadtest"), //
+    INDICES_METADATA("metadata of live & error indices", true, "indicies"), //
+    SHARD_TO_NODES("ephemerals of nodes serving a shard", true, "shard-to-nodes"), //
+    MASTER_QUEUE("master operations", false, WORK, "master-queue"), //
+    NODE_QUEUE("node operations and results", false, WORK, "node-queues"); //
 
     private final String _description;
     private final String[] _pathParts;
+    private final boolean _vip;// very-important-path
 
-    private PathDef(String description, String... pathParts) {
+    private PathDef(String description, boolean vip, String... pathParts) {
       _description = description;
+      _vip = vip;
       _pathParts = pathParts;
     }
 
@@ -137,6 +139,10 @@ public class ZkConfiguration extends KattaConfiguration {
 
     public String getDescription() {
       return _description;
+    }
+
+    public boolean isVip() {
+      return _vip;
     }
   }
 

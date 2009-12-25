@@ -129,5 +129,9 @@ public class InteractionProtocolTest extends AbstractZkTest {
   @Test(timeout = 7000)
   public void testExplainStructure() throws Exception {
     _protocol.explainStructure();
+    System.out.println("----------------");
+    _protocol.showStructure(false);
+    System.out.println("----------------");
+    _protocol.showStructure(true);
   }
 }

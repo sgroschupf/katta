@@ -49,6 +49,8 @@ import org.I0Itec.zkclient.IZkDataListener;
 import org.I0Itec.zkclient.IZkStateListener;
 import org.I0Itec.zkclient.ZkClient;
 import org.I0Itec.zkclient.exception.ZkNoNodeException;
+import org.I0Itec.zkclient.util.ZkPathUtil;
+import org.I0Itec.zkclient.util.ZkPathUtil.PathFilter;
 import org.apache.log4j.Logger;
 import org.apache.zookeeper.Watcher.Event.KeeperState;
 
@@ -518,8 +520,25 @@ public class InteractionProtocol {
     return _zkClient.exists(_zkConf.getZkPath(PathDef.INDICES_METADATA, indexName));
   }
 
-  public void showStructure() {
-    _zkClient.showFolders(System.out);
+  public void showStructure(final boolean all) {
+    final String string;
+    if (all) {
+      string = ZkPathUtil.toString(_zkClient, _zkConf.getZkRootPath(), PathFilter.ALL);
+    } else {
+      final Set<String> nonViPathes = new HashSet<String>();
+      for (PathDef pathDef : PathDef.values()) {
+        if (!pathDef.isVip()) {
+          nonViPathes.add(_zkConf.getZkPath(pathDef));
+        }
+      }
+      string = ZkPathUtil.toString(_zkClient, _zkConf.getZkRootPath(), new PathFilter() {
+        @Override
+        public boolean showChilds(String path) {
+          return !nonViPathes.contains(path);
+        }
+      });
+    }
+    System.out.println(string);
   }
 
   public void explainStructure() {
