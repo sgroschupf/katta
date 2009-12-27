@@ -26,6 +26,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import net.sf.katta.Mocks;
 import net.sf.katta.master.Master;
 import net.sf.katta.node.Node;
 import net.sf.katta.operation.node.DeployResult;
@@ -75,8 +76,8 @@ public class IndexDeployOperationTest extends AbstractMasterNodeZkTest {
   @Test
   public void testDeployError_ShardsNotDeployable() throws Exception {
     // add nodes
-    List<Node> nodes = mockNodes(3);
-    publisNodes(nodes);
+    List<Node> nodes = Mocks.mockNodes(3);
+    Mocks.publisNodes(_protocol, nodes);
 
     // add index
     int replicationLevel = 3;
@@ -91,8 +92,8 @@ public class IndexDeployOperationTest extends AbstractMasterNodeZkTest {
   @Test
   public void testDeployErrorExceptions_ShardsNotDeployable() throws Exception {
     // add nodes
-    List<Node> nodes = mockNodes(3);
-    List<OperationQueue<NodeOperation>> nodeQueues = publisNodes(nodes);
+    List<Node> nodes = Mocks.mockNodes(3);
+    List<OperationQueue<NodeOperation>> nodeQueues = Mocks.publisNodes(_protocol, nodes);
 
     // add index
     int replicationLevel = 3;
@@ -125,8 +126,8 @@ public class IndexDeployOperationTest extends AbstractMasterNodeZkTest {
   @Test
   public void testDeploy() throws Exception {
     // add nodes
-    List<Node> nodes = mockNodes(3);
-    List<OperationQueue<NodeOperation>> nodeQueues = publisNodes(nodes);
+    List<Node> nodes = Mocks.mockNodes(3);
+    List<OperationQueue<NodeOperation>> nodeQueues = Mocks.publisNodes(_protocol, nodes);
 
     // add index
     int replicationLevel = 3;
@@ -162,8 +163,8 @@ public class IndexDeployOperationTest extends AbstractMasterNodeZkTest {
   @Test
   public void testDeployUnderreplicatedIndex() throws Exception {
     // add nodes
-    List<Node> nodes = mockNodes(3);
-    List<OperationQueue<NodeOperation>> nodeQueues = publisNodes(nodes);
+    List<Node> nodes = Mocks.mockNodes(3);
+    List<OperationQueue<NodeOperation>> nodeQueues = Mocks.publisNodes(_protocol, nodes);
 
     // add index
     int replicationLevel = 3;
@@ -180,7 +181,7 @@ public class IndexDeployOperationTest extends AbstractMasterNodeZkTest {
     assertNull(indexMD.getDeployError());
 
     // balance index should have been be triggered
-    Master master = mockMaster();
+    Master master = Mocks.mockMaster();
     _zk.showStructure();
     OperationQueue<MasterOperation> masterQueue = _protocol.publishMaster(master);
     MasterOperation operation = masterQueue.peek();

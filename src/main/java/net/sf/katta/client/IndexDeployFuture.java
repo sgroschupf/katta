@@ -20,6 +20,7 @@ import java.io.Serializable;
 import net.sf.katta.protocol.ConnectedComponent;
 import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.protocol.metadata.IndexMetaData;
+import net.sf.katta.util.ZkConfiguration.PathDef;
 
 import org.I0Itec.zkclient.IZkDataListener;
 import org.apache.log4j.Logger;
@@ -37,7 +38,7 @@ public class IndexDeployFuture implements IIndexDeployFuture, IZkDataListener, C
     _indexName = indexName;
 
     _protocol.registerComponent(this);
-    _protocol.registerIndexMetaDataListener(this, indexName, this);
+    _protocol.registerDataListener(this, PathDef.INDICES_METADATA, indexName, this);
   }
 
   public synchronized IndexState getState() {

@@ -52,4 +52,23 @@ public class StringUtil {
     builder.append(" sec");
     return builder.toString();
   }
+
+  /**
+   * 
+   * @param string
+   * @param length
+   * @return the given path + as many whitespace that the given string reaches
+   *         the given length
+   */
+  public static String fillWithWhiteSpace(String string, int length) {
+    int neededWhiteSpace = length - string.length();
+    if (neededWhiteSpace > 0) {
+      StringBuilder builder = new StringBuilder(string);
+      for (int i = 0; i < neededWhiteSpace; i++) {
+        builder.append(" ");
+      }
+      return builder.toString();
+    }
+    return string;
+  }
 }

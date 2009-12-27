@@ -15,8 +15,6 @@
  */
 package net.sf.katta;
 
-import java.io.IOException;
-
 import net.sf.katta.client.DeployClient;
 import net.sf.katta.master.Master;
 import net.sf.katta.util.ZkConfiguration;
@@ -42,11 +40,9 @@ public class KattaTest extends AbstractZkTest {
   }
 
   @Test
-  public void testListIndexesWithUnreachableIndex_KATTA_76() throws IOException {
+  public void testListIndexesWithUnreachableIndex_KATTA_76() {
     Katta _katta = new Katta(_zk.getZkConf(), _zk.getZkClient());
-    ZkConfiguration configuration = _zk.getZkConf();
-    ZkClient zkClient = _zk.getZkClient();
-    DeployClient deployClient = new DeployClient(zkClient, configuration);
+    DeployClient deployClient = new DeployClient(_protocol);
     deployClient.addIndex("index1", "hdfs://localhost:8020/index", 1);
     _katta.listIndex(true);
   }

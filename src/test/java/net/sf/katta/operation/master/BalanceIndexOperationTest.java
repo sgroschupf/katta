@@ -24,6 +24,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+import net.sf.katta.Mocks;
 import net.sf.katta.node.Node;
 import net.sf.katta.operation.master.MasterOperation.ExecutionInstruction;
 import net.sf.katta.operation.node.NodeOperation;
@@ -47,8 +48,8 @@ public class BalanceIndexOperationTest extends AbstractMasterNodeZkTest {
   @Test
   public void testBalanceUnderreplicatedIndex() throws Exception {
     // add nodes and index
-    List<Node> nodes = mockNodes(2);
-    List<OperationQueue<NodeOperation>> nodeQueues = publisNodes(nodes);
+    List<Node> nodes = Mocks.mockNodes(2);
+    List<OperationQueue<NodeOperation>> nodeQueues = Mocks.publisNodes(_protocol, nodes);
     deployIndexWithError();
 
     // index deployed on 2 nodes / desired replica is 3
@@ -65,8 +66,8 @@ public class BalanceIndexOperationTest extends AbstractMasterNodeZkTest {
     }
 
     // add node and then balance again
-    Node node3 = mockNode();
-    OperationQueue<NodeOperation> nodeQueue3 = publisNode(node3);
+    Node node3 = Mocks.mockNode();
+    OperationQueue<NodeOperation> nodeQueue3 = Mocks.publisNode(_protocol, node3);
     assertEquals(0, nodeQueue3.size());
 
     balanceOperation.execute(_context, EMPTY_LIST);
@@ -79,8 +80,8 @@ public class BalanceIndexOperationTest extends AbstractMasterNodeZkTest {
   @Test
   public void testBalanceOverreplicatedIndex() throws Exception {
     // add nodes and index
-    List<Node> nodes = mockNodes(3);
-    List<OperationQueue<NodeOperation>> nodeQueues = publisNodes(nodes);
+    List<Node> nodes = Mocks.mockNodes(3);
+    List<OperationQueue<NodeOperation>> nodeQueues = Mocks.publisNodes(_protocol, nodes);
     deployIndexWithError();
     for (OperationQueue<NodeOperation> nodeqQueue : nodeQueues) {
       assertEquals(1, nodeqQueue.size());
@@ -109,8 +110,8 @@ public class BalanceIndexOperationTest extends AbstractMasterNodeZkTest {
   @Test
   public void testUnbalancedIndexAfterBalancingIndex() throws Exception {
     // add nodes and index
-    List<Node> nodes = mockNodes(2);
-    List<OperationQueue<NodeOperation>> nodeQueues = publisNodes(nodes);
+    List<Node> nodes = Mocks.mockNodes(2);
+    List<OperationQueue<NodeOperation>> nodeQueues = Mocks.publisNodes(_protocol, nodes);
     deployIndexWithError();
 
     // index deployed on 2 nodes / desired replica is 3
@@ -128,14 +129,14 @@ public class BalanceIndexOperationTest extends AbstractMasterNodeZkTest {
 
     // node completion does not add another balance op since not enough nodes
     // are there
-    OperationQueue<MasterOperation> masterQueue = _protocol.publishMaster(mockMaster());
+    OperationQueue<MasterOperation> masterQueue = _protocol.publishMaster(Mocks.mockMaster());
     assertEquals(0, masterQueue.size());
     balanceOperation.nodeOperationsComplete(_context, Collections.EMPTY_LIST);
     assertEquals(0, masterQueue.size());
 
     // add node and now the balance op should add itself for retry
-    Node node3 = mockNode();
-    OperationQueue<NodeOperation> nodeQueue3 = publisNode(node3);
+    Node node3 = Mocks.mockNode();
+    OperationQueue<NodeOperation> nodeQueue3 = Mocks.publisNode(_protocol, node3);
     balanceOperation.nodeOperationsComplete(_context, Collections.EMPTY_LIST);
     assertEquals(1, masterQueue.size());
 
@@ -153,8 +154,8 @@ public class BalanceIndexOperationTest extends AbstractMasterNodeZkTest {
   @Test
   public void testBalanceErrorIndex() throws Exception {
     // add nodes and index
-    List<Node> nodes = mockNodes(2);
-    List<OperationQueue<NodeOperation>> nodeQueues = publisNodes(nodes);
+    List<Node> nodes = Mocks.mockNodes(2);
+    List<OperationQueue<NodeOperation>> nodeQueues = Mocks.publisNodes(_protocol, nodes);
     deployIndexWithError();
     assertTrue(_protocol.getIndexMD(_indexName).hasDeployError());
     assertNotNull(_protocol.getIndexMD(_indexName).getDeployError());

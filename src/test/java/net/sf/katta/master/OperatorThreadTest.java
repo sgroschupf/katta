@@ -29,6 +29,7 @@ import static org.mockito.Mockito.withSettings;
 import java.util.ArrayList;
 import java.util.List;
 
+import net.sf.katta.Mocks;
 import net.sf.katta.node.Node;
 import net.sf.katta.operation.OperationId;
 import net.sf.katta.operation.master.AbstractMasterNodeZkTest;
@@ -61,8 +62,8 @@ public class OperatorThreadTest extends AbstractMasterNodeZkTest {
     assertTrue(operatorThread.isInSafeMode());
 
     // connect nodes
-    Node node = mockNode();
-    publisNode(node);
+    Node node = Mocks.mockNode();
+    Mocks.publisNode(_protocol, node);
 
     // check safe mode & operation execution
     Thread.sleep(safeModeMaxTime + 100);
@@ -92,8 +93,8 @@ public class OperatorThreadTest extends AbstractMasterNodeZkTest {
     OperationQueue queue = mock(OperationQueue.class);
     when(queue.peek()).thenAnswer(new SleepingAnswer());
 
-    Node node = mockNode();
-    publisNode(node);
+    Node node = Mocks.mockNode();
+    Mocks.publisNode(_protocol, node);
     long safeModeMaxTime = 200;
     OperatorThread operatorThread = new OperatorThread(_context, queue, safeModeMaxTime);
     operatorThread.start();
@@ -120,8 +121,8 @@ public class OperatorThreadTest extends AbstractMasterNodeZkTest {
     when(masterOperation3.getExecutionInstruction(EMPTY_LIST)).thenReturn(ExecutionInstruction.EXECUTE).thenAnswer(
             new SleepingAnswer());
 
-    Node node = mockNode();
-    publisNode(node);
+    Node node = Mocks.mockNode();
+    Mocks.publisNode(_protocol, node);
     long safeModeMaxTime = 200;
     OperatorThread operatorThread = new OperatorThread(_context, queue, safeModeMaxTime);
     operatorThread.start();
@@ -137,8 +138,8 @@ public class OperatorThreadTest extends AbstractMasterNodeZkTest {
 
   @Test(timeout = 10000)
   public void testOnNodeOperationCompletion() throws Exception {
-    Node node = mockNode();
-    OperationQueue<NodeOperation> nodeQueue = publisNode(node);
+    Node node = Mocks.mockNode();
+    OperationQueue<NodeOperation> nodeQueue = Mocks.publisNode(_protocol, node);
     OperationId operationId = _protocol.addNodeOperation(node.getName(), mock(NodeOperation.class, withSettings()
             .serializable()));
     List<OperationId> operationIds = new ArrayList<OperationId>();
@@ -194,8 +195,8 @@ public class OperatorThreadTest extends AbstractMasterNodeZkTest {
   private void runLockSituation(OperationQueue queue, final MasterOperation leaderOperation1,
           final MasterOperation leaderOperation2, ExecutionInstruction instruction) throws Exception,
           InterruptedException {
-    Node node = mockNode();
-    OperationQueue<NodeOperation> nodeQueue = publisNode(node);
+    Node node = Mocks.mockNode();
+    OperationQueue<NodeOperation> nodeQueue = Mocks.publisNode(_protocol, node);
     OperationId operationId = _protocol.addNodeOperation(node.getName(), mock(NodeOperation.class, withSettings()
             .serializable()));
     List<OperationId> operationIds = new ArrayList<OperationId>();

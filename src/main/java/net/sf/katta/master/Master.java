@@ -29,6 +29,7 @@ import net.sf.katta.protocol.OperationQueue;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.MasterConfiguration;
 import net.sf.katta.util.NetworkUtil;
+import net.sf.katta.util.ZkConfiguration.PathDef;
 
 import org.I0Itec.zkclient.ZkServer;
 import org.apache.log4j.Logger;
@@ -132,7 +133,7 @@ public class Master implements ConnectedComponent {
 
   private void startNodeManagement() {
     LOG.info("start managing nodes...");
-    List<String> nodes = _protocol.registerNodeListener(this, new IAddRemoveListener() {
+    List<String> nodes = _protocol.registerChildListener(this, PathDef.NODES_LIVE, new IAddRemoveListener() {
       @Override
       public void removed(String name) {
         if (!isInSafeMode()) {

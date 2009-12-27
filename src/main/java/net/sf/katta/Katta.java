@@ -577,7 +577,7 @@ public class Katta {
   private int calculateIndexEntries(Set<Shard> shards) {
     int docCount = 0;
     for (Shard shard : shards) {
-      List<DeployedShard> shardsMD = _protocol.getShardsMD(shard.getName());
+      List<DeployedShard> shardsMD = _protocol.getShardMDs(shard.getName());
       if (!shardsMD.isEmpty()) {
         Map<String, String> metaData = shardsMD.get(0).getMetaData();
         if (metaData != null) {

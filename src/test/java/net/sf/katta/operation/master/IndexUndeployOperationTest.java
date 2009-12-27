@@ -22,6 +22,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.util.List;
 
+import net.sf.katta.Mocks;
 import net.sf.katta.node.Node;
 import net.sf.katta.operation.node.NodeOperation;
 import net.sf.katta.operation.node.ShardUndeployOperation;
@@ -34,8 +35,8 @@ public class IndexUndeployOperationTest extends AbstractMasterNodeZkTest {
   @Test
   public void testUndeployIndex() throws Exception {
     // add nodes and index
-    List<Node> nodes = mockNodes(2);
-    List<OperationQueue<NodeOperation>> nodeQueues = publisNodes(nodes);
+    List<Node> nodes = Mocks.mockNodes(2);
+    List<OperationQueue<NodeOperation>> nodeQueues = Mocks.publisNodes(_protocol, nodes);
     deployIndex(nodes, nodeQueues);
     assertNotNull(_protocol.getIndexMD(_indexName));
     assertNull(_protocol.getIndexMD(_indexName).getDeployError());
@@ -54,8 +55,8 @@ public class IndexUndeployOperationTest extends AbstractMasterNodeZkTest {
   @Test
   public void testUndeployErrorIndex() throws Exception {
     // add nodes and index
-    List<Node> nodes = mockNodes(2);
-    List<OperationQueue<NodeOperation>> nodeQueues = publisNodes(nodes);
+    List<Node> nodes = Mocks.mockNodes(2);
+    List<OperationQueue<NodeOperation>> nodeQueues = Mocks.publisNodes(_protocol, nodes);
     deployIndexWithError();
     publisShards(nodes, nodeQueues);
     assertNotNull(_protocol.getIndexMD(_indexName));

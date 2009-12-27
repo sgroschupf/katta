@@ -38,6 +38,7 @@ import net.sf.katta.testutil.PrintMethodNames;
 import net.sf.katta.testutil.TestUtil;
 import net.sf.katta.testutil.mockito.SleepingAnswer;
 import net.sf.katta.util.KattaException;
+import net.sf.katta.util.ZkConfiguration.PathDef;
 
 import org.I0Itec.zkclient.ZkServer;
 import org.junit.Rule;
@@ -121,7 +122,8 @@ public class MasterMockTest {
     OperationQueue masterQueue = mockBlockingOperationQueue();
     when(protocol.publishMaster(master)).thenReturn(masterQueue);
     when(protocol.getLiveNodes()).thenReturn(Arrays.asList(nodeName));
-    when(protocol.registerNodeListener(eq(master), any(IAddRemoveListener.class))).thenReturn(Arrays.asList(nodeName));
+    when(protocol.registerChildListener(eq(master), eq(PathDef.NODES_LIVE), any(IAddRemoveListener.class))).thenReturn(
+            Arrays.asList(nodeName));
 
     List<String> shards = Arrays.asList("shard1", "shard2");
     when(protocol.getNodeShards(nodeName)).thenReturn(shards);

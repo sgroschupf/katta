@@ -27,6 +27,7 @@ import net.sf.katta.operation.node.OperationResult;
 import net.sf.katta.protocol.ConnectedComponent;
 import net.sf.katta.protocol.IAddRemoveListener;
 import net.sf.katta.protocol.InteractionProtocol;
+import net.sf.katta.util.ZkConfiguration.PathDef;
 
 import org.I0Itec.zkclient.IZkDataListener;
 import org.apache.log4j.Logger;
@@ -59,7 +60,7 @@ public class OperationWatchdog implements ConnectedComponent {
     }
 
     InteractionProtocol protocol = _context.getProtocol();
-    protocol.registerNodeListener(this, new IAddRemoveListener() {
+    protocol.registerChildListener(this, PathDef.NODES_LIVE, new IAddRemoveListener() {
       @Override
       public void removed(String name) {
         checkDeploymentForCompletion();
