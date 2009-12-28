@@ -17,7 +17,6 @@ package net.sf.katta.operation.master;
 
 import java.io.File;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Set;
 
@@ -38,7 +37,7 @@ public abstract class AbstractMasterNodeZkTest extends AbstractZkTest {
   protected InteractionProtocol _protocol = new InteractionProtocol(_zk.getZkClient(), _zk.getZkConf());
   protected MasterContext _context = new MasterContext(_protocol, new DefaultDistributionPolicy());
 
-  private File _indexFile = TestResources.INDEX1;
+  protected File _indexFile = TestResources.INDEX1;
   protected String _indexName = _indexFile.getName();
   protected String _indexPath = _indexFile.getAbsolutePath();
   protected int _shardCount = _indexFile.listFiles().length;
@@ -66,7 +65,7 @@ public abstract class AbstractMasterNodeZkTest extends AbstractZkTest {
   protected void publisShard(Node node, OperationQueue<NodeOperation> nodeQueue) throws InterruptedException {
     Set<String> shardNames = ((ShardDeployOperation) nodeQueue.remove()).getShardNames();
     for (String shardName : shardNames) {
-      _protocol.publishShard(node, shardName, new HashMap<String, String>());
+      _protocol.publishShard(node, shardName);
     }
   }
 

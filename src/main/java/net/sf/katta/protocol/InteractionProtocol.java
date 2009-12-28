@@ -16,7 +16,6 @@
 package net.sf.katta.protocol;
 
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -33,7 +32,6 @@ import net.sf.katta.operation.OperationId;
 import net.sf.katta.operation.master.MasterOperation;
 import net.sf.katta.operation.node.NodeOperation;
 import net.sf.katta.operation.node.OperationResult;
-import net.sf.katta.protocol.metadata.DeployedShard;
 import net.sf.katta.protocol.metadata.IndexMetaData;
 import net.sf.katta.protocol.metadata.MasterMetaData;
 import net.sf.katta.protocol.metadata.NodeMetaData;
@@ -245,20 +243,6 @@ public class InteractionProtocol {
     return shards;
   }
 
-  public List<DeployedShard> getShardMDs(String shard) {
-    final String shard2NodeRootPath = _zkConf.getZkPath(PathDef.SHARD_TO_NODES, shard);
-    if (!_zkClient.exists(shard2NodeRootPath)) {
-      return null;
-    }
-    List<DeployedShard> deployedShards = new ArrayList<DeployedShard>();
-    List<String> nodeNames = _zkClient.getChildren(shard2NodeRootPath);
-    for (String nodeName : nodeNames) {
-      DeployedShard deployedShard = _zkClient.readData(_zkConf.getZkPath(PathDef.SHARD_TO_NODES, shard, nodeName));
-      deployedShards.add(deployedShard);
-    }
-    return deployedShards;
-  }
-
   public int getShardReplication(String shard) {
     return _zkClient.countChildren(_zkConf.getZkPath(PathDef.SHARD_TO_NODES, shard));
   }
@@ -404,17 +388,15 @@ public class InteractionProtocol {
     _zkClient.writeData(_zkConf.getZkPath(PathDef.INDICES_METADATA, indexMD.getName()), indexMD);
   }
 
-  public void publishShard(Node node, String shardName, Map<String, String> metaData) {
+  public void publishShard(Node node, String shardName) {
     // announce that this node serves this shard now...
     final String shard2NodePath = _zkConf.getZkPath(PathDef.SHARD_TO_NODES, shardName, node.getName());
     if (_zkClient.exists(shard2NodePath)) {
       LOG.warn("detected old shard-to-node entry - deleting it..");
       _zkClient.delete(shard2NodePath);
     }
-
-    DeployedShard deployedShard = new DeployedShard(shardName, metaData);
     _zkClient.createPersistent(_zkConf.getZkPath(PathDef.SHARD_TO_NODES, shardName), true);
-    createEphemeral(node, shard2NodePath, deployedShard);
+    createEphemeral(node, shard2NodePath, null);
   }
 
   public void unpublishShard(Node node, String shard) {

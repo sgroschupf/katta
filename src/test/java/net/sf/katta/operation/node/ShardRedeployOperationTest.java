@@ -23,7 +23,6 @@ import static org.mockito.Mockito.when;
 import java.io.File;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -45,7 +44,7 @@ public class ShardRedeployOperationTest extends AbstractNodeOperationMockTest {
     InOrder inOrder = inOrder(_protocol, _nodeManaged);
     for (String shard : shards) {
       inOrder.verify(_nodeManaged).addShard(eq(shard), (File) notNull());
-      inOrder.verify(_protocol).publishShard(eq(_node), eq(shard), (Map<String, String>) notNull());
+      inOrder.verify(_protocol).publishShard(eq(_node), eq(shard));
     }
   }
 
@@ -60,7 +59,7 @@ public class ShardRedeployOperationTest extends AbstractNodeOperationMockTest {
     // only publis but not add to nodemanaged again
     InOrder inOrder = inOrder(_protocol, _nodeManaged);
     for (String shard : shards) {
-      inOrder.verify(_protocol).publishShard(eq(_node), eq(shard), (Map<String, String>) notNull());
+      inOrder.verify(_protocol).publishShard(eq(_node), eq(shard));
     }
   }
 }

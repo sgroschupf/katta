@@ -41,13 +41,13 @@ public class ShardRedeployOperation extends AbstractShardOperation {
   }
 
   @Override
-  protected void execute(NodeContext context, String shardName) throws Exception {
+  protected void execute(NodeContext context, String shardName, DeployResult deployResult) throws Exception {
     File localShardFolder = context.getShardManager().getShardFolder(shardName);
     INodeManaged nodeManaged = context.getNodeManaged();
     if (!nodeManaged.getShards().contains(shardName)) {
       nodeManaged.addShard(shardName, localShardFolder);
     }
-    announceShard(shardName, context);
+    publishShard(shardName, context);
   }
 
   @Override

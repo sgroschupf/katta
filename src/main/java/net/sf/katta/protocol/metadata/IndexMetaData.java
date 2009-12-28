@@ -16,7 +16,9 @@
 package net.sf.katta.protocol.metadata;
 
 import java.io.Serializable;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 public class IndexMetaData implements Serializable {
@@ -55,13 +57,22 @@ public class IndexMetaData implements Serializable {
     return _shards;
   }
 
-  public String getShardPath(String shardName) {
+  public Shard getShard(String shardName) {
     for (Shard shard : _shards) {
       if (shard.getName().equals(shardName)) {
-        return shard.getPath();
+        return shard;
       }
     }
     return null;
+  }
+
+  public String getShardPath(String shardName) {
+    String shardPath = null;
+    Shard shard = getShard(shardName);
+    if (shard != null) {
+      shardPath = shard.getPath();
+    }
+    return shardPath;
   }
 
   public void setDeployError(IndexDeployError deployError) {
@@ -86,6 +97,7 @@ public class IndexMetaData implements Serializable {
     private static final long serialVersionUID = IndexMetaData.serialVersionUID;
     private final String _name;
     private final String _path;
+    private final Map<String, String> _metaDataMap = new HashMap<String, String>();
 
     public Shard(String name, String path) {
       _name = name;
@@ -98,6 +110,10 @@ public class IndexMetaData implements Serializable {
 
     public String getPath() {
       return _path;
+    }
+
+    public Map<String, String> getMetaDataMap() {
+      return _metaDataMap;
     }
 
     @Override

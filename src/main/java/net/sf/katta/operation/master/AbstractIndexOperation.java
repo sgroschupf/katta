@@ -37,10 +37,13 @@ import net.sf.katta.protocol.metadata.IndexDeployError.ErrorType;
 import net.sf.katta.protocol.metadata.IndexMetaData.Shard;
 import net.sf.katta.util.CollectionUtil;
 
+import org.apache.log4j.Logger;
+
 public abstract class AbstractIndexOperation implements MasterOperation {
 
-  public static final char INDEX_SHARD_NAME_SEPARATOR = '#';
   private static final long serialVersionUID = 1L;
+  private static final Logger LOG = Logger.getLogger(AbstractIndexOperation.class);
+  public static final char INDEX_SHARD_NAME_SEPARATOR = '#';
 
   protected List<OperationId> distributeIndexShards(MasterContext context, final IndexMetaData indexMD,
           Collection<String> liveNodes) throws IndexDeployException {
@@ -160,6 +163,7 @@ public abstract class AbstractIndexOperation implements MasterOperation {
     ReplicationReport replicationReport = context.getProtocol().getReplicationReport(indexMD);
     if (replicationReport.isDeployed()) {
       indexMD.setDeployError(null);
+      updateShardMetaData(results, indexMD);
       // we ignore possible shard errors
       if (canAndShouldRegulateReplication(context.getProtocol(), replicationReport)) {
         context.getProtocol().addMasterOperation(new BalanceIndexOperation(indexMD.getName()));
@@ -167,9 +171,11 @@ public abstract class AbstractIndexOperation implements MasterOperation {
     } else {
       IndexDeployError deployError = new IndexDeployError(indexMD.getName(), ErrorType.SHARDS_NOT_DEPLOYABLE);
       for (OperationResult operationResult : results) {
-        DeployResult deployResult = (DeployResult) operationResult;
-        for (Entry<String, Exception> entry : deployResult.getShardExceptions()) {
-          deployError.addShardError(entry.getKey(), entry.getValue());
+        if (operationResult != null) {// node-crashed produces null
+          DeployResult deployResult = (DeployResult) operationResult;
+          for (Entry<String, Exception> entry : deployResult.getShardExceptions().entrySet()) {
+            deployError.addShardError(entry.getKey(), entry.getValue());
+          }
         }
       }
       indexMD.setDeployError(deployError);
@@ -178,6 +184,24 @@ public abstract class AbstractIndexOperation implements MasterOperation {
       context.getProtocol().publishIndex(indexMD);
     } else {
       context.getProtocol().updateIndexMD(indexMD);
+    }
+  }
+
+  private void updateShardMetaData(List<OperationResult> results, IndexMetaData indexMD) {
+    for (OperationResult operationResult : results) {
+      if (operationResult != null) {// node-crashed produces null
+        DeployResult deployResult = (DeployResult) operationResult;
+        for (Entry<String, Map<String, String>> entry : deployResult.getShardMetaDataMaps().entrySet()) {
+          Map<String, String> existingMap = indexMD.getShard(entry.getKey()).getMetaDataMap();
+          Map<String, String> newMap = entry.getValue();
+          if (existingMap.size() > 0 && !existingMap.equals(newMap)) {
+            // maps from different nodes but for the same shard should have
+            // the same content
+            LOG.warn("new shard metadata differs from existing one. old: " + existingMap + " new: " + newMap);
+          }
+          existingMap.putAll(newMap);
+        }
+      }
     }
   }
 

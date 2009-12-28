@@ -44,7 +44,6 @@ import net.sf.katta.node.Node;
 import net.sf.katta.node.Query;
 import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.protocol.ReplicationReport;
-import net.sf.katta.protocol.metadata.DeployedShard;
 import net.sf.katta.protocol.metadata.IndexDeployError;
 import net.sf.katta.protocol.metadata.IndexMetaData;
 import net.sf.katta.protocol.metadata.NodeMetaData;
@@ -577,15 +576,12 @@ public class Katta {
   private int calculateIndexEntries(Set<Shard> shards) {
     int docCount = 0;
     for (Shard shard : shards) {
-      List<DeployedShard> shardsMD = _protocol.getShardMDs(shard.getName());
-      if (!shardsMD.isEmpty()) {
-        Map<String, String> metaData = shardsMD.get(0).getMetaData();
-        if (metaData != null) {
-          try {
-            docCount += Integer.parseInt(metaData.get(INodeManaged.SHARD_SIZE_KEY));
-          } catch (NumberFormatException e) {
-            // ignore
-          }
+      Map<String, String> metaData = shard.getMetaDataMap();
+      if (metaData != null) {
+        try {
+          docCount += Integer.parseInt(metaData.get(INodeManaged.SHARD_SIZE_KEY));
+        } catch (NumberFormatException e) {
+          // ignore
         }
       }
     }

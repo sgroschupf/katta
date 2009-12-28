@@ -29,6 +29,7 @@
 	<target name="it" depends="jar, compile-integration-test" description="--> run integration tests">
 		<delete dir="${build.dir.it-reports}" />
 		<mkdir dir="${build.dir.it-reports}" />
+		<delete file="log.log"/>
 
 		<delete dir="${build.dir.test-data}" />
 		<mkdir dir="${build.dir.test-data}" />
@@ -45,12 +46,14 @@
 				<fileset file="${build.dir}/${ant.project.name}.jar" />
 			</classpath>
 			<formatter type="plain" />
-
-			<batchtest fork="yes" todir="${build.dir.it-reports}">
+			<batchtest fork="yes" todir="${build.dir.it-reports}" unless="testcase">
 				<fileset dir="${it.src.dir}">
 					<include name="**/*Test*.java" unless="testcase" />
 					<exclude name="**/Abstract*.java" unless="testcase" />
 				</fileset>
+			</batchtest>
+			<batchtest fork="yes" todir="${build.dir.it-reports}" if="testcase">
+				<fileset dir="${it.src.dir}" includes="**/${testcase}.java" />
 			</batchtest>
 		</junit>
 		<fail if="tests.failed">Tests failed!</fail>

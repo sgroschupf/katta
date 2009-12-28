@@ -18,6 +18,7 @@ package net.sf.katta.util;
 import java.io.File;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Random;
@@ -26,8 +27,8 @@ import java.util.Set;
 import net.sf.katta.node.INodeManaged;
 
 /**
- * This class implements the back-end side of a dummy server, to be used
- * for testing. It just sleeps for a while and then returns nothing.
+ * This class implements the back-end side of a dummy server, to be used for
+ * testing. It just sleeps for a while and then returns nothing.
  */
 public class SleepServer implements INodeManaged, ISleepServer {
 
@@ -57,7 +58,7 @@ public class SleepServer implements INodeManaged, ISleepServer {
   }
 
   public Map<String, String> getShardMetaData(final String shardName) {
-    return null;
+    return new HashMap<String, String>(0);
   }
 
   public void shutdown() {

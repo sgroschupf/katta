@@ -18,7 +18,6 @@ package net.sf.katta.node;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyMap;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Matchers.notNull;
@@ -127,7 +126,7 @@ public class NodeMockTest {
     when(_protocol.publishNode(eq(_node), (NodeMetaData) notNull())).thenReturn(_queue);
     _node.start();
     verify(_nodeManaged, times(1)).addShard(anyString(), any(File.class));
-    verify(_protocol).publishShard(eq(_node), eq(shardName), anyMap());
+    verify(_protocol).publishShard(eq(_node), eq(shardName));
     _node.shutdown();
   }
 

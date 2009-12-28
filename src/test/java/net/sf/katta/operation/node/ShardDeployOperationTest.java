@@ -16,6 +16,7 @@
 package net.sf.katta.operation.node;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Matchers.notNull;
 import static org.mockito.Mockito.doThrow;
@@ -48,9 +49,14 @@ public class ShardDeployOperationTest extends AbstractNodeOperationMockTest {
     for (String shard : operation.getShardNames()) {
       inOrder.verify(_shardManager).installShard(shard, operation.getShardPath(shard));
       inOrder.verify(_nodeManaged).addShard(shard, shardFolder);
-      inOrder.verify(_protocol).publishShard(_node, shard, shardMD);
+      inOrder.verify(_protocol).publishShard(_node, shard);
     }
     assertEquals(0, result.getShardExceptions().size());
+    assertEquals(2, result.getShardMetaDataMaps().size());
+    System.out.println(result.getShardMetaDataMaps());
+    for (String shardName : operation.getShardNames()) {
+      assertTrue(result.getShardMetaDataMaps().containsKey(shardName));
+    }
   }
 
   @Test
@@ -73,11 +79,12 @@ public class ShardDeployOperationTest extends AbstractNodeOperationMockTest {
       inOrder.verify(_shardManager).installShard(shard, operation.getShardPath(shard));
       inOrder.verify(_nodeManaged).addShard(shard, shardFolder);
       if (!shard.equals(failingShard)) {
-        inOrder.verify(_protocol).publishShard(_node, shard, shardMD);
+        inOrder.verify(_protocol).publishShard(_node, shard);
       }
     }
+    assertEquals(1, result.getShardMetaDataMaps().size());
     assertEquals(1, result.getShardExceptions().size());
-    assertEquals(failingShard, result.getShardExceptions().iterator().next().getKey());
+    assertEquals(failingShard, result.getShardExceptions().entrySet().iterator().next().getKey());
     verify(_shardManager).uninstallShard(eq(failingShard));
   }
 }

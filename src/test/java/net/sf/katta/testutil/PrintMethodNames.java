@@ -15,11 +15,14 @@
  */
 package net.sf.katta.testutil;
 
+import org.apache.log4j.Logger;
 import org.junit.rules.MethodRule;
 import org.junit.runners.model.FrameworkMethod;
 import org.junit.runners.model.Statement;
 
 public class PrintMethodNames implements MethodRule {
+
+  protected static final Logger LOG = Logger.getLogger(PrintMethodNames.class);
 
   private String _methodName;
 
@@ -30,9 +33,9 @@ public class PrintMethodNames implements MethodRule {
       @Override
       public void evaluate() throws Throwable {
         String testClassName = method.getMethod().getDeclaringClass().getName();
-        System.out.println("~~~~~~~~~~~~~~~ " + testClassName + "#" + method.getName() + "() ~~~~~~~~~~~~~~~");
+        LOG.info("~~~~~~~~~~~~~~~ " + testClassName + "#" + method.getName() + "() ~");
         statement.evaluate();
-        System.out.println("~~~~~~~~~~~~~~~ FIN " + testClassName + "#" + method.getName() + "() ~~~~~~~~~~~~~~~");
+        LOG.info("~~~~~~~~~~~~~~~ FIN " + testClassName + "#" + method.getName() + "() ~");
       }
     };
   }

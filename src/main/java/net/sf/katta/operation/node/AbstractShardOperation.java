@@ -20,7 +20,6 @@ import java.util.Map;
 import java.util.Set;
 
 import net.sf.katta.node.NodeContext;
-import net.sf.katta.util.KattaException;
 
 import org.I0Itec.zkclient.ExceptionUtil;
 import org.apache.log4j.Logger;
@@ -54,7 +53,7 @@ public abstract class AbstractShardOperation implements NodeOperation {
     for (String shardName : getShardNames()) {
       try {
         LOG.info(getOperationName() + " shard '" + shardName + "'");
-        execute(context, shardName);
+        execute(context, shardName, result);
       } catch (Exception e) {
         ExceptionUtil.rethrowInterruptedException(e);
         LOG.error("failed to " + getOperationName() + " shard '" + shardName + "' on node '"
@@ -68,22 +67,13 @@ public abstract class AbstractShardOperation implements NodeOperation {
 
   protected abstract String getOperationName();
 
-  protected abstract void execute(NodeContext context, String shardName) throws Exception;
+  protected abstract void execute(NodeContext context, String shardName, DeployResult result) throws Exception;
 
   protected abstract void onException(NodeContext context, String shardName, Exception e);
 
-  /*
-   * Announce in zookeeper node is serving this shard,
-   */
-  protected void announceShard(String shardName, NodeContext context) throws KattaException {
-    LOG.info("announce shard '" + shardName + "'");
-    Map<String, String> metaData;
-    try {
-      metaData = context.getNodeManaged().getShardMetaData(shardName);
-    } catch (Throwable t) {
-      throw new KattaException("Error retrieving shard metadata for " + shardName, t);
-    }
-    context.getProtocol().publishShard(context.getNode(), shardName, metaData);
+  protected void publishShard(String shardName, NodeContext context) {
+    LOG.info("publish shard '" + shardName + "'");
+    context.getProtocol().publishShard(context.getNode(), shardName);
   }
 
   @Override

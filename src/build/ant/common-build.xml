@@ -13,6 +13,7 @@
 	<target name="clean" description="--> clean the project">
 		<echo>cleaning ${ant.project.name}</echo>
 		<delete dir="${build.dir}" />
+		<delete file="log.log" />
 	</target>
 
 
@@ -88,6 +89,7 @@
 
 	<target name="test" depends="compile-test, checkstyle" description="--> run tests">
 		<delete dir="${build.dir.test-reports}" />
+		<delete file="log.log"/>
 		<mkdir dir="${build.dir.test-reports}" />
 		<delete dir="${build.dir.test-data}" />
 		<mkdir dir="${build.dir.test-data}" />
@@ -110,7 +112,6 @@
 					<include name="**/*Test.java" unless="testcase" />
 					<exclude name="**/Abstract*.java" unless="testcase" />
 					<exclude name="**/ExtendedTestCase.java" unless="testcase" />
-					<include name="${testcase}" if="testcase" />
 				</fileset>
 			</batchtest>
 			<batchtest fork="yes" todir="${build.dir.test-reports}" if="testcase">

@@ -107,13 +107,9 @@ public class MultiClusterTest {
 
     // Verify setup.
     // LOG.info("\n\nPOOL 1 STRUCTURE:\n");
-    // ZKClient tmpClient = new ZKClient(conf1);
-    // tmpClient.start(10000);
-    // tmpClient.showFolders(false, System.out);
+    // _cluster1.getProtocol().showStructure(false);
     // LOG.info("\n\nPOOL 2 STRUCTURE:\n");
-    // tmpClient = new ZKClient(conf2);
-    // tmpClient.start(10000);
-    // tmpClient.showFolders(false, System.out);
+    // _cluster2.getProtocol().showStructure(false);
 
     // Back end ready to run. Create clients.
     LOG.info("Creating clients");

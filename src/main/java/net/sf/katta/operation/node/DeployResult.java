@@ -17,14 +17,13 @@ package net.sf.katta.operation.node;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
-import java.util.Map.Entry;
 
 public class DeployResult extends OperationResult {
 
   private static final long serialVersionUID = 1L;
 
   private Map<String, Exception> _exceptionByShard = new HashMap<String, Exception>(3);
+  private Map<String, Map<String, String>> _metadataMapByShard = new HashMap<String, Map<String, String>>(3);
 
   public DeployResult(String nodeName) {
     super(nodeName);
@@ -34,8 +33,16 @@ public class DeployResult extends OperationResult {
     _exceptionByShard.put(shardName, exception);
   }
 
-  public Set<Entry<String, Exception>> getShardExceptions() {
-    return _exceptionByShard.entrySet();
+  public void addShardMetaDataMap(String shardName, Map<String, String> shardMetaData) {
+    _metadataMapByShard.put(shardName, shardMetaData);
+  }
+
+  public Map<String, Exception> getShardExceptions() {
+    return _exceptionByShard;
+  }
+
+  public Map<String, Map<String, String>> getShardMetaDataMaps() {
+    return _metadataMapByShard;
   }
 
 }

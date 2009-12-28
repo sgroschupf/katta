@@ -283,41 +283,34 @@ public class InteractionProtocolTest extends AbstractZkTest {
     shardMD.put("a", "1");
 
     assertEquals(0, _protocol.getShardNodes("shard1").size());
-    assertNull(_protocol.getShardMDs("shard1"));
 
     // publish shard
-    _protocol.publishShard(node1, "shard1", shardMD);
+    _protocol.publishShard(node1, "shard1");
     assertEquals(1, _protocol.getShardNodes("shard1").size());
-    assertNotNull(_protocol.getShardMDs("shard1"));
     assertEquals(1, _protocol.getNodeShards(node1.getName()).size());
     assertEquals(0, _protocol.getNodeShards(node2.getName()).size());
 
     // publish shard on 2nd node
-    _protocol.publishShard(node2, "shard1", shardMD);
+    _protocol.publishShard(node2, "shard1");
     assertEquals(2, _protocol.getShardNodes("shard1").size());
-    assertNotNull(_protocol.getShardMDs("shard1"));
     assertEquals(1, _protocol.getNodeShards(node1.getName()).size());
     assertEquals(1, _protocol.getNodeShards(node2.getName()).size());
 
     // remove shard on first node
     _protocol.unpublishShard(node1, "shard1");
     assertEquals(1, _protocol.getShardNodes("shard1").size());
-    assertEquals(1, _protocol.getShardMDs("shard1").size());
     assertEquals(0, _protocol.getNodeShards(node1.getName()).size());
     assertEquals(1, _protocol.getNodeShards(node2.getName()).size());
 
     // publish 2nd shard
-    _protocol.publishShard(node1, "shard2", shardMD);
+    _protocol.publishShard(node1, "shard2");
     assertEquals(1, _protocol.getShardNodes("shard1").size());
     assertEquals(1, _protocol.getShardNodes("shard2").size());
-    assertEquals(1, _protocol.getShardMDs("shard1").size());
-    assertEquals(1, _protocol.getShardMDs("shard2").size());
     assertEquals(1, _protocol.getNodeShards(node1.getName()).size());
     assertEquals(1, _protocol.getNodeShards(node2.getName()).size());
 
     // remove one shard completely
     _protocol.unpublishShard(node1, "shard2");
-    assertEquals(0, _protocol.getShardMDs("shard2").size());
 
     Map<String, List<String>> shard2NodesMap = _protocol.getShard2NodesMap(Arrays.asList(new IndexMetaData.Shard(
             "shard1", "path1")));

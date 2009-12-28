@@ -22,8 +22,10 @@ import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import net.sf.katta.Mocks;
@@ -161,6 +163,64 @@ public class IndexDeployOperationTest extends AbstractMasterNodeZkTest {
   }
 
   @Test
+  public void testDeployShardMd() throws Exception {
+    List<Node> nodes = Mocks.mockNodes(3);
+    List<OperationQueue<NodeOperation>> queues = Mocks.publisNodes(_protocol, nodes);
+
+    IndexDeployOperation operation = new IndexDeployOperation(_indexName, _indexPath, 3);
+    operation.execute(_context, EMPTY_LIST);
+    publisShards(nodes, queues);
+
+    ArrayList<OperationResult> results = new ArrayList<OperationResult>();
+    DeployResult deployResult1 = new DeployResult(nodes.get(0).getName());
+    DeployResult deployResult2 = new DeployResult(nodes.get(1).getName());
+    DeployResult deployResult3 = new DeployResult(nodes.get(2).getName());
+    Map<String, String> metaMap = new HashMap<String, String>();
+    metaMap.put("a", "1");
+    String shard1Name = AbstractIndexOperation.createShardName(_indexName, _indexFile.listFiles()[0].getAbsolutePath());
+    deployResult1.addShardMetaDataMap(shard1Name, metaMap);
+    deployResult2.addShardMetaDataMap(shard1Name, metaMap);
+    deployResult3.addShardMetaDataMap(shard1Name, metaMap);
+    results.add(deployResult1);
+    results.add(deployResult2);
+    results.add(deployResult3);
+
+    operation.nodeOperationsComplete(_context, results);
+    IndexMetaData indexMD = _protocol.getIndexMD(_indexName);
+    assertEquals(1, indexMD.getShard(shard1Name).getMetaDataMap().size());
+    assertEquals(metaMap, indexMD.getShard(shard1Name).getMetaDataMap());
+  }
+
+  @Test
+  public void testDeployShardMdWithMissingNodeResult() throws Exception {
+    List<Node> nodes = Mocks.mockNodes(3);
+    Mocks.publisNodes(_protocol, nodes);
+    List<OperationQueue<NodeOperation>> queues = Mocks.publisNodes(_protocol, nodes);
+
+    IndexDeployOperation operation = new IndexDeployOperation(_indexName, _indexPath, 3);
+    operation.execute(_context, EMPTY_LIST);
+    publisShards(nodes, queues);
+
+    ArrayList<OperationResult> results = new ArrayList<OperationResult>();
+    DeployResult deployResult1 = new DeployResult(nodes.get(0).getName());
+    DeployResult deployResult2 = null;
+    DeployResult deployResult3 = new DeployResult(nodes.get(2).getName());
+    Map<String, String> metaMap = new HashMap<String, String>();
+    metaMap.put("a", "1");
+    String shard1Name = AbstractIndexOperation.createShardName(_indexName, _indexFile.listFiles()[0].getAbsolutePath());
+    deployResult1.addShardMetaDataMap(shard1Name, metaMap);
+    deployResult3.addShardMetaDataMap(shard1Name, metaMap);
+    results.add(deployResult1);
+    results.add(deployResult2);
+    results.add(deployResult3);
+
+    operation.nodeOperationsComplete(_context, results);
+    IndexMetaData indexMD = _protocol.getIndexMD(_indexName);
+    assertEquals(1, indexMD.getShard(shard1Name).getMetaDataMap().size());
+    assertEquals(metaMap, indexMD.getShard(shard1Name).getMetaDataMap());
+  }
+
+  @Test
   public void testDeployUnderreplicatedIndex() throws Exception {
     // add nodes
     List<Node> nodes = Mocks.mockNodes(3);
@@ -182,7 +242,6 @@ public class IndexDeployOperationTest extends AbstractMasterNodeZkTest {
 
     // balance index should have been be triggered
     Master master = Mocks.mockMaster();
-    _zk.showStructure();
     OperationQueue<MasterOperation> masterQueue = _protocol.publishMaster(master);
     MasterOperation operation = masterQueue.peek();
     assertNotNull(operation);
