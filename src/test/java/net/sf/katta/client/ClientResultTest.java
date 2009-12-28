@@ -567,6 +567,7 @@ public class ClientResultTest extends AbstractTest {
     }
   }
 
+  @Test
   public void testCoverage() {
     ClientResult<String> r = new ClientResult<String>(null, "a", "b", "c", "d", "e");
     assertEquals(0.0, r.getShardCoverage(), 0.000001);
@@ -590,6 +591,7 @@ public class ClientResultTest extends AbstractTest {
     assertEquals(1.0, r.getShardCoverage(), 0.000001);
   }
 
+  @Test
   public void testStartTime() {
     ClientResult<String> r1 = new ClientResult<String>(null, "a", "b", "c");
     sleep(10);
