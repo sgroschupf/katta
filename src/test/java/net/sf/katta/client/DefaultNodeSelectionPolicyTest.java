@@ -15,6 +15,10 @@
  */
 package net.sf.katta.client;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -22,15 +26,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import junit.framework.TestCase;
+import net.sf.katta.AbstractTest;
 
-public class DefaultNodeSelectionPolicyTest extends TestCase {
+import org.junit.Test;
 
-  @Override
-  protected void setUp() throws Exception {
-    System.out.println("~~~~~~~~~~~~~~~ " + getClass().getName() + "#" + getName() + "() ~~~~~~~~~~~~~~~");
-  }
+public class DefaultNodeSelectionPolicyTest extends AbstractTest {
 
+  @Test
   public void testIndexSpawnsMultipleNodes() throws Exception {
     final DefaultNodeSelectionPolicy policy = new DefaultNodeSelectionPolicy();
     final Map<String, List<String>> indexToShards = new HashMap<String, List<String>>();
@@ -48,6 +50,7 @@ public class DefaultNodeSelectionPolicyTest extends TestCase {
     assertTrue(nodeShardsMap.get("node2").contains("shardB2"));
   }
 
+  @Test
   public void testQueryMultipleIndexes() throws Exception {
     final DefaultNodeSelectionPolicy policy = new DefaultNodeSelectionPolicy();
     final Map<String, List<String>> indexToShards = new HashMap<String, List<String>>();
@@ -67,6 +70,7 @@ public class DefaultNodeSelectionPolicyTest extends TestCase {
     assertEquals(3, extractFoundShards(nodeShardsMap).size());
   }
 
+  @Test
   public void testSelection() throws Exception {
     final DefaultNodeSelectionPolicy policy = new DefaultNodeSelectionPolicy();
     final Map<String, List<String>> indexToShards = new HashMap<String, List<String>>();
@@ -82,6 +86,7 @@ public class DefaultNodeSelectionPolicyTest extends TestCase {
     assertFalse("nodes should differ", nodeShardsMap1.keySet().equals(nodeShardsMap2.keySet()));
   }
 
+  @Test
   public void testSetShardsAndNodes() throws Exception {
     final DefaultNodeSelectionPolicy policy = new DefaultNodeSelectionPolicy();
     final Map<String, List<String>> indexToShards = new HashMap<String, List<String>>();
@@ -123,6 +128,7 @@ public class DefaultNodeSelectionPolicyTest extends TestCase {
     indexToShards.put(indexName, shardList);
   }
 
+  @Test
   public void testManyShards() throws Exception {
     final DefaultNodeSelectionPolicy policy = new DefaultNodeSelectionPolicy();
     final Map<String, List<String>> indexToShards = new HashMap<String, List<String>>();

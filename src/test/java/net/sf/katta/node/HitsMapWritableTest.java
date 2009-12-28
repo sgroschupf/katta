@@ -42,7 +42,7 @@ public class HitsMapWritableTest extends AbstractWritableTest {
     DataOutputBuffer out = writeWritable(hitsMapWritable);
     HitsMapWritable readWritable = (HitsMapWritable) readWritable(out, new HitsMapWritable());
 
-    assertEquals(hitsMapWritable.getServerName(), readWritable.getServerName());
+    assertEquals(hitsMapWritable.getNodeName(), readWritable.getNodeName());
     assertEquals(hitsMapWritable.getTotalHits(), readWritable.getTotalHits());
     List<Hit> hits = hitsMapWritable.getHitList();
     List<Hit> readHits = readWritable.getHitList();
@@ -50,6 +50,6 @@ public class HitsMapWritableTest extends AbstractWritableTest {
     for (int i = 0; i < hits.size(); i++) {
       assertEquals(hits.get(i), readHits.get(i));
     }
-    assertEquals(hitsMapWritable.getServerName(), readWritable.getServerName());
+    assertEquals(hitsMapWritable.getNodeName(), readWritable.getNodeName());
   }
 }

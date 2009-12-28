@@ -15,6 +15,9 @@
  */
 package net.sf.katta.master;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -22,33 +25,38 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import junit.framework.TestCase;
+import net.sf.katta.AbstractTest;
 
-public class DefaultDistributionPolicyTest extends TestCase {
+import org.junit.Test;
+
+public class DefaultDistributionPolicyTest extends AbstractTest {
 
   private DefaultDistributionPolicy _distributionPolicy = new DefaultDistributionPolicy();
   Map<String, List<String>> _currentShard2NodesMap = new HashMap<String, List<String>>();
   Map<String, List<String>> _currentNode2ShardsMap = new HashMap<String, List<String>>();
 
+  @Test
   public void testInitialDistribution() throws Exception {
     int replicationLevel = 2;
     List<String> nodes = createNodes("node1", "node2", "node3");
     Set<String> shards = createShards("shard1", "shard2");
     Map<String, List<String>> node2ShardsMap = _distributionPolicy.createDistributionPlan(_currentShard2NodesMap,
-        _currentNode2ShardsMap, nodes, replicationLevel);
+            _currentNode2ShardsMap, nodes, replicationLevel);
     assertEquals(nodes.size(), node2ShardsMap.size());
     assertSufficientDistribution(replicationLevel, nodes, shards, node2ShardsMap);
   }
 
+  @Test
   public void testInitialDistribution_TooLessNodes() throws Exception {
     List<String> nodes = createNodes("node1");
     Set<String> shards = createShards("shard1", "shard2");
     Map<String, List<String>> node2ShardsMap = _distributionPolicy.createDistributionPlan(_currentShard2NodesMap,
-        _currentNode2ShardsMap, nodes, 3);
+            _currentNode2ShardsMap, nodes, 3);
     assertEquals(nodes.size(), node2ShardsMap.size());
     assertEquals(shards.size(), node2ShardsMap.get("node1").size());
   }
 
+  @Test
   public void testUnderReplicatedDistribution() throws Exception {
     int replicationLevel = 3;
     List<String> nodes = createNodes("node1", "node2", "node3");
@@ -57,11 +65,12 @@ public class DefaultDistributionPolicyTest extends TestCase {
     addMapping("shard2", "node1");
 
     Map<String, List<String>> node2ShardsMap = _distributionPolicy.createDistributionPlan(_currentShard2NodesMap,
-        _currentNode2ShardsMap, nodes, replicationLevel);
+            _currentNode2ShardsMap, nodes, replicationLevel);
     assertEquals(nodes.size(), node2ShardsMap.size());
     assertSufficientDistribution(replicationLevel, nodes, shards, node2ShardsMap);
   }
 
+  @Test
   public void testOverReplicatedDistribution() throws Exception {
     int replicationLevel = 2;
     List<String> nodes = createNodes("node1", "node2", "node3", "node4");
@@ -70,13 +79,13 @@ public class DefaultDistributionPolicyTest extends TestCase {
     addMapping("shard2", "node1", "node2");
 
     Map<String, List<String>> node2ShardsMap = _distributionPolicy.createDistributionPlan(_currentShard2NodesMap,
-        _currentNode2ShardsMap, nodes, replicationLevel);
+            _currentNode2ShardsMap, nodes, replicationLevel);
     assertEquals(nodes.size(), node2ShardsMap.size());
     assertSufficientDistribution(replicationLevel, nodes, shards, node2ShardsMap);
   }
 
   private void assertSufficientDistribution(int replicationLevel, List<String> nodes, Set<String> shards,
-      Map<String, List<String>> node2ShardsMap) {
+          Map<String, List<String>> node2ShardsMap) {
     int deployedShardCount = 0;
     for (String node : nodes) {
       deployedShardCount += node2ShardsMap.get(node).size();

@@ -268,7 +268,7 @@ public class Node implements ConnectedComponent {
             LOG.info("executing " + operation);
             operationResult = operation.execute(_nodeContext);
           } catch (Exception e) {
-            LOG.error("failed to execute " + operation, e);
+            LOG.error(_nodeContext.getNode().getName() + ": failed to execute " + operation, e);
             operationResult = new OperationResult(_nodeContext.getNode().getName(), e);
           }
           _operationQueue.remove(operationResult);// only remove after finish
@@ -278,7 +278,7 @@ public class Node implements ConnectedComponent {
       } catch (ZkInterruptedException e) {
         Thread.interrupted();
       }
-      LOG.info("node operation processor stopped");
+      LOG.info("node operation processor for " + _nodeContext.getNode().getName() + " stopped");
     }
   }
 

@@ -15,6 +15,10 @@
  */
 package net.sf.katta.client;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -27,20 +31,22 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 
+import net.sf.katta.AbstractTest;
 import net.sf.katta.client.WorkQueue.INodeInteractionFactory;
-import net.sf.katta.testutil.ExtendedTestCase;
 
 import org.apache.hadoop.ipc.VersionedProtocol;
 import org.apache.log4j.Logger;
+import org.junit.Test;
 
 /**
  * Test for {@link WorkQueue}.
  */
-public class WorkQueueTest extends ExtendedTestCase {
+public class WorkQueueTest extends AbstractTest {
 
   @SuppressWarnings("unused")
   private static final Logger LOG = Logger.getLogger(WorkQueueTest.class);
 
+  @Test
   public void testWorkQueue() throws Exception {
     TestShardManager sm = new TestShardManager();
     Method method = TestServer.class.getMethod("doSomething", Integer.TYPE);
@@ -63,6 +69,7 @@ public class WorkQueueTest extends ExtendedTestCase {
     }
   }
 
+  @Test
   public void testSubmitAfterShutdown() throws Exception {
     TestNodeInteractionFactory factory = new TestNodeInteractionFactory(10);
     TestShardManager sm = new TestShardManager();
@@ -83,6 +90,7 @@ public class WorkQueueTest extends ExtendedTestCase {
     assertEquals(0, factory.getCalls().size());
   }
 
+  @Test
   public void testSubmitAfterClose() throws Exception {
     TestNodeInteractionFactory factory = new TestNodeInteractionFactory(10);
     TestShardManager sm = new TestShardManager();
@@ -104,6 +112,7 @@ public class WorkQueueTest extends ExtendedTestCase {
     assertEquals(0, factory.getCalls().size());
   }
 
+  @Test
   public void testGetResultTimeout() throws Exception {
     TestShardManager sm = new TestShardManager();
     Method method = TestServer.class.getMethod("doSomething", Integer.TYPE);
@@ -147,6 +156,7 @@ public class WorkQueueTest extends ExtendedTestCase {
   }
 
   // Does user calling close() wake up the work queue?
+  @Test
   public void testUserCloseEvent() throws Exception {
     for (IResultPolicy<String> policy : new IResultPolicy[] { new ResultCompletePolicy<String>(4000),
             new ResultCompletePolicy<String>(4000, true), new ResultCompletePolicy<String>(4000, false),
@@ -188,6 +198,7 @@ public class WorkQueueTest extends ExtendedTestCase {
   }
 
   // Does IResultPolicy calling close() wake up the work queue?
+  @Test(timeout = 10000)
   public void testPolicyCloseEvent() throws Exception {
     INodeInteractionFactory<String> factory = nullFactory();
     TestShardManager sm = new TestShardManager();
@@ -199,16 +210,16 @@ public class WorkQueueTest extends ExtendedTestCase {
       private long stopTime = now + 1000;
 
       public long waitTime(ClientResult<String> result) {
-        final long now = System.currentTimeMillis();
-        if (now >= closeTime) {
+        final long innerNow = System.currentTimeMillis();
+        if (innerNow >= closeTime) {
           result.close();
         }
-        if (now >= stopTime) {
+        if (innerNow >= stopTime) {
           return 0;
-        } else if (now >= closeTime) {
-          return stopTime - now;
+        } else if (innerNow >= closeTime) {
+          return stopTime - innerNow;
         } else {
-          return closeTime - now;
+          return closeTime - innerNow;
         }
       }
     };
@@ -226,6 +237,7 @@ public class WorkQueueTest extends ExtendedTestCase {
     assertTrue(time < 200);
   }
 
+  @Test
   public void testPolling() throws Exception {
     TestShardManager sm = new TestShardManager(null, 80, 1);
     Method method = TestServer.class.getMethod("doSomething", Integer.TYPE);
@@ -452,7 +464,7 @@ public class WorkQueueTest extends ExtendedTestCase {
     };
   }
 
-  private static void sleep(long msec) {
+  protected static void sleep(long msec) {
     long now = System.currentTimeMillis();
     long stop = now + msec;
     while (now < stop) {

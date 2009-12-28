@@ -15,11 +15,15 @@
  */
 package net.sf.katta.util;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.fail;
+
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
-import junit.framework.TestCase;
+import net.sf.katta.AbstractTest;
 
 import org.apache.hadoop.io.ByteWritable;
 import org.apache.hadoop.io.DoubleWritable;
@@ -28,8 +32,9 @@ import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.WritableComparable;
+import org.junit.Test;
 
-public class WritableTypeTest extends TestCase {
+public class WritableTypeTest extends AbstractTest {
 
   private final static Comparable[] COMPARABLES;
 
@@ -57,12 +62,14 @@ public class WritableTypeTest extends TestCase {
     CONVERTED_COMPARABLES = writableComparables.toArray(new WritableComparable[writableComparables.size()]);
   }
 
+  @Test
   public void testDetectWritableType() {
     for (int i = 0; i < COMPARABLES.length; i++) {
       assertEquals(WritableType.values()[i], WritableType.detectWritableType(COMPARABLES[i]));
     }
   }
 
+  @Test
   public void testDetectWritableTypes() {
     WritableType[] writableTypes = WritableType.detectWritableTypes(COMPARABLES);
     for (int i = 0; i < writableTypes.length; i++) {
@@ -70,6 +77,7 @@ public class WritableTypeTest extends TestCase {
     }
   }
 
+  @Test
   public void testNewWritableComparable() {
     Comparable[] comparables = COMPARABLES;
     for (Comparable comparable : comparables) {
@@ -77,12 +85,14 @@ public class WritableTypeTest extends TestCase {
     }
   }
 
+  @Test
   public void testConvertComparable() {
     for (int i = 0; i < COMPARABLES.length; i++) {
       assertEquals(CONVERTED_COMPARABLES[i], WritableType.values()[i].convertComparable(COMPARABLES[i]));
     }
   }
 
+  @Test
   public void testConvertComparables() {
     WritableComparable[] writableComparables = WritableType.convertComparable(WritableType.values(), COMPARABLES);
     for (int i = 0; i < writableComparables.length; i++) {
@@ -90,6 +100,7 @@ public class WritableTypeTest extends TestCase {
     }
   }
 
+  @Test
   public void testUnhandledTypes() {
     try {
       WritableType.detectWritableType(new Date());

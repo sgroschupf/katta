@@ -15,30 +15,26 @@
  */
 package net.sf.katta.node;
 
-import junit.framework.Assert;
-import junit.framework.TestCase;
+import static org.junit.Assert.assertTrue;
+import net.sf.katta.AbstractWritableTest;
 
-import org.apache.hadoop.io.DataInputBuffer;
 import org.apache.hadoop.io.DataOutputBuffer;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.search.TermQuery;
+import org.junit.Test;
 
-public class QueryWritableTest extends TestCase {
+public class QueryWritableTest extends AbstractWritableTest {
 
+  @Test
   public void testSerializeQuery() throws Exception {
     TermQuery termQuery = new TermQuery(new Term("katta"));
     QueryWritable writable = new QueryWritable(termQuery);
+    DataOutputBuffer buffer = writeWritable(writable);
 
-    DataOutputBuffer out = new DataOutputBuffer(1024);
-    writable.write(out);
-    out.flush();
-
-    DataInputBuffer inputBuffer = new DataInputBuffer();
-    inputBuffer.reset(out.getData(), out.getData().length);
     QueryWritable writable2 = new QueryWritable();
-    writable2.readFields(inputBuffer);
+    readWritable(buffer, writable2);
 
-    Assert.assertTrue(writable.equals(writable2));
+    assertTrue(writable.equals(writable2));
   }
 
 }

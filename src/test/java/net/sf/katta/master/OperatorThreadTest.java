@@ -29,7 +29,6 @@ import static org.mockito.Mockito.withSettings;
 import java.util.ArrayList;
 import java.util.List;
 
-import net.sf.katta.Mocks;
 import net.sf.katta.node.Node;
 import net.sf.katta.operation.OperationId;
 import net.sf.katta.operation.master.AbstractMasterNodeZkTest;
@@ -37,6 +36,7 @@ import net.sf.katta.operation.master.MasterOperation;
 import net.sf.katta.operation.master.MasterOperation.ExecutionInstruction;
 import net.sf.katta.operation.node.NodeOperation;
 import net.sf.katta.protocol.OperationQueue;
+import net.sf.katta.testutil.Mocks;
 import net.sf.katta.testutil.mockito.SleepingAnswer;
 
 import org.junit.Test;
@@ -57,7 +57,7 @@ public class OperatorThreadTest extends AbstractMasterNodeZkTest {
     operatorThread.start();
 
     // no nodes connected
-    Thread.sleep(safeModeMaxTime + 100);
+    Thread.sleep(safeModeMaxTime + 200);
     assertTrue(operatorThread.isAlive());
     assertTrue(operatorThread.isInSafeMode());
 
@@ -66,7 +66,7 @@ public class OperatorThreadTest extends AbstractMasterNodeZkTest {
     Mocks.publisNode(_protocol, node);
 
     // check safe mode & operation execution
-    Thread.sleep(safeModeMaxTime + 100);
+    Thread.sleep(safeModeMaxTime + 200);
     assertTrue(operatorThread.isAlive());
     assertFalse(operatorThread.isInSafeMode());
     verify(operation, times(1)).execute(_context, EMPTY_LIST);

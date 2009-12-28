@@ -15,17 +15,21 @@
  */
 package net.sf.katta.node;
 
+import static org.junit.Assert.assertEquals;
+
 import java.util.ArrayList;
 import java.util.List;
 
-import junit.framework.TestCase;
+import net.sf.katta.AbstractTest;
 
-public class DocumentFrequencyWritableTest extends TestCase {
+import org.junit.Test;
 
+public class DocumentFrequencyWritableTest extends AbstractTest {
+
+  @Test
   public void testAddNumDocsMultiThreading() throws InterruptedException {
     final DocumentFrequencyWritable writable = new DocumentFrequencyWritable();
-
-    runThreads(10, writable, new Runnable() {
+    runThreads(10, new Runnable() {
       @Override
       public void run() {
         for (int j = 0; j < 100000; j++) {
@@ -37,9 +41,10 @@ public class DocumentFrequencyWritableTest extends TestCase {
     assertEquals(10 * 100000, writable.getNumDocs());
   }
 
+  @Test
   public void testAddFrequencies() throws InterruptedException {
     final DocumentFrequencyWritable writable = new DocumentFrequencyWritable();
-    runThreads(10, writable, new Runnable() {
+    runThreads(10, new Runnable() {
       @Override
       public void run() {
         for (int j = 0; j < 10000; j++) {
@@ -51,7 +56,7 @@ public class DocumentFrequencyWritableTest extends TestCase {
     assertEquals(10 * 10000, writable.get("field", "term").intValue());
   }
 
-  private void runThreads(int numberOfThreads, final DocumentFrequencyWritable writable, Runnable runnable) throws InterruptedException {
+  private void runThreads(int numberOfThreads, Runnable runnable) throws InterruptedException {
     List<Thread> threads = new ArrayList<Thread>();
     for (int i = 0; i < numberOfThreads; i++) {
       threads.add(new Thread(runnable));

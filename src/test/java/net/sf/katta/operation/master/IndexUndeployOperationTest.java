@@ -22,11 +22,11 @@ import static org.junit.Assert.assertTrue;
 
 import java.util.List;
 
-import net.sf.katta.Mocks;
 import net.sf.katta.node.Node;
 import net.sf.katta.operation.node.NodeOperation;
 import net.sf.katta.operation.node.ShardUndeployOperation;
 import net.sf.katta.protocol.OperationQueue;
+import net.sf.katta.testutil.Mocks;
 
 import org.junit.Test;
 

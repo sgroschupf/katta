@@ -16,18 +16,21 @@
 
 package net.sf.katta.index.indexer;
 
+import static org.junit.Assert.assertTrue;
+
 import java.io.File;
 
+import net.sf.katta.AbstractTest;
+
 import org.apache.lucene.index.IndexReader;
+import org.junit.Test;
 
-import net.sf.katta.testutil.ExtendedTestCase;
+public class SampleIndexGeneratorTest extends AbstractTest {
 
-public class SampleIndexGeneratorTest extends ExtendedTestCase {
-
+  @Test
   public void testCreateIndex() throws Exception {
-
     SampleIndexGenerator sampleIndexGenerator = new SampleIndexGenerator();
-    File file = createFile("_temporary/sampleIndex");
+    File file = _temporaryFolder.newFolder("sampleIndex");
     file.mkdirs();
     sampleIndexGenerator.createIndex("./extras/benchmark/resources/alice.txt", file.getAbsolutePath(), 10, 10);
     assertTrue(IndexReader.indexExists(file.listFiles()[0]));

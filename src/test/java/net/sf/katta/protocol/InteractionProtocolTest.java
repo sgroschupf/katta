@@ -38,7 +38,6 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import net.sf.katta.AbstractZkTest;
-import net.sf.katta.Mocks;
 import net.sf.katta.master.Master;
 import net.sf.katta.monitor.MetricsRecord;
 import net.sf.katta.node.Node;
@@ -47,6 +46,7 @@ import net.sf.katta.operation.master.MasterOperation;
 import net.sf.katta.operation.node.NodeOperation;
 import net.sf.katta.protocol.metadata.IndexMetaData;
 import net.sf.katta.protocol.metadata.NodeMetaData;
+import net.sf.katta.testutil.Mocks;
 import net.sf.katta.util.ZkConfiguration.PathDef;
 
 import org.I0Itec.zkclient.Gateway;

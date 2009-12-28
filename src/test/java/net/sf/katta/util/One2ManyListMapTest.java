@@ -15,10 +15,16 @@
  */
 package net.sf.katta.util;
 
-import junit.framework.TestCase;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import net.sf.katta.AbstractTest;
 
-public class One2ManyListMapTest extends TestCase {
+import org.junit.Test;
 
+public class One2ManyListMapTest extends AbstractTest {
+
+  @Test
   public void testMap() throws Exception {
     One2ManyListMap<String, Integer> multiMap = new One2ManyListMap<String, Integer>();
     assertEquals(0, multiMap.size());

@@ -27,7 +27,6 @@ import static org.mockito.Mockito.verify;
 import java.util.ArrayList;
 import java.util.List;
 
-import net.sf.katta.Mocks;
 import net.sf.katta.node.Node;
 import net.sf.katta.operation.OperationId;
 import net.sf.katta.operation.master.AbstractMasterNodeZkTest;
@@ -35,6 +34,7 @@ import net.sf.katta.operation.master.MasterOperation;
 import net.sf.katta.operation.node.NodeOperation;
 import net.sf.katta.operation.node.OperationResult;
 import net.sf.katta.protocol.OperationQueue;
+import net.sf.katta.testutil.Mocks;
 
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;

@@ -15,6 +15,9 @@
  */
 package net.sf.katta.client;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
@@ -27,28 +30,31 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import net.sf.katta.testutil.ExtendedTestCase;
+import net.sf.katta.AbstractTest;
 
 import org.apache.hadoop.ipc.VersionedProtocol;
+import org.junit.Before;
+import org.junit.Test;
 
 /**
  * Test for {@link NodeInteraction}.
  */
-public class NodeInteractionTest extends ExtendedTestCase {
+public class NodeInteractionTest extends AbstractTest {
 
   private TestProxyProvider _pp;
   private WorkQueueTest.TestShardManager _sm;
   private TestNodeExecutor _ne;
   private Map<String, List<String>> _map;
 
-  @Override
-  protected void onSetUp() throws Exception {
+  @Before
+  public void setUp() throws Exception {
     _pp = new TestProxyProvider();
     _sm = new WorkQueueTest.TestShardManager(_pp, 8, 3);
     _ne = new TestNodeExecutor();
     _map = _sm.createNode2ShardsMap(_sm.allShards());
   }
 
+  @Test
   public void testNormalCall() throws Exception {
     Method method = ITestServer.class.getMethod("testMethod", String.class, String[].class);
     Object[] args = new Object[] { "foo", null };
@@ -61,6 +67,7 @@ public class NodeInteractionTest extends ExtendedTestCase {
     assertEquals("", _ne.toString());
   }
 
+  @Test
   public void testNormalCallNoShardsParam() throws Exception {
     Method method = ITestServer.class.getMethod("testMethodNoShards", String.class);
     Object[] args = new Object[] { "foo" };
@@ -73,6 +80,7 @@ public class NodeInteractionTest extends ExtendedTestCase {
     assertEquals("", _ne.toString());
   }
 
+  @Test
   public void testRetries() throws Exception {
     Method method = ITestServer.class.getMethod("fails", String.class, String[].class);
     int maxTryCount = 3;
@@ -169,6 +177,7 @@ public class NodeInteractionTest extends ExtendedTestCase {
     assertEquals("", _ne.toString());
   }
 
+  @Test
   public void testMaxRetries() throws Exception {
     Method method = ITestServer.class.getMethod("fails", String.class, String[].class);
     int maxTryCount = 2;
@@ -206,6 +215,7 @@ public class NodeInteractionTest extends ExtendedTestCase {
     assertEquals("", _ne.toString());
   }
 
+  @Test
   public void testRetriesUserClosedResult() throws Exception {
     Method method = TestServer.class.getMethod("fails", String.class, String[].class);
     Object[] args = new Object[] { "foo", null };
@@ -227,6 +237,7 @@ public class NodeInteractionTest extends ExtendedTestCase {
     assertEquals("", _ne.toString());
   }
 
+  @Test
   public void testRetriesPolicyFailure() throws Exception {
     _sm.setShardMapsFail(true);
     Method method = ITestServer.class.getMethod("fails", String.class, String[].class);
@@ -251,6 +262,7 @@ public class NodeInteractionTest extends ExtendedTestCase {
     assertEquals("", _ne.toString());
   }
 
+  @Test
   public void testNoProxy() throws Exception {
     _pp.returnNullFor("n1");
     Method method = ITestServer.class.getMethod("testMethod", String.class, String[].class);
@@ -267,6 +279,7 @@ public class NodeInteractionTest extends ExtendedTestCase {
     // r.getErrors().toString());
   }
 
+  @Test
   public void testDefensiveArgCopy() throws Exception {
     Method method = ITestServer.class.getMethod("testMethod", String.class, String[].class);
     Object[] args = new Object[] { "OK", null };
@@ -280,12 +293,12 @@ public class NodeInteractionTest extends ExtendedTestCase {
     assertEquals("", _ne.toString());
   }
 
-  private static class TestNodeExecutor implements INodeExecutor {
+  protected static class TestNodeExecutor implements INodeExecutor {
 
-    private class Call {
-      private String node;
-      private Map<String, List<String>> nodeShardMap;
-      private int tryCount;
+    protected class Call {
+      protected String node;
+      protected Map<String, List<String>> nodeShardMap;
+      protected int tryCount;
 
       @Override
       public String toString() {
@@ -293,7 +306,7 @@ public class NodeInteractionTest extends ExtendedTestCase {
       }
     }
 
-    private List<Call> calls = new ArrayList<Call>();
+    protected List<Call> calls = new ArrayList<Call>();
 
     public void execute(String node, Map<String, List<String>> nodeShardMap, int tryCount, int maxTryCount) {
       Call call = new Call();
@@ -326,23 +339,23 @@ public class NodeInteractionTest extends ExtendedTestCase {
 
   private static class TestServer implements ITestServer, InvocationHandler {
 
-    private String node;
-    private String param;
-    private String[] shards;
+    private String _node;
+    private String _param;
+    private String[] _shards;
 
     public TestServer(String node) {
-      this.node = node;
+      this._node = node;
     }
 
     public String testMethod(String param, String[] shards) {
-      this.param = param;
-      this.shards = shards;
+      this._param = param;
+      this._shards = shards;
       return "bar";
     }
 
     public String testMethodNoShards(String param) {
-      this.param = param;
-      this.shards = null;
+      this._param = param;
+      this._shards = null;
       return "bar";
     }
 
@@ -352,7 +365,7 @@ public class NodeInteractionTest extends ExtendedTestCase {
 
     @Override
     public String toString() {
-      return node + ":" + param + ":" + (shards != null ? Arrays.asList(shards).toString() : "null");
+      return _node + ":" + _param + ":" + (_shards != null ? Arrays.asList(_shards).toString() : "null");
     }
 
     public long getProtocolVersion(String arg0, long arg1) {
@@ -401,7 +414,7 @@ public class NodeInteractionTest extends ExtendedTestCase {
       return serverCache.get(node);
     }
 
-    private void returnNullFor(String node) {
+    protected void returnNullFor(String node) {
       proxyCache.remove(node);
       returnNullNodes.add(node);
     }

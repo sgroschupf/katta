@@ -15,6 +15,8 @@
  */
 package net.sf.katta.util;
 
+import static org.junit.Assert.assertTrue;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -27,54 +29,52 @@ import java.nio.channels.Pipe.SourceChannel;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.zip.ZipInputStream;
 
-import net.sf.katta.testutil.ExtendedTestCase;
+import net.sf.katta.AbstractTest;
 import net.sf.katta.testutil.TestResources;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.junit.Test;
 
-public class FileUtilTest extends ExtendedTestCase {
-  
-  private File _workFolder = createFile(getClass().getSimpleName());
+public class FileUtilTest extends AbstractTest {
 
-  public void testUnzipFileFile() throws IOException {
-    Configuration configuration = new Configuration();
-//    FileSystem fileSystem = FileSystem.get(configuration);
-    File targetFolder = new File( _workFolder, "unpacked1");
+  @Test
+  public void testUnzipFileFile() {
+    // FileSystem fileSystem = FileSystem.get(configuration);
+    File targetFolder = _temporaryFolder.newFolder("unpacked1");
     FileUtil.unzip(TestResources.SHARD1, targetFolder);
-    
-    File segment = new File( targetFolder, "segments.gen");
+
+    File segment = new File(targetFolder, "segments.gen");
     assertTrue("Unzipped local zip directly to target", segment.exists());
   }
 
+  @Test
   public void testUnzipPathFileFileSystemBoolean() throws IOException {
-    Configuration configuration = new Configuration();      
+    Configuration configuration = new Configuration();
     FileSystem fileSystem = FileSystem.getLocal(configuration);
-    
+
     // Test the unspooled case
-    File targetFolder = new File( _workFolder, "unpacked2");
+    File targetFolder = _temporaryFolder.newFolder("unpacked2");
     Path zipPath = new Path(TestResources.SHARD1.getAbsolutePath());
     FileUtil.unzip(zipPath, targetFolder, fileSystem, false);
-    File segment = new File( targetFolder, "segments.gen");
+    File segment = new File(targetFolder, "segments.gen");
     assertTrue("Unzipped local zip directly to target", segment.exists());
-    
+
     // Test the spooled case
 
-    targetFolder = new File( _workFolder, "unpacked3");
+    targetFolder = _temporaryFolder.newFolder("unpacked3");
     zipPath = new Path(TestResources.SHARD1.getAbsolutePath());
     FileUtil.unzip(zipPath, targetFolder, fileSystem, true);
-    segment = new File( targetFolder, "segments.gen");
+    segment = new File(targetFolder, "segments.gen");
     assertTrue("Unzipped spooled local zip to target", segment.exists());
-
 
   }
 
+  @Test
   public void testUnzipZipInputStreamFile() throws IOException {
     // Test on an unseekable input steam
-    Configuration configuration = new Configuration();
-
-    final File targetFolder = new File( _workFolder, "unpacked4");
+    File targetFolder = _temporaryFolder.newFolder("unpacked4");
 
     final Pipe zipPipe = Pipe.open();
     final SinkChannel sink = zipPipe.sink();
@@ -84,30 +84,38 @@ public class FileUtilTest extends ExtendedTestCase {
     final ZipInputStream zis = new ZipInputStream(sourceIn);
     final FileInputStream fis = new FileInputStream(TestResources.SHARD1);
     final AtomicBoolean failed = new AtomicBoolean(false);
-    // Write the zip data to the pipe a byte at a time to worst case the unzip process
+    // Write the zip data to the pipe a byte at a time to worst case the unzip
+    // process
     Thread writer = new Thread() {
       @Override
       public void run() {
         try {
           int b;
-          while ((b = fis.read())>=0) {
+          while ((b = fis.read()) >= 0) {
             sourceOut.write(b);
           }
-        } catch( IOException e) {
+        } catch (IOException e) {
           System.err.println("shard transfer via pipe failed: " + e);
           e.printStackTrace(System.err);
           failed.set(true);
         } finally {
-          try { fis.close(); } catch (IOException ignore) {}
-          try { sourceOut.close(); } catch (IOException ignore) {}
+          try {
+            fis.close();
+          } catch (IOException ignore) {
+            // ignore
+          }
+          try {
+            sourceOut.close();
+          } catch (IOException ignore) {
+            // ignore
+          }
         }
       }
     };
     writer.start();
-    FileUtil.unzip( zis, targetFolder);
-    File segment = new File( targetFolder, "segments.gen");
+    FileUtil.unzip(zis, targetFolder);
+    File segment = new File(targetFolder, "segments.gen");
     assertTrue("Unzipped streamed zip to target", segment.exists());
-    
   }
 
 }

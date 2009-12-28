@@ -16,12 +16,12 @@
 package net.sf.katta.operation.node;
 
 import static org.mockito.Mockito.mock;
-import net.sf.katta.Mocks;
 import net.sf.katta.node.INodeManaged;
 import net.sf.katta.node.Node;
 import net.sf.katta.node.NodeContext;
 import net.sf.katta.node.ShardManager;
 import net.sf.katta.protocol.InteractionProtocol;
+import net.sf.katta.testutil.Mocks;
 
 public class AbstractNodeOperationMockTest {
 

@@ -20,13 +20,16 @@ import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
-import junit.framework.TestCase;
+import net.sf.katta.AbstractTest;
 import net.sf.katta.monitor.JmxMonitor;
 import net.sf.katta.monitor.MetricsRecord;
 import net.sf.katta.protocol.InteractionProtocol;
 
-public class JmxMonitorTest extends TestCase {
+import org.junit.Test;
 
+public class JmxMonitorTest extends AbstractTest {
+
+  @Test
   public void testGetCpu() throws Exception {
     JmxMonitor monitor = new JmxMonitor();
     String nodeId = "someId";

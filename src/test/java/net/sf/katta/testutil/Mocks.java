@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package net.sf.katta;
+package net.sf.katta.testutil;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;

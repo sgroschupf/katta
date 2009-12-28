@@ -15,12 +15,17 @@
  */
 package net.sf.katta.util;
 
+import static org.junit.Assert.assertEquals;
+
 import java.util.Arrays;
 
-import junit.framework.TestCase;
+import net.sf.katta.AbstractTest;
 
-public class CircularListTest extends TestCase {
+import org.junit.Test;
 
+public class CircularListTest extends AbstractTest {
+
+  @Test
   public void testConstructor() {
     CircularList list = new CircularList();
     assertEquals(0, list.size());
@@ -30,6 +35,7 @@ public class CircularListTest extends TestCase {
     list.moveToMid();
   }
 
+  @Test
   public void testAdd_GetNext() {
     CircularList list = new CircularList();
     assertEquals(0, list.size());
@@ -54,6 +60,7 @@ public class CircularListTest extends TestCase {
     assertEquals(new Integer(-1), list.getNext());
   }
 
+  @Test
   public void testMoveToEnd() {
     CircularList list = new CircularList();
     int valueCount = 10;
@@ -75,6 +82,7 @@ public class CircularListTest extends TestCase {
     assertEquals(new Integer(valueCount - 1), list.getTop());
   }
 
+  @Test
   public void testMoveToMid() {
     CircularList list = new CircularList();
     // test just work if valueCount is even
@@ -97,6 +105,7 @@ public class CircularListTest extends TestCase {
     assertEquals(new Integer(valueCount - 1), list.getTop());
   }
 
+  @Test
   public void testRemoveTop() {
     CircularList list = new CircularList();
     int valueCount = 10;
@@ -119,6 +128,7 @@ public class CircularListTest extends TestCase {
     list.moveToMid();
   }
 
+  @Test
   public void testRemove() {
     CircularList list = new CircularList();
     int valueCount = 10;
@@ -146,6 +156,7 @@ public class CircularListTest extends TestCase {
     list.remove("nothing");
   }
 
+  @Test
   public void testGetTopGetTail() {
     CircularList<String> list = new CircularList<String>(Arrays.asList("1", "2", "3"));
     assertEquals("1", list.getTop());

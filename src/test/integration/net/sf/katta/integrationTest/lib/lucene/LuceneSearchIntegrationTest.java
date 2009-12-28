@@ -35,7 +35,7 @@ import org.junit.Test;
 public class LuceneSearchIntegrationTest extends AbstractIntegrationTest {
 
   private static final int SEARCH_THREAD_COUNT = 9;
-  private static final int QUERY_TIME = 7000;
+  private static final int QUERY_TIME = 5000;
 
   public LuceneSearchIntegrationTest() {
     super(5);

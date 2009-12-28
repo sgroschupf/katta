@@ -18,11 +18,14 @@ package net.sf.katta.ec2;
 import java.util.Set;
 
 import junit.framework.Assert;
-import junit.framework.TestCase;
+import net.sf.katta.AbstractTest;
 import net.sf.katta.util.Ec2Configuration;
 
-public class Ec2ServiceTest extends TestCase {
+import org.junit.Test;
 
+public class Ec2ServiceTest extends AbstractTest {
+
+  @Test
   public void testLaunchCluster() throws Exception {
 
     // TODO this is actually more an integration test

@@ -28,7 +28,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import net.sf.katta.Mocks;
 import net.sf.katta.master.Master;
 import net.sf.katta.node.Node;
 import net.sf.katta.operation.node.DeployResult;
@@ -40,6 +39,7 @@ import net.sf.katta.protocol.metadata.IndexDeployError;
 import net.sf.katta.protocol.metadata.IndexMetaData;
 import net.sf.katta.protocol.metadata.IndexDeployError.ErrorType;
 import net.sf.katta.protocol.metadata.IndexMetaData.Shard;
+import net.sf.katta.testutil.Mocks;
 
 import org.junit.Test;
 

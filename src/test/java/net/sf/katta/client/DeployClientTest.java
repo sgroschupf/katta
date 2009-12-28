@@ -18,13 +18,14 @@ package net.sf.katta.client;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import net.sf.katta.AbstractTest;
 import net.sf.katta.operation.master.AbstractIndexOperation;
 import net.sf.katta.operation.master.IndexDeployOperation;
 import net.sf.katta.protocol.InteractionProtocol;
 
 import org.junit.Test;
 
-public class DeployClientTest {
+public class DeployClientTest extends AbstractTest {
 
   protected InteractionProtocol _protocol = mock(InteractionProtocol.class);
 
@@ -51,6 +52,5 @@ public class DeployClientTest {
   public void testAddIndexWithInvalidName2() throws Exception {
     DeployClient deployClient = new DeployClient(_protocol);
     deployClient.addIndex("a" + AbstractIndexOperation.INDEX_SHARD_NAME_SEPARATOR, "iP", 1);
-
   }
 }

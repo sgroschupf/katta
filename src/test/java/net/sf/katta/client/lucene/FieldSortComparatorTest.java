@@ -15,7 +15,8 @@
  */
 package net.sf.katta.client.lucene;
 
-import junit.framework.TestCase;
+import static org.junit.Assert.assertEquals;
+import net.sf.katta.AbstractTest;
 import net.sf.katta.node.Hit;
 import net.sf.katta.util.WritableType;
 
@@ -24,9 +25,11 @@ import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.WritableComparable;
 import org.apache.lucene.search.SortField;
+import org.junit.Test;
 
-public class FieldSortComparatorTest extends TestCase {
+public class FieldSortComparatorTest extends AbstractTest {
 
+  @Test
   public void testSingleIntFieldCompare() {
     SortField[] sortFields = new SortField[] { new SortField("intField", SortField.INT) };
     WritableType[] sortFieldTypes = new WritableType[] { WritableType.INT };
@@ -43,9 +46,10 @@ public class FieldSortComparatorTest extends TestCase {
     assertEquals(-1, fieldSortComparator.compare(hit1, hit2));
   }
 
+  @Test
   public void testTwoIntFieldCompare() {
     SortField[] sortFields = new SortField[] { new SortField("intField1", SortField.INT),
-        new SortField("intField2", SortField.INT) };
+            new SortField("intField2", SortField.INT) };
     WritableType[] sortFieldTypes = new WritableType[] { WritableType.INT, WritableType.INT };
     FieldSortComparator fieldSortComparator = new FieldSortComparator(sortFields, sortFieldTypes);
 
@@ -60,9 +64,10 @@ public class FieldSortComparatorTest extends TestCase {
     assertEquals(-1, fieldSortComparator.compare(hit1, hit2));
   }
 
+  @Test
   public void testStringFieldDocIdCompare() {
     SortField[] sortFields = new SortField[] { new SortField("stringField", SortField.STRING),
-        new SortField("docIdField", SortField.DOC) };
+            new SortField("docIdField", SortField.DOC) };
     WritableType[] sortFieldTypes = new WritableType[] { WritableType.TEXT, WritableType.INT };
     FieldSortComparator fieldSortComparator = new FieldSortComparator(sortFields, sortFieldTypes);
 
@@ -77,9 +82,10 @@ public class FieldSortComparatorTest extends TestCase {
     assertEquals(-1, fieldSortComparator.compare(hit1, hit2));
   }
 
+  @Test
   public void testStringFieldScoreCompare() {
     SortField[] sortFields = new SortField[] { new SortField("stringField", SortField.STRING),
-        new SortField("scoreField", SortField.SCORE) };
+            new SortField("scoreField", SortField.SCORE) };
     WritableType[] sortFieldTypes = new WritableType[] { WritableType.TEXT, WritableType.FLOAT };
     FieldSortComparator fieldSortComparator = new FieldSortComparator(sortFields, sortFieldTypes);
 

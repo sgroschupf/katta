@@ -26,9 +26,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import net.sf.katta.AbstractTest;
+
 import org.junit.Test;
 
-public class CollectionUtilTest {
+public class CollectionUtilTest extends AbstractTest {
 
   @Test
   public void testInvertListMap() throws Exception {

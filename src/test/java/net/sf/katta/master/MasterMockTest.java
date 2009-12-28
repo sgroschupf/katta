@@ -28,28 +28,25 @@ import static org.mockito.Mockito.when;
 import java.util.Arrays;
 import java.util.List;
 
+import net.sf.katta.AbstractTest;
 import net.sf.katta.operation.master.CheckIndicesOperation;
 import net.sf.katta.operation.master.MasterOperation;
 import net.sf.katta.operation.master.RemoveSuperfluousShardsOperation;
 import net.sf.katta.protocol.IAddRemoveListener;
 import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.protocol.OperationQueue;
-import net.sf.katta.testutil.PrintMethodNames;
 import net.sf.katta.testutil.TestUtil;
 import net.sf.katta.testutil.mockito.SleepingAnswer;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.ZkConfiguration.PathDef;
 
 import org.I0Itec.zkclient.ZkServer;
-import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 
-public class MasterMockTest {
+public class MasterMockTest extends AbstractTest {
 
   private InteractionProtocol protocol = mock(InteractionProtocol.class);
-  @Rule
-  public PrintMethodNames _printMethodNames = new PrintMethodNames();
 
   @Test
   public void testBecomeMaster() throws Exception {

@@ -15,25 +15,32 @@
  */
 package net.sf.katta.client;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
 import java.util.HashSet;
 import java.util.Set;
 
-import net.sf.katta.testutil.ExtendedTestCase;
+import net.sf.katta.AbstractTest;
+
+import org.junit.Test;
 
 /**
  * Test for {@link ResultCompletePolicy}.
  */
-public class ResultCompletePolicyTest extends ExtendedTestCase {
+public class ResultCompletePolicyTest extends AbstractTest {
 
+  @Test
   public void testCompleteShutdown() {
     ClientResult<String> r = new ClientResult<String>(null, "a", "b", "c");
     ResultCompletePolicy<String> rc = new ResultCompletePolicy<String>(60000);
     assertEquals("Wait up to 60000 ms for complete results, then shut down.", rc.toString());
-    assertTrue(rc.waitTime(r) > 50000); 
+    assertTrue(rc.waitTime(r) > 50000);
     r.addResult("x", "a");
-    assertTrue(rc.waitTime(r) > 50000); 
+    assertTrue(rc.waitTime(r) > 50000);
     r.addResult("x", "b");
-    assertTrue(rc.waitTime(r) > 50000); 
+    assertTrue(rc.waitTime(r) > 50000);
     r.addResult("x", "c");
     assertTrue(rc.waitTime(r) == -1);
     assertFalse(r.isClosed());
@@ -41,61 +48,64 @@ public class ResultCompletePolicyTest extends ExtendedTestCase {
     r = new ClientResult<String>(null, "a", "b", "c");
     rc = new ResultCompletePolicy<String>(60000, true);
     assertEquals("Wait up to 60000 ms for complete results, then shut down.", rc.toString());
-    assertTrue(rc.waitTime(r) > 50000); 
+    assertTrue(rc.waitTime(r) > 50000);
     r.addResult("x", "a");
-    assertTrue(rc.waitTime(r) > 50000); 
+    assertTrue(rc.waitTime(r) > 50000);
     r.addResult("x", "b");
-    assertTrue(rc.waitTime(r) > 50000); 
+    assertTrue(rc.waitTime(r) > 50000);
     r.addResult("x", "c");
     assertTrue(rc.waitTime(r) == -1);
     assertFalse(r.isClosed());
   }
 
+  @Test
   public void testCompleteNoShutdown() {
     ClientResult<String> r = new ClientResult<String>(null, "a", "b", "c");
     ResultCompletePolicy<String> rc = new ResultCompletePolicy<String>(60000, false);
     assertEquals("Wait up to 60000 ms for complete results.", rc.toString());
-    assertTrue(rc.waitTime(r) > 50000); 
+    assertTrue(rc.waitTime(r) > 50000);
     r.addResult("x", "a");
-    assertTrue(rc.waitTime(r) > 50000); 
+    assertTrue(rc.waitTime(r) > 50000);
     r.addResult("x", "b");
-    assertTrue(rc.waitTime(r) > 50000); 
+    assertTrue(rc.waitTime(r) > 50000);
     r.addResult("x", "c");
-    assertTrue(rc.waitTime(r) == 0); 
+    assertTrue(rc.waitTime(r) == 0);
     assertFalse(r.isClosed());
   }
-  
+
+  @Test
   public void testCoverageNoShutdown() {
     ClientResult<String> r = new ClientResult<String>(null, "a", "b", "c");
     ResultCompletePolicy<String> rc = new ResultCompletePolicy<String>(0, 60000, 0.5, false);
     assertEquals("Wait up to 0 ms for complete results, then 60000 ms for 0.5 coverage.", rc.toString());
-    assertTrue(rc.waitTime(r) > 50000); 
+    assertTrue(rc.waitTime(r) > 50000);
     r.addResult("x", "a");
-    assertTrue(rc.waitTime(r) > 50000); 
+    assertTrue(rc.waitTime(r) > 50000);
     r.addResult("x", "b");
-    assertTrue(rc.waitTime(r) == 0); 
+    assertTrue(rc.waitTime(r) == 0);
     assertFalse(r.isClosed());
     r.addResult("x", "c");
-    assertTrue(rc.waitTime(r) == 0); 
+    assertTrue(rc.waitTime(r) == 0);
     assertFalse(r.isClosed());
   }
-  
 
+  @Test
   public void testCoverageShutdown() {
     ClientResult<String> r = new ClientResult<String>(null, "a", "b", "c");
     ResultCompletePolicy<String> rc = new ResultCompletePolicy<String>(0, 60000, 0.5, true);
     assertEquals("Wait up to 0 ms for complete results, then 60000 ms for 0.5 coverage, then shut down.", rc.toString());
-    assertTrue(rc.waitTime(r) > 50000); 
+    assertTrue(rc.waitTime(r) > 50000);
     r.addResult("x", "a");
-    assertTrue(rc.waitTime(r) > 50000); 
+    assertTrue(rc.waitTime(r) > 50000);
     r.addResult("x", "b");
-    assertTrue(rc.waitTime(r) == -1); 
+    assertTrue(rc.waitTime(r) == -1);
     assertFalse(r.isClosed());
     r.addResult("x", "c");
-    assertTrue(rc.waitTime(r) == -1); 
+    assertTrue(rc.waitTime(r) == -1);
     assertFalse(r.isClosed());
   }
-  
+
+  @Test
   public void testCompleteTiming() {
     ClientResult<String> r = new ClientResult<String>(null, "a", "b", "c");
     ResultCompletePolicy<String> rc = new ResultCompletePolicy<String>(1000, true);
@@ -120,6 +130,7 @@ public class ResultCompletePolicyTest extends ExtendedTestCase {
     }
   }
 
+  @Test
   public void testCoverageTiming1() {
     ClientResult<String> r = new ClientResult<String>(null, "a", "b", "c");
     r.addResult("foo", "a");
@@ -129,7 +140,7 @@ public class ResultCompletePolicyTest extends ExtendedTestCase {
     long start = System.currentTimeMillis();
     long stop = start + 800;
     while (now < stop) {
-      // Waiting for complete. Then wait for coverage. 
+      // Waiting for complete. Then wait for coverage.
       assertTrue(rc.waitTime(r) > 100);
       sleep(1);
       now = System.currentTimeMillis();
@@ -148,6 +159,7 @@ public class ResultCompletePolicyTest extends ExtendedTestCase {
     }
   }
 
+  @Test
   public void testCoverageTiming2() {
     ClientResult<String> r = new ClientResult<String>(null, "a", "b", "c");
     r.addResult("foo", "a", "b");
@@ -176,14 +188,15 @@ public class ResultCompletePolicyTest extends ExtendedTestCase {
     }
   }
 
+  @Test
   public void testCoverage() {
     Set<String> shards = new HashSet<String>();
-    for (int i=0; i<1000; i++) {
+    for (int i = 0; i < 1000; i++) {
       shards.add("s" + i);
     }
     ClientResult<String> r = new ClientResult<String>(null, shards);
     ResultCompletePolicy<String> rc = new ResultCompletePolicy<String>(0, 60000, (879.0 / 1000.0), false);
-    for (int i=0; i<1000; i++) {
+    for (int i = 0; i < 1000; i++) {
       try {
         r.addResult("foo", "s" + i);
         if (i < 878) {
@@ -205,6 +218,7 @@ public class ResultCompletePolicyTest extends ExtendedTestCase {
       try {
         Thread.sleep(stop - now);
       } catch (InterruptedException e) {
+        // proceed
       }
       now = System.currentTimeMillis();
     }

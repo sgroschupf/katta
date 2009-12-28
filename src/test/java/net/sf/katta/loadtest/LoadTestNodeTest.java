@@ -15,8 +15,6 @@
  */
 package net.sf.katta.loadtest;
 
-import net.sf.katta.util.KattaException;
-
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -26,7 +24,7 @@ public class LoadTestNodeTest {
 
   @Test
   @Ignore
-  public void testShutdown() throws KattaException {
+  public void testShutdown() throws Exception {
     // TODO: port load test to new client/server setup.
     //
     // LoadTestNode node = startLoadTestNode();
@@ -35,7 +33,7 @@ public class LoadTestNodeTest {
 
   @Test
   @Ignore
-  public void testStartSearch() throws KattaException, InterruptedException {
+  public void testStartSearch() throws Exception {
     // TODO: port load test to new client/server setup.
     //
     // startMaster();

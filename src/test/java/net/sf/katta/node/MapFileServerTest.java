@@ -15,6 +15,10 @@
  */
 package net.sf.katta.node;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+
 import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -23,17 +27,18 @@ import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import net.sf.katta.testutil.ExtendedTestCase;
+import net.sf.katta.AbstractTest;
 import net.sf.katta.testutil.TestResources;
 
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 import org.apache.log4j.Logger;
+import org.junit.Test;
 
 /**
  * Test for {@link MapFileServer }.
  */
-public class MapFileServerTest extends ExtendedTestCase {
+public class MapFileServerTest extends AbstractTest {
 
   @SuppressWarnings("unused")
   private static Logger LOG = Logger.getLogger(MapFileServerTest.class);
@@ -46,6 +51,7 @@ public class MapFileServerTest extends ExtendedTestCase {
   private static final String SHARD_B_1 = "shard_B_1";
   private static final String SHARD_B_2 = "shard_B_2";
 
+  @Test
   public void testShardA1() throws Exception {
     MapFileServer server = new MapFileServer();
     server.setNodeName(NODE_NAME);
@@ -61,6 +67,7 @@ public class MapFileServerTest extends ExtendedTestCase {
     server.shutdown();
   }
 
+  @Test
   public void testShardA2() throws Exception {
     MapFileServer server = new MapFileServer();
     server.setNodeName(NODE_NAME);
@@ -75,6 +82,7 @@ public class MapFileServerTest extends ExtendedTestCase {
     server.shutdown();
   }
 
+  @Test
   public void testMapFile1() throws Exception {
     MapFileServer server = new MapFileServer();
     server.setNodeName(NODE_NAME);
@@ -94,9 +102,10 @@ public class MapFileServerTest extends ExtendedTestCase {
     assertMissing(server, "v.xml", shards);
     assertMissing(server, "y.xml", shards);
     assertMissing(server, "not-found", shards);
-   server.shutdown();
+    server.shutdown();
   }
-  
+
+  @Test
   public void testBothMapFiles() throws Exception {
     MapFileServer server = new MapFileServer();
     server.setNodeName(NODE_NAME);
@@ -130,7 +139,8 @@ public class MapFileServerTest extends ExtendedTestCase {
     assertMissing(server, "not-found", shards);
     server.shutdown();
   }
-  
+
+  @Test
   public void testMultiThreadedAccess() throws Exception {
     final MapFileServer server = new MapFileServer();
     server.setNodeName(NODE_NAME);
@@ -157,11 +167,11 @@ public class MapFileServerTest extends ExtendedTestCase {
     final List<Exception> exceptions = new ArrayList<Exception>();
     long startTime = System.currentTimeMillis();
     final AtomicInteger count = new AtomicInteger(0);
-    for (int i=0; i<20; i++) {
+    for (int i = 0; i < 20; i++) {
       final Random rand2 = new Random(rand.nextInt());
       Thread t = new Thread(new Runnable() {
         public void run() {
-          for (int j=0; j<500; j++) {
+          for (int j = 0; j < 500; j++) {
             int n = rand2.nextInt(entries.size());
             String key = keys.get(n);
             try {
@@ -185,9 +195,8 @@ public class MapFileServerTest extends ExtendedTestCase {
     System.out.println((1000.0 * count.intValue() / time) + " requests / sec");
     assertTrue(exceptions.isEmpty());
   }
-  
-  
-  private String getOneResult(IMapFileServer server, String key, String[] shards) throws Exception {
+
+  protected String getOneResult(IMapFileServer server, String key, String[] shards) throws Exception {
     TextArrayWritable texts = server.get(new Text(key), shards);
     assertNotNull(texts);
     assertNotNull(texts.array);
@@ -204,6 +213,6 @@ public class MapFileServerTest extends ExtendedTestCase {
     assertNotNull(texts.array);
     Writable[] array = texts.array.get();
     assertEquals(0, array.length);
- }
-  
+  }
+
 }

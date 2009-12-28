@@ -15,6 +15,13 @@
  */
 package net.sf.katta.client;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -28,14 +35,17 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import net.sf.katta.AbstractTest;
 import net.sf.katta.client.ClientResult.IClosedListener;
-import net.sf.katta.testutil.ExtendedTestCase;
+
+import org.junit.Test;
 
 /**
  * Test for {@link ClientResult}.
  */
-public class ClientResultTest extends ExtendedTestCase {
+public class ClientResultTest extends AbstractTest {
 
+  @Test
   public void testToStringResults() {
     ClientResult<String> r = new ClientResult<String>(null, "a", "b", "c");
     assertEquals("ClientResult: 0 results, 0 errors, 0/3 shards", r.toString());
@@ -49,6 +59,7 @@ public class ClientResultTest extends ExtendedTestCase {
     assertEquals("ClientResult: 2 results, 0 errors, 3/3 shards (closed) (complete)", r.toString());
   }
 
+  @Test
   public void testToStringErrors() {
     ClientResult<String> r = new ClientResult<String>(null, "a", "b", "c");
     assertEquals("ClientResult: 0 results, 0 errors, 0/3 shards", r.toString());
@@ -60,6 +71,7 @@ public class ClientResultTest extends ExtendedTestCase {
     assertEquals("ClientResult: 0 results, 2 errors, 3/3 shards (complete)", r.toString());
   }
 
+  @Test
   public void testToStringMixed() {
     ClientResult<String> r = new ClientResult<String>(null, "a", "b", "c");
     assertEquals("ClientResult: 0 results, 0 errors, 0/3 shards", r.toString());
@@ -71,6 +83,7 @@ public class ClientResultTest extends ExtendedTestCase {
     assertEquals("ClientResult: 2 results, 1 errors, 3/3 shards (complete)", r.toString());
   }
 
+  @Test
   public void testResults() {
     ClientResult<String> r = new ClientResult<String>(null, "a", "b", "c", "d");
     assertEquals("[]", r.getResults().toString());
@@ -88,6 +101,7 @@ public class ClientResultTest extends ExtendedTestCase {
     assertTrue(r.getResults().toString().indexOf("r2") > 0);
   }
 
+  @Test
   public void testDuplicateResults() {
     ClientResult<Integer> r = new ClientResult<Integer>(null, "a", "b", "c");
     r.addResult(5, "a");
@@ -100,6 +114,7 @@ public class ClientResultTest extends ExtendedTestCase {
     assertEquals(4, r.entrySet().size());
   }
 
+  @Test
   public void testDuplicateErrors() {
     ClientResult<Integer> r = new ClientResult<Integer>(null, "a", "b", "c");
     Throwable t = new Throwable();
@@ -113,6 +128,7 @@ public class ClientResultTest extends ExtendedTestCase {
     assertEquals(4, r.entrySet().size());
   }
 
+  @Test
   public void testErrors() {
     ClientResult<String> r = new ClientResult<String>(null, "a", "b", "c", "d");
     assertEquals("[]", r.getErrors().toString());
@@ -134,6 +150,7 @@ public class ClientResultTest extends ExtendedTestCase {
     assertTrue(r.isError());
   }
 
+  @Test
   public void testNoShards() {
     try {
       new ClientResult<String>((IClosedListener) null, (Collection<String>) null);
@@ -162,6 +179,7 @@ public class ClientResultTest extends ExtendedTestCase {
     assertTrue(r.getErrors().isEmpty());
   }
 
+  @Test
   public void testNulls() {
     ClientResult<String> r = new ClientResult<String>(null, "a", "b", "c");
     r.addResult(null, "a");
@@ -197,13 +215,14 @@ public class ClientResultTest extends ExtendedTestCase {
     assertTrue(r.isOK());
   }
 
-  private static class ToStringFails {
+  protected static class ToStringFails {
     @Override
     public String toString() {
       throw new RuntimeException("err");
     }
   }
 
+  @Test
   public void testEntryBadResult() {
     ClientResult<ToStringFails> r = new ClientResult<ToStringFails>(null, "a", "b", "c");
     r.addResult(new ToStringFails(), "c");
@@ -216,6 +235,7 @@ public class ClientResultTest extends ExtendedTestCase {
     assertTrue(r.entrySet().iterator().next().toString().startsWith("null from [c] at "));
   }
 
+  @Test
   public void testMissingAndSeenShardsSingle() {
     ClientResult<String> r = new ClientResult<String>(null, "a", "b", "c");
     List<String> missing = new ArrayList<String>(r.getMissingShards());
@@ -246,6 +266,7 @@ public class ClientResultTest extends ExtendedTestCase {
     assertEquals("[a, b, c]", seen.toString());
   }
 
+  @Test
   public void testMissingAndSeenShardsMulti() {
     ClientResult<String> r = new ClientResult<String>(null, "a", "b", "c");
     r.addResult("x", "a", "b");
@@ -266,6 +287,7 @@ public class ClientResultTest extends ExtendedTestCase {
     assertEquals("[a, b, c]", seen.toString());
   }
 
+  @Test
   public void testUnknownShards() {
     // This should not happen normally.
     ClientResult<String> r = new ClientResult<String>(null, "a", "b", "c");
@@ -295,6 +317,7 @@ public class ClientResultTest extends ExtendedTestCase {
     assertTrue(r.isComplete());
   }
 
+  @Test
   public void testDuplicateShards() {
     // This should not happen normally.
     ClientResult<String> r = new ClientResult<String>(null, "a", "b", "c");
@@ -319,6 +342,7 @@ public class ClientResultTest extends ExtendedTestCase {
     assertTrue(r.isComplete());
   }
 
+  @Test
   public void testClosingCallback() {
     final AtomicInteger count = new AtomicInteger(0);
     ClientResult<String> r = new ClientResult<String>(new IClosedListener() {
@@ -338,6 +362,7 @@ public class ClientResultTest extends ExtendedTestCase {
     assertTrue(r.isClosed());
   }
 
+  @Test
   public void testClosed() {
     ClientResult<String> r = new ClientResult<String>(null, "a", "b", "c");
     r.close();
@@ -346,6 +371,7 @@ public class ClientResultTest extends ExtendedTestCase {
     assertEquals("ClientResult: 0 results, 0 errors, 0/3 shards (closed)", r.toString());
   }
 
+  @Test
   public void testArrivalTimes() {
     ClientResult<String> r = new ClientResult<String>(null, "a", "b", "c");
     r.addResult("r1", "a");
@@ -367,6 +393,7 @@ public class ClientResultTest extends ExtendedTestCase {
     assertTrue(e3.time > e2.time);
   }
 
+  @Test
   public void testArrivalTimesSorting() {
     String result = "foo";
     Throwable error = new Exception("bar");
@@ -394,6 +421,7 @@ public class ClientResultTest extends ExtendedTestCase {
     }
   }
 
+  @Test
   public void testMultithreaded() throws InterruptedException {
     Set<String> shards = new HashSet<String>();
     final int size = 1000;
@@ -430,18 +458,13 @@ public class ClientResultTest extends ExtendedTestCase {
     assertEquals(total, resultTotal);
   }
 
+  @Test
   public void testIteratorEmpty() {
     ClientResult<String> r = new ClientResult<String>(null, "a", "b", "c");
-    boolean ok = true;
-    for (ClientResult<String>.Entry e : r) {
-      ok = false;
-    }
-    assertTrue(ok);
-    //
-    Iterator<ClientResult<String>.Entry> i = r.iterator();
-    assertFalse(i.hasNext());
+    assertFalse(r.iterator().hasNext());
   }
 
+  @Test
   public void testIteratorWhileAdding() {
     ClientResult<String> r = new ClientResult<String>(null, "a", "b", "c");
     r.addResult("r1", "a");
@@ -462,6 +485,7 @@ public class ClientResultTest extends ExtendedTestCase {
     assertFalse(i.hasNext());
   }
 
+  @Test
   public void testReadOnly() {
     ClientResult<String> r = new ClientResult<String>(null, "a", "b", "c");
     checkReadOnly(r);
@@ -573,7 +597,7 @@ public class ClientResultTest extends ExtendedTestCase {
     assertTrue(r2.getStartTime() - r1.getStartTime() >= 10);
   }
 
-  private void sleep(long msec) {
+  protected void sleep(long msec) {
     long now = System.currentTimeMillis();
     long waitUntil = now + msec;
     while (now < waitUntil) {

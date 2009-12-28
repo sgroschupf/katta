@@ -15,6 +15,10 @@
  */
 package net.sf.katta.node;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
+
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
@@ -24,21 +28,17 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import junit.framework.Assert;
-import junit.framework.TestCase;
-import net.sf.katta.node.DocumentFrequencyWritable;
-import net.sf.katta.node.Hit;
-import net.sf.katta.node.HitsMapWritable;
-import net.sf.katta.node.LuceneServer;
-import net.sf.katta.node.QueryWritable;
-import net.sf.katta.node.LuceneServer.KattaHitQueue;
+import net.sf.katta.AbstractTest;
 import net.sf.katta.testutil.TestResources;
 
 import org.apache.lucene.analysis.KeywordAnalyzer;
 import org.apache.lucene.queryParser.QueryParser;
 import org.apache.lucene.search.Query;
+import org.junit.Test;
 
-public class LuceneServerTest extends TestCase {
+public class LuceneServerTest extends AbstractTest {
 
+  @Test
   public void testPriorityQueue() throws Exception {
     // tests some simple PriorityQueue behavior
     LuceneServer.KattaHitQueue queue = new LuceneServer().new KattaHitQueue(2);
@@ -57,6 +57,7 @@ public class LuceneServerTest extends TestCase {
     assertSame(hit4, queue.pop());
   }
 
+  @Test
   public void testPriorityQueue_sameScore() throws Exception {
     LuceneServer.KattaHitQueue queue = new LuceneServer().new KattaHitQueue(2);
     Hit hit1 = new Hit("shard", "node", 1f, 1);
@@ -74,6 +75,7 @@ public class LuceneServerTest extends TestCase {
     assertSame(hit3, queue.pop());
   }
 
+  // @Test
   // public void testRemoveAndAdd() throws IOException, ParseException,
   // InterruptedException {
   // final ZkConfiguration conf = new ZkConfiguration();
@@ -260,6 +262,7 @@ public class LuceneServerTest extends TestCase {
   // }
   //
 
+  @Test
   public void testMultiThreadSearch() throws Exception {
     LuceneServer server = new LuceneServer();
     File[] shards = TestResources.INDEX1.listFiles();
@@ -288,8 +291,8 @@ public class LuceneServerTest extends TestCase {
         last = hitsMapWritable;
       } else {
         Assert.assertEquals(last.getTotalHits(), hitsMapWritable.getTotalHits());
-        float lastScore = last.getHits().getHits().get(0).getScore();
-        float currentScore = hitsMapWritable.getHits().getHits().get(0).getScore();
+        float lastScore = last.getHitList().get(0).getScore();
+        float currentScore = hitsMapWritable.getHitList().get(0).getScore();
         Assert.assertEquals(lastScore, currentScore);
       }
     }

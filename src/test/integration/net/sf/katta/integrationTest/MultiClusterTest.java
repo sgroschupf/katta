@@ -61,11 +61,11 @@ public class MultiClusterTest {
   protected static ISleepClient _client1;
   protected static ISleepClient _client2;
 
-  private static final int POOL_SIZE_1 = 18;
-  private static final int POOL_SIZE_2 = 16;
+  private static final int POOL_SIZE_1 = 9;
+  private static final int POOL_SIZE_2 = 7;
 
-  private static final int NUM_SHARDS_1 = 300;
-  private static final int NUM_SHARDS_2 = 150;
+  private static final int NUM_SHARDS_1 = 140;
+  private static final int NUM_SHARDS_2 = 70;
 
   private static ZkServer _zkServer;
   private static KattaMiniCluster _cluster1;

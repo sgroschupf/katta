@@ -34,7 +34,7 @@ public class ZkTestSystem extends ExternalResource {
   private ZkConfiguration _conf;
 
   private ZkTestSystem() {
-    System.out.println("~~~~~~~~~~~~~~~ starting zk system ~~~~~~~~~~~~~~~");
+    LOG.info("~~~~~~~~~~~~~~~ starting zk system ~~~~~~~~~~~~~~~");
     String baseDir = "build/zkdata";
     String dataDir = baseDir + "/data";
     String logDir = baseDir + "/log";
@@ -43,7 +43,7 @@ public class ZkTestSystem extends ExternalResource {
     _conf.setZKRootPath("/zk_testsystem");
     _zkServer = new ZkServer(dataDir, logDir, new DefaultNameSpaceImpl(_conf), PORT);
     _zkServer.start();
-    System.out.println("~~~~~~~~~~~~~~~ zk system started ~~~~~~~~~~~~~~~");
+    LOG.info("~~~~~~~~~~~~~~~ zk system started ~~~~~~~~~~~~~~~");
   }
 
   @Override

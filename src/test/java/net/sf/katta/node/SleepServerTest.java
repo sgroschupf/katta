@@ -15,20 +15,24 @@
  */
 package net.sf.katta.node;
 
-import net.sf.katta.testutil.ExtendedTestCase;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+import net.sf.katta.AbstractTest;
 import net.sf.katta.util.SleepServer;
 
 import org.apache.log4j.Logger;
+import org.junit.Test;
 
 /**
  * Test for {@link SleepServer}.
  */
-public class SleepServerTest extends ExtendedTestCase {
+public class SleepServerTest extends AbstractTest {
 
   @SuppressWarnings("unused")
   private static Logger LOG = Logger.getLogger(SleepServerTest.class);
 
-
+  @Test
   public void testNoSleep() throws Exception {
     SleepServer server = new SleepServer();
     long start = System.currentTimeMillis();
@@ -36,7 +40,8 @@ public class SleepServerTest extends ExtendedTestCase {
     long time = System.currentTimeMillis() - start;
     assertTrue(time < 10);
   }
-  
+
+  @Test
   public void testSleep() throws Exception {
     SleepServer server = new SleepServer();
     long start = System.currentTimeMillis();
@@ -44,25 +49,27 @@ public class SleepServerTest extends ExtendedTestCase {
     long time = System.currentTimeMillis() - start;
     assertTrue(time >= 100);
   }
-  
+
+  @Test
   public void testVariation() throws IllegalArgumentException {
     SleepServer server = new SleepServer();
     long min = Integer.MAX_VALUE;
     long max = -1;
-    for (int i=0; i<200; i++) {
+    for (int i = 0; i < 200; i++) {
       long n = checkTime(server);
       max = Math.max(n, max);
       min = Math.min(n, min);
     }
     assertTrue(max - min >= 9);
   }
-  
+
   private long checkTime(SleepServer server) throws IllegalArgumentException {
     long start = System.currentTimeMillis();
     server.sleep(10, 5, null);
     return System.currentTimeMillis() - start;
   }
 
+  @Test
   public void testShards() throws IllegalArgumentException {
     SleepServer server = new SleepServer();
     server.setNodeName("sleepy");
@@ -75,12 +82,12 @@ public class SleepServerTest extends ExtendedTestCase {
     server.addShard("s1", null);
     server.sleep(0L, 0, new String[] { "s1" });
     try {
-      server.sleep(0L, 0, new String[] { "s1" , "s2" });
+      server.sleep(0L, 0, new String[] { "s1", "s2" });
     } catch (IllegalArgumentException e) {
       assertEquals("Node sleepy invalid shards: s2", e.getMessage());
     }
     server.addShard("s2", null);
-    server.sleep(0L, 0, new String[] { "s1" , "s2" });
+    server.sleep(0L, 0, new String[] { "s1", "s2" });
   }
 
 }

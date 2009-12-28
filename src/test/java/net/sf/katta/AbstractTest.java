@@ -15,15 +15,16 @@
  */
 package net.sf.katta;
 
-import net.sf.katta.protocol.InteractionProtocol;
-import net.sf.katta.testutil.ZkTestSystem;
+import net.sf.katta.testutil.PrintMethodNames;
 
 import org.junit.Rule;
+import org.junit.rules.TemporaryFolder;
 
-public abstract class AbstractZkTest extends AbstractTest {
+public class AbstractTest {
 
   @Rule
-  public ZkTestSystem _zk = ZkTestSystem.getInstance();
+  public TemporaryFolder _temporaryFolder = new TemporaryFolder();
 
-  protected InteractionProtocol _protocol = _zk.getInteractionProtocol();
+  @Rule
+  public PrintMethodNames _printMethodNames = new PrintMethodNames();
 }

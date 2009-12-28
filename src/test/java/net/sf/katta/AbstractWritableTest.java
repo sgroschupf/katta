@@ -24,7 +24,7 @@ import org.apache.hadoop.io.Writable;
 /**
  * Abstract base test for {@link Writable}s.
  */
-public abstract class AbstractWritableTest {
+public abstract class AbstractWritableTest extends AbstractTest {
 
   protected DataOutputBuffer writeWritable(Writable writable) throws IOException {
     DataOutputBuffer out = new DataOutputBuffer(1024);

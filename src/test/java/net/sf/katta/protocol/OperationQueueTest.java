@@ -26,33 +26,20 @@ import static org.junit.Assert.fail;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.I0Itec.zkclient.ZkClient;
-import org.I0Itec.zkclient.ZkServer;
-import org.junit.After;
-import org.junit.Before;
+import net.sf.katta.AbstractZkTest;
+
 import org.junit.Test;
 
-public class OperationQueueTest {
+public class OperationQueueTest extends AbstractZkTest {
 
-  private ZkServer _zkServer;
-  private ZkClient _zkClient;
-
-  @Before
-  public void setUp() {
-    _zkServer = net.sf.katta.testutil.TestUtil.startZkServer("ZkClientTest-DistributedBlockingQueueTest", 4711);
-    _zkClient = _zkServer.getZkClient();
-  }
-
-  @After
-  public void tearDown() {
-    if (_zkServer != null) {
-      _zkServer.shutdown();
-    }
+  private String getRootPath() {
+    // this path is cleaned up!
+    return _zk.getZkConf().getZkRootPath() + "/queue";
   }
 
   @Test(timeout = 15000)
   public void testBlockingPoll() throws Exception {
-    final OperationQueue<Long> queue = new OperationQueue<Long>(_zkClient, "/queue");
+    final OperationQueue<Long> queue = new OperationQueue<Long>(_zk.getZkClient(), getRootPath());
     final List<Long> poppedElements = new ArrayList<Long>();
     Thread thread = new Thread() {
       public void run() {
@@ -84,12 +71,12 @@ public class OperationQueueTest {
 
   @Test(timeout = 15000)
   public void testReinitialization() throws Exception {
-    OperationQueue<Long> queue = new OperationQueue<Long>(_zkClient, "/queue");
+    OperationQueue<Long> queue = new OperationQueue<Long>(_zk.getZkClient(), getRootPath());
     Long element = new Long(1);
     String elementId = queue.add(element);
 
     // reinitialization
-    queue = new OperationQueue<Long>(_zkClient, "/queue");
+    queue = new OperationQueue<Long>(_zk.getZkClient(), getRootPath());
     assertEquals(element, queue.peek());
 
     String elementId2 = queue.add(element);
@@ -98,7 +85,7 @@ public class OperationQueueTest {
 
   @Test(timeout = 15000)
   public void testResultMechanism() throws Exception {
-    final OperationQueue<Long> queue = new OperationQueue<Long>(_zkClient, "/queue");
+    final OperationQueue<Long> queue = new OperationQueue<Long>(_zk.getZkClient(), getRootPath());
     Long element = new Long(1);
     String elementId = queue.add(element);
 
@@ -113,11 +100,11 @@ public class OperationQueueTest {
 
   @Test(timeout = 15000)
   public void testResultMechanism_DeletingOldResults() throws Exception {
-    final OperationQueue<Long> queue = new OperationQueue<Long>(_zkClient, "/queue");
+    final OperationQueue<Long> queue = new OperationQueue<Long>(_zk.getZkClient(), getRootPath());
     // cheat, we know the internals
     String elementId = "operation-0000000000";
     assertNull(queue.getResult(elementId, false));
-    _zkClient.createPersistent("/queue/results/" + elementId, "");
+    _zk.getZkClient().createPersistent(getRootPath() + "/results/" + elementId, "");
     assertNotNull(queue.getResult(elementId, false));
 
     queue.add(new Long(1));

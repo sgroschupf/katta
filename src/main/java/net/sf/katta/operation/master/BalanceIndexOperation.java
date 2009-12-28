@@ -40,6 +40,10 @@ public class BalanceIndexOperation extends AbstractIndexOperation {
   public List<OperationId> execute(MasterContext context, List<MasterOperation> runningOperations) throws Exception {
     InteractionProtocol protocol = context.getProtocol();
     IndexMetaData indexMD = protocol.getIndexMD(_indexName);
+    if (indexMD == null) {// could be undeployed in meantime
+      LOG.info("skip balancing for index '" + _indexName + "' cause it is already undeployed");
+      return null;
+    }
     if (!canAndShouldRegulateReplication(protocol, indexMD)) {
       LOG.info("skip balancing for index '" + _indexName + "' cause there is no possible optimization");
       return null;
@@ -60,7 +64,10 @@ public class BalanceIndexOperation extends AbstractIndexOperation {
   @Override
   public void nodeOperationsComplete(MasterContext context, List<OperationResult> results) throws Exception {
     LOG.info("balancing of index " + _indexName + " complete");
-    handleDeploymentComplete(context, results, context.getProtocol().getIndexMD(_indexName), false);
+    IndexMetaData indexMD = context.getProtocol().getIndexMD(_indexName);
+    if (indexMD != null) {// could be undeployed in meantime
+      handleDeploymentComplete(context, results, indexMD, false);
+    }
   }
 
   @Override

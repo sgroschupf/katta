@@ -15,10 +15,15 @@
  */
 package net.sf.katta.util;
 
-import junit.framework.TestCase;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
+import net.sf.katta.AbstractTest;
 
-public class ZkConfigurationTest extends TestCase {
+import org.junit.Test;
 
+public class ZkConfigurationTest extends AbstractTest {
+
+  @Test
   public void testSystemProperty() {
     try {
       System.clearProperty(ZkConfiguration.KATTA_PROPERTY_NAME);
@@ -40,5 +45,5 @@ public class ZkConfigurationTest extends TestCase {
       System.clearProperty(ZkConfiguration.KATTA_PROPERTY_NAME);
     }
   }
-  
+
 }

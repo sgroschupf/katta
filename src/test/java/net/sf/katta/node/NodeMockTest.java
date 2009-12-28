@@ -31,24 +31,20 @@ import static org.mockito.Mockito.when;
 import java.io.File;
 import java.io.IOException;
 
+import net.sf.katta.AbstractTest;
 import net.sf.katta.operation.node.NodeOperation;
 import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.protocol.OperationQueue;
 import net.sf.katta.protocol.metadata.NodeMetaData;
-import net.sf.katta.testutil.PrintMethodNames;
 import net.sf.katta.testutil.TestResources;
 import net.sf.katta.testutil.mockito.SleepingAnswer;
 import net.sf.katta.util.NodeConfiguration;
 
 import org.apache.hadoop.fs.FileUtil;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 
-public class NodeMockTest {
-
-  @Rule
-  public PrintMethodNames _printMethodNames = new PrintMethodNames();
+public class NodeMockTest extends AbstractTest {
 
   private InteractionProtocol _protocol = mock(InteractionProtocol.class);
   private INodeManaged _nodeManaged = mock(INodeManaged.class);
