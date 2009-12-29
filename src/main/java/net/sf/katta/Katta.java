@@ -409,11 +409,6 @@ public class Katta {
     deployClient.removeIndex(indexName);
   }
 
-  // TODO sg: we might want to roll back in the -a flag.
-  // public void showStructure(String arg) throws KattaException {
-  // _zkClient.showFolders(arg != null && arg.startsWith("-a"), System.out);
-  // }
-
   public void showStructure(boolean detailedView) {
     _protocol.showStructure(detailedView);
   }

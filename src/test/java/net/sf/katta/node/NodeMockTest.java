@@ -34,7 +34,7 @@ import java.io.IOException;
 import net.sf.katta.AbstractTest;
 import net.sf.katta.operation.node.NodeOperation;
 import net.sf.katta.protocol.InteractionProtocol;
-import net.sf.katta.protocol.OperationQueue;
+import net.sf.katta.protocol.NodeQueue;
 import net.sf.katta.protocol.metadata.NodeMetaData;
 import net.sf.katta.testutil.TestResources;
 import net.sf.katta.testutil.mockito.SleepingAnswer;
@@ -49,7 +49,7 @@ public class NodeMockTest extends AbstractTest {
   private InteractionProtocol _protocol = mock(InteractionProtocol.class);
   private INodeManaged _nodeManaged = mock(INodeManaged.class);
   private Node _node = new Node(_protocol, _nodeManaged);
-  private OperationQueue<NodeOperation> _queue = mock(OperationQueue.class);
+  private NodeQueue _queue = mock(NodeQueue.class);
 
   @Before
   public void setUp() throws IOException {

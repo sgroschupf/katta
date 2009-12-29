@@ -23,9 +23,9 @@ import org.I0Itec.zkclient.IZkChildListener;
 import org.I0Itec.zkclient.ZkClient;
 import org.I0Itec.zkclient.exception.ZkNoNodeException;
 
-public class OperationQueue<T extends Serializable> {
+public class BlockingQueue<T extends Serializable> {
 
-  private static class Element<T> {
+  protected static class Element<T> {
     private String _name;
     private T _data;
 
@@ -43,18 +43,14 @@ public class OperationQueue<T extends Serializable> {
     }
   }
 
-  private ZkClient _zkClient;
-  // private String _rootPath;
-  private String _elementsPath;
-  private String _resultsPath;
+  protected final ZkClient _zkClient;
+  private final String _elementsPath;
 
-  public OperationQueue(ZkClient zkClient, String rootPath) {
+  public BlockingQueue(ZkClient zkClient, String rootPath) {
     _zkClient = zkClient;
     _elementsPath = rootPath + "/operations";
-    _resultsPath = rootPath + "/results";
     _zkClient.createPersistent(rootPath, true);
     _zkClient.createPersistent(_elementsPath, true);
-    _zkClient.createPersistent(_resultsPath, true);
   }
 
   private String getElementRoughPath() {
@@ -63,10 +59,6 @@ public class OperationQueue<T extends Serializable> {
 
   public String getElementPath(String elementId) {
     return _elementsPath + "/" + elementId;
-  }
-
-  private String getResultPath(String elementId) {
-    return _resultsPath + "/" + elementId;
   }
 
   /**
@@ -78,7 +70,6 @@ public class OperationQueue<T extends Serializable> {
     try {
       String sequential = _zkClient.createPersistentSequential(getElementRoughPath(), element);
       String elementId = sequential.substring(sequential.lastIndexOf('/') + 1);
-      _zkClient.delete(getResultPath(elementId));
       return elementId;
     } catch (Exception e) {
       throw ExceptionUtil.convertToRuntimeException(e);
@@ -86,25 +77,9 @@ public class OperationQueue<T extends Serializable> {
   }
 
   public T remove() throws InterruptedException {
-    return remove(null);
-  }
-
-  public T remove(Serializable result) throws InterruptedException {
     Element<T> element = getFirstElement();
-    if (result != null) {
-      _zkClient.createEphemeral(getResultPath(element.getName()), result);
-    }
     _zkClient.delete(getElementPath(element.getName()));
     return element.getData();
-  }
-
-  public Serializable getResult(String elementId, boolean remove) {
-    String zkPath = getResultPath(elementId);
-    Serializable result = _zkClient.readData(zkPath, true);
-    if (remove) {
-      _zkClient.delete(zkPath);
-    }
-    return result;
   }
 
   public boolean containsElement(String elementId) {
@@ -140,7 +115,7 @@ public class OperationQueue<T extends Serializable> {
   }
 
   @SuppressWarnings("unchecked")
-  private Element<T> getFirstElement() throws InterruptedException {
+  protected Element<T> getFirstElement() throws InterruptedException {
     final Object mutex = new Object();
     IZkChildListener notifyListener = new IZkChildListener() {
       @Override

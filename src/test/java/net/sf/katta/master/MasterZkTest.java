@@ -16,6 +16,7 @@
 package net.sf.katta.master;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.mockito.Matchers.notNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -24,13 +25,26 @@ import static org.mockito.Mockito.withSettings;
 import java.util.List;
 
 import net.sf.katta.AbstractZkTest;
+import net.sf.katta.node.LuceneServer;
 import net.sf.katta.node.Node;
+import net.sf.katta.operation.master.IndexDeployOperation;
 import net.sf.katta.operation.master.MasterOperation;
 import net.sf.katta.operation.master.MasterOperation.ExecutionInstruction;
+import net.sf.katta.protocol.InteractionProtocol;
+import net.sf.katta.protocol.NodeQueue;
 import net.sf.katta.protocol.metadata.NodeMetaData;
+import net.sf.katta.testutil.Mocks;
+import net.sf.katta.testutil.TestResources;
+import net.sf.katta.testutil.TestUtil;
 import net.sf.katta.testutil.mockito.SerializableCountDownLatchAnswer;
+import net.sf.katta.util.FileUtil;
 import net.sf.katta.util.KattaException;
+import net.sf.katta.util.NodeConfiguration;
+import net.sf.katta.util.ZkConfiguration;
+import net.sf.katta.util.ZkKattaUtil;
 
+import org.I0Itec.zkclient.Gateway;
+import org.I0Itec.zkclient.ZkClient;
 import org.junit.Test;
 
 public class MasterZkTest extends AbstractZkTest {
@@ -47,7 +61,7 @@ public class MasterZkTest extends AbstractZkTest {
   @Test(timeout = 10000)
   public void testMasterOperationPickup() throws Exception {
     Master master = new Master(_zk.getInteractionProtocol(), false);
-    Node node = mock(Node.class);// leave safe mode
+    Node node = Mocks.mockNode();// leave safe mode
     _protocol.publishNode(node, new NodeMetaData("node1"));
     master.start();
 
@@ -66,6 +80,75 @@ public class MasterZkTest extends AbstractZkTest {
     answer.getCountDownLatch().await();
 
     master.shutdown();
+  }
+
+  @Test(timeout = 50000)
+  public void testMasterChangeWhileDeploingIndex() throws Exception {
+    Master master = new Master(_zk.getInteractionProtocol(), false);
+    Node node = Mocks.mockNode();// leave safe mode
+    NodeQueue nodeQueue = _protocol.publishNode(node, new NodeMetaData("node1"));
+    master.start();
+    TestUtil.waitUntilLeaveSafeMode(master);
+
+    // phase I - until watchdog is running and its node turn
+    IndexDeployOperation deployOperation = new IndexDeployOperation("index1", TestResources.INDEX1.getAbsolutePath(), 1);
+    _protocol.addMasterOperation(deployOperation);
+    while (!master.getContext().getMasterQueue().isEmpty()) {
+      // wait until deploy is in watch phase
+      Thread.sleep(100);
+    }
+
+    // phase II - master change while node is deploying
+    master.shutdown();
+    Master secMaster = new Master(_zk.getInteractionProtocol(), false);
+    secMaster.start();
+
+    // phase III - finsih node operations/ mater operation should be finished
+    while (!nodeQueue.isEmpty()) {
+      nodeQueue.remove();
+    }
+    TestUtil.waitUntilIndexDeployed(_protocol, deployOperation.getIndexName());
+    assertNotNull(_protocol.getIndexMD(deployOperation.getIndexName()));
+
+    secMaster.shutdown();
+  }
+
+  @Test(timeout = 50000)
+  public void testReconnectNode() throws Exception {
+    final int GATEWAY_PORT = 2190;
+    final Master master = new Master(_zk.getInteractionProtocol(), false);
+
+    // startup node over gateway
+    final ZkConfiguration gatewayConf = new ZkConfiguration();
+    gatewayConf.setZKRootPath(_zk.getZkConf().getZkRootPath());
+    gatewayConf.setZKServers("localhost:" + GATEWAY_PORT);
+    Gateway gateway = new Gateway(GATEWAY_PORT, _zk.getServerPort());
+    gateway.start();
+    final ZkClient zkGatewayClient = ZkKattaUtil.startZkClient(gatewayConf, 30000);
+    InteractionProtocol gatewayProtocol = new InteractionProtocol(zkGatewayClient, gatewayConf);
+    FileUtil.deleteFolder(new NodeConfiguration().getShardFolder());
+    final Node node = new Node(gatewayProtocol, new LuceneServer());
+    node.start();
+
+    // check node-master link
+    master.start();
+    TestUtil.waitUntilLeaveSafeMode(master);
+    TestUtil.waitUntilNumberOfLiveNode(_protocol, 1);
+    assertEquals(1, _protocol.getLiveNodes().size());
+
+    // now break the node connection
+    gateway.stop();
+    TestUtil.waitUntilNumberOfLiveNode(_protocol, 0);
+
+    // now fix the node connection
+    gateway.start();
+    TestUtil.waitUntilNumberOfLiveNode(_protocol, 1);
+
+    // cleanup
+    node.shutdown();
+    master.shutdown();
+    zkGatewayClient.close();
+    gateway.stop();
   }
 
 }

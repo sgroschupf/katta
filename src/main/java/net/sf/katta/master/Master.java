@@ -20,12 +20,11 @@ import java.util.List;
 import java.util.UUID;
 
 import net.sf.katta.operation.master.CheckIndicesOperation;
-import net.sf.katta.operation.master.MasterOperation;
 import net.sf.katta.operation.master.RemoveSuperfluousShardsOperation;
 import net.sf.katta.protocol.ConnectedComponent;
 import net.sf.katta.protocol.IAddRemoveListener;
 import net.sf.katta.protocol.InteractionProtocol;
-import net.sf.katta.protocol.OperationQueue;
+import net.sf.katta.protocol.MasterQueue;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.MasterConfiguration;
 import net.sf.katta.util.NetworkUtil;
@@ -45,7 +44,7 @@ public class Master implements ConnectedComponent {
   private boolean _shutdownClient;
   protected InteractionProtocol _protocol;
 
-  private MasterContext _context;
+  private IDeployPolicy _deployPolicy;
   private long _safeModeMaxTime;
 
   public Master(InteractionProtocol interactionProtocol, ZkServer zkServer) throws KattaException {
@@ -67,8 +66,7 @@ public class Master implements ConnectedComponent {
     final String deployPolicyClassName = masterConfiguration.getDeployPolicy();
     try {
       final Class<IDeployPolicy> policyClazz = (Class<IDeployPolicy>) Class.forName(deployPolicyClassName);
-      IDeployPolicy _deployPolicy = policyClazz.newInstance();
-      _context = new MasterContext(_protocol, _deployPolicy);
+      _deployPolicy = policyClazz.newInstance();
     } catch (final Exception e) {
       throw new KattaException("Unable to instantiate deploy policy", e);
     }
@@ -76,7 +74,7 @@ public class Master implements ConnectedComponent {
     _safeModeMaxTime = masterConfiguration.getInt(MasterConfiguration.SAFE_MODE_MAX_TIME);
   }
 
-  public void start() {
+  public synchronized void start() {
     becomePrimaryOrSecondaryMaster();
   }
 
@@ -100,15 +98,16 @@ public class Master implements ConnectedComponent {
   }
 
   private void becomePrimaryOrSecondaryMaster() {
-    OperationQueue<MasterOperation> queue = _protocol.publishMaster(this);
+    MasterQueue queue = _protocol.publishMaster(this);
     if (queue != null) {
       startNodeManagement();
-      _operatorThread = new OperatorThread(_context, queue, _safeModeMaxTime);
+      MasterContext masterContext = new MasterContext(_protocol, _deployPolicy, queue);
+      _operatorThread = new OperatorThread(masterContext, _safeModeMaxTime);
       _operatorThread.start();
     }
   }
 
-  public boolean isInSafeMode() {
+  public synchronized boolean isInSafeMode() {
     if (!isMaster()) {
       return true;
     }
@@ -119,7 +118,14 @@ public class Master implements ConnectedComponent {
     return _protocol.getLiveNodes();
   }
 
-  public boolean isMaster() {
+  public synchronized MasterContext getContext() {
+    if (!isMaster()) {
+      return null;
+    }
+    return _operatorThread.getContext();
+  }
+
+  public synchronized boolean isMaster() {
     return _operatorThread != null;
   }
 
@@ -136,16 +142,23 @@ public class Master implements ConnectedComponent {
     List<String> nodes = _protocol.registerChildListener(this, PathDef.NODES_LIVE, new IAddRemoveListener() {
       @Override
       public void removed(String name) {
-        if (!isInSafeMode()) {
-          _protocol.addMasterOperation(new CheckIndicesOperation());
+        synchronized (Master.this) {
+          if (!isInSafeMode()) {
+            _protocol.addMasterOperation(new CheckIndicesOperation());
+          }
         }
       }
 
       @Override
       public void added(String name) {
-        _protocol.addMasterOperation(new RemoveSuperfluousShardsOperation(name));
-        if (!isInSafeMode()) {
-          _protocol.addMasterOperation(new CheckIndicesOperation());
+        synchronized (Master.this) {
+          if (!isMaster()) {
+            return;
+          }
+          _protocol.addMasterOperation(new RemoveSuperfluousShardsOperation(name));
+          if (!isInSafeMode()) {
+            _protocol.addMasterOperation(new CheckIndicesOperation());
+          }
         }
       }
     });
@@ -156,13 +169,14 @@ public class Master implements ConnectedComponent {
     LOG.info("found following nodes connected: " + nodes);
   }
 
-  public void shutdown() {
+  public synchronized void shutdown() {
     if (_protocol != null) {
       _protocol.unregisterComponent(this);
       if (isMaster()) {
         _operatorThread.interrupt();
         try {
           _operatorThread.join();
+          _operatorThread = null;
         } catch (final InterruptedException e1) {
           // proceed
         }
@@ -171,10 +185,9 @@ public class Master implements ConnectedComponent {
         _protocol.disconnect();
       }
       _protocol = null;
-    }
-    if (_zkServer != null) {
-      _zkServer.shutdown();
-      _zkServer = null;
+      if (_zkServer != null) {
+        _zkServer.shutdown();
+      }
     }
   }
 

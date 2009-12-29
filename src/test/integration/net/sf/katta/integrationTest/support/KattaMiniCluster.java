@@ -86,7 +86,7 @@ public class KattaMiniCluster {
       node.start();
       _startedNodes++;
     }
-    TestUtil.waitOnLeaveSafeMode(_master);
+    TestUtil.waitUntilLeaveSafeMode(_master);
   }
 
   public Node startAdditionalNode() throws Exception {
@@ -109,7 +109,7 @@ public class KattaMiniCluster {
     _master.shutdown();
     _master = new Master(_protocol, false);
     _master.start();
-    TestUtil.waitOnLeaveSafeMode(_master);
+    TestUtil.waitUntilLeaveSafeMode(_master);
   }
 
   public void stop() {

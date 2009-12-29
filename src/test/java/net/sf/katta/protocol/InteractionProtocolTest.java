@@ -108,7 +108,7 @@ public class InteractionProtocolTest extends AbstractZkTest {
     when(node.getName()).thenReturn(nodeName);
 
     InteractionProtocol protocol = _zk.getInteractionProtocol();
-    OperationQueue<NodeOperation> nodeQueue = protocol.publishNode(node, new NodeMetaData());
+    NodeQueue nodeQueue = protocol.publishNode(node, new NodeMetaData());
 
     NodeOperation nodeOperation1 = mock(NodeOperation.class, withSettings().serializable().name("a"));
     NodeOperation nodeOperation2 = mock(NodeOperation.class, withSettings().serializable().name("b"));
@@ -133,7 +133,7 @@ public class InteractionProtocolTest extends AbstractZkTest {
     MasterOperation operation = mock(MasterOperation.class);
     _protocol.addMasterOperation(operation);
 
-    OperationQueue<MasterOperation> queue = _protocol.publishMaster(master1);
+    MasterQueue queue = _protocol.publishMaster(master1);
     assertNotNull(queue);
     assertNotNull(_protocol.getMasterMD());
     assertEquals(1, queue.size());
@@ -154,7 +154,7 @@ public class InteractionProtocolTest extends AbstractZkTest {
   public void testPublishNode() throws Exception {
     Node node = Mocks.mockNode();
     assertNull(_protocol.getNodeMD(node.getName()));
-    OperationQueue<NodeOperation> queue = _protocol.publishNode(node, new NodeMetaData(node.getName()));
+    NodeQueue queue = _protocol.publishNode(node, new NodeMetaData(node.getName()));
     assertNotNull(queue);
     assertNotNull(_protocol.getNodeMD(node.getName()));
 

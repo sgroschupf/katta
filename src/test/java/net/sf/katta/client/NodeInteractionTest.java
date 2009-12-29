@@ -82,7 +82,7 @@ public class NodeInteractionTest extends AbstractTest {
 
   @Test
   public void testRetries() throws Exception {
-    Method method = ITestServer.class.getMethod("fails", String.class, String[].class);
+    Method method = ITestServer.class.getMethod("failingMethod", String.class, String[].class);
     int maxTryCount = 3;
     Object[] args = new Object[] { "foo", null };
     /*
@@ -95,7 +95,7 @@ public class NodeInteractionTest extends AbstractTest {
     assertTrue(_map.get("n1").contains("s2"));
     assertTrue(_map.get("n1").contains("s3"));
     Runnable ni = new NodeInteraction<String>(method, args, 1, "n1", _map, 1, maxTryCount, _sm, _ne, r);
-    assertEquals("NodeInteraction: call fails on n1", ni.toString());
+    assertEquals("NodeInteraction: call failingMethod on n1", ni.toString());
     ni.run();
     assertEquals("ClientResult: 0 results, 0 errors, 0/8 shards", r.toString());
     assertEquals("n1:null:null", _pp.toString());
@@ -179,7 +179,7 @@ public class NodeInteractionTest extends AbstractTest {
 
   @Test
   public void testMaxRetries() throws Exception {
-    Method method = ITestServer.class.getMethod("fails", String.class, String[].class);
+    Method method = ITestServer.class.getMethod("failingMethod", String.class, String[].class);
     int maxTryCount = 2;
     Object[] args = new Object[] { "foo", null };
     /*
@@ -192,7 +192,7 @@ public class NodeInteractionTest extends AbstractTest {
     assertTrue(_map.get("n1").contains("s2"));
     assertTrue(_map.get("n1").contains("s3"));
     Runnable ni = new NodeInteraction<String>(method, args, 1, "n1", _map, 1, maxTryCount, _sm, _ne, r);
-    assertEquals("NodeInteraction: call fails on n1", ni.toString());
+    assertEquals("NodeInteraction: call failingMethod on n1", ni.toString());
     ni.run();
     assertEquals("ClientResult: 0 results, 0 errors, 0/8 shards", r.toString());
     assertEquals("n1:null:null", _pp.toString());
@@ -217,7 +217,7 @@ public class NodeInteractionTest extends AbstractTest {
 
   @Test
   public void testRetriesUserClosedResult() throws Exception {
-    Method method = TestServer.class.getMethod("fails", String.class, String[].class);
+    Method method = TestServer.class.getMethod("failingMethod", String.class, String[].class);
     Object[] args = new Object[] { "foo", null };
     /*
      * Close the result object. Then try to call node n1 with shards s1, s2, s3.
@@ -230,7 +230,7 @@ public class NodeInteractionTest extends AbstractTest {
     assertTrue(_map.get("n1").contains("s2"));
     assertTrue(_map.get("n1").contains("s3"));
     Runnable ni = new NodeInteraction<String>(method, args, 1, "n1", _map, 1, 3, _sm, _ne, r);
-    assertEquals("NodeInteraction: call fails on n1", ni.toString());
+    assertEquals("NodeInteraction: call failingMethod on n1", ni.toString());
     ni.run();
     assertEquals("ClientResult: 0 results, 0 errors, 0/8 shards (closed)", r.toString());
     assertEquals("n1:null:null", _pp.toString());
@@ -240,7 +240,7 @@ public class NodeInteractionTest extends AbstractTest {
   @Test
   public void testRetriesPolicyFailure() throws Exception {
     _sm.setShardMapsFail(true);
-    Method method = ITestServer.class.getMethod("fails", String.class, String[].class);
+    Method method = ITestServer.class.getMethod("failingMethod", String.class, String[].class);
     Object[] args = new Object[] { "foo", null };
     /*
      * Try to call node n1 with shards s1, s2, s3. TryCount = 1. Node fails.
@@ -253,7 +253,7 @@ public class NodeInteractionTest extends AbstractTest {
     assertTrue(_map.get("n1").contains("s2"));
     assertTrue(_map.get("n1").contains("s3"));
     Runnable ni = new NodeInteraction<String>(method, args, 1, "n1", _map, 1, 3, _sm, _ne, r);
-    assertEquals("NodeInteraction: call fails on n1", ni.toString());
+    assertEquals("NodeInteraction: call failingMethod on n1", ni.toString());
     ni.run();
     assertEquals("ClientResult: 0 results, 1 errors, 3/8 shards", r.toString());
     assertEquals("net.sf.katta.client.ShardAccessException: Shard 'Test error' is currently not reachable", r
@@ -334,7 +334,7 @@ public class NodeInteractionTest extends AbstractTest {
 
     public String testMethodNoShards(String param);
 
-    public String fails(String param, String[] shards);
+    public String failingMethod(String param, String[] shards);
   }
 
   private static class TestServer implements ITestServer, InvocationHandler {
@@ -359,8 +359,8 @@ public class NodeInteractionTest extends AbstractTest {
       return "bar";
     }
 
-    public String fails(String param, String[] shards) {
-      throw new RuntimeException("test failure");
+    public String failingMethod(String param, String[] shards) {
+      throw new RuntimeException("test exception");
     }
 
     @Override
@@ -378,12 +378,12 @@ public class NodeInteractionTest extends AbstractTest {
         return testMethod((String) args[0], (String[]) args[1]);
       } else if (name.equals("testMethodNoShards")) {
         return testMethodNoShards((String) args[0]);
-      } else if (name.equals("fail")) {
-        return fails((String) args[0], (String[]) args[1]);
+      } else if (name.equals("failingMethod")) {
+        return failingMethod((String) args[0], (String[]) args[1]);
       } else if (name.equals("toString")) {
         return toString();
       } else {
-        throw new RuntimeException("No method " + name + " in TestServer");
+        throw new RuntimeException("No method '" + name + "' in TestServer");
       }
     }
   }

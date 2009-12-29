@@ -20,8 +20,8 @@ import static org.junit.Assert.assertEquals;
 import java.util.List;
 
 import net.sf.katta.node.Node;
-import net.sf.katta.operation.node.NodeOperation;
-import net.sf.katta.protocol.OperationQueue;
+import net.sf.katta.protocol.MasterQueue;
+import net.sf.katta.protocol.NodeQueue;
 import net.sf.katta.protocol.metadata.IndexMetaData;
 import net.sf.katta.testutil.Mocks;
 
@@ -31,11 +31,11 @@ public class CheckIndicesOperationTest extends AbstractMasterNodeZkTest {
 
   @Test
   public void testBalanceUnderreplicatedIndex() throws Exception {
-    OperationQueue<MasterOperation> masterQueue = Mocks.publishMaster(_protocol);
+    MasterQueue masterQueue = Mocks.publishMaster(_protocol);
 
     // add nodes and index
     List<Node> nodes = Mocks.mockNodes(2);
-    List<OperationQueue<NodeOperation>> nodeQueues = Mocks.publisNodes(_protocol, nodes);
+    List<NodeQueue> nodeQueues = Mocks.publisNodes(_protocol, nodes);
     deployIndex(nodes, nodeQueues);
     assertEquals(0, masterQueue.size());
 
@@ -53,11 +53,11 @@ public class CheckIndicesOperationTest extends AbstractMasterNodeZkTest {
 
   @Test
   public void testBalanceOverreplicatedIndex() throws Exception {
-    OperationQueue<MasterOperation> masterQueue = Mocks.publishMaster(_protocol);
+    MasterQueue masterQueue = Mocks.publishMaster(_protocol);
 
     // add nodes and index
     List<Node> nodes = Mocks.mockNodes(3);
-    List<OperationQueue<NodeOperation>> nodeQueues = Mocks.publisNodes(_protocol, nodes);
+    List<NodeQueue> nodeQueues = Mocks.publisNodes(_protocol, nodes);
     deployIndex(nodes, nodeQueues);
     assertEquals(0, masterQueue.size());
 

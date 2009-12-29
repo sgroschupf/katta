@@ -20,7 +20,7 @@ import java.util.List;
 import net.sf.katta.operation.OperationId;
 import net.sf.katta.operation.master.MasterOperation;
 import net.sf.katta.operation.master.MasterOperation.ExecutionInstruction;
-import net.sf.katta.protocol.OperationQueue;
+import net.sf.katta.protocol.MasterQueue;
 
 import org.I0Itec.zkclient.ExceptionUtil;
 import org.I0Itec.zkclient.exception.ZkInterruptedException;
@@ -35,15 +35,15 @@ class OperatorThread extends Thread {
   protected final static Logger LOG = Logger.getLogger(OperatorThread.class);
 
   private final MasterContext _context;
-  private final OperationQueue<MasterOperation> _queue;
+  private final MasterQueue _queue;
   private final OperationRegistry _registry;
   private final long _safeModeMaxTime;
 
-  private boolean _safeMode;
+  private boolean _safeMode = true;
 
-  public OperatorThread(final MasterContext context, OperationQueue<MasterOperation> queue, final long safeModeMaxTime) {
+  public OperatorThread(final MasterContext context, final long safeModeMaxTime) {
     _context = context;
-    _queue = queue;
+    _queue = context.getMasterQueue();
     _registry = new OperationRegistry(context);
     setDaemon(true);
     setName(getClass().getSimpleName());
@@ -54,25 +54,40 @@ class OperatorThread extends Thread {
     return _safeMode;
   }
 
+  public OperationRegistry getOperationRegistry() {
+    return _registry;
+  }
+
+  public MasterContext getContext() {
+    return _context;
+  }
+
   @Override
   public void run() {
     try {
       LOG.info("starting...");
       runInSafeMode();
+      recreateWatchdogs();
 
       while (true) {
         // TODO jz: poll only for a certain amount of time and then execute a
         // global check operation ?
         MasterOperation operation = _queue.peek();
+        List<OperationId> nodeOperationIds = null;
         try {
           List<MasterOperation> runningOperations = _registry.getRunningOperations();
           ExecutionInstruction instruction = operation.getExecutionInstruction(runningOperations);
-          executeOperation(operation, instruction, runningOperations);
+          nodeOperationIds = executeOperation(operation, instruction, runningOperations);
         } catch (Exception e) {
           ExceptionUtil.rethrowInterruptedException(e);
           LOG.error("failed to execute " + operation, e);
         }
-        _queue.remove();
+        if (nodeOperationIds != null && !nodeOperationIds.isEmpty()) {
+          OperationWatchdog watchdog = _queue.moveOperationToWatching(operation, nodeOperationIds);
+          _registry.watchFor(watchdog);
+        } else {
+          _queue.remove();
+        }
       }
     } catch (final InterruptedException e) {
       Thread.interrupted();
@@ -85,15 +100,25 @@ class OperatorThread extends Thread {
     LOG.info("operator thread stopped");
   }
 
-  private void executeOperation(MasterOperation operation, ExecutionInstruction instruction,
+  private void recreateWatchdogs() {
+    List<OperationWatchdog> watchdogs = _context.getMasterQueue().getWatchdogs();
+    for (OperationWatchdog watchdog : watchdogs) {
+      if (watchdog.isDone()) {
+        LOG.info("release done watchdog " + watchdog);
+        _queue.removeWatchdog(watchdog);
+      } else {
+        _registry.watchFor(watchdog);
+      }
+    }
+  }
+
+  private List<OperationId> executeOperation(MasterOperation operation, ExecutionInstruction instruction,
           List<MasterOperation> runningOperations) throws Exception {
+    List<OperationId> operationIds = null;
     switch (instruction) {
     case EXECUTE:
       LOG.info("executing operation '" + operation + "'");
-      List<OperationId> operationIds = operation.execute(_context, runningOperations);
-      if (operationIds != null && !operationIds.isEmpty()) {
-        _registry.watchFor(operationIds, operation);
-      }
+      operationIds = operation.execute(_context, runningOperations);
       break;
     case CANCEL:
       // just do nothing
@@ -106,6 +131,7 @@ class OperatorThread extends Thread {
     default:
       throw new IllegalStateException("execution instruction " + instruction + " not handled");
     }
+    return operationIds;
   }
 
   private void runInSafeMode() throws InterruptedException {

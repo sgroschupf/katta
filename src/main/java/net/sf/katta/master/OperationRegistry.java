@@ -19,12 +19,10 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-import net.sf.katta.operation.OperationId;
 import net.sf.katta.operation.master.MasterOperation;
 
 import org.apache.log4j.Logger;
 
-//TODO jz: persist into zk for master change safety ?
 public class OperationRegistry {
 
   private final static Logger LOG = Logger.getLogger(OperationRegistry.class);
@@ -36,18 +34,18 @@ public class OperationRegistry {
     _context = context;
   }
 
-  public synchronized OperationWatchdog watchFor(List<OperationId> operationIds, MasterOperation operation) {
-    LOG.info("watch operation '" + operation + "' for node operations " + operationIds);
+  public synchronized void watchFor(OperationWatchdog watchdog) {
+    LOG.info("watch operation '" + watchdog.getOperation() + "' for node operations " + watchdog.getOperationIds());
     releaseDoneWatchdogs(); // lazy cleaning
-    OperationWatchdog watchdog = new OperationWatchdog(_context, operationIds, operation);
     _watchdogs.add(watchdog);
-    return watchdog;
+    watchdog.start(_context);
   }
 
   private void releaseDoneWatchdogs() {
     for (Iterator iterator = _watchdogs.iterator(); iterator.hasNext();) {
       OperationWatchdog watchdog = (OperationWatchdog) iterator.next();
       if (watchdog.isDone()) {
+        _context.getMasterQueue().removeWatchdog(watchdog);
         iterator.remove();
       }
     }

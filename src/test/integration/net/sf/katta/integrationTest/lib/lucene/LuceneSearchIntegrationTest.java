@@ -38,13 +38,17 @@ public class LuceneSearchIntegrationTest extends AbstractIntegrationTest {
   private static final int QUERY_TIME = 5000;
 
   public LuceneSearchIntegrationTest() {
-    super(5);
+    super(5, false, false);
+  }
+
+  @Override
+  protected void afterClusterStart() throws Exception {
+    deployTestIndices(3, 3);
   }
 
   @Test
   public void testSearch() throws Exception {
     long startTime = System.currentTimeMillis();
-    deployTestIndices(3, 3);
 
     // start search threads
     int expectedHitCount = 12;
@@ -62,7 +66,6 @@ public class LuceneSearchIntegrationTest extends AbstractIntegrationTest {
   @Test
   public void testMultithreadedSearchWithMultipleClients() throws Exception {
     long startTime = System.currentTimeMillis();
-    deployTestIndices(3, 3);
 
     // start search threads
     int expectedHitCount = 12;
@@ -91,7 +94,6 @@ public class LuceneSearchIntegrationTest extends AbstractIntegrationTest {
   @Test
   public void testSearchWhileStartingAndStoppingNodes() throws Exception {
     long startTime = System.currentTimeMillis();
-    deployTestIndices(3, 3);
 
     // start search threads
     int expectedHitCount = 12;
@@ -110,7 +112,6 @@ public class LuceneSearchIntegrationTest extends AbstractIntegrationTest {
   @Test
   public void testMultithreadedSearchWithOneClientWhileStartingAndStoppingNodes() throws Exception {
     long startTime = System.currentTimeMillis();
-    deployTestIndices(3, 3);
 
     // start search threads
     int expectedHitCount = 12;
@@ -144,16 +145,20 @@ public class LuceneSearchIntegrationTest extends AbstractIntegrationTest {
   private void startAndStopNodes(long queryTime) throws Exception {
     Thread.sleep(queryTime / 4);
     _miniCluster.shutdownNode(0);
+    _miniCluster.getProtocol().showStructure(false);
 
     Thread.sleep(queryTime / 4);
     _miniCluster.shutdownNode(0);
+    _miniCluster.getProtocol().showStructure(false);
 
     Thread.sleep(queryTime / 4);
     _miniCluster.startAdditionalNode();
+    _miniCluster.getProtocol().showStructure(false);
 
     Thread.sleep(queryTime / 4);
 
     _miniCluster.shutdownNode(_miniCluster.getRunningNodeCount() - 1);
+    _miniCluster.getProtocol().showStructure(false);
   }
 
   private void checkResults(long startTime, long queryTime, long firedQueries, long unexpectedResultCount,

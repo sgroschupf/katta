@@ -169,7 +169,7 @@ public class TestUtil {
     return zkServer;
   }
 
-  public static void waitOnLeaveSafeMode(final Master master) throws Exception {
+  public static void waitUntilLeaveSafeMode(final Master master) throws Exception {
     waitUntil(false, new Callable<Boolean>() {
       @Override
       public Boolean call() throws Exception {

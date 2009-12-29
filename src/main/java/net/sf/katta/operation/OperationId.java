@@ -15,8 +15,11 @@
  */
 package net.sf.katta.operation;
 
-public class OperationId {
+import java.io.Serializable;
 
+public class OperationId implements Serializable {
+
+  private static final long serialVersionUID = 1L;
   private final String _nodeName;
   private final String _elementName;
 

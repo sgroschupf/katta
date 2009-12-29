@@ -34,7 +34,8 @@ import net.sf.katta.operation.node.DeployResult;
 import net.sf.katta.operation.node.NodeOperation;
 import net.sf.katta.operation.node.OperationResult;
 import net.sf.katta.operation.node.ShardDeployOperation;
-import net.sf.katta.protocol.OperationQueue;
+import net.sf.katta.protocol.MasterQueue;
+import net.sf.katta.protocol.NodeQueue;
 import net.sf.katta.protocol.metadata.IndexDeployError;
 import net.sf.katta.protocol.metadata.IndexMetaData;
 import net.sf.katta.protocol.metadata.IndexDeployError.ErrorType;
@@ -95,7 +96,7 @@ public class IndexDeployOperationTest extends AbstractMasterNodeZkTest {
   public void testDeployErrorExceptions_ShardsNotDeployable() throws Exception {
     // add nodes
     List<Node> nodes = Mocks.mockNodes(3);
-    List<OperationQueue<NodeOperation>> nodeQueues = Mocks.publisNodes(_protocol, nodes);
+    List<NodeQueue> nodeQueues = Mocks.publisNodes(_protocol, nodes);
 
     // add index
     int replicationLevel = 3;
@@ -104,7 +105,7 @@ public class IndexDeployOperationTest extends AbstractMasterNodeZkTest {
 
     // now complete the deployment
     List<OperationResult> results = new ArrayList<OperationResult>();
-    for (OperationQueue<NodeOperation> nodeQueue : nodeQueues) {
+    for (NodeQueue nodeQueue : nodeQueues) {
       NodeOperation nodeOperation = nodeQueue.peek();
       DeployResult deployResult = new DeployResult(_indexName);
       Set<String> nodeShards = ((ShardDeployOperation) nodeOperation).getShardNames();
@@ -129,7 +130,7 @@ public class IndexDeployOperationTest extends AbstractMasterNodeZkTest {
   public void testDeploy() throws Exception {
     // add nodes
     List<Node> nodes = Mocks.mockNodes(3);
-    List<OperationQueue<NodeOperation>> nodeQueues = Mocks.publisNodes(_protocol, nodes);
+    List<NodeQueue> nodeQueues = Mocks.publisNodes(_protocol, nodes);
 
     // add index
     int replicationLevel = 3;
@@ -139,7 +140,7 @@ public class IndexDeployOperationTest extends AbstractMasterNodeZkTest {
     // check results
     Set<String> shards = new HashSet<String>();
     int shardOnNodeCount = 0;
-    for (OperationQueue<NodeOperation> nodeQueue : nodeQueues) {
+    for (NodeQueue nodeQueue : nodeQueues) {
       assertEquals(1, nodeQueue.size());
       NodeOperation nodeOperation = nodeQueue.peek();
       assertNotNull(nodeOperation);
@@ -165,7 +166,7 @@ public class IndexDeployOperationTest extends AbstractMasterNodeZkTest {
   @Test
   public void testDeployShardMd() throws Exception {
     List<Node> nodes = Mocks.mockNodes(3);
-    List<OperationQueue<NodeOperation>> queues = Mocks.publisNodes(_protocol, nodes);
+    List<NodeQueue> queues = Mocks.publisNodes(_protocol, nodes);
 
     IndexDeployOperation operation = new IndexDeployOperation(_indexName, _indexPath, 3);
     operation.execute(_context, EMPTY_LIST);
@@ -195,7 +196,7 @@ public class IndexDeployOperationTest extends AbstractMasterNodeZkTest {
   public void testDeployShardMdWithMissingNodeResult() throws Exception {
     List<Node> nodes = Mocks.mockNodes(3);
     Mocks.publisNodes(_protocol, nodes);
-    List<OperationQueue<NodeOperation>> queues = Mocks.publisNodes(_protocol, nodes);
+    List<NodeQueue> queues = Mocks.publisNodes(_protocol, nodes);
 
     IndexDeployOperation operation = new IndexDeployOperation(_indexName, _indexPath, 3);
     operation.execute(_context, EMPTY_LIST);
@@ -224,7 +225,7 @@ public class IndexDeployOperationTest extends AbstractMasterNodeZkTest {
   public void testDeployUnderreplicatedIndex() throws Exception {
     // add nodes
     List<Node> nodes = Mocks.mockNodes(3);
-    List<OperationQueue<NodeOperation>> nodeQueues = Mocks.publisNodes(_protocol, nodes);
+    List<NodeQueue> nodeQueues = Mocks.publisNodes(_protocol, nodes);
 
     // add index
     int replicationLevel = 3;
@@ -242,7 +243,7 @@ public class IndexDeployOperationTest extends AbstractMasterNodeZkTest {
 
     // balance index should have been be triggered
     Master master = Mocks.mockMaster();
-    OperationQueue<MasterOperation> masterQueue = _protocol.publishMaster(master);
+    MasterQueue masterQueue = _protocol.publishMaster(master);
     MasterOperation operation = masterQueue.peek();
     assertNotNull(operation);
     assertTrue(operation instanceof BalanceIndexOperation);

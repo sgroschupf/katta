@@ -23,10 +23,9 @@ import java.util.List;
 
 import net.sf.katta.master.Master;
 import net.sf.katta.node.Node;
-import net.sf.katta.operation.master.MasterOperation;
-import net.sf.katta.operation.node.NodeOperation;
 import net.sf.katta.protocol.InteractionProtocol;
-import net.sf.katta.protocol.OperationQueue;
+import net.sf.katta.protocol.MasterQueue;
+import net.sf.katta.protocol.NodeQueue;
 import net.sf.katta.protocol.metadata.NodeMetaData;
 
 public class Mocks {
@@ -40,7 +39,7 @@ public class Mocks {
     return master;
   }
 
-  public static OperationQueue<MasterOperation> publishMaster(InteractionProtocol protocol) {
+  public static MasterQueue publishMaster(InteractionProtocol protocol) {
     Master master = mockMaster();
     return protocol.publishMaster(master);
   }
@@ -59,12 +58,12 @@ public class Mocks {
     return nodes;
   }
 
-  public static OperationQueue<NodeOperation> publisNode(InteractionProtocol protocol, Node node) {
+  public static NodeQueue publisNode(InteractionProtocol protocol, Node node) {
     return protocol.publishNode(node, new NodeMetaData(node.getName()));
   }
 
-  public static List<OperationQueue<NodeOperation>> publisNodes(InteractionProtocol protocol, List<Node> nodes) {
-    List<OperationQueue<NodeOperation>> nodeQueues = new ArrayList<OperationQueue<NodeOperation>>();
+  public static List<NodeQueue> publisNodes(InteractionProtocol protocol, List<Node> nodes) {
+    List<NodeQueue> nodeQueues = new ArrayList<NodeQueue>();
     for (Node node : nodes) {
       nodeQueues.add(publisNode(protocol, node));
     }

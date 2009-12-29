@@ -16,15 +16,18 @@
 package net.sf.katta.master;
 
 import net.sf.katta.protocol.InteractionProtocol;
+import net.sf.katta.protocol.MasterQueue;
 
 public class MasterContext {
 
   private final InteractionProtocol _protocol;
   private final IDeployPolicy _deployPolicy;
+  private final MasterQueue _masterQueue;
 
-  public MasterContext(InteractionProtocol protocol, IDeployPolicy deployPolicy) {
+  public MasterContext(InteractionProtocol protocol, IDeployPolicy deployPolicy, MasterQueue masterQueue) {
     _protocol = protocol;
     _deployPolicy = deployPolicy;
+    _masterQueue = masterQueue;
   }
 
   public InteractionProtocol getProtocol() {
@@ -33,6 +36,10 @@ public class MasterContext {
 
   public IDeployPolicy getDeployPolicy() {
     return _deployPolicy;
+  }
+
+  public MasterQueue getMasterQueue() {
+    return _masterQueue;
   }
 
 }

@@ -26,7 +26,7 @@ import net.sf.katta.operation.node.OperationResult;
 import net.sf.katta.operation.node.ShardRedeployOperation;
 import net.sf.katta.protocol.ConnectedComponent;
 import net.sf.katta.protocol.InteractionProtocol;
-import net.sf.katta.protocol.OperationQueue;
+import net.sf.katta.protocol.NodeQueue;
 import net.sf.katta.protocol.metadata.NodeMetaData;
 import net.sf.katta.util.NetworkUtil;
 import net.sf.katta.util.NodeConfiguration;
@@ -90,7 +90,7 @@ public class Node implements ConnectedComponent {
     startMonitor(_nodeName, _nodeConf);
 
     NodeMetaData nodeMetaData = new NodeMetaData(_nodeName);
-    OperationQueue<NodeOperation> nodeOperationQueue = _protocol.publishNode(this, nodeMetaData);
+    NodeQueue nodeOperationQueue = _protocol.publishNode(this, nodeMetaData);
     startOperatorThread(nodeOperationQueue);
 
     // deploy previous served shards
@@ -98,7 +98,7 @@ public class Node implements ConnectedComponent {
     LOG.info("Started node: " + _nodeName + "...");
   }
 
-  private void startOperatorThread(OperationQueue<NodeOperation> nodeOperationQueue) {
+  private void startOperatorThread(NodeQueue nodeOperationQueue) {
     _nodeOperatorThread = new Thread(new NodeOperationProcessor(nodeOperationQueue, _context));
     _nodeOperatorThread.setName(NodeOperationProcessor.class.getSimpleName() + ": " + getName());
     _nodeOperatorThread.setDaemon(true);
@@ -110,7 +110,7 @@ public class Node implements ConnectedComponent {
     LOG.info(_nodeName + " reconnected");
     redeployInstalledShards();
     NodeMetaData nodeMetaData = new NodeMetaData(_nodeName);
-    OperationQueue<NodeOperation> nodeOperationQueue = _protocol.publishNode(this, nodeMetaData);
+    NodeQueue nodeOperationQueue = _protocol.publishNode(this, nodeMetaData);
     startOperatorThread(nodeOperationQueue);
   }
 
@@ -250,11 +250,11 @@ public class Node implements ConnectedComponent {
 
   private static class NodeOperationProcessor implements Runnable {
 
-    private final OperationQueue<NodeOperation> _operationQueue;
+    private final NodeQueue _queue;
     private final NodeContext _nodeContext;
 
-    public NodeOperationProcessor(OperationQueue<NodeOperation> queue, NodeContext nodeContext) {
-      _operationQueue = queue;
+    public NodeOperationProcessor(NodeQueue queue, NodeContext nodeContext) {
+      _queue = queue;
       _nodeContext = nodeContext;
     }
 
@@ -262,7 +262,7 @@ public class Node implements ConnectedComponent {
     public void run() {
       try {
         while (_nodeContext.getNode().isRunning()) {
-          NodeOperation operation = _operationQueue.peek();
+          NodeOperation operation = _queue.peek();
           OperationResult operationResult;
           try {
             LOG.info("executing " + operation);
@@ -271,7 +271,7 @@ public class Node implements ConnectedComponent {
             LOG.error(_nodeContext.getNode().getName() + ": failed to execute " + operation, e);
             operationResult = new OperationResult(_nodeContext.getNode().getName(), e);
           }
-          _operationQueue.remove(operationResult);// only remove after finish
+          _queue.complete(operationResult);// only remove after finish
         }
       } catch (InterruptedException e) {
         Thread.interrupted();

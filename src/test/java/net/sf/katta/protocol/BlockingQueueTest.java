@@ -1,5 +1,5 @@
 /**
- * Copyright 2008 the original author or authors.
+ * Copyright 2009 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,9 +17,7 @@ package net.sf.katta.protocol;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNotSame;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -30,16 +28,16 @@ import net.sf.katta.AbstractZkTest;
 
 import org.junit.Test;
 
-public class OperationQueueTest extends AbstractZkTest {
+public class BlockingQueueTest extends AbstractZkTest {
 
   private String getRootPath() {
-    // this path is cleaned up!
+    // this path is cleaned up by ZkSystem!
     return _zk.getZkConf().getZkRootPath() + "/queue";
   }
 
   @Test(timeout = 15000)
   public void testBlockingPoll() throws Exception {
-    final OperationQueue<Long> queue = new OperationQueue<Long>(_zk.getZkClient(), getRootPath());
+    final BlockingQueue<Long> queue = new BlockingQueue<Long>(_zk.getZkClient(), getRootPath());
     final List<Long> poppedElements = new ArrayList<Long>();
     Thread thread = new Thread() {
       public void run() {
@@ -71,44 +69,15 @@ public class OperationQueueTest extends AbstractZkTest {
 
   @Test(timeout = 15000)
   public void testReinitialization() throws Exception {
-    OperationQueue<Long> queue = new OperationQueue<Long>(_zk.getZkClient(), getRootPath());
+    BlockingQueue<Long> queue = new BlockingQueue<Long>(_zk.getZkClient(), getRootPath());
     Long element = new Long(1);
     String elementId = queue.add(element);
 
     // reinitialization
-    queue = new OperationQueue<Long>(_zk.getZkClient(), getRootPath());
+    queue = new BlockingQueue<Long>(_zk.getZkClient(), getRootPath());
     assertEquals(element, queue.peek());
 
     String elementId2 = queue.add(element);
     assertNotSame(elementId, elementId2);
   }
-
-  @Test(timeout = 15000)
-  public void testResultMechanism() throws Exception {
-    final OperationQueue<Long> queue = new OperationQueue<Long>(_zk.getZkClient(), getRootPath());
-    Long element = new Long(1);
-    String elementId = queue.add(element);
-
-    assertEquals(element, queue.peek());
-    String result = "result1";
-    queue.remove(result);
-    assertEquals(result, queue.getResult(elementId, false));
-
-    assertNotNull(queue.getResult(elementId, true));
-    assertNull(queue.getResult(elementId, true));
-  }
-
-  @Test(timeout = 15000)
-  public void testResultMechanism_DeletingOldResults() throws Exception {
-    final OperationQueue<Long> queue = new OperationQueue<Long>(_zk.getZkClient(), getRootPath());
-    // cheat, we know the internals
-    String elementId = "operation-0000000000";
-    assertNull(queue.getResult(elementId, false));
-    _zk.getZkClient().createPersistent(getRootPath() + "/results/" + elementId, "");
-    assertNotNull(queue.getResult(elementId, false));
-
-    queue.add(new Long(1));
-    assertNull(queue.getResult(elementId, false));
-  }
-
 }

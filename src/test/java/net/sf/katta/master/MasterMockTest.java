@@ -34,7 +34,7 @@ import net.sf.katta.operation.master.MasterOperation;
 import net.sf.katta.operation.master.RemoveSuperfluousShardsOperation;
 import net.sf.katta.protocol.IAddRemoveListener;
 import net.sf.katta.protocol.InteractionProtocol;
-import net.sf.katta.protocol.OperationQueue;
+import net.sf.katta.protocol.MasterQueue;
 import net.sf.katta.testutil.TestUtil;
 import net.sf.katta.testutil.mockito.SleepingAnswer;
 import net.sf.katta.util.KattaException;
@@ -52,13 +52,14 @@ public class MasterMockTest extends AbstractTest {
   public void testBecomeMaster() throws Exception {
     final Master master = new Master(protocol, false);
 
-    OperationQueue masterQueue = mockBlockingOperationQueue();
+    MasterQueue masterQueue = mockBlockingOperationQueue();
     when(protocol.publishMaster(master)).thenReturn(masterQueue);
     when(protocol.getLiveNodes()).thenReturn(Arrays.asList("node1"));
 
     master.start();
     assertTrue(master.isMaster());
     master.shutdown();
+    assertFalse(master.isMaster());
   }
 
   @Test
@@ -77,7 +78,7 @@ public class MasterMockTest extends AbstractTest {
   public void testDisconnectReconnect() throws Exception {
     final Master master = new Master(protocol, false);
 
-    OperationQueue masterQueue = mockBlockingOperationQueue();
+    MasterQueue masterQueue = mockBlockingOperationQueue();
     when(protocol.publishMaster(master)).thenReturn(masterQueue);
     when(protocol.getLiveNodes()).thenReturn(Arrays.asList("node1"));
 
@@ -116,7 +117,7 @@ public class MasterMockTest extends AbstractTest {
     final Master master = new Master(protocol, false);
 
     String nodeName = "node1";
-    OperationQueue masterQueue = mockBlockingOperationQueue();
+    MasterQueue masterQueue = mockBlockingOperationQueue();
     when(protocol.publishMaster(master)).thenReturn(masterQueue);
     when(protocol.getLiveNodes()).thenReturn(Arrays.asList(nodeName));
     when(protocol.registerChildListener(eq(master), eq(PathDef.NODES_LIVE), any(IAddRemoveListener.class))).thenReturn(
@@ -127,7 +128,7 @@ public class MasterMockTest extends AbstractTest {
     master.start();
 
     assertTrue(master.isMaster());
-    TestUtil.waitOnLeaveSafeMode(master);
+    TestUtil.waitUntilLeaveSafeMode(master);
     ArgumentCaptor<MasterOperation> argument = ArgumentCaptor.forClass(MasterOperation.class);
     verify(protocol, times(2)).addMasterOperation(argument.capture());
     assertTrue(argument.getAllValues().get(0) instanceof CheckIndicesOperation);
@@ -145,12 +146,12 @@ public class MasterMockTest extends AbstractTest {
       master = new Master(protocol, shutdownClient);
     }
 
-    OperationQueue masterQueue = mockBlockingOperationQueue();
+    MasterQueue masterQueue = mockBlockingOperationQueue();
     when(protocol.publishMaster(master)).thenReturn(masterQueue);
     when(protocol.getLiveNodes()).thenReturn(Arrays.asList("node1"));
 
     master.start();
-    TestUtil.waitOnLeaveSafeMode(master);
+    TestUtil.waitUntilLeaveSafeMode(master);
 
     // stop agin
     master.shutdown();
@@ -163,8 +164,8 @@ public class MasterMockTest extends AbstractTest {
     }
   }
 
-  private OperationQueue mockBlockingOperationQueue() throws InterruptedException {
-    OperationQueue queue = mock(OperationQueue.class);
+  private MasterQueue mockBlockingOperationQueue() throws InterruptedException {
+    MasterQueue queue = mock(MasterQueue.class);
     when(queue.peek()).thenAnswer(new SleepingAnswer());
     return queue;
   }

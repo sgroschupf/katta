@@ -86,8 +86,8 @@ public class MultiClusterTest {
     _cluster1.start();
     _cluster2.start();
 
-    TestUtil.waitOnLeaveSafeMode(_cluster1.getMaster());
-    TestUtil.waitOnLeaveSafeMode(_cluster2.getMaster());
+    TestUtil.waitUntilLeaveSafeMode(_cluster1.getMaster());
+    TestUtil.waitUntilLeaveSafeMode(_cluster2.getMaster());
     TestUtil.waitUntilNumberOfLiveNode(_cluster1.getProtocol(), POOL_SIZE_1);
     TestUtil.waitUntilNumberOfLiveNode(_cluster2.getProtocol(), POOL_SIZE_2);
 

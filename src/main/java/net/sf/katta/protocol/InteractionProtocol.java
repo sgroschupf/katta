@@ -293,7 +293,7 @@ public class InteractionProtocol {
             maximaShardReplicationCount);
   }
 
-  public OperationQueue<MasterOperation> publishMaster(final Master master) {
+  public MasterQueue publishMaster(final Master master) {
     String masterName = master.getMasterName();
     String zkMasterPath = _zkConf.getZkPath(PathDef.MASTER);
     cleanupOldMasterData(masterName, zkMasterPath);
@@ -318,14 +318,14 @@ public class InteractionProtocol {
       isMaster = false;
     }
 
-    OperationQueue<MasterOperation> queue = null;
+    MasterQueue queue = null;
     if (isMaster) {
       LOG.info("master '" + master.getMasterName() + "' published");
       String queuePath = _zkConf.getZkPath(PathDef.MASTER_QUEUE);
       if (!_zkClient.exists(queuePath)) {
         _zkClient.createPersistent(queuePath);
       }
-      queue = new OperationQueue<MasterOperation>(_zkClient, queuePath);
+      queue = new MasterQueue(_zkClient, queuePath);
     } else {
       LOG.info("secondary master '" + master.getMasterName() + "' registered");
     }
@@ -343,7 +343,7 @@ public class InteractionProtocol {
     }
   }
 
-  public OperationQueue<NodeOperation> publishNode(Node node, NodeMetaData nodeMetaData) {
+  public NodeQueue publishNode(Node node, NodeMetaData nodeMetaData) {
     LOG.info("publishing node '" + node.getName() + "' ...");
     final String nodePath = _zkConf.getZkPath(PathDef.NODES_LIVE, node.getName());
     final String nodeMetadataPath = _zkConf.getZkPath(PathDef.NODES_METADATA, node.getName());
@@ -361,7 +361,7 @@ public class InteractionProtocol {
       _zkClient.deleteRecursive(queuePath);
     }
 
-    OperationQueue<NodeOperation> nodeQueue = new OperationQueue<NodeOperation>(_zkClient, queuePath);
+    NodeQueue nodeQueue = new NodeQueue(_zkClient, queuePath);
 
     // mark the node as connected
     if (_zkClient.exists(nodePath)) {
@@ -431,7 +431,7 @@ public class InteractionProtocol {
 
   public void addMasterOperation(MasterOperation operation) {
     String queuePath = _zkConf.getZkPath(PathDef.MASTER_QUEUE);
-    new OperationQueue<MasterOperation>(_zkClient, queuePath).add(operation);
+    new MasterQueue(_zkClient, queuePath).add(operation);
   }
 
   public OperationId addNodeOperation(String nodeName, NodeOperation nodeOperation) {
@@ -453,10 +453,9 @@ public class InteractionProtocol {
     registerDataListener(component, dataListener, elementPath);
   }
 
-  private OperationQueue<NodeOperation> getNodeQueue(String nodeName) {
+  private NodeQueue getNodeQueue(String nodeName) {
     String queuePath = _zkConf.getZkPath(PathDef.NODE_QUEUE, nodeName);
-    OperationQueue<NodeOperation> nodeQueue = new OperationQueue<NodeOperation>(_zkClient, queuePath);
-    return nodeQueue;
+    return new NodeQueue(_zkClient, queuePath);
   }
 
   public boolean indexExists(String indexName) {

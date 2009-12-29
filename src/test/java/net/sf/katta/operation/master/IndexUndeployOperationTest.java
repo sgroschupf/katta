@@ -23,9 +23,8 @@ import static org.junit.Assert.assertTrue;
 import java.util.List;
 
 import net.sf.katta.node.Node;
-import net.sf.katta.operation.node.NodeOperation;
 import net.sf.katta.operation.node.ShardUndeployOperation;
-import net.sf.katta.protocol.OperationQueue;
+import net.sf.katta.protocol.NodeQueue;
 import net.sf.katta.testutil.Mocks;
 
 import org.junit.Test;
@@ -36,7 +35,7 @@ public class IndexUndeployOperationTest extends AbstractMasterNodeZkTest {
   public void testUndeployIndex() throws Exception {
     // add nodes and index
     List<Node> nodes = Mocks.mockNodes(2);
-    List<OperationQueue<NodeOperation>> nodeQueues = Mocks.publisNodes(_protocol, nodes);
+    List<NodeQueue> nodeQueues = Mocks.publisNodes(_protocol, nodes);
     deployIndex(nodes, nodeQueues);
     assertNotNull(_protocol.getIndexMD(_indexName));
     assertNull(_protocol.getIndexMD(_indexName).getDeployError());
@@ -44,7 +43,7 @@ public class IndexUndeployOperationTest extends AbstractMasterNodeZkTest {
     // balance the index does not change anything
     IndexUndeployOperation undeployOperation = new IndexUndeployOperation(_indexName);
     undeployOperation.execute(_context, EMPTY_LIST);
-    for (OperationQueue<NodeOperation> nodeqQueue : nodeQueues) {
+    for (NodeQueue nodeqQueue : nodeQueues) {
       assertEquals(1, nodeqQueue.size());
       assertTrue(nodeqQueue.peek() instanceof ShardUndeployOperation);
     }
@@ -56,7 +55,7 @@ public class IndexUndeployOperationTest extends AbstractMasterNodeZkTest {
   public void testUndeployErrorIndex() throws Exception {
     // add nodes and index
     List<Node> nodes = Mocks.mockNodes(2);
-    List<OperationQueue<NodeOperation>> nodeQueues = Mocks.publisNodes(_protocol, nodes);
+    List<NodeQueue> nodeQueues = Mocks.publisNodes(_protocol, nodes);
     deployIndexWithError();
     publisShards(nodes, nodeQueues);
     assertNotNull(_protocol.getIndexMD(_indexName));
@@ -65,7 +64,7 @@ public class IndexUndeployOperationTest extends AbstractMasterNodeZkTest {
     // balance the index does not change anything
     IndexUndeployOperation undeployOperation = new IndexUndeployOperation(_indexName);
     undeployOperation.execute(_context, EMPTY_LIST);
-    for (OperationQueue<NodeOperation> nodeqQueue : nodeQueues) {
+    for (NodeQueue nodeqQueue : nodeQueues) {
       assertEquals(1, nodeqQueue.size());
       assertTrue(nodeqQueue.peek() instanceof ShardUndeployOperation);
     }

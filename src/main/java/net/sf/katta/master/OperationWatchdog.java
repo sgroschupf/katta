@@ -36,20 +36,26 @@ import org.apache.log4j.Logger;
  * When watchdog for a list of {@link NodeOperation}s. The watchdog is finished
  * if all operations are done or the nodes of the incomplete nodes went down.
  */
-public class OperationWatchdog implements ConnectedComponent {
+public class OperationWatchdog implements ConnectedComponent, Serializable {
 
+  private static final long serialVersionUID = 1L;
   protected final static Logger LOG = Logger.getLogger(OperationWatchdog.class);
 
+  private final String _queueElementId;
   private final List<OperationId> _openOperationIds;
   private final List<OperationId> _operationIds;
-  private final MasterContext _context;
+  private MasterContext _context;
   private final MasterOperation _masterOperation;
 
-  public OperationWatchdog(MasterContext context, List<OperationId> operationIds, MasterOperation masterOperation) {
-    _context = context;
+  public OperationWatchdog(String queueElementId, MasterOperation masterOperation, List<OperationId> operationIds) {
+    _queueElementId = queueElementId;
     _operationIds = operationIds;
-    _openOperationIds = new ArrayList<OperationId>(operationIds);
     _masterOperation = masterOperation;
+    _openOperationIds = new ArrayList<OperationId>(operationIds);
+  }
+
+  public void start(MasterContext context) {
+    _context = context;
     subscribeNotifications();
   }
 
@@ -93,16 +99,15 @@ public class OperationWatchdog implements ConnectedComponent {
       return;
     }
 
-    InteractionProtocol protocol = _context.getProtocol();
-    List<String> liveNodes = protocol.getLiveNodes();
+    List<String> liveNodes = _context.getProtocol().getLiveNodes();
     for (Iterator iter = _openOperationIds.iterator(); iter.hasNext();) {
       OperationId operationId = (OperationId) iter.next();
-      if (!protocol.isNodeOperationQueued(operationId) || !liveNodes.contains(operationId.getNodeName())) {
+      if (!_context.getProtocol().isNodeOperationQueued(operationId) || !liveNodes.contains(operationId.getNodeName())) {
         iter.remove();
       }
     }
     if (isDone()) {
-      finishWatchdog(protocol);
+      finishWatchdog();
     } else {
       LOG.debug("still " + getOpenOperationCount() + " open deploy operations");
     }
@@ -113,7 +118,8 @@ public class OperationWatchdog implements ConnectedComponent {
     this.notifyAll();
   }
 
-  private synchronized void finishWatchdog(InteractionProtocol protocol) {
+  private synchronized void finishWatchdog() {
+    InteractionProtocol protocol = _context.getProtocol();
     protocol.unregisterComponent(this);
     try {
       List<OperationResult> operationResults = new ArrayList<OperationResult>(_openOperationIds.size());
@@ -132,10 +138,19 @@ public class OperationWatchdog implements ConnectedComponent {
     }
     LOG.info("watch for " + _masterOperation + " finished");
     this.notifyAll();
+    _context.getMasterQueue().removeWatchdog(this);
+  }
+
+  public String getQueueElementId() {
+    return _queueElementId;
   }
 
   public MasterOperation getOperation() {
     return _masterOperation;
+  }
+
+  public List<OperationId> getOperationIds() {
+    return _operationIds;
   }
 
   public final int getOpenOperationCount() {
