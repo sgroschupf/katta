@@ -272,6 +272,10 @@ public class InteractionProtocol {
     return _zkClient.getChildren(shard2NodeRootPath);
   }
 
+  public List<String> getShard2NodeShards() {
+    return _zkClient.getChildren(_zkConf.getZkPath(PathDef.SHARD_TO_NODES));
+  }
+
   public ReplicationReport getReplicationReport(IndexMetaData indexMD) {
     int desiredReplicationCount = indexMD.getReplicationLevel();
     int minimalShardReplicationCount = indexMD.getReplicationLevel();
@@ -377,7 +381,10 @@ public class InteractionProtocol {
   }
 
   public void unpublishIndex(String indexName) {
-    _zkClient.deleteRecursive(_zkConf.getZkPath(PathDef.INDICES_METADATA, indexName));
+    for (Shard shard : getIndexMD(indexName).getShards()) {
+      _zkClient.deleteRecursive(_zkConf.getZkPath(PathDef.SHARD_TO_NODES, shard.getName()));
+    }
+    _zkClient.delete(_zkConf.getZkPath(PathDef.INDICES_METADATA, indexName));
   }
 
   public IndexMetaData getIndexMD(String index) {

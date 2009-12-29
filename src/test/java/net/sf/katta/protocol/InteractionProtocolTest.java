@@ -35,6 +35,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import net.sf.katta.AbstractZkTest;
@@ -42,16 +43,19 @@ import net.sf.katta.master.Master;
 import net.sf.katta.node.Node;
 import net.sf.katta.node.monitor.MetricsRecord;
 import net.sf.katta.operation.OperationId;
+import net.sf.katta.operation.master.AbstractIndexOperation;
 import net.sf.katta.operation.master.MasterOperation;
 import net.sf.katta.operation.node.NodeOperation;
 import net.sf.katta.protocol.metadata.IndexMetaData;
 import net.sf.katta.protocol.metadata.NodeMetaData;
+import net.sf.katta.protocol.metadata.IndexMetaData.Shard;
 import net.sf.katta.testutil.Mocks;
 import net.sf.katta.util.ZkConfiguration.PathDef;
 
 import org.I0Itec.zkclient.Gateway;
 import org.I0Itec.zkclient.IZkDataListener;
 import org.I0Itec.zkclient.ZkClient;
+import org.I0Itec.zkclient.util.ZkPathUtil;
 import org.junit.Test;
 import org.mockito.InOrder;
 
@@ -256,12 +260,15 @@ public class InteractionProtocolTest extends AbstractZkTest {
   @Test(timeout = 70000)
   public void testIndexManagement() throws Exception {
     IndexMetaData indexMD = new IndexMetaData("index1", "indexPath", 2);
+    indexMD.getShards().add(new Shard(AbstractIndexOperation.createShardName(indexMD.getName(), "path1"), "path1"));
+    Node node = Mocks.mockNode();
 
     assertNull(_protocol.getIndexMD("index1"));
     assertEquals(0, _protocol.getIndices().size());
 
     // publish index
     _protocol.publishIndex(indexMD);
+    _protocol.publishShard(node, indexMD.getShards().iterator().next().getName());
     assertNotNull(_protocol.getIndexMD("index1"));
     assertEquals(1, _protocol.getIndices().size());
     assertEquals(indexMD.getReplicationLevel(), _protocol.getIndexMD(indexMD.getName()).getReplicationLevel());
@@ -271,9 +278,17 @@ public class InteractionProtocolTest extends AbstractZkTest {
     _protocol.updateIndexMD(indexMD);
     assertEquals(indexMD.getReplicationLevel(), _protocol.getIndexMD(indexMD.getName()).getReplicationLevel());
 
+    _protocol.showStructure(false);
     _protocol.unpublishIndex(indexMD.getName());
+    _protocol.showStructure(false);
     assertNull(_protocol.getIndexMD("index1"));
     assertEquals(0, _protocol.getIndices().size());
+
+    String string = ZkPathUtil.toString(_protocol._zkClient);
+    Set<Shard> shards = indexMD.getShards();
+    for (Shard shard : shards) {
+      assertFalse(string.contains(shard.getName()));
+    }
   }
 
   @Test(timeout = 7000)

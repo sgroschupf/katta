@@ -31,6 +31,7 @@ import net.sf.katta.util.FileUtil;
 
 import org.I0Itec.zkclient.IDefaultNameSpace;
 import org.I0Itec.zkclient.ZkServer;
+import org.I0Itec.zkclient.exception.ZkNoNodeException;
 import org.apache.log4j.Logger;
 import org.mockito.Mockito;
 import org.mockito.exceptions.base.MockitoAssertionError;
@@ -207,7 +208,11 @@ public class TestUtil {
         int nodeCount = 0;
         Set<Shard> shards = indexMD.getShards();
         for (Shard shard : shards) {
-          nodeCount += protocol.getShardNodes(shard.getName()).size();
+          try {
+            nodeCount += protocol.getShardNodes(shard.getName()).size();
+          } catch (ZkNoNodeException e) {
+            // deleted already
+          }
         }
         return nodeCount != 0;
       }
