@@ -20,10 +20,10 @@ import static org.junit.Assert.assertEquals;
 import java.util.ArrayList;
 import java.util.List;
 
-import net.sf.katta.client.ILuceneClient;
-import net.sf.katta.client.LuceneClient;
 import net.sf.katta.integrationTest.support.AbstractIntegrationTest;
-import net.sf.katta.node.Hits;
+import net.sf.katta.lib.lucene.Hits;
+import net.sf.katta.lib.lucene.ILuceneClient;
+import net.sf.katta.lib.lucene.LuceneClient;
 import net.sf.katta.util.StringUtil;
 
 import org.apache.log4j.Logger;

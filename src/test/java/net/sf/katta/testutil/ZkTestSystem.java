@@ -15,8 +15,11 @@
  */
 package net.sf.katta.testutil;
 
+import java.io.File;
+
 import net.sf.katta.DefaultNameSpaceImpl;
 import net.sf.katta.protocol.InteractionProtocol;
+import net.sf.katta.util.FileUtil;
 import net.sf.katta.util.ZkConfiguration;
 
 import org.I0Itec.zkclient.ZkClient;
@@ -36,6 +39,7 @@ public class ZkTestSystem extends ExternalResource {
   private ZkTestSystem() {
     LOG.info("~~~~~~~~~~~~~~~ starting zk system ~~~~~~~~~~~~~~~");
     String baseDir = "build/zkdata";
+    FileUtil.deleteFolder(new File(baseDir));
     String dataDir = baseDir + "/data";
     String logDir = baseDir + "/log";
     _conf = new ZkConfiguration();
@@ -112,52 +116,4 @@ public class ZkTestSystem extends ExternalResource {
   public void showStructure() {
     getInteractionProtocol().showStructure(true);
   }
-
-  // LuceneComplianceTest (zk, lucene server)
-  // LuceneClientTest (zk, lucene server)
-  // MasterTest(zk, ~lucene server)
-  // NodeTest(zk, lucene server)
-  // AlternateRootCfgClientTest == LuceneClientTest with other configuration
-  // AlternateRootCfgMasterTest == MasterTest
-  // AlternateRootCfgNodeTest == NodeTest
-  // √ KattaTest (zk)
-  // PerformanceTest (zk, lucene server)
-  // LuceneClientFailoverTest (~zk, lucene server)
-  // MapFileClientTest (zk, mapfile server)
-  // SleepClientTest (zk, sleep server)
-  // √ EmbeddedZookeeperTest (~zk)
-  // FailTest (zk, lucene server)
-  // √ NodeIntegrationTest (zk, lucene server)
-
-  // NOT:
-  // MultiInstanceTest (zk?, custom)
-  // NodeMasterReconnectTest ( custom)
-  // ClientResultTest (no dep)
-  // DefaultNodeSelectionPolicyTest (no dep)
-  // NodeInteractionTest (no dep)
-  // ResultCompletePolicyTest (no dep)
-  // WorkQueueTest (no dep)
-  // FieldSortComparatorTest
-  // Ec2ServiceTest
-  // SampleIndexGeneratorTest
-  // DefaultDistributionPolicyTest
-  // LowestShardCountDistributionPolicyTest
-  // JmxMonitorTest
-  // DocumentFrequencyWritableTest
-  // LuceneServerTest
-  // MapFileServerTest
-  // SleepServerTest
-  // CircularListTest
-  // FileUtilTest
-  // One2ManyListMapTest
-  // WritableTypeTest
-  // ZkConfigurationTest
-
-  // UNCOMMENTED:
-  // LoadTestNodeTest
-  // LoadTestStarterTest
-
-  // TIMES:
-  // 5 minutes 21 seconds
-  // 5 minutes 29/41 seconds (fixed 3 test with ZkTestSystem)
 }

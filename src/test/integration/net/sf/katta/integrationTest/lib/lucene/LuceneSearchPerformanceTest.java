@@ -16,9 +16,9 @@
 package net.sf.katta.integrationTest.lib.lucene;
 
 import net.sf.katta.client.DeployClient;
-import net.sf.katta.client.ILuceneClient;
-import net.sf.katta.client.LuceneClient;
 import net.sf.katta.integrationTest.support.AbstractIntegrationTest;
+import net.sf.katta.lib.lucene.ILuceneClient;
+import net.sf.katta.lib.lucene.LuceneClient;
 import net.sf.katta.testutil.TestResources;
 
 import org.apache.lucene.analysis.KeywordAnalyzer;

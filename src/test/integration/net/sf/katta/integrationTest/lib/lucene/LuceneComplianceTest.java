@@ -25,12 +25,12 @@ import java.util.List;
 
 import net.sf.katta.client.DeployClient;
 import net.sf.katta.client.IDeployClient;
-import net.sf.katta.client.ILuceneClient;
 import net.sf.katta.client.IndexState;
-import net.sf.katta.client.LuceneClient;
 import net.sf.katta.integrationTest.support.AbstractIntegrationTest;
-import net.sf.katta.node.Hit;
-import net.sf.katta.node.Hits;
+import net.sf.katta.lib.lucene.Hit;
+import net.sf.katta.lib.lucene.Hits;
+import net.sf.katta.lib.lucene.ILuceneClient;
+import net.sf.katta.lib.lucene.LuceneClient;
 import net.sf.katta.util.FileUtil;
 
 import org.apache.hadoop.io.WritableComparable;

@@ -4,10 +4,10 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
-import net.sf.katta.client.LuceneClient;
 import net.sf.katta.client.ShardAccessException;
 import net.sf.katta.integrationTest.support.AbstractIntegrationTest;
-import net.sf.katta.node.Hits;
+import net.sf.katta.lib.lucene.Hits;
+import net.sf.katta.lib.lucene.LuceneClient;
 
 import org.apache.lucene.analysis.KeywordAnalyzer;
 import org.apache.lucene.queryParser.QueryParser;

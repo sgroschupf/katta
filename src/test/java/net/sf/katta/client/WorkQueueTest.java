@@ -66,6 +66,7 @@ public class WorkQueueTest extends AbstractTest {
       assertEquals(String.format("ClientResult: %d results, 0 errors, %d/%d shards (closed) (complete)", numNodes,
               numShards, numShards), r.toString());
       assertEquals(6, factory.getCalls().size());
+      wq.shutdown();
     }
   }
 
@@ -153,6 +154,7 @@ public class WorkQueueTest extends AbstractTest {
     assertEquals(String.format("ClientResult: 0 results, 0 errors, 0/%d shards (closed)", numShards), r.toString());
     assertTrue(t2 - t1 >= 100);
     assertTrue(t2 - t1 < 100 + slop);
+    wq.shutdown();
   }
 
   // Does user calling close() wake up the work queue?
@@ -194,6 +196,7 @@ public class WorkQueueTest extends AbstractTest {
       assertTrue(time > 50);
       assertTrue(time < 200);
       assertTrue(result2.isClosed());
+      wq.shutdown();
     }
   }
 
@@ -235,6 +238,7 @@ public class WorkQueueTest extends AbstractTest {
     }
     assertTrue(time > 50);
     assertTrue(time < 200);
+    wq.shutdown();
   }
 
   @Test
@@ -264,6 +268,7 @@ public class WorkQueueTest extends AbstractTest {
       }
     } while (coverage < 1.0);
     System.out.println("Done.");
+    wq.shutdown();
   }
 
   private void bar(int len) {

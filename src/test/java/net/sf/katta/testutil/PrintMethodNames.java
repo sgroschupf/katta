@@ -33,9 +33,11 @@ public class PrintMethodNames implements MethodRule {
       @Override
       public void evaluate() throws Throwable {
         String testClassName = method.getMethod().getDeclaringClass().getName();
-        LOG.info("~~~~~~~~~~~~~~~ " + testClassName + "#" + method.getName() + "() ~");
+        LOG.info("~~~~~~~~~~~~~~~ " + testClassName + "#" + method.getName() + "() [" + Thread.activeCount() + "] ~");
         statement.evaluate();
-        LOG.info("~~~~~~~~~~~~~~~ FIN " + testClassName + "#" + method.getName() + "() ~");
+        LOG
+                .info("~~~~~~~~~~~~~~~ FIN " + testClassName + "#" + method.getName() + "() [" + Thread.activeCount()
+                        + "]~");
       }
     };
   }

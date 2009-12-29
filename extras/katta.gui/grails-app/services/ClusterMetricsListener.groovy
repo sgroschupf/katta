@@ -1,9 +1,9 @@
-import java.io.Serializable;
+ import java.io.Serializable;
 
 import org.I0Itec.zkclient.IZkDataListener;
 
 import net.sf.katta.util.ZkConfiguration.PathDef;
-import net.sf.katta.monitor.MetricsRecord 
+import net.sf.katta.node.monitor.MetricsRecord 
 import net.sf.katta.protocol.ConnectedComponent;
 import net.sf.katta.protocol.IAddRemoveListener;
 import net.sf.katta.protocol.InteractionProtocol;

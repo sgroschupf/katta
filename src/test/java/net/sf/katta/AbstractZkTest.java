@@ -26,4 +26,5 @@ public abstract class AbstractZkTest extends AbstractTest {
   public ZkTestSystem _zk = ZkTestSystem.getInstance();
 
   protected InteractionProtocol _protocol = _zk.getInteractionProtocol();
+
 }

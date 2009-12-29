@@ -27,4 +27,5 @@ public class AbstractTest {
 
   @Rule
   public PrintMethodNames _printMethodNames = new PrintMethodNames();
+
 }

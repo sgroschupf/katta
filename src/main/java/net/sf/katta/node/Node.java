@@ -20,7 +20,7 @@ import java.io.IOException;
 import java.net.BindException;
 import java.util.Collection;
 
-import net.sf.katta.monitor.IMonitor;
+import net.sf.katta.node.monitor.IMonitor;
 import net.sf.katta.operation.node.NodeOperation;
 import net.sf.katta.operation.node.OperationResult;
 import net.sf.katta.operation.node.ShardRedeployOperation;

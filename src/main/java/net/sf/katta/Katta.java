@@ -28,26 +28,24 @@ import java.util.concurrent.atomic.AtomicInteger;
 import net.sf.katta.client.DeployClient;
 import net.sf.katta.client.IDeployClient;
 import net.sf.katta.client.IIndexDeployFuture;
-import net.sf.katta.client.ILuceneClient;
 import net.sf.katta.client.IndexState;
-import net.sf.katta.client.LuceneClient;
-import net.sf.katta.index.indexer.SampleIndexGenerator;
+import net.sf.katta.lib.lucene.Hit;
+import net.sf.katta.lib.lucene.Hits;
+import net.sf.katta.lib.lucene.ILuceneClient;
+import net.sf.katta.lib.lucene.LuceneClient;
+import net.sf.katta.lib.lucene.LuceneServer;
 import net.sf.katta.master.Master;
-import net.sf.katta.monitor.MetricLogger;
-import net.sf.katta.monitor.MetricLogger.OutputType;
-import net.sf.katta.node.Hit;
-import net.sf.katta.node.Hits;
 import net.sf.katta.node.INodeManaged;
-import net.sf.katta.node.IQuery;
-import net.sf.katta.node.LuceneServer;
 import net.sf.katta.node.Node;
-import net.sf.katta.node.Query;
+import net.sf.katta.node.monitor.MetricLogger;
+import net.sf.katta.node.monitor.MetricLogger.OutputType;
 import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.protocol.ReplicationReport;
 import net.sf.katta.protocol.metadata.IndexDeployError;
 import net.sf.katta.protocol.metadata.IndexMetaData;
 import net.sf.katta.protocol.metadata.NodeMetaData;
 import net.sf.katta.protocol.metadata.IndexMetaData.Shard;
+import net.sf.katta.tool.SampleIndexGenerator;
 import net.sf.katta.tool.ZkTool;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.VersionInfo;
@@ -60,6 +58,9 @@ import org.I0Itec.zkclient.ZkServer;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.lucene.analysis.KeywordAnalyzer;
+import org.apache.lucene.queryParser.QueryParser;
+import org.apache.lucene.search.Query;
 
 /**
  * Provides command line access to a Katta cluster.
@@ -67,7 +68,6 @@ import org.apache.hadoop.fs.Path;
 
 // TODO sg: I guess we can make every method static here.
 // TODO sg: review all exceptions
-@SuppressWarnings("deprecation")
 public class Katta {
 
   private final InteractionProtocol _protocol;
@@ -612,9 +612,9 @@ public class Katta {
     }
   }
 
-  public static void search(final String[] indexNames, final String queryString, final int count) throws KattaException {
+  public static void search(final String[] indexNames, final String queryString, final int count) throws Exception {
     final ILuceneClient client = new LuceneClient();
-    final IQuery query = new Query(queryString);
+    final Query query = new QueryParser("", new KeywordAnalyzer()).parse(queryString);
     final long start = System.currentTimeMillis();
     final Hits hits = client.search(query, indexNames, count);
     final long end = System.currentTimeMillis();
@@ -628,9 +628,9 @@ public class Katta {
     System.out.println(table.toString());
   }
 
-  public static void search(final String[] indexNames, final String queryString) throws KattaException {
+  public static void search(final String[] indexNames, final String queryString) throws Exception {
     final ILuceneClient client = new LuceneClient();
-    final IQuery query = new Query(queryString);
+    final Query query = new QueryParser("", new KeywordAnalyzer()).parse(queryString);
     final long start = System.currentTimeMillis();
     final int hitsSize = client.count(query, indexNames);
     final long end = System.currentTimeMillis();

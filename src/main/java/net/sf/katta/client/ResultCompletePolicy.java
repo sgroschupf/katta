@@ -127,9 +127,8 @@ public class ResultCompletePolicy<T> implements IResultPolicy<T> {
     }
     if (done) {
       return shutDown ? -1 : 0;
-    } else {
-      return coverageStopTime - now;
     }
+    return coverageStopTime - now;
   }
 
   @Override

@@ -26,8 +26,8 @@ import java.util.Set;
 
 import net.sf.katta.DefaultNameSpaceImpl;
 import net.sf.katta.master.Master;
-import net.sf.katta.monitor.MetricsRecord;
 import net.sf.katta.node.Node;
+import net.sf.katta.node.monitor.MetricsRecord;
 import net.sf.katta.operation.OperationId;
 import net.sf.katta.operation.master.MasterOperation;
 import net.sf.katta.operation.node.NodeOperation;

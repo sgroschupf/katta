@@ -39,8 +39,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import net.sf.katta.AbstractZkTest;
 import net.sf.katta.master.Master;
-import net.sf.katta.monitor.MetricsRecord;
 import net.sf.katta.node.Node;
+import net.sf.katta.node.monitor.MetricsRecord;
 import net.sf.katta.operation.OperationId;
 import net.sf.katta.operation.master.MasterOperation;
 import net.sf.katta.operation.node.NodeOperation;
@@ -99,6 +99,7 @@ public class InteractionProtocolTest extends AbstractZkTest {
     zkClient.close();
     assertEquals(2, connectCount.get());
     assertEquals(2, connectCount.get());
+    gateway.stop();
   }
 
   @Test(timeout = 7000)

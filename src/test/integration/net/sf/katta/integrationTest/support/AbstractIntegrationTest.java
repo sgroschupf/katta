@@ -4,8 +4,8 @@ import java.io.File;
 import java.util.List;
 
 import net.sf.katta.client.DeployClient;
+import net.sf.katta.lib.lucene.LuceneServer;
 import net.sf.katta.node.INodeManaged;
-import net.sf.katta.node.LuceneServer;
 import net.sf.katta.node.Node;
 import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.protocol.metadata.IndexMetaData;
