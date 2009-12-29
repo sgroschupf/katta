@@ -33,7 +33,6 @@ import net.sf.katta.lib.lucene.Hit;
 import net.sf.katta.lib.lucene.Hits;
 import net.sf.katta.lib.lucene.ILuceneClient;
 import net.sf.katta.lib.lucene.LuceneClient;
-import net.sf.katta.lib.lucene.LuceneServer;
 import net.sf.katta.master.Master;
 import net.sf.katta.node.INodeManaged;
 import net.sf.katta.node.Node;
@@ -48,6 +47,7 @@ import net.sf.katta.protocol.metadata.IndexMetaData.Shard;
 import net.sf.katta.tool.SampleIndexGenerator;
 import net.sf.katta.tool.ZkTool;
 import net.sf.katta.util.KattaException;
+import net.sf.katta.util.NodeConfiguration;
 import net.sf.katta.util.VersionInfo;
 import net.sf.katta.util.WebApp;
 import net.sf.katta.util.ZkConfiguration;
@@ -362,32 +362,33 @@ public class Katta {
   }
 
   public static void startNode(String serverClassName, final ZkConfiguration conf) throws InterruptedException {
+    NodeConfiguration nodeConfiguration = new NodeConfiguration();
     INodeManaged server = null;
     try {
       if (serverClassName == null) {
-        serverClassName = LuceneServer.class.getName();
+        serverClassName = nodeConfiguration.getServerClassName();
       }
       Class<?> serverClass = Katta.class.getClassLoader().loadClass(serverClassName);
       if (!INodeManaged.class.isAssignableFrom(serverClass)) {
-        System.err.println("Class " + serverClassName + " does not implement INodeManaged!");
+        System.err.println("Class " + serverClassName + " does not implement " + INodeManaged.class.getName());
         System.exit(1);
       }
       server = (INodeManaged) serverClass.newInstance();
     } catch (ClassNotFoundException e) {
-      System.err.println("Can not find class " + serverClassName + "!");
+      System.err.println("Can not find class '" + serverClassName + "'");
       System.exit(1);
     } catch (InstantiationException e) {
-      System.err.println("Could not create instance of class " + serverClassName + "!");
+      System.err.println("Could not create instance of class '" + serverClassName + "'");
       System.exit(1);
     } catch (IllegalAccessException e) {
-      System.err.println("Unable to access class " + serverClassName + "!");
+      System.err.println("Unable to access class '" + serverClassName + "'");
       System.exit(1);
     } catch (Throwable t) {
-      throw new RuntimeException("Error getting server instance for " + serverClassName, t);
+      throw new RuntimeException("Error getting server instance for '" + serverClassName + "'", t);
     }
     final ZkClient client = ZkKattaUtil.startZkClient(conf, 60000);
-    InteractionProtocol interactionProtocol = new InteractionProtocol(client, conf);
-    final Node node = new Node(interactionProtocol, server);
+    InteractionProtocol protocol = new InteractionProtocol(client, conf);
+    final Node node = new Node(protocol, nodeConfiguration, server);
     node.start();
     Runtime.getRuntime().addShutdownHook(new Thread() {
       @Override

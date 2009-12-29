@@ -22,11 +22,12 @@ public class NodeConfiguration extends KattaConfiguration {
   private final static String NODE_SERVER_PORT_START = "node.server.port.start";
   private static final String SHARD_FOLDER = "node.shard.folder";
   private static final String MONITOR_CLASS = "node.monitor.class";
+  private static final String SERVER_CLASS = "node.server.class";
 
   public NodeConfiguration() {
     super("/katta.node.properties");
   }
-  
+
   public NodeConfiguration(File file) {
     super(file);
   }
@@ -49,6 +50,14 @@ public class NodeConfiguration extends KattaConfiguration {
 
   public String getMonitorClass() {
     return getProperty(MONITOR_CLASS);
+  }
+
+  public String getServerClassName() {
+    return getProperty(SERVER_CLASS);
+  }
+
+  public Class<?> getServerClass() {
+    return getClass(SERVER_CLASS);
   }
 
 }
