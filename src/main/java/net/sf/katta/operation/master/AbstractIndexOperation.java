@@ -205,24 +205,4 @@ public abstract class AbstractIndexOperation implements MasterOperation {
     }
   }
 
-  static class IndexDeployException extends Exception {
-
-    private static final long serialVersionUID = 1L;
-    private final ErrorType _errorType;
-
-    public IndexDeployException(ErrorType errorType, final String message) {
-      super(message);
-      _errorType = errorType;
-    }
-
-    public IndexDeployException(ErrorType errorType, final String message, final Throwable cause) {
-      super(message, cause);
-      _errorType = errorType;
-    }
-
-    public ErrorType getErrorType() {
-      return _errorType;
-    }
-  }
-
 }
