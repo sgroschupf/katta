@@ -15,68 +15,28 @@
  */
 package net.sf.katta;
 
-import net.sf.katta.client.DeployClient;
-import net.sf.katta.master.Master;
-import net.sf.katta.util.ZkConfiguration;
-import net.sf.katta.util.ZkKattaUtil;
+import net.sf.katta.protocol.metadata.IndexMetaData;
 
-import org.I0Itec.zkclient.ZkClient;
-import org.I0Itec.zkclient.ZkServer;
 import org.junit.Test;
 
 public class KattaTest extends AbstractZkTest {
 
   @Test
-  public void testShowStructure() {
-    Katta katta = new Katta(_zk.getZkConf(), _zk.getZkClient());
-    katta.showStructure(false);
-    katta.showStructure(true);
+  public void testShowStructure() throws Exception {
+    Katta.SHOW_STRUCTURE_COMMAND.execute(_zk.getZkConf(), new String[] { "showStructure" });
+    Katta.SHOW_STRUCTURE_COMMAND.execute(_zk.getZkConf(), new String[] { "showStructure", "-d" });
+  }
+
+  @Test(expected = Exception.class)
+  public void testShowErrorsWithIndexNotExist() throws Exception {
+    Katta.LIST_ERRORS_COMMAND.execute(_zk.getZkConf(), new String[] { "listErrors", "a" });
   }
 
   @Test
-  public void testShowErrorsWithIndexNotExist() {
-    Katta katta = new Katta(_zk.getZkConf(), _zk.getZkClient());
-    katta.showErrors("abc");
+  public void testListIndexesWithUnreachableIndex_KATTA_76() throws Exception {
+    IndexMetaData indexMD = new IndexMetaData("indexABC", "hdfs://localhost:8020/unreachableIndex", 1);
+    _zk.getInteractionProtocol().publishIndex(indexMD);
+    Katta.LIST_INDICES_COMMAND.execute(_zk.getZkConf(), new String[] { indexMD.getName() });
   }
 
-  @Test
-  public void testListIndexesWithUnreachableIndex_KATTA_76() {
-    Katta _katta = new Katta(_zk.getZkConf(), _zk.getZkClient());
-    DeployClient deployClient = new DeployClient(_protocol);
-    deployClient.addIndex("index1", "hdfs://localhost:8020/index", 1);
-    _katta.listIndex(true);
-  }
-
-  @Test
-  public void testEmbeddedZK() throws Exception {
-    // by default there need to be a zkserver
-    final ZkConfiguration conf = new ZkConfiguration();
-
-    Master master = Katta.startMaster(conf);
-    try {
-      ZkClient client = ZkKattaUtil.startZkClient(conf, 10000);
-      client.close();
-    } finally {
-      if (master != null) {
-        master.shutdown();
-      }
-    }
-  }
-
-  @Test
-  public void testNoEmbeddedZK() throws Exception {
-    final ZkConfiguration conf = new ZkConfiguration();
-    conf.setEmbedded(false);
-
-    // we start our own zkServer that the master will connect to
-    ZkServer zkServer = ZkKattaUtil.startZkServer(conf);
-    try {
-      // this would fail if this would try to start another ZkServer on the same
-      // port
-      Master master = Katta.startMaster(conf);
-      master.shutdown();
-    } finally {
-      zkServer.shutdown();
-    }
-  }
 }

@@ -39,9 +39,11 @@ public class WebApp {
         return file.getAbsolutePath();
       }
       File[] listFiles = file.listFiles();
-      for (File subFiles : listFiles) {
-        if (isWarFile(subFiles)) {
-          return subFiles.getAbsolutePath();
+      if (listFiles != null) {
+        for (File subFiles : listFiles) {
+          if (isWarFile(subFiles)) {
+            return subFiles.getAbsolutePath();
+          }
         }
       }
     }

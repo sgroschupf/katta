@@ -30,7 +30,7 @@ import org.apache.log4j.Logger;
 public class MetricLogger implements IZkDataListener, ConnectedComponent {
 
   public enum OutputType {
-    Log4J, SystemOut;
+    Log4J, SysOut;
   }
 
   private final static Logger LOG = Logger.getLogger(MetricLogger.class);
@@ -84,7 +84,7 @@ public class MetricLogger implements IZkDataListener, ConnectedComponent {
     case Log4J:
       LOG.info(metrics);
       break;
-    case SystemOut:
+    case SysOut:
       System.out.println(metrics.toString());
       break;
     default:
