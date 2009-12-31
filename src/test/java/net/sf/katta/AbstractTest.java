@@ -17,6 +17,9 @@ package net.sf.katta;
 
 import net.sf.katta.testutil.PrintMethodNames;
 
+import org.hamcrest.BaseMatcher;
+import org.hamcrest.Description;
+import org.hamcrest.Matcher;
 import org.junit.Rule;
 import org.junit.rules.TemporaryFolder;
 
@@ -28,4 +31,18 @@ public class AbstractTest {
   @Rule
   public PrintMethodNames _printMethodNames = new PrintMethodNames();
 
+  protected Matcher<Long> almostEquals(final long value1, final long aberration) {
+    return new BaseMatcher<Long>() {
+      @Override
+      public boolean matches(Object value2) {
+        Long long2 = (Long) value2;
+        return Math.abs(value1 - long2) < aberration;
+      }
+
+      @Override
+      public void describeTo(Description description) {
+        description.appendText(" equals " + value1 + " with aberration of " + aberration);
+      }
+    };
+  }
 }
