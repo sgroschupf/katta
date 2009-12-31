@@ -1,8 +1,26 @@
+/**
+ * Copyright 2008 the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package net.sf.katta.util;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InterruptedIOException;
+
+import org.apache.hadoop.fs.PositionedReadable;
+import org.apache.hadoop.fs.Seekable;
 
 /**
  * An {@link InputStream} which throttles the amount of bytes which is read from
@@ -27,7 +45,7 @@ import java.io.InterruptedIOException;
  * ...
  * </code><br>
  */
-public class ThrottledInputStream extends InputStream {
+public class ThrottledInputStream extends InputStream implements PositionedReadable, Seekable {
 
   private final InputStream _inputStream;
   private final ThrottleSemaphore _semaphore;
@@ -52,6 +70,36 @@ public class ThrottledInputStream extends InputStream {
   @Override
   public void close() throws IOException {
     _inputStream.close();
+  }
+
+  @Override
+  public int read(long arg0, byte[] arg1, int arg2, int arg3) throws IOException {
+    return ((PositionedReadable) _inputStream).read(arg0, arg1, arg2, arg3);
+  }
+
+  @Override
+  public void readFully(long arg0, byte[] arg1) throws IOException {
+    ((PositionedReadable) _inputStream).readFully(arg0, arg1);
+  }
+
+  @Override
+  public void readFully(long arg0, byte[] arg1, int arg2, int arg3) throws IOException {
+    ((PositionedReadable) _inputStream).readFully(arg0, arg1, arg2, arg3);
+  }
+
+  @Override
+  public long getPos() throws IOException {
+    return ((Seekable) _inputStream).getPos();
+  }
+
+  @Override
+  public void seek(long arg0) throws IOException {
+    ((Seekable) _inputStream).seek(arg0);
+  }
+
+  @Override
+  public boolean seekToNewSource(long arg0) throws IOException {
+    return ((Seekable) _inputStream).seekToNewSource(arg0);
   }
 
   /**

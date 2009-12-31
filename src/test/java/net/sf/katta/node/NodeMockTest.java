@@ -64,6 +64,7 @@ public class NodeMockTest extends AbstractTest {
     when(_queue.peek()).thenReturn(nodeOperation).thenAnswer(new SleepingAnswer());
 
     _node.start();
+
     assertNotNull(_node.getName());
     assertNotNull(_node.getRpcServer());
     assertTrue(_node.getRPCServerPort() > 0);

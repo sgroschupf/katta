@@ -21,6 +21,7 @@ public class NodeConfiguration extends KattaConfiguration {
 
   private final static String NODE_SERVER_PORT_START = "node.server.port.start";
   private static final String SHARD_FOLDER = "node.shard.folder";
+  private static final String SHARD_DEPLOY_THROTTLE = "node.shard.deploy.throttle";
   private static final String MONITOR_CLASS = "node.monitor.class";
   private static final String SERVER_CLASS = "node.server.class";
 
@@ -42,6 +43,17 @@ public class NodeConfiguration extends KattaConfiguration {
 
   public File getShardFolder() {
     return getFile(SHARD_FOLDER);
+  }
+
+  public void setShardDeployThrottle(int deployThrottle) {
+    setProperty(SHARD_DEPLOY_THROTTLE, deployThrottle);
+  }
+
+  /**
+   * @return a bandwith limitation in bytes/sec for shard installation
+   */
+  public int getShardDeployThrottle() {
+    return getInt(SHARD_DEPLOY_THROTTLE, 0);
   }
 
   public void setShardFolder(final String value) {

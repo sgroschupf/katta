@@ -123,6 +123,11 @@ public abstract class AbstractIntegrationTest {
           deployClient.removeIndex(index);
           TestUtil.waitUntilShardsUndeployed(_protocol, indexMD);
         }
+      } else {
+        List<String> indices = _protocol.getIndices();
+        for (String index : indices) {
+          TestUtil.waitUntilIndexBalanced(_protocol, index);
+        }
       }
       LOG.info("~~~~~~~~~~~~~~~~~~" + "FIN SETUP CLUSTER" + "~~~~~~~~~~~~~~~~~~");
     }

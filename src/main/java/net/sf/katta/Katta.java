@@ -143,13 +143,15 @@ public class Katta {
     }
 
     try {
+      long startTime = System.currentTimeMillis();
       IIndexDeployFuture deployFuture = deployClient.addIndex(name, path, replicationLevel);
       while (true) {
+        long duration = System.currentTimeMillis() - startTime;
         if (deployFuture.getState() == IndexState.DEPLOYED) {
-          System.out.println("deployed index " + name);
+          System.out.println("\ndeployed index '" + name + "' in " + duration + " ms");
           break;
         } else if (deployFuture.getState() == IndexState.ERROR) {
-          System.err.println("not deployed index " + name);
+          System.err.println("\nfailed to deploy index '" + name + "' in " + duration + " ms");
           break;
         }
         System.out.print(".");
@@ -278,8 +280,8 @@ public class Katta {
       NodeConfiguration nodeConfiguration = new NodeConfiguration();
       INodeManaged server = null;
       String serverClassName;
-      if (args.length > 1) {
-        serverClassName = args[1];
+      if (optionMap.containsKey("-c")) {
+        serverClassName = optionMap.get("-c");
       } else {
         serverClassName = nodeConfiguration.getServerClassName();
       }

@@ -25,6 +25,7 @@ import java.util.concurrent.TimeUnit;
 
 import net.sf.katta.master.Master;
 import net.sf.katta.protocol.InteractionProtocol;
+import net.sf.katta.protocol.ReplicationReport;
 import net.sf.katta.protocol.metadata.IndexMetaData;
 import net.sf.katta.protocol.metadata.IndexMetaData.Shard;
 import net.sf.katta.util.FileUtil;
@@ -196,6 +197,21 @@ public class TestUtil {
       @Override
       public Boolean call() throws Exception {
         return protocol.getIndexMD(indexName) == null;
+      }
+    }, TimeUnit.SECONDS, 30);
+  }
+
+  public static void waitUntilIndexBalanced(final InteractionProtocol protocol, final String indexName)
+          throws Exception {
+    waitUntil(true, new Callable<Boolean>() {
+      @Override
+      public Boolean call() throws Exception {
+        IndexMetaData indexMD = protocol.getIndexMD(indexName);
+        ReplicationReport replicationReport = protocol.getReplicationReport(indexMD);
+        if (!replicationReport.isDeployed()) {
+          throw new IllegalStateException("index " + indexName + " not even deployed");
+        }
+        return replicationReport.isBalanced();
       }
     }, TimeUnit.SECONDS, 30);
   }

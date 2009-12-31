@@ -30,6 +30,7 @@ import net.sf.katta.protocol.NodeQueue;
 import net.sf.katta.protocol.metadata.NodeMetaData;
 import net.sf.katta.util.NetworkUtil;
 import net.sf.katta.util.NodeConfiguration;
+import net.sf.katta.util.ThrottledInputStream.ThrottleSemaphore;
 
 import org.I0Itec.zkclient.ExceptionUtil;
 import org.I0Itec.zkclient.exception.ZkInterruptedException;
@@ -83,19 +84,27 @@ public class Node implements ConnectedComponent {
     // we add hostName and port to the shardFolder to allow multiple nodes per
     // server with the same configuration
     File shardsFolder = new File(_nodeConf.getShardFolder(), _nodeName.replaceAll(":", "@"));
-    ShardManager shardManager = new ShardManager(shardsFolder);
+    int throttleInKbPerSec = _nodeConf.getShardDeployThrottle();
+    final ShardManager shardManager;
+    if (throttleInKbPerSec > 0) {
+      LOG.info("throtteling of shard deployment to " + throttleInKbPerSec + " kilo-bytes per second");
+      shardManager = new ShardManager(shardsFolder, new ThrottleSemaphore(throttleInKbPerSec * 1024));
+    } else {
+      shardManager = new ShardManager(shardsFolder);
+    }
     _context = new NodeContext(_protocol, this, shardManager, _nodeManaged);
     _protocol.registerComponent(this);
 
     startMonitor(_nodeName, _nodeConf);
+    init();
+    LOG.info("Started node: " + _nodeName + "...");
+  }
 
+  private void init() {
+    redeployInstalledShards();
     NodeMetaData nodeMetaData = new NodeMetaData(_nodeName);
     NodeQueue nodeOperationQueue = _protocol.publishNode(this, nodeMetaData);
     startOperatorThread(nodeOperationQueue);
-
-    // deploy previous served shards
-    redeployInstalledShards();
-    LOG.info("Started node: " + _nodeName + "...");
   }
 
   private void startOperatorThread(NodeQueue nodeOperationQueue) {
@@ -108,10 +117,7 @@ public class Node implements ConnectedComponent {
   @Override
   public synchronized void reconnect() {
     LOG.info(_nodeName + " reconnected");
-    redeployInstalledShards();
-    NodeMetaData nodeMetaData = new NodeMetaData(_nodeName);
-    NodeQueue nodeOperationQueue = _protocol.publishNode(this, nodeMetaData);
-    startOperatorThread(nodeOperationQueue);
+    init();
   }
 
   @Override

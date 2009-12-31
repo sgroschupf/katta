@@ -1,3 +1,18 @@
+/**
+ * Copyright 2008 the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package net.sf.katta.util;
 
 import static org.junit.Assert.assertThat;
@@ -44,6 +59,7 @@ public class ThrottledInputStreamTest extends AbstractTest {
 
     readThread1.interrupt();
     readThread2.interrupt();
+    readThread1.join();
     readThread2.join();
 
     printResult(readThread1);
@@ -52,7 +68,7 @@ public class ThrottledInputStreamTest extends AbstractTest {
     assertThat(readThread1.getReadTime(), almostEquals(expectedReadTime, 1000));
     assertThat(readThread2.getReadTime(), almostEquals(expectedReadTime, 1000));
     assertThat((readThread1.getReadBytes() + readThread2.getReadBytes()) / (expectedReadTime / 1000), almostEquals(
-            bytesPerSecond, 500));
+            bytesPerSecond, 700));
   }
 
   private ReadThread checkThrottledRead(long expectedReadTime, int bytesPerSecond, boolean readWithBuffer)
