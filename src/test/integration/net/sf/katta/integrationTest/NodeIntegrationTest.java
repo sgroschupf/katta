@@ -32,6 +32,7 @@ import net.sf.katta.testutil.TestUtil;
 import org.apache.lucene.analysis.KeywordAnalyzer;
 import org.apache.lucene.queryParser.QueryParser;
 import org.apache.lucene.search.Query;
+import org.apache.lucene.util.Version;
 import org.junit.Test;
 
 public class NodeIntegrationTest extends AbstractIntegrationTest {
@@ -81,7 +82,7 @@ public class NodeIntegrationTest extends AbstractIntegrationTest {
     assertEquals(1, protocol.getIndices().size());
 
     LuceneClient luceneClient = new LuceneClient(_miniCluster.getZkConfiguration());
-    final Query query = new QueryParser("", new KeywordAnalyzer()).parse("content: the");
+    final Query query = new QueryParser(Version.LUCENE_CURRENT, "", new KeywordAnalyzer()).parse("content: the");
     luceneClient.count(query, new String[] { INDEX_NAME });
     luceneClient.close();
   }

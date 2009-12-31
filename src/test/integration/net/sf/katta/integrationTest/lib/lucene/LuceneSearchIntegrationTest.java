@@ -30,6 +30,7 @@ import org.apache.log4j.Logger;
 import org.apache.lucene.analysis.KeywordAnalyzer;
 import org.apache.lucene.queryParser.QueryParser;
 import org.apache.lucene.search.Query;
+import org.apache.lucene.util.Version;
 import org.junit.Test;
 
 public class LuceneSearchIntegrationTest extends AbstractIntegrationTest {
@@ -145,20 +146,16 @@ public class LuceneSearchIntegrationTest extends AbstractIntegrationTest {
   private void startAndStopNodes(long queryTime) throws Exception {
     Thread.sleep(queryTime / 4);
     _miniCluster.shutdownNode(0);
-    _miniCluster.getProtocol().showStructure(false);
 
     Thread.sleep(queryTime / 4);
     _miniCluster.shutdownNode(0);
-    _miniCluster.getProtocol().showStructure(false);
 
     Thread.sleep(queryTime / 4);
     _miniCluster.startAdditionalNode();
-    _miniCluster.getProtocol().showStructure(false);
 
     Thread.sleep(queryTime / 4);
 
     _miniCluster.shutdownNode(_miniCluster.getRunningNodeCount() - 1);
-    _miniCluster.getProtocol().showStructure(false);
   }
 
   private void checkResults(long startTime, long queryTime, long firedQueries, long unexpectedResultCount,
@@ -212,7 +209,7 @@ public class LuceneSearchIntegrationTest extends AbstractIntegrationTest {
           client = _client;
         }
         while (!_stopped) {
-          final Query query = new QueryParser("", new KeywordAnalyzer()).parse("foo:bar");
+          final Query query = new QueryParser(Version.LUCENE_CURRENT, "", new KeywordAnalyzer()).parse("foo:bar");
           Hits hits = client.search(query, new String[] { "*" });
           _firedQueryCount++;
           if (hits.size() != _expectedTotalHitCount) {

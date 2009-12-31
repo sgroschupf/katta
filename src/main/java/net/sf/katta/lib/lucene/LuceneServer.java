@@ -48,11 +48,11 @@ import org.apache.lucene.document.Fieldable;
 import org.apache.lucene.index.CorruptIndexException;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.queryParser.ParseException;
+import org.apache.lucene.search.Collector;
 import org.apache.lucene.search.DefaultSimilarity;
 import org.apache.lucene.search.Explanation;
 import org.apache.lucene.search.FieldDoc;
 import org.apache.lucene.search.Filter;
-import org.apache.lucene.search.HitCollector;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
@@ -63,6 +63,7 @@ import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.search.TopFieldDocs;
 import org.apache.lucene.search.Weight;
+import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.PriorityQueue;
 
 /**
@@ -106,7 +107,7 @@ public class LuceneServer implements INodeManaged, ILuceneServer {
   public void addShard(final String shardName, final File shardDir) throws IOException {
     LOG.info("LuceneServer " + _nodeName + " got shard " + shardName);
     try {
-      IndexSearcher indexSearcher = new IndexSearcher(shardDir.getAbsolutePath());
+      IndexSearcher indexSearcher = new IndexSearcher(FSDirectory.open(shardDir.getAbsoluteFile()));
       synchronized (_searcherByShard) {
         _searcherByShard.put(shardName, indexSearcher);
         _maxDoc += indexSearcher.maxDoc();
@@ -321,7 +322,7 @@ public class LuceneServer implements INodeManaged, ILuceneServer {
     for (final Fieldable field : fields) {
       final String name = field.name();
       if (field.isBinary()) {
-        final byte[] binaryValue = field.binaryValue();
+        final byte[] binaryValue = field.getBinaryValue();
         result.put(new Text(name), new BytesWritable(binaryValue));
       } else {
         final String stringValue = field.stringValue();
@@ -344,7 +345,6 @@ public class LuceneServer implements INodeManaged, ILuceneServer {
    * @return TODO what does this return? A map?
    * @throws IOException
    */
-  @SuppressWarnings("deprecation")
   public MapWritable getDetails(final String[] shards, final int docId, final String[] fieldNames) throws IOException {
     final MapWritable result = new MapWritable();
     final Document doc = doc(shards[0], docId);
@@ -352,7 +352,7 @@ public class LuceneServer implements INodeManaged, ILuceneServer {
       final Field field = doc.getField(fieldName);
       if (field != null) {
         if (field.isBinary()) {
-          final byte[] binaryValue = field.binaryValue();
+          final byte[] binaryValue = field.getBinaryValue();
           result.put(new Text(fieldName), new BytesWritable(binaryValue));
         } else {
           final String stringValue = field.stringValue();
@@ -691,7 +691,7 @@ public class LuceneServer implements INodeManaged, ILuceneServer {
     }
 
     @Override
-    public void search(final Weight weight, final Filter filter, final HitCollector results) {
+    public void search(final Weight weight, final Filter filter, final Collector hitCollector) {
       throw new UnsupportedOperationException();
     }
 
@@ -707,8 +707,24 @@ public class LuceneServer implements INodeManaged, ILuceneServer {
   }
 
   protected class KattaHitQueue extends PriorityQueue implements Iterable<Hit> {
-    KattaHitQueue(final int size) {
-      initialize(size);
+
+    private final int _maxSize;
+
+    KattaHitQueue(final int maxSize) {
+      _maxSize = maxSize;
+      initialize(maxSize);
+    }
+
+    public boolean insert(Hit hit) {
+      if (size() < _maxSize) {
+        add(hit);
+        return true;
+      }
+      if (lessThan(top(), hit)) {
+        insertWithOverflow(hit);
+        return true;
+      }
+      return false;
     }
 
     @Override

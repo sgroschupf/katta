@@ -45,6 +45,7 @@ import org.apache.lucene.analysis.KeywordAnalyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
+import org.apache.lucene.document.NumericField;
 import org.apache.lucene.document.Field.Index;
 import org.apache.lucene.document.Field.Store;
 import org.apache.lucene.index.IndexWriter;
@@ -53,6 +54,9 @@ import org.apache.lucene.queryParser.ParseException;
 import org.apache.lucene.queryParser.QueryParser;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.Sort;
+import org.apache.lucene.search.SortField;
+import org.apache.lucene.store.FSDirectory;
+import org.apache.lucene.util.Version;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -84,7 +88,7 @@ public class LuceneClientTest extends AbstractIntegrationTest {
     }
     Thread.sleep(2000);
 
-    final Query query = new QueryParser("", new KeywordAnalyzer()).parse("content: the");
+    final Query query = new QueryParser(Version.LUCENE_CURRENT, "", new KeywordAnalyzer()).parse("content: the");
     client.count(query, new String[] { INDEX_NAME });
     client.close();
   }
@@ -93,7 +97,7 @@ public class LuceneClientTest extends AbstractIntegrationTest {
   public void testCount() throws Exception {
     deployTestIndices(1, 1);
     ILuceneClient client = new LuceneClient(_miniCluster.getZkConfiguration());
-    final Query query = new QueryParser("", new KeywordAnalyzer()).parse("content: the");
+    final Query query = new QueryParser(Version.LUCENE_CURRENT, "", new KeywordAnalyzer()).parse("content: the");
     final int count = client.count(query, new String[] { INDEX_NAME });
     assertEquals(937, count);
     client.close();
@@ -103,7 +107,7 @@ public class LuceneClientTest extends AbstractIntegrationTest {
   public void testGetDetails() throws Exception {
     deployTestIndices(1, 1);
     ILuceneClient client = new LuceneClient(_miniCluster.getZkConfiguration());
-    final Query query = new QueryParser("", new KeywordAnalyzer()).parse("content: the");
+    final Query query = new QueryParser(Version.LUCENE_CURRENT, "", new KeywordAnalyzer()).parse("content: the");
     final Hits hits = client.search(query, new String[] { INDEX_NAME }, 10);
     assertNotNull(hits);
     assertEquals(10, hits.getHits().size());
@@ -121,7 +125,7 @@ public class LuceneClientTest extends AbstractIntegrationTest {
   public void testGetDetailsConcurrently() throws KattaException, ParseException, InterruptedException {
     deployTestIndices(1, 1);
     ILuceneClient client = new LuceneClient(_miniCluster.getZkConfiguration());
-    final Query query = new QueryParser("", new KeywordAnalyzer()).parse("content: the");
+    final Query query = new QueryParser(Version.LUCENE_CURRENT, "", new KeywordAnalyzer()).parse("content: the");
     final Hits hits = client.search(query, new String[] { INDEX_NAME }, 10);
     assertNotNull(hits);
     assertEquals(10, hits.getHits().size());
@@ -142,7 +146,7 @@ public class LuceneClientTest extends AbstractIntegrationTest {
   public void testSearch() throws Exception {
     deploy3Indices();
     ILuceneClient client = new LuceneClient(_miniCluster.getZkConfiguration());
-    final Query query = new QueryParser("", new KeywordAnalyzer()).parse("foo: bar");
+    final Query query = new QueryParser(Version.LUCENE_CURRENT, "", new KeywordAnalyzer()).parse("foo: bar");
     final Hits hits = client.search(query, new String[] { INDEX3, INDEX2 });
     assertNotNull(hits);
     for (final Hit hit : hits.getHits()) {
@@ -154,13 +158,39 @@ public class LuceneClientTest extends AbstractIntegrationTest {
   }
 
   @Test
+  public void testFieldSortOnLong() throws Exception {
+    File sortIndex = _temporaryFolder.newFolder("sortIndex1");
+    IndexWriter indexWriter = new IndexWriter(FSDirectory.open(sortIndex),
+            new StandardAnalyzer(Version.LUCENE_CURRENT), true, MaxFieldLength.UNLIMITED);
+
+    Document document = new Document();
+    document.add(new Field("text", "abc", Field.Store.YES, Index.NOT_ANALYZED));
+    document.add(new NumericField("timesort", Field.Store.YES, false).setLongValue(1234567890123l));
+    indexWriter.addDocument(document);
+    indexWriter.close();
+
+    DeployClient deployClient = new DeployClient(_miniCluster.getProtocol());
+    IndexState indexState = deployClient.addIndex(sortIndex.getName(), sortIndex.getParentFile().getAbsolutePath(), 1)
+            .joinDeployment();
+    assertEquals(IndexState.DEPLOYED, indexState);
+
+    // query and compare results
+    ILuceneClient client = new LuceneClient(_miniCluster.getZkConfiguration());
+    final Query query = new QueryParser(Version.LUCENE_CURRENT, "", new KeywordAnalyzer()).parse("text:abc");
+    Sort sort = new Sort(new SortField[] { new SortField("timesort", SortField.LONG) });
+    final Hits hits = client.search(query, new String[] { sortIndex.getName() }, 20, sort);
+    assertNotNull(hits);
+  }
+
+  @Test
   public void testSortedSearch() throws Exception {
     // write and deploy test index
-    File sortIndex = _temporaryFolder.newFolder("sortIndex");
+    File sortIndex = _temporaryFolder.newFolder("sortIndex2");
     String queryTerm = "2";
     String sortFieldName = "sortField";
     String textFieldName = "textField";
-    IndexWriter indexWriter = new IndexWriter(sortIndex, new StandardAnalyzer(), true, MaxFieldLength.UNLIMITED);
+    IndexWriter indexWriter = new IndexWriter(FSDirectory.open(sortIndex),
+            new StandardAnalyzer(Version.LUCENE_CURRENT), true, MaxFieldLength.UNLIMITED);
     for (int i = 0; i < 20; i++) {
       Document document = new Document();
       document.add(new Field(sortFieldName, "" + i, Store.NO, Index.NOT_ANALYZED));
@@ -182,8 +212,9 @@ public class LuceneClientTest extends AbstractIntegrationTest {
 
     // query and compare results
     ILuceneClient client = new LuceneClient(_miniCluster.getZkConfiguration());
-    final Query query = new QueryParser("", new KeywordAnalyzer()).parse(textFieldName + ": " + queryTerm);
-    Sort sort = new Sort(new String[] { "sortField" });
+    final Query query = new QueryParser(Version.LUCENE_CURRENT, "", new KeywordAnalyzer()).parse(textFieldName + ": "
+            + queryTerm);
+    Sort sort = new Sort(new SortField[] { new SortField("sortField", SortField.INT) });
     final Hits hits = client.search(query, new String[] { sortIndex.getName() }, 20, sort);
     assertNotNull(hits);
     List<Hit> hitsList = hits.getHits();
@@ -192,7 +223,7 @@ public class LuceneClientTest extends AbstractIntegrationTest {
     }
     assertEquals(9, hits.size());
     assertEquals(9, hitsList.size());
-    assertTrue("results ordered after score", hitsList.get(0).getScore() < hitsList.get(1).getScore());
+    assertEquals(1, hitsList.get(0).getSortFields().length);
     for (int i = 0; i < hitsList.size() - 1; i++) {
       int compareTo = hitsList.get(i).getSortFields()[0].compareTo(hitsList.get(i + 1).getSortFields()[0]);
       assertTrue("results not after field", compareTo == 0 || compareTo == -1);
@@ -204,7 +235,7 @@ public class LuceneClientTest extends AbstractIntegrationTest {
   public void testSearchLimit() throws Exception {
     deploy3Indices();
     ILuceneClient client = new LuceneClient(_miniCluster.getZkConfiguration());
-    final Query query = new QueryParser("", new KeywordAnalyzer()).parse("foo: bar");
+    final Query query = new QueryParser(Version.LUCENE_CURRENT, "", new KeywordAnalyzer()).parse("foo: bar");
     final Hits hits = client.search(query, new String[] { INDEX3, INDEX2 }, 1);
     assertNotNull(hits);
     for (final Hit hit : hits.getHits()) {
@@ -220,7 +251,7 @@ public class LuceneClientTest extends AbstractIntegrationTest {
   @Test
   public void testKatta20SearchLimitMaxNumberOfHits() throws Exception {
     deployTestIndices(1, getNodeCount());
-    final Query query = new QueryParser("", new KeywordAnalyzer()).parse("foo: bar");
+    final Query query = new QueryParser(Version.LUCENE_CURRENT, "", new KeywordAnalyzer()).parse("foo: bar");
     ILuceneClient client = new LuceneClient(_miniCluster.getZkConfiguration());
     final Hits expectedHits = client.search(query, new String[] { INDEX_NAME }, 4);
     assertNotNull(expectedHits);
@@ -250,7 +281,7 @@ public class LuceneClientTest extends AbstractIntegrationTest {
   public void testSearchSimiliarity() throws Exception {
     deploy3Indices();
     ILuceneClient client = new LuceneClient(_miniCluster.getZkConfiguration());
-    final Query query = new QueryParser("", new KeywordAnalyzer()).parse("foo: bar");
+    final Query query = new QueryParser(Version.LUCENE_CURRENT, "", new KeywordAnalyzer()).parse("foo: bar");
     final Hits hits = client.search(query, new String[] { INDEX2 });
     assertNotNull(hits);
     assertEquals(4, hits.getHits().size());
@@ -261,7 +292,7 @@ public class LuceneClientTest extends AbstractIntegrationTest {
 
   @Test
   public void testNonExistentShard() throws Exception {
-    final Query query = new QueryParser("", new KeywordAnalyzer()).parse("foo: bar");
+    final Query query = new QueryParser(Version.LUCENE_CURRENT, "", new KeywordAnalyzer()).parse("foo: bar");
     ILuceneClient client = new LuceneClient(_miniCluster.getZkConfiguration());
     try {
       client.search(query, new String[] { "doesNotExist" });

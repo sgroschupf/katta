@@ -113,6 +113,7 @@ public abstract class AbstractIntegrationTest {
           LOG.info("started " + node.getName());
         }
       }
+      TestUtil.waitUntilNumberOfLiveNode(_protocol, _nodeCount);
       // remove all indices
       if (_undeployIndicesAfterEachTest) {
         List<String> indices = _protocol.getIndices();

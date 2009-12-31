@@ -63,6 +63,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.lucene.analysis.KeywordAnalyzer;
 import org.apache.lucene.queryParser.QueryParser;
 import org.apache.lucene.search.Query;
+import org.apache.lucene.util.Version;
 
 /**
  * Provides command line access to a Katta cluster.
@@ -708,7 +709,7 @@ public class Katta {
 
     void search(final String[] indexNames, final String queryString, final int count) throws Exception {
       final ILuceneClient client = new LuceneClient();
-      final Query query = new QueryParser("", new KeywordAnalyzer()).parse(queryString);
+      final Query query = new QueryParser(Version.LUCENE_CURRENT, "", new KeywordAnalyzer()).parse(queryString);
       final long start = System.currentTimeMillis();
       final Hits hits = client.search(query, indexNames, count);
       final long end = System.currentTimeMillis();
@@ -724,7 +725,7 @@ public class Katta {
 
     void search(final String[] indexNames, final String queryString) throws Exception {
       final ILuceneClient client = new LuceneClient();
-      final Query query = new QueryParser("", new KeywordAnalyzer()).parse(queryString);
+      final Query query = new QueryParser(Version.LUCENE_CURRENT, "", new KeywordAnalyzer()).parse(queryString);
       final long start = System.currentTimeMillis();
       final int hitsSize = client.count(query, indexNames);
       final long end = System.currentTimeMillis();

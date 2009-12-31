@@ -12,6 +12,7 @@ import net.sf.katta.lib.lucene.LuceneClient;
 import org.apache.lucene.analysis.KeywordAnalyzer;
 import org.apache.lucene.queryParser.QueryParser;
 import org.apache.lucene.search.Query;
+import org.apache.lucene.util.Version;
 import org.junit.Test;
 
 public class LuceneClientFailoverTest extends AbstractIntegrationTest {
@@ -29,7 +30,7 @@ public class LuceneClientFailoverTest extends AbstractIntegrationTest {
     // shutdown proxy of node1
     _miniCluster.getNode(0).getRpcServer().stop();
 
-    final Query query = new QueryParser("", new KeywordAnalyzer()).parse("content: the");
+    final Query query = new QueryParser(Version.LUCENE_CURRENT, "", new KeywordAnalyzer()).parse("content: the");
     System.out.println("=========================");
     assertSearchResults(10, luceneClient.search(query, new String[] { INDEX_NAME }, 10));
     assertEquals(937, luceneClient.count(query, new String[] { INDEX_NAME }));
@@ -45,7 +46,7 @@ public class LuceneClientFailoverTest extends AbstractIntegrationTest {
   public void testGetDetails_NodeProxyDownAfterClientInitialization() throws Exception {
     deployTestIndices(1, getNodeCount());
     LuceneClient luceneClient = new LuceneClient(_miniCluster.getZkConfiguration());
-    final Query query = new QueryParser("", new KeywordAnalyzer()).parse("content: the");
+    final Query query = new QueryParser(Version.LUCENE_CURRENT, "", new KeywordAnalyzer()).parse("content: the");
     Hits hits = luceneClient.search(query, new String[] { INDEX_NAME }, 10);
 
     // shutdown proxy of node1
@@ -67,7 +68,7 @@ public class LuceneClientFailoverTest extends AbstractIntegrationTest {
   public void testAllNodeProxyDownAfterClientInitialization() throws Exception {
     deployTestIndices(1, getNodeCount());
     LuceneClient luceneClient = new LuceneClient(_miniCluster.getZkConfiguration());
-    final Query query = new QueryParser("", new KeywordAnalyzer()).parse("content: the");
+    final Query query = new QueryParser(Version.LUCENE_CURRENT, "", new KeywordAnalyzer()).parse("content: the");
     for (int i = 0; i < _miniCluster.getRunningNodeCount(); i++) {
       _miniCluster.shutdownNodeRpc(i);
     }

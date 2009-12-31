@@ -40,7 +40,7 @@ public class Hit implements Writable, Comparable<Hit> {
   private float _score;
 
   private int _docId;
-  
+
   private WritableComparable[] _sortFields;
 
   private WritableType[] _sortFieldTypes;
@@ -48,7 +48,7 @@ public class Hit implements Writable, Comparable<Hit> {
   public Hit() {
     // needed for serialization
   }
-  
+
   public Hit(final String shard, final String node, final float score, final int id) {
     this(shard, node, score, id, null);
   }
@@ -94,7 +94,7 @@ public class Hit implements Writable, Comparable<Hit> {
   public void setDocId(final int docId) {
     _docId = docId;
   }
-  
+
   public void setSortFields(WritableComparable[] sortFields) {
     _sortFields = sortFields;
   }
@@ -195,6 +195,6 @@ public class Hit implements Writable, Comparable<Hit> {
 
   @Override
   public String toString() {
-    return getNode() + " " + getShard() + " " + getDocId();
+    return getNode() + " " + getShard() + " " + getDocId() + " " + getScore();
   }
 }

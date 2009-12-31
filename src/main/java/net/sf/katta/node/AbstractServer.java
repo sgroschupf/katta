@@ -32,7 +32,8 @@ public abstract class AbstractServer implements INodeManaged {
   protected final Map<String, File> _shards = new ConcurrentHashMap<String, File>();
   protected String _nodeName;
 
-  public long getProtocolVersion(@SuppressWarnings("unused") final String protocol, @SuppressWarnings("unused") final long clientVersion) {
+  public long getProtocolVersion(@SuppressWarnings("unused") final String protocol,
+          @SuppressWarnings("unused") final long clientVersion) {
     return 0L;
   }
 
@@ -40,7 +41,6 @@ public abstract class AbstractServer implements INodeManaged {
     _nodeName = nodeName;
   }
 
-  
   /**
    * Add a shard.
    * 
@@ -65,24 +65,24 @@ public abstract class AbstractServer implements INodeManaged {
     LOG.info(_nodeName + " removing shard " + shardName);
     _shards.remove(shardName);
   }
-  
+
   /**
    * Returns data about a shard. Currently the only standard key is
-   * SHARD_SIZE_KEY. This value will be reported by the listIndexes command.
-   * The units depend on the type of server. It is OK to return an empty
-   * map or null.
+   * SHARD_SIZE_KEY. This value will be reported by the listIndexes command. The
+   * units depend on the type of server. It is OK to return an empty map or
+   * null.
    * 
-   * @param shardName The name of the shard to measure. 
-   * This was the name provided in addShard().
+   * @param shardName
+   *          The name of the shard to measure. This was the name provided in
+   *          addShard().
    * @return a map of key/value pairs which describe the shard.
-   * @throws Exception 
+   * @throws Exception
    */
   public abstract Map<String, String> getShardMetaData(String shardName) throws Exception;
-  
 
   /**
    * Release all resources. No further calls will be made after this one.
    */
   public abstract void shutdown() throws IOException;
-  
+
 }

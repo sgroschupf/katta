@@ -34,6 +34,7 @@ import net.sf.katta.testutil.TestResources;
 import org.apache.lucene.analysis.KeywordAnalyzer;
 import org.apache.lucene.queryParser.QueryParser;
 import org.apache.lucene.search.Query;
+import org.apache.lucene.util.Version;
 import org.junit.Test;
 
 public class LuceneServerTest extends AbstractTest {
@@ -271,7 +272,7 @@ public class LuceneServerTest extends AbstractTest {
       server.addShard(shard.getName(), shard);
     }
 
-    QueryParser parser = new QueryParser("field", new KeywordAnalyzer());
+    QueryParser parser = new QueryParser(Version.LUCENE_CURRENT, "field", new KeywordAnalyzer());
     Query query = parser.parse("foo: bar");
     QueryWritable writable = new QueryWritable(query);
 

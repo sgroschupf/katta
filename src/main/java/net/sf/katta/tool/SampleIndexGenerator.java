@@ -33,6 +33,8 @@ import org.apache.lucene.document.Field.Index;
 import org.apache.lucene.document.Field.Store;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriter.MaxFieldLength;
+import org.apache.lucene.store.FSDirectory;
+import org.apache.lucene.util.Version;
 
 /**
  * Generates a test index, for example used for benchmarking
@@ -60,7 +62,8 @@ public class SampleIndexGenerator {
     int count = wordList.length;
     Random random = new Random(System.currentTimeMillis());
     try {
-      IndexWriter indexWriter = new IndexWriter(index, new StandardAnalyzer(), true, MaxFieldLength.UNLIMITED);
+      IndexWriter indexWriter = new IndexWriter(FSDirectory.open(index), new StandardAnalyzer(Version.LUCENE_CURRENT),
+              true, MaxFieldLength.UNLIMITED);
       for (int i = 0; i < indexSize; i++) {
         // generate text first
         StringBuffer text = new StringBuffer();

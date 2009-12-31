@@ -41,6 +41,9 @@ import org.apache.lucene.document.Field;
 import org.apache.lucene.document.Field.Index;
 import org.apache.lucene.document.Field.Store;
 import org.apache.lucene.index.IndexWriter;
+import org.apache.lucene.index.IndexWriter.MaxFieldLength;
+import org.apache.lucene.store.FSDirectory;
+import org.apache.lucene.util.Version;
 
 /**
  * Illustrates how to implement a indexer as hadoop map reduce job.
@@ -113,7 +116,7 @@ public class IndexerJob {
 
     @SuppressWarnings("deprecation")
     public void run(RecordReader<LongWritable, Text> reader, OutputCollector<Text, Text> output, final Reporter report)
-        throws IOException {
+            throws IOException {
       LongWritable key = reader.createKey();
       Text value = reader.createValue();
 
@@ -123,15 +126,15 @@ public class IndexerJob {
       File file = new File(tmp, shardName);
       report.progress();
       // TODO sg this should be configurable
-      Analyzer analyzer = new StandardAnalyzer(); 
-      IndexWriter indexWriter = new IndexWriter(file, analyzer);
+      Analyzer analyzer = new StandardAnalyzer(Version.LUCENE_CURRENT);
+      IndexWriter indexWriter = new IndexWriter(FSDirectory.open(file), analyzer, MaxFieldLength.UNLIMITED);
       indexWriter.setMergeFactor(100000);
       report.setStatus("Adding documents...");
       while (reader.next(key, value)) {
         report.progress();
         Document doc = new Document();
         String text = "" + value.toString();
-        Field contentField = new Field("content", text, Store.YES, Index.TOKENIZED);
+        Field contentField = new Field("content", text, Store.YES, Index.ANALYZED);
         doc.add(contentField);
         indexWriter.addDocument(doc);
       }

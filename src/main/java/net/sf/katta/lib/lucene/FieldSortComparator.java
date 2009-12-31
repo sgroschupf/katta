@@ -19,7 +19,6 @@ import java.util.Comparator;
 
 import net.sf.katta.util.WritableType;
 
-import org.apache.lucene.search.FieldSortedHitQueue;
 import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.SortField;
 

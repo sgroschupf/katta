@@ -50,6 +50,8 @@ import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.SortField;
 import org.apache.lucene.search.TopDocs;
+import org.apache.lucene.store.FSDirectory;
+import org.apache.lucene.util.Version;
 import org.junit.AfterClass;
 import org.junit.Test;
 
@@ -105,7 +107,7 @@ public class LuceneComplianceTest extends AbstractIntegrationTest {
   @Test
   public void testScoreSort() throws Exception {
     // query and compare
-    IndexSearcher indexSearcher = new IndexSearcher(_luceneIndex.getAbsolutePath());
+    IndexSearcher indexSearcher = new IndexSearcher(FSDirectory.open(_luceneIndex.getAbsoluteFile()));
     checkQueryResults(indexSearcher, _kattaIndex.getName(), FIELD_NAME, "0", null);
     checkQueryResults(indexSearcher, _kattaIndex.getName(), FIELD_NAME, "1", null);
     checkQueryResults(indexSearcher, _kattaIndex.getName(), FIELD_NAME, "2", null);
@@ -118,8 +120,10 @@ public class LuceneComplianceTest extends AbstractIntegrationTest {
   @Test
   public void testFieldSort() throws Exception {
     // query and compare (auto types)
-    IndexSearcher indexSearcher = new IndexSearcher(_luceneIndex.getAbsolutePath());
-    Sort sort = new Sort(new SortField[] { new SortField(FIELD_NAME) });
+    IndexSearcher indexSearcher = new IndexSearcher(FSDirectory.open(_luceneIndex.getAbsoluteFile()));
+    Sort sort = new Sort(new SortField[] { new SortField(FIELD_NAME, SortField.LONG) });// TODO
+    // correct
+    // ?
     checkQueryResults(indexSearcher, _kattaIndex.getName(), FIELD_NAME, "0", sort);
     checkQueryResults(indexSearcher, _kattaIndex.getName(), FIELD_NAME, "1", sort);
     checkQueryResults(indexSearcher, _kattaIndex.getName(), FIELD_NAME, "2", sort);
@@ -149,7 +153,11 @@ public class LuceneComplianceTest extends AbstractIntegrationTest {
 
   private void checkQueryResults(IndexSearcher indexSearcher, String kattaIndexName, String fieldName,
           String queryTerm, int resultCount, Sort sort) throws Exception {
-    final Query query = new QueryParser("", new KeywordAnalyzer()).parse(fieldName + ": " + queryTerm);
+
+    // final Query query = new QueryParser("", new
+    // KeywordAnalyzer()).parse(fieldName + ": " + queryTerm);
+    final Query query = new QueryParser(Version.LUCENE_CURRENT, "", new KeywordAnalyzer()).parse(fieldName + ": "
+            + queryTerm);
     final TopDocs searchResultsLucene;
     final Hits searchResultsKatta;
     if (sort == null) {
@@ -210,7 +218,8 @@ public class LuceneComplianceTest extends AbstractIntegrationTest {
   private static void writeIndex(File file, List<Document> documents) throws IOException {
     file.mkdirs();
     assertTrue(file.exists());
-    IndexWriter indexWriter = new IndexWriter(file, new StandardAnalyzer(), true, MaxFieldLength.UNLIMITED);
+    IndexWriter indexWriter = new IndexWriter(FSDirectory.open(file), new StandardAnalyzer(Version.LUCENE_CURRENT),
+            true, MaxFieldLength.UNLIMITED);
     for (Document document : documents) {
       indexWriter.addDocument(document);
     }

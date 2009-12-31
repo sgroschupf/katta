@@ -39,6 +39,7 @@ import org.I0Itec.zkclient.ZkClient;
 import org.apache.lucene.analysis.KeywordAnalyzer;
 import org.apache.lucene.queryParser.QueryParser;
 import org.apache.lucene.search.Query;
+import org.apache.lucene.util.Version;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher.Event.EventType;
 import org.apache.zookeeper.Watcher.Event.KeeperState;
@@ -70,7 +71,7 @@ public class FailoverTest extends AbstractIntegrationTest {
   public void testNodeFailure() throws Exception {
     deployTestIndices(1, getNodeCount());
     final LuceneClient client = new LuceneClient(_miniCluster.getZkConfiguration());
-    Query query = new QueryParser("", new KeywordAnalyzer()).parse("foo:bar");
+    Query query = new QueryParser(Version.LUCENE_CURRENT, "", new KeywordAnalyzer()).parse("foo:bar");
     assertEquals(4, client.count(query, new String[] { INDEX_NAME }));
 
     // kill 1st of 3 nodes

@@ -180,7 +180,7 @@ public class KattaMiniCluster {
   }
 
   public void deployTestIndexes(File indexFile, int deployCount, int replicationCount) throws InterruptedException {
-    IDeployClient deployClient = new DeployClient(_zkServer.getZkClient(), _zkConfiguration);
+    IDeployClient deployClient = new DeployClient(_protocol);
     for (int i = 0; i < deployCount; i++) {
       deployClient.addIndex(indexFile.getName() + i, indexFile.getAbsolutePath(), replicationCount).joinDeployment();
     }

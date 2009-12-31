@@ -43,6 +43,7 @@ public class DefaultNodeSelectionPolicy implements INodeSelectionPolicy {
   }
 
   public List<String> remove(String shard) {
+    System.out.println("DefaultNodeSelectionPolicy.remove(): " + shard);
     CircularList<String> nodes = _shardsToNodeMap.remove(shard);
     if (nodes == null) {
       return Collections.emptyList();
@@ -51,6 +52,7 @@ public class DefaultNodeSelectionPolicy implements INodeSelectionPolicy {
   }
 
   public void removeNode(String node) {
+    System.out.println("DefaultNodeSelectionPolicy.removeNode(): " + node);
     Set<String> shards = _shardsToNodeMap.keySet();
     for (String shard : shards) {
       CircularList<String> nodes = _shardsToNodeMap.get(shard);
@@ -63,6 +65,7 @@ public class DefaultNodeSelectionPolicy implements INodeSelectionPolicy {
     for (String shard : shards) {
       CircularList<String> nodeList = _shardsToNodeMap.get(shard);
       if (nodeList == null || nodeList.isEmpty()) {
+        System.out.println(_shardsToNodeMap);
         throw new ShardAccessException(shard);
       }
       String node;
