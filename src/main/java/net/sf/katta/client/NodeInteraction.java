@@ -163,7 +163,8 @@ class NodeInteraction<T> implements Runnable {
             _workQueue.execute(newNode, retryMap, _tryCount + 1, _maxTryCount);
           }
         } catch (ShardAccessException e) {
-          // Nothing to do. Report error.
+          LOG.error(String.format("Error calling %s (try # %d of %d) (id=%d)", (methodDesc != null ? methodDesc
+                  : _method + " on " + _node), _tryCount, _maxTryCount, instanceId), t);
           _result.addError(e, _shards);
         }
       }

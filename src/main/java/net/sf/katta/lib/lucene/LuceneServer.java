@@ -487,6 +487,11 @@ public class LuceneServer implements INodeManaged, ILuceneServer {
     final List<Hit> sortedResult = new ArrayList<Hit>(count);
 
     BitSet listDone = new BitSet(sortedFieldDocs.length);
+    for (int subListIndex = 0; subListIndex < arrayPositions.length; subListIndex++) {
+      if (sortedFieldDocs[subListIndex].length == 0) {
+        listDone.set(subListIndex, true);
+      }
+    }
     do {
       int fieldDocArrayWithSmallestFieldDoc = -1;
       FieldDoc smallestFieldDoc = null;

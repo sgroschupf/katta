@@ -120,8 +120,12 @@ public class LuceneClient implements ILuceneClient {
       throw results.getKattaException();
     }
     Hits result = new Hits();
+    HitsMapWritable exampleHitWritable = null;
     for (HitsMapWritable hmw : results.getResults()) {
       List<Hit> hits = hmw.getHitList();
+      if (exampleHitWritable == null && !hits.isEmpty()) {
+        exampleHitWritable = hmw;
+      }
       result.addTotalHits(hmw.getTotalHits());
       result.addHits(hits);
     }
@@ -129,19 +133,18 @@ public class LuceneClient implements ILuceneClient {
     if (LOG.isDebugEnabled()) {
       start = System.currentTimeMillis();
     }
-    if (sort == null) {
-      result.sort(count);
-    } else {
-      result.fieldSort(sort, results.getResults().iterator().next().getSortFieldTypes(), count);
+    if (result.size() > 0) {
+      if (sort == null) {
+        result.sort(count);
+      } else {
+        result.fieldSort(sort, exampleHitWritable.getSortFieldTypes(), count);
+      }
     }
     if (LOG.isDebugEnabled()) {
       LOG.debug("Time for sorting: " + (System.currentTimeMillis() - start) + " ms");
     }
     return result;
   }
-
-  // public int getResultCount(QueryWritable query, String[] shards) throws
-  // IOException;
 
   private static final Method COUNT_METHOD;
   private static final int COUNT_METHOD_SHARD_ARG_IDX = 1;

@@ -158,28 +158,52 @@ public class LuceneClientTest extends AbstractIntegrationTest {
   }
 
   @Test
-  public void testFieldSortOnLong() throws Exception {
-    File sortIndex = _temporaryFolder.newFolder("sortIndex1");
-    IndexWriter indexWriter = new IndexWriter(FSDirectory.open(sortIndex),
-            new StandardAnalyzer(Version.LUCENE_CURRENT), true, MaxFieldLength.UNLIMITED);
+  public void testFieldSortWithNoResultShard() throws Exception {
+    File sortIndex1 = _temporaryFolder.newFolder("sortIndex1");
+    File sortIndex2 = _temporaryFolder.newFolder("sortIndex2");
+    IndexWriter indexWriter1 = new IndexWriter(FSDirectory.open(sortIndex1), new StandardAnalyzer(
+            Version.LUCENE_CURRENT), true, MaxFieldLength.UNLIMITED);
+    IndexWriter indexWriter2 = new IndexWriter(FSDirectory.open(sortIndex2), new StandardAnalyzer(
+            Version.LUCENE_CURRENT), true, MaxFieldLength.UNLIMITED);
 
     Document document = new Document();
     document.add(new Field("text", "abc", Field.Store.YES, Index.NOT_ANALYZED));
     document.add(new NumericField("timesort", Field.Store.YES, false).setLongValue(1234567890123l));
-    indexWriter.addDocument(document);
-    indexWriter.close();
+    indexWriter1.addDocument(document);
+    indexWriter1.close();
+
+    document = new Document();
+    document.add(new Field("text", "abc2", Field.Store.YES, Index.NOT_ANALYZED));
+    document.add(new NumericField("timesort", Field.Store.YES, false).setLongValue(1234567890123l));
+    indexWriter2.addDocument(document);
+    indexWriter2.close();
 
     DeployClient deployClient = new DeployClient(_miniCluster.getProtocol());
-    IndexState indexState = deployClient.addIndex(sortIndex.getName(), sortIndex.getParentFile().getAbsolutePath(), 1)
+    String indexName = "sortIndex";
+    IndexState indexState = deployClient.addIndex(indexName, sortIndex1.getParentFile().getAbsolutePath(), 1)
             .joinDeployment();
     assertEquals(IndexState.DEPLOYED, indexState);
 
     // query and compare results
     ILuceneClient client = new LuceneClient(_miniCluster.getZkConfiguration());
-    final Query query = new QueryParser(Version.LUCENE_CURRENT, "", new KeywordAnalyzer()).parse("text:abc");
     Sort sort = new Sort(new SortField[] { new SortField("timesort", SortField.LONG) });
-    final Hits hits = client.search(query, new String[] { sortIndex.getName() }, 20, sort);
-    assertNotNull(hits);
+
+    // query both documents
+    Query query = new QueryParser(Version.LUCENE_CURRENT, "", new KeywordAnalyzer()).parse("text:ab*");
+    Hits hits = client.search(query, new String[] { indexName }, 20, sort);
+    assertEquals(2, hits.size());
+
+    // query only one document
+    query = new QueryParser(Version.LUCENE_CURRENT, "", new KeywordAnalyzer()).parse("text:abc2");
+    hits = client.search(query, new String[] { indexName }, 20, sort);
+    assertEquals(1, hits.size());
+
+    // query only one document on one node
+    _miniCluster.shutdownNode(0);
+    TestUtil.waitUntilIndexBalanced(_protocol, indexName);
+    query = new QueryParser(Version.LUCENE_CURRENT, "", new KeywordAnalyzer()).parse("text:abc2");
+    hits = client.search(query, new String[] { indexName }, 20, sort);
+    assertEquals(1, hits.size());
   }
 
   @Test

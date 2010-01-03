@@ -63,7 +63,6 @@ public class DefaultNodeSelectionPolicy implements INodeSelectionPolicy {
     for (String shard : shards) {
       CircularList<String> nodeList = _shardsToNodeMap.get(shard);
       if (nodeList == null || nodeList.isEmpty()) {
-        System.out.println(_shardsToNodeMap);
         throw new ShardAccessException(shard);
       }
       String node;
