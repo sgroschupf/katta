@@ -336,9 +336,11 @@ public class Katta {
     public void execute(ZkConfiguration zkConf, InteractionProtocol protocol) {
       final Table table;
       if (!_detailedView) {
-        table = new Table(new String[] { "Name", "Status", "Path", "Shards", "Entries", "Disk Usage" });
+        table = new Table(new String[] { "Name", "Status", "Replication State", "Path", "Shards", "Entries",
+                "Disk Usage" });
       } else {
-        table = new Table(new String[] { "Name", "Status", "Path", "Shards", "Entries", "Disk Usage", "Replication" });
+        table = new Table(new String[] { "Name", "Status", "Replication State", "Path", "Shards", "Entries",
+                "Disk Usage", "Replication Count" });
       }
 
       List<String> indices = protocol.getIndices();
@@ -350,11 +352,24 @@ public class Katta {
           entries = "" + calculateIndexEntries(shards);
         }
         long indexBytes = calculateIndexDiskUsage(indexMD.getPath());
-        String state = indexMD.getDeployError() == null ? "DEPLOYED" : "ERROR";
-        if (!_detailedView) {
-          table.addRow(index, state, indexMD.getPath(), shards.size(), entries, indexBytes);
+        String state = "DEPLOYED";
+        String replicationState = "BALANCED";
+        if (indexMD.hasDeployError()) {
+          state = "ERROR";
+          replicationState = "-";
         } else {
-          table.addRow(index, state, indexMD.getPath(), shards.size(), entries, indexBytes, indexMD
+          ReplicationReport report = protocol.getReplicationReport(indexMD);
+          if (report.isUnderreplicated()) {
+            replicationState = "UNDERREPLICATED";
+          } else if (report.isOverreplicated()) {
+            replicationState = "OVERREPLICATED";
+          }
+
+        }
+        if (!_detailedView) {
+          table.addRow(index, state, replicationState, indexMD.getPath(), shards.size(), entries, indexBytes);
+        } else {
+          table.addRow(index, state, replicationState, indexMD.getPath(), shards.size(), entries, indexBytes, indexMD
                   .getReplicationLevel());
         }
       }
@@ -601,7 +616,7 @@ public class Katta {
       validateMinArguments(args, 3);
       _name = args[1];
       _path = args[2];
-      if (args.length == 4) {
+      if (args.length >= 4) {
         _replicationLevel = Integer.parseInt(args[3]);
       }
     }
@@ -626,6 +641,7 @@ public class Katta {
     @Override
     public void execute(ZkConfiguration zkConf, InteractionProtocol protocol) throws Exception {
       removeIndex(protocol, _indexName);
+      System.out.println("undeployed index '" + _indexName + "'");
     }
 
   };
