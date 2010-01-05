@@ -55,7 +55,6 @@ import net.sf.katta.tool.loadtest.LoadTestMasterOperation;
 import net.sf.katta.tool.loadtest.query.AbstractQueryExecutor;
 import net.sf.katta.tool.loadtest.query.LuceneSearchExecutor;
 import net.sf.katta.tool.loadtest.query.MapfileAccessExecutor;
-import net.sf.katta.util.KattaException;
 import net.sf.katta.util.NodeConfiguration;
 import net.sf.katta.util.StringUtil;
 import net.sf.katta.util.VersionInfo;
@@ -68,6 +67,7 @@ import org.I0Itec.zkclient.ZkServer;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.log4j.Logger;
 import org.apache.lucene.analysis.KeywordAnalyzer;
 import org.apache.lucene.queryParser.QueryParser;
 import org.apache.lucene.search.Query;
@@ -78,6 +78,7 @@ import org.apache.lucene.util.Version;
  */
 public class Katta {
 
+  protected static final Logger LOG = Logger.getLogger(Katta.class);
   private final static List<Command> COMMANDS = new ArrayList<Command>();
 
   public static void main(final String[] args) throws Exception {
@@ -209,58 +210,68 @@ public class Katta {
     System.err.println("ERROR: " + errorMsg);
   }
 
-  protected static Command START_MASTER_COMMAND = new Command("startMaster", "", "Starts a local master") {
+  protected static Command START_ZK_COMMAND = new Command("startZk", "", "Starts a local zookeeper server") {
 
     @Override
     public void execute(ZkConfiguration zkConf) throws Exception {
-      Master master = startMaster(zkConf);
-      try {
-        waitUntilJvmTerminates();
-      } finally {
-        master.shutdown();
-      }
-    }
-
-    public Master startMaster(final ZkConfiguration conf) throws KattaException {
-      final Master master;
-      if (conf.isEmbedded()) {
-        ZkServer zkServer = ZkKattaUtil.startZkServer(conf);
-        master = new Master(new InteractionProtocol(zkServer.getZkClient(), conf), zkServer);
-      } else {
-        ZkClient zkClient = ZkKattaUtil.startZkClient(conf, 30000);
-        master = new Master(new InteractionProtocol(zkClient, conf), true);
-      }
-      Runtime.getRuntime().addShutdownHook(new Thread() {
-        @Override
-        public void run() {
-          master.shutdown();
-        }
-      });
-      master.start();
-      return master;
-    }
-
-    protected void waitUntilJvmTerminates() {
-      // Just wait until the JVM terminates.
-      Thread waiter = new Thread() {
-        @Override
-        public void run() {
-          try {
-            sleep(Long.MAX_VALUE);
-          } catch (InterruptedException e) {
-            // terminate
+      final ZkServer zkServer = ZkKattaUtil.startZkServer(zkConf);
+      synchronized (zkServer) {
+        Runtime.getRuntime().addShutdownHook(new Thread() {
+          public void run() {
+            synchronized (zkServer) {
+              System.out.println("stopping zookeeper server...");
+              zkServer.shutdown();
+              zkServer.notifyAll();
+            }
           }
-        }
-      };
-      waiter.setDaemon(true);
-      waiter.start();
-      try {
-        waiter.join();
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
+        });
+        System.out.println("zookeeper server started on port " + zkServer.getPort());
+        zkServer.wait();
+      }
+    }
+  };
+
+  protected static Command START_MASTER_COMMAND = new Command("startMaster", "[-e] [-ne]",
+          "Starts a local master. -e & -ne for embedded and non-embedded zk-server (overriding configuration)") {
+
+    private boolean _embeddedMode;
+
+    protected void parseArguments(ZkConfiguration zkConf, String[] args, java.util.Map<String, String> optionMap)
+            throws Exception {
+      if (optionMap.containsKey("-e")) {
+        _embeddedMode = true;
+      } else if (optionMap.containsKey("-ne")) {
+        _embeddedMode = false;
+      } else {
+        _embeddedMode = zkConf.isEmbedded();
       }
     }
 
+    @Override
+    public void execute(ZkConfiguration zkConf) throws Exception {
+      final Master master;
+      if (_embeddedMode) {
+        LOG.info("starting embedded zookeeper server...");
+        ZkServer zkServer = ZkKattaUtil.startZkServer(zkConf);
+        master = new Master(new InteractionProtocol(zkServer.getZkClient(), zkConf), zkServer);
+      } else {
+        ZkClient zkClient = ZkKattaUtil.startZkClient(zkConf, 30000);
+        master = new Master(new InteractionProtocol(zkClient, zkConf), true);
+      }
+      master.start();
+
+      synchronized (master) {
+        Runtime.getRuntime().addShutdownHook(new Thread() {
+          public void run() {
+            synchronized (master) {
+              master.shutdown();
+              master.notifyAll();
+            }
+          }
+        });
+        master.wait();
+      }
+    }
   };
 
   protected static Command START_NODE_COMMAND = new ProtocolCommand("startNode", "[-c <serverClass>]",
@@ -865,7 +876,7 @@ public class Katta {
 
   };
 
-  protected static Command RUN_CLASS = new Command("runclass", "<className>", "runs a custom class") {
+  protected static Command RUN_CLASS_COMMAND = new Command("runclass", "<className>", "runs a custom class") {
 
     private Class<?> _clazz;
     private Method _method;
@@ -891,23 +902,24 @@ public class Katta {
   };
 
   static {
-    COMMANDS.add(LIST_INDICES_COMMAND);
-    COMMANDS.add(LIST_NODES_COMMAND);
+    COMMANDS.add(START_ZK_COMMAND);
     COMMANDS.add(START_MASTER_COMMAND);
     COMMANDS.add(START_NODE_COMMAND);
-    COMMANDS.add(LOG_METRICS_COMMAND);
-    COMMANDS.add(START_GUI_COMMAND);
-    COMMANDS.add(SHOW_STRUCTURE_COMMAND);
-    COMMANDS.add(CHECK_COMMAND);
-    COMMANDS.add(VERSION_COMMAND);
+    COMMANDS.add(LIST_INDICES_COMMAND);
+    COMMANDS.add(LIST_NODES_COMMAND);
+    COMMANDS.add(LIST_ERRORS_COMMAND);
     COMMANDS.add(ADD_INDEX_COMMAND);
     COMMANDS.add(REMOVE_INDEX_COMMAND);
     COMMANDS.add(REDEPLOY_INDEX_COMMAND);
-    COMMANDS.add(LIST_ERRORS_COMMAND);
+    COMMANDS.add(CHECK_COMMAND);
+    COMMANDS.add(VERSION_COMMAND);
+    COMMANDS.add(SHOW_STRUCTURE_COMMAND);
+    COMMANDS.add(START_GUI_COMMAND);
+    COMMANDS.add(LOG_METRICS_COMMAND);
     COMMANDS.add(GENERATE_INDEX_COMMAND);
     COMMANDS.add(SEARCH_COMMAND);
     COMMANDS.add(LOADTEST_COMMAND);
-    COMMANDS.add(RUN_CLASS);
+    COMMANDS.add(RUN_CLASS_COMMAND);
 
     Set<String> commandStrings = new HashSet<String>();
     for (Command command : COMMANDS) {
@@ -918,6 +930,10 @@ public class Katta {
   }
 
   static abstract class Command {
+    /**
+     * Logger for this class
+     */
+    private static final Logger logger = Logger.getLogger(Command.class);
 
     private final String _command;
     private final String _parameterString;
@@ -963,6 +979,10 @@ public class Katta {
   }
 
   static abstract class ProtocolCommand extends Command {
+    /**
+     * Logger for this class
+     */
+    private static final Logger logger = Logger.getLogger(ProtocolCommand.class);
 
     public ProtocolCommand(String command, String parameterString, String description) {
       super(command, parameterString, description);
@@ -980,6 +1000,11 @@ public class Katta {
   }
 
   private static class Table {
+    /**
+     * Logger for this class
+     */
+    private static final Logger logger = Logger.getLogger(Table.class);
+
     private String[] _header;
     private final List<String[]> _rows = new ArrayList<String[]>();
 
@@ -1067,6 +1092,10 @@ public class Katta {
   }
 
   private static class CounterMap<K> {
+    /**
+     * Logger for this class
+     */
+    private static final Logger logger = Logger.getLogger(CounterMap.class);
 
     private Map<K, AtomicInteger> _counterMap = new HashMap<K, AtomicInteger>();
 
