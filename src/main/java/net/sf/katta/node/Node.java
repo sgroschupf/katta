@@ -28,11 +28,11 @@ import net.sf.katta.protocol.ConnectedComponent;
 import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.protocol.NodeQueue;
 import net.sf.katta.protocol.metadata.NodeMetaData;
-import net.sf.katta.util.NetworkUtil;
 import net.sf.katta.util.NodeConfiguration;
 import net.sf.katta.util.ThrottledInputStream.ThrottleSemaphore;
 
 import org.I0Itec.zkclient.ExceptionUtil;
+import org.I0Itec.zkclient.NetworkUtil;
 import org.I0Itec.zkclient.exception.ZkInterruptedException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.ipc.RPC;

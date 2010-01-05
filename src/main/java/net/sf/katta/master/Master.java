@@ -27,9 +27,9 @@ import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.protocol.MasterQueue;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.MasterConfiguration;
-import net.sf.katta.util.NetworkUtil;
 import net.sf.katta.util.ZkConfiguration.PathDef;
 
+import org.I0Itec.zkclient.NetworkUtil;
 import org.I0Itec.zkclient.ZkServer;
 import org.apache.log4j.Logger;
 
