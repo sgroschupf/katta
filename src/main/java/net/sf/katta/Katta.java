@@ -19,6 +19,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -90,6 +91,9 @@ public class Katta {
       command.execute();
     } catch (Exception e) {
       printError(e.getMessage());
+      if (parseOptionMap(args).containsKey("-s")) {
+        e.printStackTrace();
+      }
       if (command != null) {
         printUsageHeader();
         printUsage(command);
@@ -132,6 +136,20 @@ public class Katta {
     System.err.println("Usage: ");
   }
 
+  protected static Map<String, String> parseOptionMap(final String[] args) {
+    Map<String, String> optionMap = new HashMap<String, String>();
+    for (int i = 0; i < args.length; i++) {
+      if (args[i].startsWith("-")) {
+        String value = null;
+        if (i < args.length - 1 && !args[i + 1].startsWith("-")) {
+          value = args[i + 1];
+        }
+        optionMap.put(args[i], value);
+      }
+    }
+    return optionMap;
+  }
+
   protected static void addIndex(InteractionProtocol protocol, String name, String path, int replicationLevel) {
     IDeployClient deployClient = new DeployClient(protocol);
     if (name.trim().equals("*")) {
@@ -167,6 +185,18 @@ public class Katta {
       throw new IllegalArgumentException("index '" + indexName + "' does not exist");
     }
     deployClient.removeIndex(indexName);
+  }
+
+  protected static <T> Class<T> loadClass(String serverClassName, Class<T> instanceOfClass) {
+    try {
+      Class<?> loadedClass = Katta.class.getClassLoader().loadClass(serverClassName);
+      if (!instanceOfClass.isAssignableFrom(loadedClass)) {
+        throw new IllegalStateException("Class " + serverClassName + " does not implement " + instanceOfClass.getName());
+      }
+      return (Class<T>) loadedClass;
+    } catch (ClassNotFoundException e) {
+      throw new IllegalStateException("Can not find class '" + serverClassName + "'");
+    }
   }
 
   protected static void validateMinArguments(String[] args, int minCount) {
@@ -248,24 +278,13 @@ public class Katta {
       } else {
         serverClassName = _nodeConfiguration.getServerClassName();
       }
+
+      Class<?> serverClass = loadClass(serverClassName, INodeManaged.class);
       try {
-        Class<?> serverClass = Katta.class.getClassLoader().loadClass(serverClassName);
-        if (!INodeManaged.class.isAssignableFrom(serverClass)) {
-          System.err.println("Class " + serverClassName + " does not implement " + INodeManaged.class.getName());
-          System.exit(1);
-        }
         _server = (INodeManaged) serverClass.newInstance();
-      } catch (ClassNotFoundException e) {
-        System.err.println("Can not find class '" + serverClassName + "'");
-        System.exit(1);
-      } catch (InstantiationException e) {
-        System.err.println("Could not create instance of class '" + serverClassName + "'");
-        System.exit(1);
-      } catch (IllegalAccessException e) {
-        System.err.println("Unable to access class '" + serverClassName + "'");
-        System.exit(1);
-      } catch (Throwable t) {
-        throw new RuntimeException("Error getting server instance for '" + serverClassName + "'", t);
+      } catch (Exception e) {
+        throw new IllegalStateException("could not create instance of class '" + serverClassName + "': "
+                + e.getMessage());
       }
     }
 
@@ -830,6 +849,31 @@ public class Katta {
 
   };
 
+  protected static Command RUN_CLASS = new Command("runclass", "<className>", "runs a custom class") {
+
+    private Class<?> _clazz;
+    private Method _method;
+    private String[] _methodArgs;
+
+    @Override
+    protected void parseArguments(ZkConfiguration zkConf, String[] args, java.util.Map<String, String> optionMap)
+            throws Exception {
+      validateMinArguments(args, 2);
+      _clazz = loadClass(args[1], Object.class);
+      _method = _clazz.getMethod("main", args.getClass());
+      if (_method == null) {
+        throw new IllegalArgumentException("class " + _clazz.getName() + " doesn't have a main method");
+      }
+      _methodArgs = Arrays.copyOfRange(args, 2, args.length);
+    }
+
+    @Override
+    public void execute(ZkConfiguration zkConf) throws Exception {
+      _method.invoke(null, new Object[] { _methodArgs });
+    }
+
+  };
+
   static {
     COMMANDS.add(LIST_INDICES_COMMAND);
     COMMANDS.add(LIST_NODES_COMMAND);
@@ -845,8 +889,9 @@ public class Katta {
     COMMANDS.add(REDEPLOY_INDEX_COMMAND);
     COMMANDS.add(LIST_ERRORS_COMMAND);
     COMMANDS.add(GENERATE_INDEX_COMMAND);
-    COMMANDS.add(LOADTEST_COMMAND);
     COMMANDS.add(SEARCH_COMMAND);
+    COMMANDS.add(LOADTEST_COMMAND);
+    COMMANDS.add(RUN_CLASS);
 
     Set<String> commandStrings = new HashSet<String>();
     for (Command command : COMMANDS) {
@@ -868,16 +913,17 @@ public class Katta {
       _description = description;
     }
 
-    public final void parseArguments(String[] args) {
+    public final void parseArguments(String[] args) throws Exception {
       parseArguments(new ZkConfiguration(), args, parseOptionMap(args));
     }
 
-    public final void parseArguments(ZkConfiguration zkConf, String[] args) {
+    public final void parseArguments(ZkConfiguration zkConf, String[] args) throws Exception {
       parseArguments(zkConf, args, parseOptionMap(args));
     }
 
     @SuppressWarnings("unused")
-    protected void parseArguments(ZkConfiguration zkConf, String[] args, Map<String, String> optionMap) {
+    protected void parseArguments(ZkConfiguration zkConf, String[] args, Map<String, String> optionMap)
+            throws Exception {
       // subclasses may override
     }
 
@@ -886,20 +932,6 @@ public class Katta {
     }
 
     protected abstract void execute(ZkConfiguration zkConf) throws Exception;
-
-    private Map<String, String> parseOptionMap(final String[] args) {
-      Map<String, String> optionMap = new HashMap<String, String>();
-      for (int i = 0; i < args.length; i++) {
-        if (args[i].startsWith("-")) {
-          String value = null;
-          if (i < args.length - 1 && !args[i + 1].startsWith("-")) {
-            value = args[i + 1];
-          }
-          optionMap.put(args[i], value);
-        }
-      }
-      return optionMap;
-    }
 
     public String getCommand() {
       return _command;
