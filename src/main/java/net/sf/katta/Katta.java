@@ -930,10 +930,6 @@ public class Katta {
   }
 
   static abstract class Command {
-    /**
-     * Logger for this class
-     */
-    private static final Logger logger = Logger.getLogger(Command.class);
 
     private final String _command;
     private final String _parameterString;
@@ -979,10 +975,6 @@ public class Katta {
   }
 
   static abstract class ProtocolCommand extends Command {
-    /**
-     * Logger for this class
-     */
-    private static final Logger logger = Logger.getLogger(ProtocolCommand.class);
 
     public ProtocolCommand(String command, String parameterString, String description) {
       super(command, parameterString, description);
@@ -1000,10 +992,6 @@ public class Katta {
   }
 
   private static class Table {
-    /**
-     * Logger for this class
-     */
-    private static final Logger logger = Logger.getLogger(Table.class);
 
     private String[] _header;
     private final List<String[]> _rows = new ArrayList<String[]>();
@@ -1092,10 +1080,6 @@ public class Katta {
   }
 
   private static class CounterMap<K> {
-    /**
-     * Logger for this class
-     */
-    private static final Logger logger = Logger.getLogger(CounterMap.class);
 
     private Map<K, AtomicInteger> _counterMap = new HashMap<K, AtomicInteger>();
 
