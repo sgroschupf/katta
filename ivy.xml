@@ -46,7 +46,7 @@
 		<dependency org="org.apache.lucene" name="lucene-core" rev="3.0.0" conf="compile,job" />
 
 		<dependency org="xmlenc" name="xmlenc" rev="0.52" conf="compile" />
-		<dependency org="zookeeper" name="zookeeper" rev="3.2.1" conf="compile" />
+		<dependency org="zookeeper" name="zookeeper" rev="3.2.2" conf="compile" />
         <dependency org="zkclient" name="zkclient" rev="0.1-dev" conf="compile" />
 
 		<!-- AWS -->
@@ -60,10 +60,8 @@
 
 
 		<!-- TEST Dependencies -->
-		<dependency org="junit" name="junit" rev="3.8.1" conf="test" />
 		<dependency org="junit" name="junit" rev="4.7" conf="test" />
         <dependency org="org.mockito" name="mockito-core" rev="1.8.1" conf="test" />
-        <dependency org="org.jmock" name="jmock" rev="2.4.0" conf="test" />
 		<dependency org="org.hamcrest" name="hamcrest-library" rev="1.1" conf="test" />
 		<dependency org="org.hamcrest" name="hamcrest-core" rev="1.1" conf="test" />
 		<dependency org="org.objenesis" name="objenesis" rev="1.0" conf="test" />
