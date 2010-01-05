@@ -30,6 +30,7 @@ import net.sf.katta.client.Client;
  * Those properties will be propagated to hadoop.
  * 
  */
+@SuppressWarnings("serial")
 public class ClientConfiguration extends KattaConfiguration {
 
   public final static String CLIENT_NODE_INTERACTION_MAXTRYCOUNT = "client.node.interaction.maxTryCount";

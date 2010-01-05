@@ -11,3 +11,5 @@ prodDb*
 .DS_Store
 stacktrace.log
 log.log
+results
+junit*

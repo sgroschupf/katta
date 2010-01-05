@@ -36,6 +36,7 @@ import net.sf.katta.operation.master.MasterOperation;
 import net.sf.katta.operation.master.MasterOperation.ExecutionInstruction;
 import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.protocol.MasterQueue;
+import net.sf.katta.testutil.Mocks;
 import net.sf.katta.testutil.TestUtil;
 import net.sf.katta.testutil.mockito.SleepingAnswer;
 
@@ -48,7 +49,8 @@ public class OperatorThreadTest {
 
   private final InteractionProtocol _protocol = mock(InteractionProtocol.class);
   private final MasterQueue _queue = mock(MasterQueue.class);
-  protected final MasterContext _context = new MasterContext(_protocol, new DefaultDistributionPolicy(), _queue);
+  protected final MasterContext _context = new MasterContext(_protocol, Mocks.mockMaster(),
+          new DefaultDistributionPolicy(), _queue);
 
   @Test(timeout = 10000)
   public void testSafeMode() throws Exception {

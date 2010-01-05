@@ -17,6 +17,7 @@ package net.sf.katta.util;
 
 import java.io.File;
 
+@SuppressWarnings("serial")
 public class NodeConfiguration extends KattaConfiguration {
 
   private final static String NODE_SERVER_PORT_START = "node.server.port.start";

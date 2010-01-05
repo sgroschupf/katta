@@ -97,7 +97,7 @@ public class Node implements ConnectedComponent {
 
     startMonitor(_nodeName, _nodeConf);
     init();
-    LOG.info("Started node: " + _nodeName + "...");
+    LOG.info("started node '" + _nodeName + "'");
   }
 
   private void init() {

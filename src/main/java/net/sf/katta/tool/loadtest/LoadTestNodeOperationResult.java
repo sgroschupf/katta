@@ -15,17 +15,22 @@
  */
 package net.sf.katta.tool.loadtest;
 
-import junit.framework.TestCase;
+import java.util.List;
 
-public class LoadTestStarterTest extends TestCase {
+import net.sf.katta.operation.node.OperationResult;
 
-  public void testReadQueries() throws Exception {
-    // TODO: port Load Test to new client/server.
-    // String[] queries = LoadTestStarter.readQueries(new
-    // ByteArrayInputStream("a\n\nb c\nd".getBytes()));
-    // assertEquals(3, queries.length);
-    // assertEquals("a", queries[0]);
-    // assertEquals("b c", queries[1]);
-    // assertEquals("d", queries[2]);
+@SuppressWarnings("serial")
+public class LoadTestNodeOperationResult extends OperationResult {
+
+  private final List<LoadTestQueryResult> _queryResults;
+
+  public LoadTestNodeOperationResult(String nodeName, List<LoadTestQueryResult> queryResults) {
+    super(nodeName);
+    _queryResults = queryResults;
   }
+
+  public List<LoadTestQueryResult> getQueryResults() {
+    return _queryResults;
+  }
+
 }

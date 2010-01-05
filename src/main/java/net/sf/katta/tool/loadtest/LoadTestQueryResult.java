@@ -15,13 +15,10 @@
  */
 package net.sf.katta.tool.loadtest;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
+import java.io.Serializable;
 
-import org.apache.hadoop.io.Writable;
-
-public class LoadTestQueryResult implements Writable {
+@SuppressWarnings("serial")
+public class LoadTestQueryResult implements Serializable {
 
   private long _startTime;
   private long _endTime;
@@ -71,19 +68,4 @@ public class LoadTestQueryResult implements Writable {
     _nodeId = nodeId;
   }
 
-  @Override
-  public void readFields(DataInput dataInput) throws IOException {
-    _startTime = dataInput.readLong();
-    _endTime = dataInput.readLong();
-    _query = dataInput.readUTF();
-    _nodeId = dataInput.readUTF();
-  }
-
-  @Override
-  public void write(DataOutput dataOutput) throws IOException {
-    dataOutput.writeLong(_startTime);
-    dataOutput.writeLong(_endTime);
-    dataOutput.writeUTF(_query);
-    dataOutput.writeUTF(_nodeId);
-  }
 }

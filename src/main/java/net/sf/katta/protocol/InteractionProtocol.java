@@ -532,4 +532,16 @@ public class InteractionProtocol {
 
   }
 
+  public void setFlag(String name) {
+    _zkClient.createEphemeral(_zkConf.getZkPath(PathDef.FLAGS, name));
+  }
+
+  public boolean flagExists(String name) {
+    return _zkClient.exists(_zkConf.getZkPath(PathDef.FLAGS, name));
+  }
+
+  public void removeFlag(String name) {
+    _zkClient.delete(_zkConf.getZkPath(PathDef.FLAGS, name));
+  }
+
 }

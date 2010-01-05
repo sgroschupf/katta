@@ -17,6 +17,7 @@ package net.sf.katta.tool.ec2;
 
 import net.sf.katta.util.KattaConfiguration;
 
+@SuppressWarnings("serial")
 public class Ec2Configuration extends KattaConfiguration {
 
   final static String ACCOUNT_ID = "aws.accountId";

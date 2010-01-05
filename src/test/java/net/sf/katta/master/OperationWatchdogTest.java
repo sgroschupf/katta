@@ -30,6 +30,7 @@ import net.sf.katta.operation.OperationId;
 import net.sf.katta.operation.master.MasterOperation;
 import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.protocol.MasterQueue;
+import net.sf.katta.testutil.Mocks;
 
 import org.junit.Test;
 
@@ -40,7 +41,8 @@ public class OperationWatchdogTest extends AbstractTest {
   private OperationWatchdog _watchdog = new OperationWatchdog("e1", _masterOperation, _operationIds);
   private InteractionProtocol _protocol = mock(InteractionProtocol.class);
   private MasterQueue _masterQueue = mock(MasterQueue.class);
-  private MasterContext _context = new MasterContext(_protocol, new DefaultDistributionPolicy(), _masterQueue);
+  private MasterContext _context = new MasterContext(_protocol, Mocks.mockMaster(), new DefaultDistributionPolicy(),
+          _masterQueue);
 
   @Test
   public void testWatchdogCompletion_OperationsDone() throws Exception {

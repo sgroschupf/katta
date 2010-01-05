@@ -101,7 +101,7 @@ public class Master implements ConnectedComponent {
     MasterQueue queue = _protocol.publishMaster(this);
     if (queue != null) {
       startNodeManagement();
-      MasterContext masterContext = new MasterContext(_protocol, _deployPolicy, queue);
+      MasterContext masterContext = new MasterContext(_protocol, this, _deployPolicy, queue);
       _operatorThread = new OperatorThread(masterContext, _safeModeMaxTime);
       _operatorThread.start();
     }

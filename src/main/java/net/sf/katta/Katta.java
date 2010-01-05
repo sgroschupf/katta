@@ -15,6 +15,9 @@
  */
 package net.sf.katta;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
@@ -47,6 +50,10 @@ import net.sf.katta.protocol.metadata.IndexMetaData;
 import net.sf.katta.protocol.metadata.NodeMetaData;
 import net.sf.katta.protocol.metadata.IndexMetaData.Shard;
 import net.sf.katta.tool.SampleIndexGenerator;
+import net.sf.katta.tool.loadtest.LoadTestMasterOperation;
+import net.sf.katta.tool.loadtest.query.AbstractQueryExecutor;
+import net.sf.katta.tool.loadtest.query.LuceneSearchExecutor;
+import net.sf.katta.tool.loadtest.query.MapfileAccessExecutor;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.NodeConfiguration;
 import net.sf.katta.util.StringUtil;
@@ -115,13 +122,6 @@ public class Katta {
       printUsage(command);
     }
     printUsageFooter();
-
-    // TODO load test
-    // System.err.println("\tstartLoadTestNode\tStarts a load test node.");
-    // System.err
-    // .println("\tstartLoadTest <nodes> <start-query-rate> <end-query-rate> <step> <test-duration-ms> <index-name> <query-file> <max hits>");
-    // System.err.println("\t\t\t\tStarts a load test. The query rate is in queries per second.");
-
     System.exit(1);
   }
 
@@ -175,45 +175,6 @@ public class Katta {
       throw new IllegalArgumentException("not enough arguments");
     }
   }
-
-  // public static void startIntegrationTest(int nodes, int startRate, int
-  // endRate, int step, int runTime,
-  // String[] indexNames, String queryFile, int count, ZkConfiguration conf) {
-  // TODO: port Load Test over to new client/server setup.
-  // final ZKClient client = new ZKClient(conf);
-  // final LoadTestStarter integrationTester = new LoadTestStarter(client,
-  // nodes, startRate, endRate, step, runTime, indexNames, queryFile, count);
-  // integrationTester.start();
-  // Runtime.getRuntime().addShutdownHook(new Thread() {
-  // @Override
-  // public void run() {
-  // integrationTester.shutdown();
-  // }
-  // });
-  // try {
-  // while (client.isStarted()) {
-  // Thread.sleep(100);
-  // }
-  // } catch (InterruptedException e) {
-  // // terminate
-  // }
-  // }
-
-  // public static void startLoadTestNode(ZkConfiguration conf) {
-  // TODO: port load test to new client/server model.
-  //
-  // final ZKClient client = new ZKClient(conf);
-  // final LoadTestNode testSearcher = new LoadTestNode(client, new
-  // LoadTestNodeConfiguration());
-  // testSearcher.start();
-  // Runtime.getRuntime().addShutdownHook(new Thread() {
-  // @Override
-  // public void run() {
-  // testSearcher.shutdown();
-  // }
-  // });
-  // testSearcher.join();
-  // }
 
   private static void printError(String errorMsg) {
     System.err.println("ERROR: " + errorMsg);
@@ -758,12 +719,85 @@ public class Katta {
 
   };
 
+  protected static Command LOADTEST_COMMAND = new ProtocolCommand(
+          "loadtest",
+          "<zkRootPath> <nodeCount> <startQueryRate> <endQueryRate> <rateStep> <durationPerIteration> <indexName> <query-file> <resultFolder> <typeWithParameters> ",
+          "Starts a load test on a katta cluster with the given zkRootPath. The query rate is in queries per second. The durationPerIteration is in milliseconds. The resultFolder will be created on the master host. typeWithParameters is one of 'lucene <maxHits>' | 'mapfile'") {
+
+    public void validate(String[] args) {
+      validateMinArguments(args, 11);
+    }
+
+    @Override
+    public void execute(String[] args, Map<String, String> optionMap, ZkConfiguration zkConf,
+            InteractionProtocol protocol) throws Exception {
+      String zkRootPath = args[1];
+      int nodeCount = Integer.parseInt(args[2]);
+      int startQueryRate = Integer.parseInt(args[3]);
+      int endQueryRate = Integer.parseInt(args[4]);
+      int rateStep = Integer.parseInt(args[5]);
+      long durationPerIteration = Integer.parseInt(args[6]);
+      String indexName = args[7];
+      File queryFile = new File(args[8]);
+      File resultFolder = new File(args[9]);
+      String type = args[10];
+
+      if (!queryFile.exists()) {
+        throw new IllegalStateException("query file '" + queryFile.getAbsolutePath() + "' does not exists");
+      }
+
+      AbstractQueryExecutor queryExecutor;
+      String[] indices = new String[] { indexName };
+      String[] queries = readQueries(queryFile);
+      if (type.equalsIgnoreCase("lucene")) {
+        int maxHits = Integer.parseInt(args[11]);
+        ZkConfiguration searchClusterZkConf = new ZkConfiguration();
+        searchClusterZkConf.setZKServers(zkConf.getZKServers());
+        searchClusterZkConf.setZKRootPath(zkRootPath);
+        queryExecutor = new LuceneSearchExecutor(indices, queries, searchClusterZkConf, maxHits);
+      } else if (type.equalsIgnoreCase("mapfile")) {
+        queryExecutor = new MapfileAccessExecutor(indices, queries, zkConf);
+      } else {
+        throw new IllegalStateException("type '" + type + "' unknown");
+      }
+
+      LoadTestMasterOperation masterOperation = new LoadTestMasterOperation(nodeCount, startQueryRate, endQueryRate,
+              rateStep, durationPerIteration, queryExecutor, resultFolder);
+
+      masterOperation.registerCompletion(protocol);
+      protocol.addMasterOperation(masterOperation);
+      long startTime = System.currentTimeMillis();
+      System.out.println("load test triggered - waiting on completion...");
+      masterOperation.joinCompletion(protocol);
+      System.out.println("load test complete - took " + (System.currentTimeMillis() - startTime) + " ms");
+      System.out.println("find the results in '" + resultFolder.getAbsolutePath()
+              + "' on the master or inspect the master logs if the results are missing");
+    }
+
+    private String[] readQueries(File queryFile) {
+      try {
+        BufferedReader reader = new BufferedReader(new FileReader(queryFile));
+        List<String> lines = new ArrayList<String>();
+        String line;
+        while ((line = reader.readLine()) != null) {
+          line = line.trim();
+          if (!line.equals("")) {
+            lines.add(line);
+          }
+        }
+        return lines.toArray(new String[lines.size()]);
+      } catch (IOException e) {
+        throw new RuntimeException("Failed to read query file " + queryFile + ".", e);
+      }
+    }
+
+  };
+
   static {
     COMMANDS.add(LIST_INDICES_COMMAND);
     COMMANDS.add(LIST_NODES_COMMAND);
     COMMANDS.add(START_MASTER_COMMAND);
     COMMANDS.add(START_NODE_COMMAND);
-    // TODO load test xxx
     COMMANDS.add(LOG_METRICS_COMMAND);
     COMMANDS.add(START_GUI_COMMAND);
     COMMANDS.add(SHOW_STRUCTURE_COMMAND);
@@ -774,6 +808,7 @@ public class Katta {
     COMMANDS.add(REDEPLOY_INDEX_COMMAND);
     COMMANDS.add(LIST_ERRORS_COMMAND);
     COMMANDS.add(GENERATE_INDEX_COMMAND);
+    COMMANDS.add(LOADTEST_COMMAND);
     COMMANDS.add(SEARCH_COMMAND);
 
     Set<String> commandStrings = new HashSet<String>();

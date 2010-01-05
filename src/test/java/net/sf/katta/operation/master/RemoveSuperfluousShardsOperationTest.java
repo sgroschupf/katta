@@ -36,6 +36,7 @@ import net.sf.katta.operation.node.NodeOperation;
 import net.sf.katta.operation.node.ShardUndeployOperation;
 import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.protocol.MasterQueue;
+import net.sf.katta.testutil.Mocks;
 
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
@@ -50,7 +51,7 @@ public class RemoveSuperfluousShardsOperationTest {
     String someOldShard = AbstractIndexOperation.createShardName("someOldIndex", "someOldShard");
     InteractionProtocol protocol = mock(InteractionProtocol.class);
     MasterQueue queue = mock(MasterQueue.class);
-    MasterContext context = new MasterContext(protocol, new DefaultDistributionPolicy(), queue);
+    MasterContext context = new MasterContext(protocol, Mocks.mockMaster(), new DefaultDistributionPolicy(), queue);
     when(protocol.getNodeShards(nodeName)).thenReturn(Arrays.asList(someOldShard));
 
     RemoveSuperfluousShardsOperation operation = new RemoveSuperfluousShardsOperation(nodeName);
@@ -71,7 +72,7 @@ public class RemoveSuperfluousShardsOperationTest {
     String someOldShard = AbstractIndexOperation.createShardName(indexName, "someOldShard");
     InteractionProtocol protocol = mock(InteractionProtocol.class);
     MasterQueue queue = mock(MasterQueue.class);
-    MasterContext context = new MasterContext(protocol, new DefaultDistributionPolicy(), queue);
+    MasterContext context = new MasterContext(protocol, Mocks.mockMaster(), new DefaultDistributionPolicy(), queue);
     when(protocol.getNodeShards(nodeName)).thenReturn(Arrays.asList(someOldShard));
 
     RemoveSuperfluousShardsOperation operation = new RemoveSuperfluousShardsOperation(nodeName);

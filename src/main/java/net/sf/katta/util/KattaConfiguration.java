@@ -16,11 +16,13 @@
 package net.sf.katta.util;
 
 import java.io.File;
+import java.io.Serializable;
 import java.util.Properties;
 import java.util.Set;
 
-public class KattaConfiguration {
+public class KattaConfiguration implements Serializable {
 
+  private static final long serialVersionUID = 1L;
   protected Properties _properties;
   private final String _resourcePath;
 

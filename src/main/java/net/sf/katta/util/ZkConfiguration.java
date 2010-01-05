@@ -20,6 +20,8 @@ import java.util.Properties;
 
 public class ZkConfiguration extends KattaConfiguration {
 
+  private static final long serialVersionUID = 1L;
+
   public static final String KATTA_PROPERTY_NAME = "katta.zk.propertyName";
 
   public static final String ZOOKEEPER_EMBEDDED = "zookeeper.embedded";
@@ -117,11 +119,11 @@ public class ZkConfiguration extends KattaConfiguration {
     NODES_METADATA("metadata of connected & unconnected nodes", true, NODES, "metadata"), // 
     NODES_LIVE("ephemerals of connected nodes", true, NODES, "live"), //
     NODE_METRICS("metrics information of nodes", false, NODES, "metrics"), //
-    NODE_LOADTESTS("loadtest information of nodes", false, NODES, "loadtest"), //
     INDICES_METADATA("metadata of live & error indices", true, "indicies"), //
     SHARD_TO_NODES("ephemerals of nodes serving a shard", true, "shard-to-nodes"), //
     MASTER_QUEUE("master operations", false, WORK, "master-queue"), //
-    NODE_QUEUE("node operations and results", false, WORK, "node-queues"); //
+    NODE_QUEUE("node operations and results", false, WORK, "node-queues"), //
+    FLAGS("custom flags", false, WORK, "flags"); //
 
     private final String _description;
     private final String[] _pathParts;

@@ -20,18 +20,24 @@ import net.sf.katta.protocol.MasterQueue;
 
 public class MasterContext {
 
+  private final Master _master;
   private final InteractionProtocol _protocol;
   private final IDeployPolicy _deployPolicy;
   private final MasterQueue _masterQueue;
 
-  public MasterContext(InteractionProtocol protocol, IDeployPolicy deployPolicy, MasterQueue masterQueue) {
+  public MasterContext(InteractionProtocol protocol, Master master, IDeployPolicy deployPolicy, MasterQueue masterQueue) {
     _protocol = protocol;
+    _master = master;
     _deployPolicy = deployPolicy;
     _masterQueue = masterQueue;
   }
 
   public InteractionProtocol getProtocol() {
     return _protocol;
+  }
+
+  public Master getMaster() {
+    return _master;
   }
 
   public IDeployPolicy getDeployPolicy() {

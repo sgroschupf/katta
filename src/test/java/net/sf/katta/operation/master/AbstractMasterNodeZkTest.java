@@ -37,7 +37,7 @@ public abstract class AbstractMasterNodeZkTest extends AbstractZkTest {
 
   protected InteractionProtocol _protocol = _zk.getInteractionProtocol();
   protected Master _master = Mocks.mockMaster();
-  protected MasterContext _context = new MasterContext(_protocol, new DefaultDistributionPolicy(), _protocol
+  protected MasterContext _context = new MasterContext(_protocol, _master, new DefaultDistributionPolicy(), _protocol
           .publishMaster(_master));
 
   protected File _indexFile = TestResources.INDEX1;

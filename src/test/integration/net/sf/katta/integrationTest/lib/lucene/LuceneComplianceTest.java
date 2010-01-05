@@ -121,9 +121,7 @@ public class LuceneComplianceTest extends AbstractIntegrationTest {
   public void testFieldSort() throws Exception {
     // query and compare (auto types)
     IndexSearcher indexSearcher = new IndexSearcher(FSDirectory.open(_luceneIndex.getAbsoluteFile()));
-    Sort sort = new Sort(new SortField[] { new SortField(FIELD_NAME, SortField.LONG) });// TODO
-    // correct
-    // ?
+    Sort sort = new Sort(new SortField[] { new SortField(FIELD_NAME, SortField.LONG) });
     checkQueryResults(indexSearcher, _kattaIndex.getName(), FIELD_NAME, "0", sort);
     checkQueryResults(indexSearcher, _kattaIndex.getName(), FIELD_NAME, "1", sort);
     checkQueryResults(indexSearcher, _kattaIndex.getName(), FIELD_NAME, "2", sort);
