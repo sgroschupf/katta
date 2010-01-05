@@ -15,6 +15,7 @@
  */
 package net.sf.katta;
 
+import net.sf.katta.Katta.Command;
 import net.sf.katta.protocol.metadata.IndexMetaData;
 
 import org.junit.Test;
@@ -23,20 +24,25 @@ public class KattaTest extends AbstractZkTest {
 
   @Test
   public void testShowStructure() throws Exception {
-    Katta.SHOW_STRUCTURE_COMMAND.execute(_zk.getZkConf(), new String[] { "showStructure" });
-    Katta.SHOW_STRUCTURE_COMMAND.execute(_zk.getZkConf(), new String[] { "showStructure", "-d" });
+    execute(Katta.SHOW_STRUCTURE_COMMAND, "showStructure");
+    execute(Katta.SHOW_STRUCTURE_COMMAND, "showStructure", "-d");
   }
 
   @Test(expected = Exception.class)
   public void testShowErrorsWithIndexNotExist() throws Exception {
-    Katta.LIST_ERRORS_COMMAND.execute(_zk.getZkConf(), new String[] { "listErrors", "a" });
+    execute(Katta.LIST_ERRORS_COMMAND, "showStructure", "a");
   }
 
   @Test
   public void testListIndexesWithUnreachableIndex_KATTA_76() throws Exception {
     IndexMetaData indexMD = new IndexMetaData("indexABC", "hdfs://localhost:8020/unreachableIndex", 1);
     _zk.getInteractionProtocol().publishIndex(indexMD);
-    Katta.LIST_INDICES_COMMAND.execute(_zk.getZkConf(), new String[] { indexMD.getName() });
+    execute(Katta.LIST_INDICES_COMMAND, indexMD.getName());
+  }
+
+  private void execute(Command command, String... args) throws Exception {
+    command.parseArguments(_zk.getZkConf(), args);
+    command.execute(_zk.getZkConf());
   }
 
 }

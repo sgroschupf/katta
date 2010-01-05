@@ -86,9 +86,8 @@ public class Katta {
     Command command = null;
     try {
       command = getCommand(args[0]);
-      command.validate(args);
-
-      command.execute(args);
+      command.parseArguments(args);
+      command.execute();
     } catch (Exception e) {
       printError(e.getMessage());
       if (command != null) {
@@ -183,7 +182,7 @@ public class Katta {
   protected static Command START_MASTER_COMMAND = new Command("startMaster", "", "Starts a local master") {
 
     @Override
-    public void execute(String[] args, Map<String, String> optionMap, ZkConfiguration zkConf) throws Exception {
+    public void execute(ZkConfiguration zkConf) throws Exception {
       Master master = startMaster(zkConf);
       try {
         waitUntilJvmTerminates();
@@ -234,17 +233,20 @@ public class Katta {
 
   };
 
-  protected static Command START_NODE_COMMAND = new Command("startNode", "[-c <serverClass>]", "Starts a local node") {
+  protected static Command START_NODE_COMMAND = new ProtocolCommand("startNode", "[-c <serverClass>]",
+          "Starts a local node") {
+
+    private NodeConfiguration _nodeConfiguration;
+    private INodeManaged _server = null;
 
     @Override
-    public void execute(String[] args, Map<String, String> optionMap, ZkConfiguration zkConf) throws Exception {
-      NodeConfiguration nodeConfiguration = new NodeConfiguration();
-      INodeManaged server = null;
+    protected void parseArguments(ZkConfiguration zkConf, String[] args, Map<String, String> optionMap) {
+      _nodeConfiguration = new NodeConfiguration();
       String serverClassName;
       if (optionMap.containsKey("-c")) {
         serverClassName = optionMap.get("-c");
       } else {
-        serverClassName = nodeConfiguration.getServerClassName();
+        serverClassName = _nodeConfiguration.getServerClassName();
       }
       try {
         Class<?> serverClass = Katta.class.getClassLoader().loadClass(serverClassName);
@@ -252,7 +254,7 @@ public class Katta {
           System.err.println("Class " + serverClassName + " does not implement " + INodeManaged.class.getName());
           System.exit(1);
         }
-        server = (INodeManaged) serverClass.newInstance();
+        _server = (INodeManaged) serverClass.newInstance();
       } catch (ClassNotFoundException e) {
         System.err.println("Can not find class '" + serverClassName + "'");
         System.exit(1);
@@ -265,15 +267,16 @@ public class Katta {
       } catch (Throwable t) {
         throw new RuntimeException("Error getting server instance for '" + serverClassName + "'", t);
       }
-      final ZkClient client = ZkKattaUtil.startZkClient(zkConf, 60000);
-      InteractionProtocol protocol = new InteractionProtocol(client, zkConf);
-      final Node node = new Node(protocol, nodeConfiguration, server);
+    }
+
+    @Override
+    public void execute(ZkConfiguration zkConf, InteractionProtocol protocol) throws Exception {
+      final Node node = new Node(protocol, _nodeConfiguration, _server);
       node.start();
       Runtime.getRuntime().addShutdownHook(new Thread() {
         @Override
         public void run() {
           node.shutdown();
-          client.close();
         }
       });
       node.join();
@@ -284,8 +287,7 @@ public class Katta {
   protected static Command LIST_NODES_COMMAND = new ProtocolCommand("listNodes", "", "Lists all nodes") {
 
     @Override
-    public void execute(String[] args, Map<String, String> optionMap, ZkConfiguration zkConf,
-            InteractionProtocol protocol) {
+    public void execute(ZkConfiguration zkConf, InteractionProtocol protocol) {
       final List<String> knownNodes = protocol.getKnownNodes();
       final List<String> liveNodes = protocol.getLiveNodes();
       final Table table = new Table();
@@ -304,12 +306,17 @@ public class Katta {
   protected static Command LIST_INDICES_COMMAND = new ProtocolCommand("listIndices", "[-d]",
           "Lists all indexes. -d for detailed view.") {
 
+    private boolean _detailedView;
+
     @Override
-    public void execute(String[] args, Map<String, String> optionMap, ZkConfiguration zkConf,
-            InteractionProtocol protocol) {
-      boolean detailedView = optionMap.containsKey("-d");
+    protected void parseArguments(ZkConfiguration zkConf, String[] args, java.util.Map<String, String> optionMap) {
+      _detailedView = optionMap.containsKey("-d");
+    }
+
+    @Override
+    public void execute(ZkConfiguration zkConf, InteractionProtocol protocol) {
       final Table table;
-      if (!detailedView) {
+      if (!_detailedView) {
         table = new Table(new String[] { "Name", "Status", "Path", "Shards", "Entries", "Disk Usage" });
       } else {
         table = new Table(new String[] { "Name", "Status", "Path", "Shards", "Entries", "Disk Usage", "Replication" });
@@ -325,7 +332,7 @@ public class Katta {
         }
         long indexBytes = calculateIndexDiskUsage(indexMD.getPath());
         String state = indexMD.getDeployError() == null ? "DEPLOYED" : "ERROR";
-        if (!detailedView) {
+        if (!_detailedView) {
           table.addRow(index, state, indexMD.getPath(), shards.size(), entries, indexBytes);
         } else {
           table.addRow(index, state, indexMD.getPath(), shards.size(), entries, indexBytes, indexMD
@@ -372,7 +379,10 @@ public class Katta {
   protected static Command LOG_METRICS_COMMAND = new ProtocolCommand("logMetrics", "[sysout|log4j]",
           "Subscribes to the Metrics updates and logs them to log file or console") {
 
-    public void validate(String[] args) {
+    private OutputType _outputType;
+
+    @Override
+    protected void parseArguments(ZkConfiguration zkConf, String[] args, java.util.Map<String, String> optionMap) {
       if (args.length < 2) {
         throw new IllegalArgumentException("no output type specified");
       }
@@ -380,13 +390,13 @@ public class Katta {
         throw new IllegalArgumentException("need to specify one of " + Arrays.asList(OutputType.values())
                 + " as output type");
       }
+      _outputType = parseType(args[1]);
+
     }
 
     @Override
-    public void execute(String[] args, Map<String, String> optionMap, ZkConfiguration zkConf,
-            InteractionProtocol protocol) throws Exception {
-      OutputType outputType = parseType(args[1]);
-      new MetricLogger(outputType, protocol).join();
+    public void execute(ZkConfiguration zkConf, InteractionProtocol protocol) throws Exception {
+      new MetricLogger(_outputType, protocol).join();
     }
 
     private OutputType parseType(String typeString) {
@@ -403,25 +413,30 @@ public class Katta {
   protected static Command START_GUI_COMMAND = new Command("startGui", "[-war <pathToWar>] [-port <port>]",
           "Starts the web based katta.gui") {
 
-    @Override
-    public void execute(String[] args, Map<String, String> optionMap, ZkConfiguration zkConf) throws Exception {
-      int port = 8080;
-      List<String> paths = new ArrayList<String>();
-      paths.add(".");
-      paths.add("./extras/katta.gui");
+    private int _port = 8080;
+    private File _war;
 
-      if (args.length > 1) {
-        for (int i = 1; i < args.length; i++) {
-          String command = args[i];
-          if (command.equals("-war")) {
-            paths.clear();
-            paths.add(args[i + 1]);
-          } else if (command.equals("-port")) {
-            port = Integer.parseInt(args[i + 1]);
-          }
-        }
+    @Override
+    protected void parseArguments(ZkConfiguration zkConf, String[] args, Map<String, String> optionMap) {
+      if (optionMap.containsKey("-war")) {
+        _war = new File(optionMap.get("-war"));
       }
-      WebApp app = new WebApp(paths.toArray(new String[paths.size()]), port);
+      if (optionMap.containsKey("-port")) {
+        _port = Integer.parseInt(optionMap.get("-port"));
+      }
+    }
+
+    @Override
+    public void execute(ZkConfiguration zkConf) throws Exception {
+      List<String> paths = new ArrayList<String>();
+      if (_war != null) {
+        paths.add(_war.getAbsolutePath());
+      } else {
+        paths.add(".");
+        paths.add("./extras/katta.gui");
+      }
+
+      WebApp app = new WebApp(paths.toArray(new String[paths.size()]), _port);
       app.startWebServer();
     }
   };
@@ -429,19 +444,23 @@ public class Katta {
   protected static Command SHOW_STRUCTURE_COMMAND = new ProtocolCommand("showStructure", "[-d]",
           "Shows the structure of a Katta installation. -d for detailed view.") {
 
+    private boolean _detailedView;
+
     @Override
-    public void execute(String[] args, Map<String, String> optionMap, ZkConfiguration zkConf,
-            InteractionProtocol protocol) throws Exception {
-      boolean detailedView = optionMap.containsKey("-d");
-      protocol.showStructure(detailedView);
+    protected void parseArguments(ZkConfiguration zkConf, String[] args, java.util.Map<String, String> optionMap) {
+      _detailedView = optionMap.containsKey("-d");
+    }
+
+    @Override
+    public void execute(ZkConfiguration zkConf, InteractionProtocol protocol) throws Exception {
+      protocol.showStructure(_detailedView);
     }
   };
 
   protected static Command CHECK_COMMAND = new ProtocolCommand("check", "", "Analyze index/shard/node status") {
 
     @Override
-    public void execute(String[] args, Map<String, String> optionMap, ZkConfiguration zkConf,
-            InteractionProtocol protocol) throws Exception {
+    public void execute(ZkConfiguration zkConf, InteractionProtocol protocol) throws Exception {
       System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
       System.out.println("            Index Analysis");
       System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
@@ -543,7 +562,7 @@ public class Katta {
   protected static Command VERSION_COMMAND = new Command("version", "", "Print the version") {
 
     @Override
-    public void execute(String[] args, Map<String, String> optionMap, ZkConfiguration zkConf) throws Exception {
+    public void execute(ZkConfiguration zkConf) throws Exception {
       VersionInfo versionInfo = new VersionInfo();
       System.out.println("Katta '" + versionInfo.getVersion() + "'");
       System.out.println("Git-Revision '" + versionInfo.getRevision() + "'");
@@ -554,36 +573,40 @@ public class Katta {
   protected static Command ADD_INDEX_COMMAND = new ProtocolCommand("addIndex",
           "<index name> <path to index> [<replication level>]", "Add a index to Katta") {
 
-    public void validate(String[] args) {
+    private String _name;
+    private String _path;
+    private int _replicationLevel = 3;
+
+    @Override
+    protected void parseArguments(ZkConfiguration zkConf, String[] args, java.util.Map<String, String> optionMap) {
       validateMinArguments(args, 3);
+      _name = args[1];
+      _path = args[2];
+      if (args.length == 4) {
+        _replicationLevel = Integer.parseInt(args[3]);
+      }
     }
 
     @Override
-    public void execute(String[] args, Map<String, String> optionMap, ZkConfiguration zkConf,
-            InteractionProtocol protocol) throws Exception {
-      String name = args[1];
-      String path = args[2];
-      int replicationLevel = 3;
-      if (args.length == 4) {
-        replicationLevel = Integer.parseInt(args[3]);
-      }
-      addIndex(protocol, name, path, replicationLevel);
+    public void execute(ZkConfiguration zkConf, InteractionProtocol protocol) throws Exception {
+      addIndex(protocol, _name, _path, _replicationLevel);
     }
 
   };
 
   protected static Command REMOVE_INDEX_COMMAND = new ProtocolCommand("removeIndex", "<index name>",
           "Remove a index from Katta") {
+    private String _indexName;
 
-    public void validate(String[] args) {
+    @Override
+    protected void parseArguments(ZkConfiguration zkConf, String[] args, java.util.Map<String, String> optionMap) {
       validateMinArguments(args, 2);
+      _indexName = args[1];
     }
 
     @Override
-    public void execute(String[] args, Map<String, String> optionMap, ZkConfiguration zkConf,
-            InteractionProtocol protocol) throws Exception {
-      String indexName = args[1];
-      removeIndex(protocol, indexName);
+    public void execute(ZkConfiguration zkConf, InteractionProtocol protocol) throws Exception {
+      removeIndex(protocol, _indexName);
     }
 
   };
@@ -591,41 +614,45 @@ public class Katta {
   protected static Command REDEPLOY_INDEX_COMMAND = new ProtocolCommand("redeployIndex", "<index name>",
           "Undeploys and deploys an index") {
 
-    public void validate(String[] args) {
+    private String _indexName;
+
+    @Override
+    protected void parseArguments(ZkConfiguration zkConf, String[] args, java.util.Map<String, String> optionMap) {
       validateMinArguments(args, 2);
+      _indexName = args[1];
     }
 
     @Override
-    public void execute(String[] args, Map<String, String> optionMap, ZkConfiguration zkConf,
-            InteractionProtocol protocol) throws Exception {
-      String indexName = args[1];
-      IndexMetaData indexMD = protocol.getIndexMD(indexName);
+    public void execute(ZkConfiguration zkConf, InteractionProtocol protocol) throws Exception {
+      IndexMetaData indexMD = protocol.getIndexMD(_indexName);
       if (indexMD == null) {
-        throw new IllegalArgumentException("index '" + indexName + "' does not exist");
+        throw new IllegalArgumentException("index '" + _indexName + "' does not exist");
       }
-      removeIndex(protocol, indexName);
+      removeIndex(protocol, _indexName);
       Thread.sleep(5000);
-      addIndex(protocol, indexName, indexMD.getPath(), indexMD.getReplicationLevel());
+      addIndex(protocol, _indexName, indexMD.getPath(), indexMD.getReplicationLevel());
     }
   };
 
   protected static Command LIST_ERRORS_COMMAND = new ProtocolCommand("listErrors", "<index name>",
           "Lists all deploy errors for a specified index") {
 
-    public void validate(String[] args) {
+    private String _indexName;
+
+    @Override
+    protected void parseArguments(ZkConfiguration zkConf, String[] args, java.util.Map<String, String> optionMap) {
       validateMinArguments(args, 2);
+      _indexName = args[1];
     }
 
     @Override
-    public void execute(String[] args, Map<String, String> optionMap, ZkConfiguration zkConf,
-            InteractionProtocol protocol) throws Exception {
-      String indexName = args[1];
-      IndexMetaData indexMD = protocol.getIndexMD(indexName);
+    public void execute(ZkConfiguration zkConf, InteractionProtocol protocol) throws Exception {
+      IndexMetaData indexMD = protocol.getIndexMD(_indexName);
       if (indexMD == null) {
-        throw new IllegalArgumentException("index '" + indexName + "' does not exist");
+        throw new IllegalArgumentException("index '" + _indexName + "' does not exist");
       }
       if (!indexMD.hasDeployError()) {
-        System.out.println("No error for index '" + indexName + "'");
+        System.out.println("No error for index '" + _indexName + "'");
         return;
       }
       IndexDeployError deployError = indexMD.getDeployError();
@@ -653,20 +680,26 @@ public class Katta {
           "<index name>[,<index name>,...] \"<query>\" [count]",
           "Search in supplied indexes. The query should be in \". If you supply a result count hit details will be printed. To search in all indices write \"*\". This uses the client type LuceneClient.") {
 
-    public void validate(String[] args) {
-      validateMinArguments(args, 2);
+    private String[] _indexNames;
+    private String _query;
+    private int _count;
+
+    @Override
+    protected void parseArguments(ZkConfiguration zkConf, String[] args, java.util.Map<String, String> optionMap) {
+      validateMinArguments(args, 3);
+      _indexNames = args[1].split(",");
+      _query = args[2];
+      if (args.length > 3) {
+        _count = Integer.parseInt(args[3]);
+      }
     }
 
     @Override
-    public void execute(String[] args, Map<String, String> optionMap, ZkConfiguration zkConf,
-            InteractionProtocol protocol) throws Exception {
-      final String[] indexNames = args[1].split(",");
-      final String query = args[2];
-      if (args.length > 3) {
-        final int count = Integer.parseInt(args[3]);
-        search(indexNames, query, count);
+    public void execute(ZkConfiguration zkConf, InteractionProtocol protocol) throws Exception {
+      if (_count > 0) {
+        search(_indexNames, _query, _count);
       } else {
-        search(indexNames, query);
+        search(_indexNames, _query);
       }
     }
 
@@ -701,20 +734,24 @@ public class Katta {
           "<inputTextFile> <outputPath>  <numOfWordsPerDoc> <numOfDocuments>",
           "The inputTextFile is used as dictionary") {
 
-    public void validate(String[] args) {
+    private String _input;
+    private String _output;
+    private int _wordsPerDoc;
+    private int _indexSize;
+
+    @Override
+    protected void parseArguments(ZkConfiguration zkConf, String[] args, java.util.Map<String, String> optionMap) {
       validateMinArguments(args, 4);
+      _input = args[1];
+      _output = args[2];
+      _wordsPerDoc = Integer.parseInt(args[3]);
+      _indexSize = Integer.parseInt(args[4]);
     }
 
     @Override
-    public void execute(String[] args, Map<String, String> optionMap, ZkConfiguration zkConf,
-            InteractionProtocol protocol) throws Exception {
-      String input = args[1];
-      String output = args[2];
-      int wordsPerDoc = Integer.parseInt(args[3]);
-      int indexSize = Integer.parseInt(args[4]);
-
+    public void execute(ZkConfiguration zkConf, InteractionProtocol protocol) throws Exception {
       SampleIndexGenerator sampleIndexGenerator = new SampleIndexGenerator();
-      sampleIndexGenerator.createIndex(input, output, wordsPerDoc, indexSize);
+      sampleIndexGenerator.createIndex(_input, _output, _wordsPerDoc, _indexSize);
     }
 
   };
@@ -724,13 +761,11 @@ public class Katta {
           "<zkRootPath> <nodeCount> <startQueryRate> <endQueryRate> <rateStep> <durationPerIteration> <indexName> <query-file> <resultFolder> <typeWithParameters> ",
           "Starts a load test on a katta cluster with the given zkRootPath. The query rate is in queries per second. The durationPerIteration is in milliseconds. The resultFolder will be created on the master host. typeWithParameters is one of 'lucene <maxHits>' | 'mapfile'") {
 
-    public void validate(String[] args) {
-      validateMinArguments(args, 11);
-    }
+    private LoadTestMasterOperation _masterOperation;
+    private File _resultFolder;
 
-    @Override
-    public void execute(String[] args, Map<String, String> optionMap, ZkConfiguration zkConf,
-            InteractionProtocol protocol) throws Exception {
+    protected void parseArguments(ZkConfiguration zkConf, String[] args, java.util.Map<String, String> optionMap) {
+      validateMinArguments(args, 11);
       String zkRootPath = args[1];
       int nodeCount = Integer.parseInt(args[2]);
       int startQueryRate = Integer.parseInt(args[3]);
@@ -739,13 +774,12 @@ public class Katta {
       long durationPerIteration = Integer.parseInt(args[6]);
       String indexName = args[7];
       File queryFile = new File(args[8]);
-      File resultFolder = new File(args[9]);
+      _resultFolder = new File(args[9]);
       String type = args[10];
 
       if (!queryFile.exists()) {
         throw new IllegalStateException("query file '" + queryFile.getAbsolutePath() + "' does not exists");
       }
-
       AbstractQueryExecutor queryExecutor;
       String[] indices = new String[] { indexName };
       String[] queries = readQueries(queryFile);
@@ -761,16 +795,19 @@ public class Katta {
         throw new IllegalStateException("type '" + type + "' unknown");
       }
 
-      LoadTestMasterOperation masterOperation = new LoadTestMasterOperation(nodeCount, startQueryRate, endQueryRate,
-              rateStep, durationPerIteration, queryExecutor, resultFolder);
+      _masterOperation = new LoadTestMasterOperation(nodeCount, startQueryRate, endQueryRate, rateStep,
+              durationPerIteration, queryExecutor, _resultFolder);
+    }
 
-      masterOperation.registerCompletion(protocol);
-      protocol.addMasterOperation(masterOperation);
+    @Override
+    public void execute(ZkConfiguration zkConf, InteractionProtocol protocol) throws Exception {
+      _masterOperation.registerCompletion(protocol);
+      protocol.addMasterOperation(_masterOperation);
       long startTime = System.currentTimeMillis();
       System.out.println("load test triggered - waiting on completion...");
-      masterOperation.joinCompletion(protocol);
+      _masterOperation.joinCompletion(protocol);
       System.out.println("load test complete - took " + (System.currentTimeMillis() - startTime) + " ms");
-      System.out.println("find the results in '" + resultFolder.getAbsolutePath()
+      System.out.println("find the results in '" + _resultFolder.getAbsolutePath()
               + "' on the master or inspect the master logs if the results are missing");
     }
 
@@ -831,18 +868,24 @@ public class Katta {
       _description = description;
     }
 
+    public final void parseArguments(String[] args) {
+      parseArguments(new ZkConfiguration(), args, parseOptionMap(args));
+    }
+
+    public final void parseArguments(ZkConfiguration zkConf, String[] args) {
+      parseArguments(zkConf, args, parseOptionMap(args));
+    }
+
     @SuppressWarnings("unused")
-    public void validate(String[] args) {
+    protected void parseArguments(ZkConfiguration zkConf, String[] args, Map<String, String> optionMap) {
       // subclasses may override
     }
 
-    public void execute(String[] args) throws Exception {
-      execute(new ZkConfiguration(), args);
+    public void execute() throws Exception {
+      execute(new ZkConfiguration());
     }
 
-    public void execute(ZkConfiguration zkConf, String[] args) throws Exception {
-      execute(args, parseOptionMap(args), zkConf);
-    }
+    protected abstract void execute(ZkConfiguration zkConf) throws Exception;
 
     private Map<String, String> parseOptionMap(final String[] args) {
       Map<String, String> optionMap = new HashMap<String, String>();
@@ -857,9 +900,6 @@ public class Katta {
       }
       return optionMap;
     }
-
-    protected abstract void execute(String[] args, Map<String, String> optionMap, ZkConfiguration zkConf)
-            throws Exception;
 
     public String getCommand() {
       return _command;
@@ -881,15 +921,14 @@ public class Katta {
     }
 
     @Override
-    public final void execute(String[] args, Map<String, String> optionMap, ZkConfiguration zkConf) throws Exception {
+    public final void execute(ZkConfiguration zkConf) throws Exception {
       ZkClient zkClient = new ZkClient(zkConf.getZKServers());
       InteractionProtocol protocol = new InteractionProtocol(zkClient, zkConf);
-      execute(args, optionMap, zkConf, protocol);
+      execute(zkConf, protocol);
       protocol.disconnect();
     }
 
-    protected abstract void execute(String[] args, Map<String, String> optionMap, ZkConfiguration zkConf,
-            InteractionProtocol protocol) throws Exception;
+    protected abstract void execute(ZkConfiguration zkConf, InteractionProtocol protocol) throws Exception;
   }
 
   private static class Table {
