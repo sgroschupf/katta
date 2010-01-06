@@ -74,7 +74,6 @@ public class Node implements ConnectedComponent {
     if (_stopped) {
       throw new IllegalStateException("Node cannot be started again after it was shutdown.");
     }
-    LOG.debug("Starting rpc server...");
     LOG.info("starting rpc server with  server class = " + _nodeManaged.getClass().getCanonicalName());
     String hostName = NetworkUtil.getLocalhostName();
     _rpcServer = startRPCServer(hostName, _nodeConf.getStartPort(), _nodeManaged);

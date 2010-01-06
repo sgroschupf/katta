@@ -57,7 +57,6 @@ import net.sf.katta.tool.loadtest.query.LuceneSearchExecutor;
 import net.sf.katta.tool.loadtest.query.MapfileAccessExecutor;
 import net.sf.katta.util.NodeConfiguration;
 import net.sf.katta.util.StringUtil;
-import net.sf.katta.util.VersionInfo;
 import net.sf.katta.util.WebApp;
 import net.sf.katta.util.ZkConfiguration;
 import net.sf.katta.util.ZkKattaUtil;
@@ -608,8 +607,8 @@ public class Katta {
 
     @Override
     public void execute(ZkConfiguration zkConf) throws Exception {
-      VersionInfo versionInfo = new VersionInfo();
-      System.out.println("Katta '" + versionInfo.getVersion() + "'");
+      net.sf.katta.protocol.metadata.Version versionInfo = net.sf.katta.protocol.metadata.Version.readFromJar();
+      System.out.println("Katta '" + versionInfo.getNumber() + "'");
       System.out.println("Git-Revision '" + versionInfo.getRevision() + "'");
       System.out.println("Compiled by '" + versionInfo.getCompiledBy() + "' on '" + versionInfo.getCompileTime() + "'");
     }

@@ -28,12 +28,12 @@ import net.sf.katta.protocol.metadata.IndexMetaData;
 
 import org.mortbay.log.Log;
 
-public class RemoveSuperfluousShardsOperation implements MasterOperation {
+public class RemoveObsoleteShardsOperation implements MasterOperation {
 
   private static final long serialVersionUID = 1L;
   private final String _nodeName;
 
-  public RemoveSuperfluousShardsOperation(String nodeName) {
+  public RemoveObsoleteShardsOperation(String nodeName) {
     _nodeName = nodeName;
   }
 
@@ -47,6 +47,7 @@ public class RemoveSuperfluousShardsOperation implements MasterOperation {
     Collection<String> nodeShards = protocol.getNodeShards(_nodeName);
     List<String> obsoletShards = collectObsoleteShards(protocol, nodeShards, runningOperations);
     if (!obsoletShards.isEmpty()) {
+      Log.info("found following shards obolete on node " + _nodeName + ": " + obsoletShards);
       protocol.addNodeOperation(_nodeName, new ShardUndeployOperation(obsoletShards));
     }
 

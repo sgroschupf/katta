@@ -15,29 +15,34 @@
  */
 package net.sf.katta.index;
 
-import java.io.Serializable;
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
+
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.Writable;
 
 @Deprecated
-public class IndexMetaData implements Serializable {
+public class IndexMetaData implements Writable {
 
   private static final long serialVersionUID = 1L;
 
-  private String _name;
-  private String _path;
+  private Text _path = new Text();
+  private Text _analyzerClassName = new Text();
   private int _replicationLevel;
-
   private IndexState _state;
-  private String _errorMessage = "";
+  private Text _errorMessage = new Text();
 
+  @Deprecated
   public enum IndexState {
     ANNOUNCED, DEPLOYED, ERROR, DEPLOYING, REPLICATING;
   }
 
-  public IndexMetaData(String name, String path, int replicationLevel, IndexState state) {
-    _name = name;
-    _path = path;
-    _replicationLevel = replicationLevel;
-    _state = state;
+  public IndexMetaData(String path, String analyzerName, int replicationLevel, IndexState state) {
+    this._path.set(path);
+    this._analyzerClassName.set(analyzerName);
+    this._replicationLevel = replicationLevel;
+    this._state = state;
   }
 
   public IndexMetaData() {
@@ -45,43 +50,58 @@ public class IndexMetaData implements Serializable {
   }
 
   public String getPath() {
-    return _path;
+    return this._path.toString();
+  }
+
+  public String getAnalyzerClassName() {
+    return this._analyzerClassName.toString();
   }
 
   public IndexState getState() {
-    return _state;
+    return this._state;
   }
 
   public void setState(IndexState state) {
     if (state == IndexState.ERROR) {
       throw new IllegalStateException("please set an error message");
     }
-    _state = state;
+    this._state = state;
   }
 
-  public void setState(IndexState state, String errorMessage) {
-    if (errorMessage == null) {
-      throw new NullPointerException();
-    }
-    _state = state;
-    _errorMessage = errorMessage;
+  public void setState(IndexState state, String errorMsg) {
+    this._state = state;
+    if (errorMsg != null)
+      this._errorMessage.set(errorMsg);
   }
 
   public String getErrorMessage() {
-    return _errorMessage;
+    return this._errorMessage.toString();
   }
 
   public int getReplicationLevel() {
-    return _replicationLevel;
+    return this._replicationLevel;
   }
 
-  public String getName() {
-    return _name;
-  }
-
-  @Override
   public String toString() {
-    return "name: " + _name + ", state: " + _state + ", replication: " + _replicationLevel + ", path: " + _path
-            + ", error: " + _errorMessage;
+    return "state: " + _state + ", replication: " + _replicationLevel + ", path: " + _path + ", error: "
+            + _errorMessage;
+  }
+
+  public void readFields(DataInput in) throws IOException {
+    this._path.readFields(in);
+    this._analyzerClassName.readFields(in);
+    this._replicationLevel = in.readInt();
+    this._state = IndexState.values()[in.readByte()];
+    if (this._state == IndexState.ERROR)
+      this._errorMessage.readFields(in);
+  }
+
+  public void write(DataOutput out) throws IOException {
+    this._path.write(out);
+    this._analyzerClassName.write(out);
+    out.writeInt(this._replicationLevel);
+    out.writeByte(this._state.ordinal());
+    if (this._state == IndexState.ERROR)
+      this._errorMessage.write(out);
   }
 }

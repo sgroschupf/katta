@@ -15,6 +15,7 @@
  */
 package net.sf.katta.tool;
 
+import java.io.Serializable;
 import java.util.List;
 
 import net.sf.katta.util.ZkConfiguration;
@@ -59,6 +60,12 @@ public class ZkTool {
     }
   }
 
+  public void read(String path) {
+    Serializable data = _zkClient.readData(path);
+    System.out.println("from type: " + data.getClass().getName());
+    System.out.println("to string: " + data.toString());
+  }
+
   private void close() {
     _zkClient.close();
   }
@@ -68,6 +75,8 @@ public class ZkTool {
 
     Option lsOption = new Option("ls", true, "list zp path contents");
     lsOption.setArgName("path");
+    Option readOption = new Option("read", true, "read and print zp path contents");
+    readOption.setArgName("path");
     Option rmOption = new Option("rm", true, "remove zk files");
     rmOption.setArgName("path");
     Option rmrOption = new Option("rmr", true, "remove zk directories");
@@ -76,6 +85,7 @@ public class ZkTool {
     OptionGroup actionGroup = new OptionGroup();
     actionGroup.setRequired(true);
     actionGroup.addOption(lsOption);
+    actionGroup.addOption(readOption);
     actionGroup.addOption(rmOption);
     actionGroup.addOption(rmrOption);
     options.addOptionGroup(actionGroup);
@@ -86,13 +96,16 @@ public class ZkTool {
       final CommandLine line = parser.parse(options, args);
       ZkTool zkTool = new ZkTool();
       if (line.hasOption(lsOption.getOpt())) {
-        String path = lsOption.getValue(0);
+        String path = line.getOptionValue(lsOption.getOpt());
         zkTool.ls(path);
+      } else if (line.hasOption(readOption.getOpt())) {
+        String path = line.getOptionValue(readOption.getOpt());
+        zkTool.read(path);
       } else if (line.hasOption(rmOption.getOpt())) {
-        String path = rmOption.getValue(0);
+        String path = line.getOptionValue(rmOption.getOpt());
         zkTool.rm(path, false);
       } else if (line.hasOption(rmrOption.getOpt())) {
-        String path = rmrOption.getValue(0);
+        String path = line.getOptionValue(rmrOption.getOpt());
         zkTool.rm(path, true);
       }
       zkTool.close();

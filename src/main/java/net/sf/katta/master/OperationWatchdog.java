@@ -84,7 +84,7 @@ public class OperationWatchdog implements ConnectedComponent, Serializable {
       }
 
       @Override
-      public void handleDataChange(String arg0, Serializable arg1) throws Exception {
+      public void handleDataChange(String arg0, Object arg1) throws Exception {
         // nothing todo
       }
     };

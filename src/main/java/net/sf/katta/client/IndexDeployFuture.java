@@ -15,8 +15,6 @@
  */
 package net.sf.katta.client;
 
-import java.io.Serializable;
-
 import net.sf.katta.protocol.ConnectedComponent;
 import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.protocol.metadata.IndexMetaData;
@@ -75,7 +73,7 @@ public class IndexDeployFuture implements IIndexDeployFuture, IZkDataListener, C
   }
 
   @Override
-  public synchronized void handleDataChange(String dataPath, Serializable data) {
+  public synchronized void handleDataChange(String dataPath, Object data) {
     wakeSleeper();
   }
 

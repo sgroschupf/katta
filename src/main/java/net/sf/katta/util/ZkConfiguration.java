@@ -116,6 +116,7 @@ public class ZkConfiguration extends KattaConfiguration {
 
   public enum PathDef {
     MASTER("current master ephemeral", true, "master"), // 
+    VERSION("current cluster version", true, "version"), // 
     NODES_METADATA("metadata of connected & unconnected nodes", true, NODES, "metadata"), // 
     NODES_LIVE("ephemerals of connected nodes", true, NODES, "live"), //
     NODE_METRICS("metrics information of nodes", false, NODES, "metrics"), //

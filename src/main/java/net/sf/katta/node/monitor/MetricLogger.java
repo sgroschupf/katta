@@ -15,7 +15,6 @@
  */
 package net.sf.katta.node.monitor;
 
-import java.io.Serializable;
 import java.util.List;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -74,7 +73,7 @@ public class MetricLogger implements IZkDataListener, ConnectedComponent {
   }
 
   @Override
-  public void handleDataChange(String dataPath, Serializable data) throws Exception {
+  public void handleDataChange(String dataPath, Object data) throws Exception {
     MetricsRecord metrics = (MetricsRecord) data;
     logMetric(metrics);
   }

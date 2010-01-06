@@ -15,55 +15,82 @@
  */
 package net.sf.katta.protocol.upgrade;
 
-import net.sf.katta.node.Node;
-import net.sf.katta.protocol.InteractionProtocol;
-import net.sf.katta.util.ZkConfiguration;
+import java.util.HashMap;
+import java.util.Map;
 
-import org.I0Itec.zkclient.ZkClient;
+import net.sf.katta.protocol.InteractionProtocol;
+import net.sf.katta.protocol.metadata.Version;
+
 import org.apache.log4j.Logger;
 
-/**
- * 
- * TODO node metadata
- * 
- * TODO index metadata
- * 
- */
 public class UpgradeRegistry {
 
   private static final Logger LOG = Logger.getLogger(UpgradeRegistry.class);
+  private static Map<VersionPair, UpgradeAction> _upgradeActionsByVersion = new HashMap<VersionPair, UpgradeAction>();
 
-  public static void upgradeMasterIfNecessary(InteractionProtocol protocol) {
-
+  static {
+    registerUpgradeAction("0.5", "0.6", new UpgradeAction05_06());
   }
 
-  public static void upgradeNodeIfNecessary(InteractionProtocol protocol, ZkClient zkClient,
-          ZkConfiguration zkConfiguration, Node node) {
-    // check version
-    // convertShardAssignmentInformation(_protocol, zkClient, zkConfiguration,
-    // node);
+  protected static void registerUpgradeAction(String fromVersion, String toVersion, UpgradeAction upgradeAction) {
+    _upgradeActionsByVersion.put(new VersionPair(fromVersion, toVersion), upgradeAction);
   }
 
-  private static void convertShardAssignmentInformation(InteractionProtocol protocol, ZkClient zkClient,
-          ZkConfiguration zkConfiguration, Node node) {
-    // LOG.info("converting shard assignment information to new structure");
-    // NodeMetaData nodeMetaData = new NodeMetaData(node.getName(),
-    // node.getState());
-    // List<String> shardsToServe = _protocol.getNodeShards(node.getName());
-    // LOG.info("found " + shardsToServe.size() + " shards to serve: " +
-    // shardsToServe);
-    // ArrayList<AssignedShard> assignedShards =
-    // _protocol.getNodeShardsMD(node.getName(), shardsToServe);
-    // for (AssignedShard assignedShard : assignedShards) {
-    // String indexName = assignedShard.getIndexName();
-    // nodeMetaData.addShard(indexName, assignedShard.getName(),
-    // assignedShard.getPath());
-    // }
-    // String metaDataPath =
-    // zkConfiguration.getZKNodeMetaDataPath(node.getName());
-    // if (zkClient.exists(metaDataPath)) {
-    // zkClient.delete(metaDataPath);
-    // }
-    // zkClient.createPersistent(metaDataPath, nodeMetaData);
+  public static UpgradeAction findUpgradeAction(InteractionProtocol protocol, Version distributionVersion) {
+    Version clusterVersion = protocol.getVersion();
+    if (clusterVersion == null) {
+      // version exist up from 0.6 only
+      boolean isPre0_6Cluster = protocol.getZkClient().exists(
+              protocol.getZkConfiguration().getZkRootPath() + "/indexes");
+      if (isPre0_6Cluster) {
+        LOG.info("version of cluster not found - assuming 0.5");
+        clusterVersion = new Version("0.5", "Unknown", "Unknown", "Unknown");
+      } else {
+        clusterVersion = distributionVersion;
+      }
+    }
+    LOG.info("version of distribution " + distributionVersion.getNumber());
+    LOG.info("version of cluster " + clusterVersion.getNumber());
+    if (clusterVersion.equals(distributionVersion)) {
+      return null;
+    }
+
+    VersionPair currentVersionPair = new VersionPair(clusterVersion.getNumber(), distributionVersion.getNumber());
+    LOG.warn("cluster version differs from distribution version " + currentVersionPair);
+    for (VersionPair versionPair : _upgradeActionsByVersion.keySet()) {
+      LOG.info("checking upgrade action " + versionPair);
+      if (currentVersionPair.getFromVersion().startsWith(versionPair.getFromVersion())
+              && currentVersionPair.getToVersion().startsWith(versionPair.getToVersion())) {
+        LOG.info("found matching upgrade action");
+        return _upgradeActionsByVersion.get(versionPair);
+      }
+    }
+
+    LOG.warn("found no upgrade action for " + currentVersionPair + " out of " + _upgradeActionsByVersion.keySet());
+    return null;
   }
+
+  protected static class VersionPair {
+    private String _fromVersion;
+    private String _toVersion;
+
+    protected VersionPair(String fromVersion, String toVersion) {
+      _fromVersion = fromVersion;
+      _toVersion = toVersion;
+    }
+
+    public String getFromVersion() {
+      return _fromVersion;
+    }
+
+    public String getToVersion() {
+      return _toVersion;
+    }
+
+    @Override
+    public String toString() {
+      return getFromVersion() + " -> " + getToVersion();
+    }
+  }
+
 }

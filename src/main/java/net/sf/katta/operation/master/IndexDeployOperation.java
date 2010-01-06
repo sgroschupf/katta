@@ -42,7 +42,7 @@ public class IndexDeployOperation extends AbstractIndexOperation {
   private static final long serialVersionUID = 1L;
   private final static Logger LOG = Logger.getLogger(AbstractIndexOperation.class);
 
-  private IndexMetaData _indexMD;
+  protected IndexMetaData _indexMD;
   private final String _indexName;
   private final String _indexPath;
 
@@ -54,6 +54,14 @@ public class IndexDeployOperation extends AbstractIndexOperation {
 
   public String getIndexName() {
     return _indexName;
+  }
+
+  public String getIndexPath() {
+    return _indexPath;
+  }
+
+  public int getReplicationLevel() {
+    return _indexMD.getReplicationLevel();
   }
 
   @Override

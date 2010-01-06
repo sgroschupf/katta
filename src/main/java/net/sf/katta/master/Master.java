@@ -20,11 +20,14 @@ import java.util.List;
 import java.util.UUID;
 
 import net.sf.katta.operation.master.CheckIndicesOperation;
-import net.sf.katta.operation.master.RemoveSuperfluousShardsOperation;
+import net.sf.katta.operation.master.RemoveObsoleteShardsOperation;
 import net.sf.katta.protocol.ConnectedComponent;
 import net.sf.katta.protocol.IAddRemoveListener;
 import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.protocol.MasterQueue;
+import net.sf.katta.protocol.metadata.Version;
+import net.sf.katta.protocol.upgrade.UpgradeAction;
+import net.sf.katta.protocol.upgrade.UpgradeRegistry;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.MasterConfiguration;
 import net.sf.katta.util.ZkConfiguration.PathDef;
@@ -100,6 +103,11 @@ public class Master implements ConnectedComponent {
   private void becomePrimaryOrSecondaryMaster() {
     MasterQueue queue = _protocol.publishMaster(this);
     if (queue != null) {
+      UpgradeAction upgradeAction = UpgradeRegistry.findUpgradeAction(_protocol, Version.readFromJar());
+      if (upgradeAction != null) {
+        upgradeAction.upgrade(_protocol);
+      }
+      _protocol.setVersion(Version.readFromJar());
       startNodeManagement();
       MasterContext masterContext = new MasterContext(_protocol, this, _deployPolicy, queue);
       _operatorThread = new OperatorThread(masterContext, _safeModeMaxTime);
@@ -155,7 +163,7 @@ public class Master implements ConnectedComponent {
           if (!isMaster()) {
             return;
           }
-          _protocol.addMasterOperation(new RemoveSuperfluousShardsOperation(name));
+          _protocol.addMasterOperation(new RemoveObsoleteShardsOperation(name));
           if (!isInSafeMode()) {
             _protocol.addMasterOperation(new CheckIndicesOperation());
           }
@@ -164,7 +172,7 @@ public class Master implements ConnectedComponent {
     });
     _protocol.addMasterOperation(new CheckIndicesOperation());
     for (String node : nodes) {
-      _protocol.addMasterOperation(new RemoveSuperfluousShardsOperation(node));
+      _protocol.addMasterOperation(new RemoveObsoleteShardsOperation(node));
     }
     LOG.info("found following nodes connected: " + nodes);
   }

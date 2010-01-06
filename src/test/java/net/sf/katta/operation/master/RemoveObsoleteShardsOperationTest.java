@@ -41,7 +41,7 @@ import net.sf.katta.testutil.Mocks;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 
-public class RemoveSuperfluousShardsOperationTest {
+public class RemoveObsoleteShardsOperationTest {
 
   protected static final List EMPTY_LIST = Collections.EMPTY_LIST;
 
@@ -54,7 +54,7 @@ public class RemoveSuperfluousShardsOperationTest {
     MasterContext context = new MasterContext(protocol, Mocks.mockMaster(), new DefaultDistributionPolicy(), queue);
     when(protocol.getNodeShards(nodeName)).thenReturn(Arrays.asList(someOldShard));
 
-    RemoveSuperfluousShardsOperation operation = new RemoveSuperfluousShardsOperation(nodeName);
+    RemoveObsoleteShardsOperation operation = new RemoveObsoleteShardsOperation(nodeName);
     operation.execute(context, EMPTY_LIST);
 
     ArgumentCaptor<NodeOperation> captor = ArgumentCaptor.forClass(NodeOperation.class);
@@ -75,7 +75,7 @@ public class RemoveSuperfluousShardsOperationTest {
     MasterContext context = new MasterContext(protocol, Mocks.mockMaster(), new DefaultDistributionPolicy(), queue);
     when(protocol.getNodeShards(nodeName)).thenReturn(Arrays.asList(someOldShard));
 
-    RemoveSuperfluousShardsOperation operation = new RemoveSuperfluousShardsOperation(nodeName);
+    RemoveObsoleteShardsOperation operation = new RemoveObsoleteShardsOperation(nodeName);
     operation.execute(context, new ArrayList<MasterOperation>(Arrays.asList(new IndexDeployOperation(indexName, "path",
             1))));
 

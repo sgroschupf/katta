@@ -35,6 +35,7 @@ import net.sf.katta.operation.node.OperationResult;
 import net.sf.katta.protocol.metadata.IndexMetaData;
 import net.sf.katta.protocol.metadata.MasterMetaData;
 import net.sf.katta.protocol.metadata.NodeMetaData;
+import net.sf.katta.protocol.metadata.Version;
 import net.sf.katta.protocol.metadata.IndexMetaData.Shard;
 import net.sf.katta.util.CollectionUtil;
 import net.sf.katta.util.KattaException;
@@ -315,7 +316,7 @@ public class InteractionProtocol {
         }
 
         @Override
-        public void handleDataChange(String dataPath, Serializable data) throws Exception {
+        public void handleDataChange(String dataPath, Object data) throws Exception {
           // do nothing
         }
       }, zkMasterPath);
@@ -532,6 +533,19 @@ public class InteractionProtocol {
 
   }
 
+  public void setVersion(Version version) {
+    String zkPath = _zkConf.getZkPath(PathDef.VERSION);
+    try {
+      _zkClient.writeData(zkPath, version);
+    } catch (ZkNoNodeException e) {
+      _zkClient.createPersistent(zkPath, version);
+    }
+  }
+
+  public Version getVersion() {
+    return _zkClient.readData(_zkConf.getZkPath(PathDef.VERSION), true);
+  }
+
   public void setFlag(String name) {
     _zkClient.createEphemeral(_zkConf.getZkPath(PathDef.FLAGS, name));
   }
@@ -542,6 +556,14 @@ public class InteractionProtocol {
 
   public void removeFlag(String name) {
     _zkClient.delete(_zkConf.getZkPath(PathDef.FLAGS, name));
+  }
+
+  public ZkConfiguration getZkConfiguration() {
+    return _zkConf;
+  }
+
+  public ZkClient getZkClient() {
+    return _zkClient;
   }
 
 }

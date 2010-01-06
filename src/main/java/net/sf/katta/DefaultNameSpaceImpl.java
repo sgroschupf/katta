@@ -44,7 +44,7 @@ public class DefaultNameSpaceImpl implements IDefaultNameSpace {
     safeCreate(zkClient, _conf.getZkRootPath());
     PathDef[] values = PathDef.values();
     for (PathDef pathDef : values) {
-      if (pathDef != PathDef.MASTER) {
+      if (pathDef != PathDef.MASTER && pathDef != PathDef.VERSION) {
         safeCreate(zkClient, _conf.getZkPath(pathDef));
       }
     }

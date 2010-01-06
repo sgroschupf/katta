@@ -16,7 +16,6 @@
 package net.sf.katta.client;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.net.InetSocketAddress;
@@ -194,7 +193,7 @@ public class Client implements IShardProxyManager, ConnectedComponent {
       }
 
       @Override
-      public void handleDataChange(String dataPath, Serializable data) throws Exception {
+      public void handleDataChange(String dataPath, Object data) throws Exception {
         IndexMetaData metaData = (IndexMetaData) data;
         if (isIndexSearchable(metaData)) {
           addIndexForSearching(metaData);
