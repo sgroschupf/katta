@@ -24,6 +24,7 @@ bin=`dirname "$0"`
 bin=`cd "$bin"; pwd`
 . "$bin"/katta-ec2-env.sh
 
+echo "configured S3_BUCKET=${S3_BUCKET}, KATTA_VERSION=${KATTA_VERSION}, ARCH=${ARCH}"
 AMI_IMAGE=`ec2-describe-images -a | grep $S3_BUCKET | grep $KATTA_VERSION | grep $ARCH | grep available | awk '{print $2}'`
 
 [ ! -z $AMI_IMAGE ] && echo "AMI already registered, use: ec2-deregister $AMI_IMAGE" && exit -1
