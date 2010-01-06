@@ -775,7 +775,7 @@ public class Katta {
 
   };
 
-  protected static Command GENERATE_INDEX_COMMAND = new ProtocolCommand("generateIndex",
+  protected static Command GENERATE_INDEX_COMMAND = new Command("generateIndex",
           "<inputTextFile> <outputPath>  <numOfWordsPerDoc> <numOfDocuments>",
           "The inputTextFile is used as dictionary") {
 
@@ -794,9 +794,10 @@ public class Katta {
     }
 
     @Override
-    public void execute(ZkConfiguration zkConf, InteractionProtocol protocol) throws Exception {
+    public void execute(ZkConfiguration zkConf) throws Exception {
       SampleIndexGenerator sampleIndexGenerator = new SampleIndexGenerator();
       sampleIndexGenerator.createIndex(_input, _output, _wordsPerDoc, _indexSize);
+
     }
 
   };
