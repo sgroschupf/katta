@@ -75,10 +75,11 @@
     	</exec>
         
     </target>
+	
+	
 	<!-- ================================================================== -->
 	<!-- Generate a distribution                                            -->
 	<!-- ================================================================== -->
-
 	<target name="dist" depends="jar, doc, checkstyle, webapp" description="--> builds the Katta distribution">
 		<echo>====== Make sure you run 'ant coverage dist' for real distributions ====== </echo>
 		<defaultexcludes add="**/.git/**,**/.gitignore"/>
@@ -142,9 +143,20 @@
 		</copy>
 		<!-- clean up all .git folders -->
 	
+		<chmod perm="u+x">
+		  <fileset dir="${build.dir.dist}/bin">
+		  </fileset>
+		</chmod>
+
 		<tar longfile="gnu" compression="gzip" destfile="${build.release.file}" >
-			<tarfileset dir="${build.dir.dist}" prefix="${name}-${version}" excludes="**/*.sh" />
-			<tarfileset dir="${build.dir.dist}" prefix="${name}-${version}" mode="775" includes="**/*.sh"/>
+			<tarfileset dir="${build.dir.dist}" prefix="${name}-${version}" filemode="755" >
+		         <include name="bin/**"/>
+				 <include name="extras/ec2/bin/**"/>
+		    </tarfileset>
+		    <tarfileset dir="${build.dir.dist}" prefix="${name}-${version}">
+		         <exclude name="bin/**"/>
+		     	 <exclude name="extras/ec2/bin/**"/>
+		    </tarfileset>
 		</tar>
 	</target>
 
