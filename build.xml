@@ -152,6 +152,8 @@
 			<tarfileset dir="${build.dir.dist}" prefix="${name}-${version}" filemode="755" >
 		         <include name="bin/**"/>
 				 <include name="extras/ec2/bin/**"/>
+				 <exclude name="bin/katta.ec2.properties"/>
+				 <exclude name="extras/ec2/bin/katta-ec2-env.sh"/>
 		    </tarfileset>
 		    <tarfileset dir="${build.dir.dist}" prefix="${name}-${version}">
 		         <exclude name="bin/**"/>
