@@ -25,10 +25,7 @@ bin=`cd "$bin"; pwd`
 . "$bin"/katta-config.sh
 
 # stop master daemons
-"$bin"/katta-daemon.sh stop katta\ startMaster --config $KATTA_CONF_DIR
+"$bin"/katta-daemon.sh stop startMaster --config $KATTA_CONF_DIR
 
 # stop node daemons
-"$bin"/katta-daemons.sh stop katta\ startNode --config $KATTA_CONF_DIR
-
-# stop load test clients daemons
-"$bin"/katta-daemons.sh stop katta\ startLoadTestNode --config $KATTA_CONF_DIR
+"$bin"/katta-daemons.sh stop startNode --config $KATTA_CONF_DIR
