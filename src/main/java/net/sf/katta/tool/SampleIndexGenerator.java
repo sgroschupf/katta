@@ -42,6 +42,7 @@ import org.apache.lucene.util.Version;
 public class SampleIndexGenerator {
 
   public void createIndex(String input, String output, int wordsPerDoc, int indexSize) {
+    long startTime = System.currentTimeMillis();
     String hostname = "unknown";
     InetAddress addr;
     try {
@@ -74,13 +75,14 @@ public class SampleIndexGenerator {
 
         Document document = new Document();
         document.add(new Field("key", hostname + "_" + i, Store.NO, Index.NOT_ANALYZED));
-        document.add(new Field("text", text.toString(), Store.NO, Index.NOT_ANALYZED));
+        document.add(new Field("text", text.toString(), Store.NO, Index.ANALYZED));
         indexWriter.addDocument(document);
 
       }
       indexWriter.optimize();
       indexWriter.close();
-      System.out.println("Index created with : " + indexSize + " documents.");
+      System.out.println("Index created with : " + indexSize + " documents in "
+              + (System.currentTimeMillis() - startTime) + " ms");
 
       // when we are ready we move the index to the final destination and write
       // a done flag file we can use in shell scripts to identify the move is

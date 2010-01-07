@@ -17,6 +17,7 @@ package net.sf.katta;
 
 import net.sf.katta.testutil.PrintMethodNames;
 
+import org.I0Itec.zkclient.NetworkUtil;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
@@ -24,6 +25,10 @@ import org.junit.Rule;
 import org.junit.rules.TemporaryFolder;
 
 public class AbstractTest {
+
+  static {
+    System.setProperty(NetworkUtil.OVERWRITE_HOSTNAME_SYSTEM_PROPERTY, "localhost");
+  }
 
   @Rule
   public TemporaryFolder _temporaryFolder = new TemporaryFolder();

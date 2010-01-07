@@ -109,7 +109,7 @@ public class LoadTestMasterOperation implements MasterOperation {
       LOG.info("starting load test with " + testNodes.size() + " nodes");
     }
     LOG.info("executing tests in iteration " + _currentIteration + " at query rate: " + queryRate
-            + " queries per second");
+            + " queries per second and with a run time of " + _runTime / 1000 + " seconds");
 
     int remainingQueryRate = queryRate;
     int remainingNodes = testNodes.size();

@@ -38,23 +38,33 @@ import net.sf.katta.protocol.MasterQueue;
 import net.sf.katta.testutil.TestUtil;
 import net.sf.katta.testutil.mockito.SleepingAnswer;
 import net.sf.katta.util.KattaException;
+import net.sf.katta.util.ZkConfiguration;
 import net.sf.katta.util.ZkConfiguration.PathDef;
 
+import org.I0Itec.zkclient.ZkClient;
 import org.I0Itec.zkclient.ZkServer;
+import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 
 public class MasterMockTest extends AbstractTest {
 
-  private InteractionProtocol protocol = mock(InteractionProtocol.class);
+  private InteractionProtocol _protocol = mock(InteractionProtocol.class);
+
+  @Before
+  public void setUp() {
+    when(_protocol.getZkConfiguration()).thenReturn(new ZkConfiguration());
+    ZkClient mock = mock(ZkClient.class);
+    when(_protocol.getZkClient()).thenReturn(mock);
+  }
 
   @Test
   public void testBecomeMaster() throws Exception {
-    final Master master = new Master(protocol, false);
+    final Master master = new Master(_protocol, false);
 
     MasterQueue masterQueue = mockBlockingOperationQueue();
-    when(protocol.publishMaster(master)).thenReturn(masterQueue);
-    when(protocol.getLiveNodes()).thenReturn(Arrays.asList("node1"));
+    when(_protocol.publishMaster(master)).thenReturn(masterQueue);
+    when(_protocol.getLiveNodes()).thenReturn(Arrays.asList("node1"));
 
     master.start();
     assertTrue(master.isMaster());
@@ -64,10 +74,10 @@ public class MasterMockTest extends AbstractTest {
 
   @Test
   public void testBecomeSecMaster() throws Exception {
-    final Master master = new Master(protocol, false);
+    final Master master = new Master(_protocol, false);
 
-    when(protocol.publishMaster(master)).thenReturn(null);
-    when(protocol.getLiveNodes()).thenReturn(Arrays.asList("node1"));
+    when(_protocol.publishMaster(master)).thenReturn(null);
+    when(_protocol.getLiveNodes()).thenReturn(Arrays.asList("node1"));
 
     master.start();
     assertFalse(master.isMaster());
@@ -76,11 +86,11 @@ public class MasterMockTest extends AbstractTest {
 
   @Test
   public void testDisconnectReconnect() throws Exception {
-    final Master master = new Master(protocol, false);
+    final Master master = new Master(_protocol, false);
 
     MasterQueue masterQueue = mockBlockingOperationQueue();
-    when(protocol.publishMaster(master)).thenReturn(masterQueue);
-    when(protocol.getLiveNodes()).thenReturn(Arrays.asList("node1"));
+    when(_protocol.publishMaster(master)).thenReturn(masterQueue);
+    when(_protocol.getLiveNodes()).thenReturn(Arrays.asList("node1"));
 
     master.start();
     assertTrue(master.isMaster());
@@ -114,23 +124,23 @@ public class MasterMockTest extends AbstractTest {
 
   @Test
   public void testRemoveOldNodeShards() throws Exception {
-    final Master master = new Master(protocol, false);
+    final Master master = new Master(_protocol, false);
 
     String nodeName = "node1";
     MasterQueue masterQueue = mockBlockingOperationQueue();
-    when(protocol.publishMaster(master)).thenReturn(masterQueue);
-    when(protocol.getLiveNodes()).thenReturn(Arrays.asList(nodeName));
-    when(protocol.registerChildListener(eq(master), eq(PathDef.NODES_LIVE), any(IAddRemoveListener.class))).thenReturn(
-            Arrays.asList(nodeName));
+    when(_protocol.publishMaster(master)).thenReturn(masterQueue);
+    when(_protocol.getLiveNodes()).thenReturn(Arrays.asList(nodeName));
+    when(_protocol.registerChildListener(eq(master), eq(PathDef.NODES_LIVE), any(IAddRemoveListener.class)))
+            .thenReturn(Arrays.asList(nodeName));
 
     List<String> shards = Arrays.asList("shard1", "shard2");
-    when(protocol.getNodeShards(nodeName)).thenReturn(shards);
+    when(_protocol.getNodeShards(nodeName)).thenReturn(shards);
     master.start();
 
     assertTrue(master.isMaster());
     TestUtil.waitUntilLeaveSafeMode(master);
     ArgumentCaptor<MasterOperation> argument = ArgumentCaptor.forClass(MasterOperation.class);
-    verify(protocol, times(2)).addMasterOperation(argument.capture());
+    verify(_protocol, times(2)).addMasterOperation(argument.capture());
     assertTrue(argument.getAllValues().get(0) instanceof CheckIndicesOperation);
     assertTrue(argument.getAllValues().get(1) instanceof RemoveObsoleteShardsOperation);
     assertEquals(nodeName, ((RemoveObsoleteShardsOperation) argument.getAllValues().get(1)).getNodeName());
@@ -141,23 +151,23 @@ public class MasterMockTest extends AbstractTest {
           Exception {
     final Master master;
     if (zkServer != null) {
-      master = new Master(protocol, zkServer);
+      master = new Master(_protocol, zkServer);
     } else {
-      master = new Master(protocol, shutdownClient);
+      master = new Master(_protocol, shutdownClient);
     }
 
     MasterQueue masterQueue = mockBlockingOperationQueue();
-    when(protocol.publishMaster(master)).thenReturn(masterQueue);
-    when(protocol.getLiveNodes()).thenReturn(Arrays.asList("node1"));
+    when(_protocol.publishMaster(master)).thenReturn(masterQueue);
+    when(_protocol.getLiveNodes()).thenReturn(Arrays.asList("node1"));
 
     master.start();
     TestUtil.waitUntilLeaveSafeMode(master);
 
     // stop agin
     master.shutdown();
-    verify(protocol).unregisterComponent(master);
+    verify(_protocol).unregisterComponent(master);
     if (shutdownClient) {
-      verify(protocol).disconnect();
+      verify(_protocol).disconnect();
     }
     if (zkServer != null) {
       verify(zkServer).shutdown();

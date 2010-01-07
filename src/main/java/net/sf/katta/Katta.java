@@ -524,7 +524,7 @@ public class Katta {
         tableIndexStates.addRow(indexState, indexStateCounterMap.getCount(indexState));
       }
       System.out.println(tableIndexStates.toString());
-      System.out.println(indexes.size() + " indexes announced");
+      System.out.println(indexes.size() + " indexes published");
 
       System.out.println("\n");
       System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
@@ -775,9 +775,10 @@ public class Katta {
 
   };
 
-  protected static Command GENERATE_INDEX_COMMAND = new Command("generateIndex",
+  protected static Command GENERATE_INDEX_COMMAND = new Command(
+          "generateIndex",
           "<inputTextFile> <outputPath>  <numOfWordsPerDoc> <numOfDocuments>",
-          "The inputTextFile is used as dictionary") {
+          "The inputTextFile is used as dictionary. The field name is 'text', so search with queries like 'text:aWord' in the index.") {
 
     private String _input;
     private String _output;

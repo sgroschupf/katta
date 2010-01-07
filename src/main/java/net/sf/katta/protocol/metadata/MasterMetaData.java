@@ -42,4 +42,9 @@ public class MasterMetaData implements Serializable {
   public long getStartTime() {
     return _startTime;
   }
+
+  @Override
+  public String toString() {
+    return getMasterName() + ":" + getStartTime();
+  }
 }

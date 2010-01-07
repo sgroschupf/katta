@@ -476,6 +476,7 @@ public class Client implements IShardProxyManager, ConnectedComponent {
 
   public void close() {
     if (_protocol != null) {
+      _protocol.unregisterComponent(this);
       _protocol.disconnect();
       Collection<VersionedProtocol> proxies = _node2ProxyMap.values();
       for (VersionedProtocol search : proxies) {

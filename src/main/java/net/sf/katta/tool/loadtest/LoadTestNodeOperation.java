@@ -18,8 +18,8 @@ package net.sf.katta.tool.loadtest;
 import java.util.List;
 import java.util.Random;
 import java.util.Vector;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import net.sf.katta.node.NodeContext;
@@ -27,6 +27,7 @@ import net.sf.katta.operation.node.NodeOperation;
 import net.sf.katta.operation.node.OperationResult;
 import net.sf.katta.tool.loadtest.query.AbstractQueryExecutor;
 
+import org.I0Itec.zkclient.ExceptionUtil;
 import org.apache.log4j.Logger;
 
 @SuppressWarnings("serial")
@@ -47,24 +48,24 @@ public class LoadTestNodeOperation implements NodeOperation {
 
   @Override
   public OperationResult execute(NodeContext context) throws InterruptedException {
-    int threads = Math.max(1, (_queryRate - 1) / 3 + 1);
-    int testDelay = 1000 * threads / _queryRate;
+    int threads = _queryRate;
+    int testDelay = 1000;
+    int requestPerThread = (int) ((_queryRate / threads) * (_runTime / 1000));
 
-    LOG.info("Requested to run test at " + _queryRate + " queries per second using " + threads
-            + " threads and a test delay of " + testDelay + "ms.");
-
+    LOG.info("starting loadtest: queries/sec:" + _queryRate + " | runTimeInSec: " + _runTime / 1000 + " | threads: "
+            + threads + " | requestsPerThread: " + requestPerThread);
     try {
       _queryExecutor.init(context);
     } catch (Exception e) {
       throw new RuntimeException("failed to init query executor " + _queryExecutor, e);
     }
-    long startTime = System.currentTimeMillis();
-    ScheduledExecutorService executorService = Executors.newScheduledThreadPool(threads);
+    ExecutorService executorService = Executors.newFixedThreadPool(threads);
     List<LoadTestQueryResult> statistics = new Vector<LoadTestQueryResult>();
+    long startTime = System.currentTimeMillis();
     for (int i = 0; i < threads; i++) {
       TestSearcherRunnable runnable = new TestSearcherRunnable(testDelay, context, executorService, statistics,
-              startTime);
-      executorService.schedule(runnable, _random.nextInt(testDelay), TimeUnit.MILLISECONDS);
+              startTime, requestPerThread);
+      executorService.execute(runnable);
     }
     Thread.sleep(_runTime);
     executorService.shutdown();
@@ -85,38 +86,52 @@ public class LoadTestNodeOperation implements NodeOperation {
     private int _queryIndex;
     private int _testDelay;
     private final NodeContext _context;
-    private final ScheduledExecutorService _executorService;
+    private final ExecutorService _executorService;
     private final List<LoadTestQueryResult> _statistics;
     private final long _startTime;
+    private final int _requestPerThread;
+    private int _requestCounter;
 
-    TestSearcherRunnable(int testDelay, NodeContext context, ScheduledExecutorService executorService,
-            List<LoadTestQueryResult> statistics, long startTime) {
+    TestSearcherRunnable(int testDelay, NodeContext context, ExecutorService executorService,
+            List<LoadTestQueryResult> statistics, long startTime, int requestPerThread) {
       _testDelay = testDelay;
       _context = context;
       _executorService = executorService;
       _statistics = statistics;
       _startTime = startTime;
+      _requestPerThread = requestPerThread;
       _queryIndex = _random.nextInt(_queryExecutor.getQueries().length);
     }
 
     @Override
     public void run() {
-      long queryStartTime = System.currentTimeMillis();
-      String queryString = _queryExecutor.getQueries()[_queryIndex];
-      _queryIndex = (_queryIndex + 1) % _queryExecutor.getQueries().length;
       try {
-        _queryExecutor.execute(_context, queryString);
-        _statistics.add(new LoadTestQueryResult(queryStartTime, System.currentTimeMillis(), queryString, _context
-                .getNode().getName()));
-      } catch (Exception e) {
-        _statistics.add(new LoadTestQueryResult(queryStartTime, -1, queryString, _context.getNode().getName()));
-        LOG.error("Search failed.", e);
+        if (_requestCounter == 0) {
+          long maxSleepTime = Math.max(1, 1000 / 2 - (System.currentTimeMillis() - _startTime));
+          Thread.sleep(_random.nextInt((int) maxSleepTime));
+        }
+        String queryString = _queryExecutor.getQueries()[_queryIndex];
+        _queryIndex = (_queryIndex + 1) % _queryExecutor.getQueries().length;
+        long queryStartTime = System.currentTimeMillis();
+        try {
+          _queryExecutor.execute(_context, queryString);
+          _statistics.add(new LoadTestQueryResult(queryStartTime, System.currentTimeMillis(), queryString, _context
+                  .getNode().getName()));
+        } catch (Exception e) {
+          _statistics.add(new LoadTestQueryResult(queryStartTime, -1, queryString, _context.getNode().getName()));
+          LOG.error("Search failed.", e);
+        }
+        _requestCounter++;
+        long now = System.currentTimeMillis();
+        if (now - _startTime < _runTime - _testDelay && _requestCounter < _requestPerThread) {
+          int sleepTime = Math.max(0, (int) (1000 - (now - queryStartTime)));
+          Thread.sleep(sleepTime);
+          _executorService.execute(this);
+        }
+      } catch (InterruptedException e) {
+        ExceptionUtil.retainInterruptFlag(e);
       }
-      long now = System.currentTimeMillis();
-      if (now - _startTime < _runTime - _testDelay) {
-        int testDelay = Math.max(0, (int) (_testDelay - (now - queryStartTime)));
-        _executorService.schedule(this, _random.nextInt(testDelay * 2), TimeUnit.MILLISECONDS);
-      }
+
     }
   }
 
