@@ -5,6 +5,7 @@
     <chain name="local-resolver-chain">
  	 <filesystem name="libraries">
         <artifact pattern="${root.dir}/${lib.dir}/[artifact]-[revision].[type]" />
+		<artifact pattern="${basedir}/${lib.dir}/[artifact]-[revision].[type]" />
       </filesystem>
     </chain>
   </resolvers>

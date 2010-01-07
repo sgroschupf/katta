@@ -10,47 +10,43 @@
 		<conf name="test" extends="compile" description="compile plus test jars" />
 		<conf name="instrument" description="code coverage" />
 		<conf name="checkstyle" description="code style check" />
-		<conf name="job" description="jars that go into the hadoop job jar" />
 	</configurations>
-
-
-	<!-- dependencies -->
-	<!-- e.g.:   <dependency org="apache" name="commons-collections" rev="3.1" conf="cc-impl->default"/> -->
 
 	<dependencies defaultconfmapping="*->default">
 
 		<!-- COMPILE Dependencies -->
+		<dependency org="zkclient" name="zkclient" rev="0.1-dev" conf="compile" />
+		<dependency org="zookeeper" name="zookeeper" rev="3.2.2" conf="compile" />
+		<dependency org="log4j" name="log4j" rev="1.2.15" conf="compile" />
+		<dependency org="org.apache.lucene" name="lucene-core" rev="3.0.0" conf="compile" />
 		<dependency org="commons-cli" name="commons-cli" rev="1.2" conf="compile" />
-		<dependency org="commons-codec" name="commons-codec" rev="1.3" conf="compile" />
 		<dependency org="commons-math" name="commons-math" rev="1.2" conf="compile" />
+		
+		<!-- hadoop files system & rpc -->
+		<dependency org="org.apache.hadoop" name="hadoop-core" rev="0.20.1" conf="compile" />
+		<dependency org="jets3t" name="jets3t" rev="0.6.1" conf="compile" /> <!-- s3 fs-->
+		<dependency org="org.apache.commons" name="commons-net" rev="1.4.1" conf="compile" /> <!-- ftp fs-->
+		<dependency org="xmlenc" name="xmlenc" rev="0.52" conf="compile" /> <!-- checksums-->
 		<dependency org="commons-logging" name="commons-logging" rev="1.0.4" conf="compile" />
 	 	<dependency org="commons-logging" name="commons-logging-api" rev="1.0.4" conf="compile" />
+		<dependency org="commons-codec" name="commons-codec" rev="1.3" conf="compile" />
+		
+		<!--
+		<dependency org="org.apache.hadoop" name="hadoop-tools" rev="0.20.1" conf="test" />
+		<dependency org="jasper" name="jasper-compiler" rev="5.5.12" conf="compile" />
+		<dependency org="jasper" name="jasper-runtime" rev="5.5.12" conf="compile" /
 		<dependency org="org.apache.commons" name="commons-el" rev="1.0" conf="compile" />
 		<dependency org="org.apache.commons" name="commons-httpclient" rev="3.0.1" conf="compile" />
-		<dependency org="org.apache.commons" name="commons-net" rev="1.4.1" conf="compile" />
+		>-->
 
-		<dependency org="org.apache.hadoop" name="hadoop-core" rev="0.20.1" conf="compile" />
-		<dependency org="org.apache.hadoop" name="hadoop-test" rev="0.20.1" conf="compile" />
-		<dependency org="org.apache.hadoop" name="hadoop-tools" rev="0.20.1" conf="compile" />
-		
-		<dependency org="jasper" name="jasper-compiler" rev="5.5.12" conf="compile" />
-		<dependency org="jasper" name="jasper-runtime" rev="5.5.12" conf="compile" />
-		<dependency org="jets3t" name="jets3t" rev="0.6.1" conf="compile" />
+		<!-- katta web-ui -->		
 		<dependency org="jetty" name="jetty" rev="6.1.14" conf="compile" />
 		<dependency org="jetty" name="jetty-util" rev="6.1.14" conf="compile" />
 		<dependency org="javax.servlet" name="jsp" rev="2.1" conf="compile" />
 		<dependency org="javax.servlet" name="jsp-api" rev="2.1" conf="compile" />
 		<dependency org="servlet-api" name="servlet-api" rev="2.4" conf="compile" />
 
-		<dependency org="log4j" name="log4j" rev="1.2.15" conf="compile" />
-		<dependency org="org.apache.lucene" name="lucene-core" rev="3.0.0" conf="compile,job" />
-
-		<dependency org="xmlenc" name="xmlenc" rev="0.52" conf="compile" />
-		<dependency org="zookeeper" name="zookeeper" rev="3.2.2" conf="compile" />
-        <dependency org="zkclient" name="zkclient" rev="0.1-dev" conf="compile" />
-
-		<!-- AWS -->
-		<dependency org="jets3t" name="jets3t" rev="0.6.1" conf="compile" />
+		<!-- AWS/ec2 -->
 		<dependency org="jsch" name="jsch" rev="0.1.41" conf="compile" />
 		<dependency org="typica" name="typica" rev="1.5.1" conf="compile" />
 		
@@ -60,6 +56,7 @@
 
 
 		<!-- TEST Dependencies -->
+		<dependency org="org.apache.hadoop" name="hadoop-test" rev="0.20.1" conf="test" />
 		<dependency org="junit" name="junit" rev="4.7" conf="test" />
         <dependency org="org.mockito" name="mockito-core" rev="1.8.1" conf="test" />
 		<dependency org="org.hamcrest" name="hamcrest-library" rev="1.1" conf="test" />
