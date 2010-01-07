@@ -805,7 +805,7 @@ public class Katta {
 
   protected static Command LOADTEST_COMMAND = new ProtocolCommand(
           "loadtest",
-          "<zkRootPath> <nodeCount> <startQueryRate> <endQueryRate> <rateStep> <durationPerIteration> <indexName> <query-file> <resultFolder> <typeWithParameters> ",
+          "<zkRootPath> <nodeCount> <startQueryRate> <endQueryRate> <rateStep> <durationPerIteration> <indexName> <queryFile> <resultFolder> <typeWithParameters> ",
           "Starts a load test on a katta cluster with the given zkRootPath. The query rate is in queries per second. The durationPerIteration is in milliseconds. The resultFolder will be created on the master host. typeWithParameters is one of 'lucene <maxHits>' | 'mapfile'") {
 
     private LoadTestMasterOperation _masterOperation;
