@@ -15,27 +15,30 @@
  */
 package net.sf.katta.indexing;
 
+import static org.junit.Assert.assertTrue;
+
 import java.io.File;
 
 import junit.framework.Assert;
-import junit.framework.TestCase;
-import net.sf.katta.util.FileUtil;
 
-public class SequnceFileCreatorTest extends TestCase {
+import org.junit.Test;
 
-	public void testCreateSequnceFile() throws Exception {
+public class SequnceFileCreatorTest {
 
-		SequenceFileCreator creator = new SequenceFileCreator();
-		String path = "./build/extras/indexing/tmp/SequenceFileCreator/sequenceFile";
-		FileUtil.deleteFolder(new File(path).getParentFile());
-		Assert.assertFalse(new File(path).exists());
+  @Test
+  public void testCreateSequnceFile() throws Exception {
 
-		String textPath = "./sample-data/texts/alice.txt";
-		String sampleText = SequenceFileCreator.getSampleText(textPath);
-		int num = 1000000;
-		creator.create(path, sampleText, num);
-		Assert.assertTrue(new File(path).exists());
+    SequenceFileCreator creator = new SequenceFileCreator();
+    String path = "./build/extras/indexing/tmp/SequenceFileCreator/sequenceFile";
+    org.apache.hadoop.fs.FileUtil.fullyDelete(new File(path).getParentFile());
+    Assert.assertFalse(new File(path).exists());
 
-	}
+    String textPath = SearchPathUtil.findPath("sample-data/texts/alice.txt", "../../sample-data/texts/alice.txt");
+    String sampleText = SequenceFileCreator.getSampleText(textPath);
+    int num = 1000000;
+    creator.create(path, sampleText, num);
+    assertTrue(new File(path).exists());
+
+  }
 
 }

@@ -174,7 +174,7 @@ public class IndexerJob {
       report.setStatus("Copy to final destination done!");
       report.setStatus("Deleting tmp files...");
       FileUtil.fullyDelete(file);
-      report.setStatus("Delteing tmp files done!");
+      report.setStatus("Deleting tmp files done!");
       t.interrupt();
     }
   }

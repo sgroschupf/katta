@@ -17,25 +17,24 @@ package net.sf.katta.indexing;
 
 import java.io.File;
 
-import junit.framework.TestCase;
-
 import org.apache.hadoop.fs.FileUtil;
+import org.junit.Test;
 
-public class IndexerJobTest extends TestCase {
+public class IndexerJobTest {
 
-	public void testStartJob() throws Exception {
-		IndexerJob indexerJob = new IndexerJob();
-		File tmp = new File("./build/extras/indexing/tmp/IndexerJobTest");
-		tmp.mkdirs();
-		File in = new File(tmp, "in");
-		File out = new File(tmp, "out");
-		FileUtil.fullyDelete(out);
-		String alicePath = "./sample-data/texts/alice.txt";
-		String sampleText = SequenceFileCreator.getSampleText(alicePath);
-		SequenceFileCreator creator = new SequenceFileCreator();
-		creator.create(in.getAbsolutePath(), sampleText, 100000);
-		indexerJob.startIndexer(in.getAbsolutePath(), out.getAbsolutePath(), 5);
-		
-	}
+  @Test
+  public void testStartJob() throws Exception {
+    IndexerJob indexerJob = new IndexerJob();
+    File tmp = new File("./build/extras/indexing/tmp/IndexerJobTest");
+    tmp.mkdirs();
+    File in = new File(tmp, "in");
+    File out = new File(tmp, "out");
+    FileUtil.fullyDelete(out);
+    String alicePath = SearchPathUtil.findPath("sample-data/texts/alice.txt", "../../sample-data/texts/alice.txt");
+    String sampleText = SequenceFileCreator.getSampleText(alicePath);
+    SequenceFileCreator creator = new SequenceFileCreator();
+    creator.create(in.getAbsolutePath(), sampleText, 100000);
+    indexerJob.startIndexer(in.getAbsolutePath(), out.getAbsolutePath(), 5);
+  }
 
 }
