@@ -1,5 +1,4 @@
- import java.io.Serializable;
-
+ 
 import org.I0Itec.zkclient.IZkDataListener;
 
 import net.sf.katta.util.ZkConfiguration.PathDef;
@@ -40,7 +39,7 @@ class ClusterMetricsListener implements ConnectedComponent,IAddRemoveListener, I
 	}
 	
 	
-	public void handleDataChange(String dataPath, Serializable data) throws Exception {
+	public void handleDataChange(String dataPath, Object data) throws Exception {
 		MetricsRecord r = (MetricsRecord)data
 		List records = r.getRecords()
 		String serverId = r._serverId.replace(":","")

@@ -32,7 +32,6 @@ class ZkService {
 	}
 	
 	def startMetricsListening(Cluster cluster){
-		System.out.println("Subscribing to cluster: " + cluster.name);
 		InteractionProtocol protocol = getProtocol(cluster);
 		ClusterMetricsListener metricsListener = new ClusterMetricsListener(cluster, protocol);
 		_metricsListener.add(metricsListener);
