@@ -25,6 +25,7 @@
 		<!-- hadoop files system & rpc -->
 		<dependency org="org.apache.hadoop" name="hadoop-core" rev="0.20.1" conf="compile" />
 		<dependency org="jets3t" name="jets3t" rev="0.6.1" conf="compile" /> <!-- s3 fs-->
+		<dependency org="org.apache.commons" name="commons-httpclient" rev="3.0.1" conf="compile" /> <!-- s3 fs-->
 		<dependency org="org.apache.commons" name="commons-net" rev="1.4.1" conf="compile" /> <!-- ftp fs-->
 		<dependency org="xmlenc" name="xmlenc" rev="0.52" conf="compile" /> <!-- checksums-->
 		<dependency org="commons-logging" name="commons-logging" rev="1.0.4" conf="compile" />
@@ -36,7 +37,6 @@
 		<dependency org="jasper" name="jasper-compiler" rev="5.5.12" conf="compile" />
 		<dependency org="jasper" name="jasper-runtime" rev="5.5.12" conf="compile" /
 		<dependency org="org.apache.commons" name="commons-el" rev="1.0" conf="compile" />
-		<dependency org="org.apache.commons" name="commons-httpclient" rev="3.0.1" conf="compile" />
 		>-->
 
 		<!-- katta web-ui -->		
