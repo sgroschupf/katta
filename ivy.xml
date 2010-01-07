@@ -17,7 +17,7 @@
 		<!-- COMPILE Dependencies -->
 		<dependency org="zkclient" name="zkclient" rev="0.1-dev" conf="compile" />
 		<dependency org="zookeeper" name="zookeeper" rev="3.2.2" conf="compile" />
-		<dependency org="log4j" name="log4j" rev="1.2.15" conf="compile" />
+		<dependency org="log4j" name="log4j" rev="1.2.15" conf="compile,instrument" />
 		<dependency org="org.apache.lucene" name="lucene-core" rev="3.0.0" conf="compile" />
 		<dependency org="commons-cli" name="commons-cli" rev="1.2" conf="compile" />
 		<dependency org="commons-math" name="commons-math" rev="1.2" conf="compile" />
@@ -65,7 +65,10 @@
 		
 		
 		<!-- REPORT Dependencies-->
-		<dependency org="net.sourceforge.cobertura" name="cobertura" rev="1.9.1" conf="instrument" />
+		<dependency org="net.sourceforge.cobertura" name="cobertura" rev="1.9.3" conf="instrument" />
+		<dependency org="asm" name="asm" rev="3.0" conf="instrument" />
+		<dependency org="asm" name="asm-tree" rev="3.0" conf="instrument" />
+		<dependency org="oro" name="oro" rev="2.0.8" conf="instrument" />
 		<dependency org="net.sf.checkstyle" name="checkstyle-all" rev="5.0-beta2" conf="checkstyle" />
 		
     </dependencies>

@@ -132,7 +132,10 @@
 		</copy>
 		<!-- copy extras-->
 		<copy todir="${build.dir.dist}/extras">
-			<fileset dir="${basedir}/extras" excludes="**/katta.gui/**"/>
+			<fileset dir="${basedir}/extras">
+				<include name="**/ec2/**"/>
+				<include name="**/indexing/src/**"/>
+			</fileset>
 		</copy>
 		
 		<!-- copy project jar to dist dir -->
