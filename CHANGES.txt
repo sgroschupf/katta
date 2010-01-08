@@ -1,7 +1,7 @@
 Katta Change Log
 
 katta 0.6-dev
- fix KATTA-17,   load test for katta
+ fix KATTA-17,  load test for katta
  fix KATTA-96,  upgrade mechanism for katta
  fix KATTA-104,	upgrade to zookeeper 3.2.2
  fix KATTA-105, throttle shard deployment

@@ -3,6 +3,7 @@ package net.sf.katta.integrationTest.support;
 import java.io.File;
 import java.util.List;
 
+import net.sf.katta.AbstractTest;
 import net.sf.katta.client.DeployClient;
 import net.sf.katta.lib.lucene.LuceneServer;
 import net.sf.katta.node.INodeManaged;
@@ -10,7 +11,6 @@ import net.sf.katta.node.Node;
 import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.protocol.metadata.IndexMetaData;
 import net.sf.katta.protocol.metadata.IndexMetaData.Shard;
-import net.sf.katta.testutil.PrintMethodNames;
 import net.sf.katta.testutil.TestResources;
 import net.sf.katta.testutil.TestUtil;
 import net.sf.katta.util.FileUtil;
@@ -21,7 +21,6 @@ import org.apache.log4j.Logger;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
-import org.junit.Rule;
 
 /**
  * Test which starts a katta mini cluster for the test class. A test class can
@@ -29,7 +28,7 @@ import org.junit.Rule;
  * test method. If not restarted, the deployed indices are removed between test
  * methods. Also nodes are restarted if shut down during a test.
  */
-public abstract class AbstractIntegrationTest {
+public abstract class AbstractIntegrationTest extends AbstractTest {
 
   final static Logger LOG = Logger.getLogger(AbstractIntegrationTest.class);
 
@@ -41,8 +40,6 @@ public abstract class AbstractIntegrationTest {
   protected static InteractionProtocol _protocol;
   private static int _lastNodeStartPort = 20000;
 
-  @Rule
-  public PrintMethodNames _printMethodNames = new PrintMethodNames();
   private final int _nodeCount;
   private final boolean _shutdownAfterEachTest;
   private final boolean _undeployIndicesAfterEachTest;
