@@ -15,9 +15,12 @@
  */
 package net.sf.katta.integrationTest.lib.lucene;
 
+import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -37,6 +40,7 @@ import net.sf.katta.testutil.TestResources;
 import net.sf.katta.testutil.TestUtil;
 import net.sf.katta.util.KattaException;
 
+import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.MapWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
@@ -57,9 +61,7 @@ import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.SortField;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.Version;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 
 /**
  * Test for {@link LuceneClient}.
@@ -71,8 +73,6 @@ public class LuceneClientTest extends AbstractIntegrationTest {
   private static final String INDEX1 = "index1";
   private static final String INDEX2 = "index2";
   private static final String INDEX3 = "index3";
-  @Rule
-  public TemporaryFolder _temporaryFolder = new TemporaryFolder();
 
   public LuceneClientTest() {
     super(2);
@@ -118,6 +118,47 @@ public class LuceneClientTest extends AbstractIntegrationTest {
       final Writable writable = details.get(new Text("path"));
       assertNotNull(writable);
     }
+    client.close();
+  }
+
+  @Test
+  public void testGetBinaryDetails() throws Exception {
+    File index = _temporaryFolder.newFolder("indexWithBinaryData");
+    String textFieldName = "textField";
+    String binaryFieldName = "binaryField";
+    String textFieldContent = "sample text";
+    byte[] bytesFieldContent = new byte[] { 1, 2, 3 };
+
+    IndexWriter indexWriter = new IndexWriter(FSDirectory.open(index), new StandardAnalyzer(Version.LUCENE_CURRENT),
+            true, MaxFieldLength.UNLIMITED);
+    Document document = new Document();
+    document.add(new Field(binaryFieldName, bytesFieldContent, Store.YES));
+    document.add(new Field(textFieldName, textFieldContent, Store.NO, Index.ANALYZED));
+    indexWriter.addDocument(document);
+    indexWriter.optimize();
+    indexWriter.close();
+    DeployClient deployClient = new DeployClient(_miniCluster.getProtocol());
+    IndexState indexState = deployClient.addIndex(index.getName(), index.getParentFile().getAbsolutePath(), 1)
+            .joinDeployment();
+    assertEquals(IndexState.DEPLOYED, indexState);
+
+    ILuceneClient client = new LuceneClient(_miniCluster.getZkConfiguration());
+    final Query query = new QueryParser(Version.LUCENE_CURRENT, "", new KeywordAnalyzer()).parse(textFieldName + ": "
+            + textFieldContent);
+    final Hits hits = client.search(query, new String[] { index.getName() }, 10);
+    assertNotNull(hits);
+    assertEquals(1, hits.getHits().size());
+    final Hit hit = hits.getHits().get(0);
+    final MapWritable details = client.getDetails(hit);
+    final Set<Writable> keySet = details.keySet();
+    assertEquals(1, keySet.size());
+    final Writable writable = details.get(new Text(binaryFieldName));
+    assertNotNull(writable);
+    assertThat(writable, instanceOf(BytesWritable.class));
+    BytesWritable bytesWritable = (BytesWritable) writable;
+    bytesWritable.setCapacity(bytesWritable.getLength());// getBytes() returns
+    // the full array
+    assertArrayEquals(bytesFieldContent, bytesWritable.getBytes());
     client.close();
   }
 
