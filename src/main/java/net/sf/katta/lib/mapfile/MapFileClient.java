@@ -21,7 +21,6 @@ import java.util.List;
 
 import net.sf.katta.client.Client;
 import net.sf.katta.client.ClientResult;
-import net.sf.katta.client.IMapFileClient;
 import net.sf.katta.client.INodeSelectionPolicy;
 import net.sf.katta.util.ClientConfiguration;
 import net.sf.katta.util.KattaException;

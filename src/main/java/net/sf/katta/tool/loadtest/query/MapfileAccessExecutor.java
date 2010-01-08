@@ -15,7 +15,7 @@
  */
 package net.sf.katta.tool.loadtest.query;
 
-import net.sf.katta.client.IMapFileClient;
+import net.sf.katta.lib.mapfile.IMapFileClient;
 import net.sf.katta.lib.mapfile.MapFileClient;
 import net.sf.katta.node.NodeContext;
 import net.sf.katta.util.ZkConfiguration;

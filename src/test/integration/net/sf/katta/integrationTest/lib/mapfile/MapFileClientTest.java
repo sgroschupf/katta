@@ -28,8 +28,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import net.sf.katta.client.DeployClient;
 import net.sf.katta.client.IDeployClient;
-import net.sf.katta.client.IMapFileClient;
 import net.sf.katta.integrationTest.support.AbstractIntegrationTest;
+import net.sf.katta.lib.mapfile.IMapFileClient;
 import net.sf.katta.lib.mapfile.MapFileClient;
 import net.sf.katta.lib.mapfile.MapFileServer;
 import net.sf.katta.testutil.TestResources;
