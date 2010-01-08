@@ -17,7 +17,7 @@ package net.sf.katta.operation.node;
 
 import static org.mockito.Mockito.mock;
 import net.sf.katta.AbstractTest;
-import net.sf.katta.node.INodeManaged;
+import net.sf.katta.node.IContentServer;
 import net.sf.katta.node.Node;
 import net.sf.katta.node.NodeContext;
 import net.sf.katta.node.ShardManager;
@@ -29,7 +29,7 @@ public class AbstractNodeOperationMockTest extends AbstractTest {
   protected InteractionProtocol _protocol = mock(InteractionProtocol.class);
   protected Node _node = Mocks.mockNode();
   protected ShardManager _shardManager = mock(ShardManager.class);
-  protected INodeManaged _nodeManaged = mock(INodeManaged.class);
-  protected NodeContext _context = new NodeContext(_protocol, _node, _shardManager, _nodeManaged);
+  protected IContentServer _contentServer = mock(IContentServer.class);
+  protected NodeContext _context = new NodeContext(_protocol, _node, _shardManager, _contentServer);
 
 }

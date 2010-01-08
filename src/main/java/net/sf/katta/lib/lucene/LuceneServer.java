@@ -33,7 +33,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
-import net.sf.katta.node.INodeManaged;
+import net.sf.katta.node.IContentServer;
 import net.sf.katta.util.WritableType;
 
 import org.apache.hadoop.io.BytesWritable;
@@ -74,7 +74,7 @@ import org.apache.lucene.util.PriorityQueue;
  * frequencies, then pass that back in to search(). This way you get uniform
  * scoring across all the nodes / instances of LuceneServer.
  */
-public class LuceneServer implements INodeManaged, ILuceneServer {
+public class LuceneServer implements IContentServer, ILuceneServer {
 
   private final static Logger LOG = Logger.getLogger(LuceneServer.class);
 

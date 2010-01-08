@@ -41,9 +41,9 @@ public class ShardRedeployOperationTest extends AbstractNodeOperationMockTest {
     ShardRedeployOperation operation = new ShardRedeployOperation(shards);
     operation.execute(_context);
 
-    InOrder inOrder = inOrder(_protocol, _nodeManaged);
+    InOrder inOrder = inOrder(_protocol, _contentServer);
     for (String shard : shards) {
-      inOrder.verify(_nodeManaged).addShard(eq(shard), (File) notNull());
+      inOrder.verify(_contentServer).addShard(eq(shard), (File) notNull());
       inOrder.verify(_protocol).publishShard(eq(_node), eq(shard));
     }
   }
@@ -52,12 +52,12 @@ public class ShardRedeployOperationTest extends AbstractNodeOperationMockTest {
   public void testRedeployShardAlreadyKnownToNodeManaged() throws Exception {
     List<String> shards = Arrays.asList("shard1", "shard2");
 
-    when(_nodeManaged.getShards()).thenReturn(shards);
+    when(_contentServer.getShards()).thenReturn(shards);
     ShardRedeployOperation operation = new ShardRedeployOperation(shards);
     operation.execute(_context);
 
     // only publis but not add to nodemanaged again
-    InOrder inOrder = inOrder(_protocol, _nodeManaged);
+    InOrder inOrder = inOrder(_protocol, _contentServer);
     for (String shard : shards) {
       inOrder.verify(_protocol).publishShard(eq(_node), eq(shard));
     }

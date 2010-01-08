@@ -28,7 +28,7 @@ import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import net.sf.katta.AbstractTest;
-import net.sf.katta.node.INodeManaged;
+import net.sf.katta.node.IContentServer;
 import net.sf.katta.testutil.TestResources;
 
 import org.apache.hadoop.io.Text;
@@ -58,7 +58,7 @@ public class MapFileServerTest extends AbstractTest {
     server.setNodeName(NODE_NAME);
     server.addShard(SHARD_A_1, new File(TestResources.MAP_FILE_A, "a1"));
     assertNotNull(server.getShardMetaData(SHARD_A_1));
-    assertEquals("3", server.getShardMetaData(SHARD_A_1).get(INodeManaged.SHARD_SIZE_KEY));
+    assertEquals("3", server.getShardMetaData(SHARD_A_1).get(IContentServer.SHARD_SIZE_KEY));
     String[] shards = new String[] { SHARD_A_1 };
     assertEquals("This is a test", getOneResult(server, "a.txt", shards));
     assertMissing(server, "d.html", shards);
@@ -73,7 +73,7 @@ public class MapFileServerTest extends AbstractTest {
     MapFileServer server = new MapFileServer();
     server.setNodeName(NODE_NAME);
     server.addShard(SHARD_A_2, new File(TestResources.MAP_FILE_A, "a2"));
-    assertEquals("3", server.getShardMetaData(SHARD_A_2).get(INodeManaged.SHARD_SIZE_KEY));
+    assertEquals("3", server.getShardMetaData(SHARD_A_2).get(IContentServer.SHARD_SIZE_KEY));
     String[] shards = new String[] { SHARD_A_2 };
     assertEquals("<b>test</b>", getOneResult(server, "d.html", shards));
     assertMissing(server, "a.txt", shards);
@@ -91,10 +91,10 @@ public class MapFileServerTest extends AbstractTest {
     server.addShard(SHARD_A_2, new File(TestResources.MAP_FILE_A, "a2"));
     server.addShard(SHARD_A_3, new File(TestResources.MAP_FILE_A, "a3"));
     server.addShard(SHARD_A_4, new File(TestResources.MAP_FILE_A, "a4"));
-    assertEquals("3", server.getShardMetaData(SHARD_A_1).get(INodeManaged.SHARD_SIZE_KEY));
-    assertEquals("3", server.getShardMetaData(SHARD_A_2).get(INodeManaged.SHARD_SIZE_KEY));
-    assertEquals("2", server.getShardMetaData(SHARD_A_3).get(INodeManaged.SHARD_SIZE_KEY));
-    assertEquals("4", server.getShardMetaData(SHARD_A_4).get(INodeManaged.SHARD_SIZE_KEY));
+    assertEquals("3", server.getShardMetaData(SHARD_A_1).get(IContentServer.SHARD_SIZE_KEY));
+    assertEquals("3", server.getShardMetaData(SHARD_A_2).get(IContentServer.SHARD_SIZE_KEY));
+    assertEquals("2", server.getShardMetaData(SHARD_A_3).get(IContentServer.SHARD_SIZE_KEY));
+    assertEquals("4", server.getShardMetaData(SHARD_A_4).get(IContentServer.SHARD_SIZE_KEY));
     String[] shards = new String[] { SHARD_A_1, SHARD_A_2, SHARD_A_3, SHARD_A_4 };
     assertEquals("This is a test", getOneResult(server, "a.txt", shards));
     assertEquals("<b>test</b>", getOneResult(server, "d.html", shards));
@@ -116,12 +116,12 @@ public class MapFileServerTest extends AbstractTest {
     server.addShard(SHARD_A_4, new File(TestResources.MAP_FILE_A, "a4"));
     server.addShard(SHARD_B_1, new File(TestResources.MAP_FILE_B, "b1"));
     server.addShard(SHARD_B_2, new File(TestResources.MAP_FILE_B, "b2"));
-    assertEquals("3", server.getShardMetaData(SHARD_A_1).get(INodeManaged.SHARD_SIZE_KEY));
-    assertEquals("3", server.getShardMetaData(SHARD_A_2).get(INodeManaged.SHARD_SIZE_KEY));
-    assertEquals("2", server.getShardMetaData(SHARD_A_3).get(INodeManaged.SHARD_SIZE_KEY));
-    assertEquals("4", server.getShardMetaData(SHARD_A_4).get(INodeManaged.SHARD_SIZE_KEY));
-    assertEquals("3", server.getShardMetaData(SHARD_B_1).get(INodeManaged.SHARD_SIZE_KEY));
-    assertEquals("3", server.getShardMetaData(SHARD_B_2).get(INodeManaged.SHARD_SIZE_KEY));
+    assertEquals("3", server.getShardMetaData(SHARD_A_1).get(IContentServer.SHARD_SIZE_KEY));
+    assertEquals("3", server.getShardMetaData(SHARD_A_2).get(IContentServer.SHARD_SIZE_KEY));
+    assertEquals("2", server.getShardMetaData(SHARD_A_3).get(IContentServer.SHARD_SIZE_KEY));
+    assertEquals("4", server.getShardMetaData(SHARD_A_4).get(IContentServer.SHARD_SIZE_KEY));
+    assertEquals("3", server.getShardMetaData(SHARD_B_1).get(IContentServer.SHARD_SIZE_KEY));
+    assertEquals("3", server.getShardMetaData(SHARD_B_2).get(IContentServer.SHARD_SIZE_KEY));
     String[] shards = new String[] { SHARD_A_1, SHARD_A_2, SHARD_A_3, SHARD_A_4, SHARD_B_1, SHARD_B_2 };
     String[] mf1Shards = new String[] { SHARD_A_1, SHARD_A_2, SHARD_A_3, SHARD_A_4 };
     String[] mf2Shards = new String[] { SHARD_B_1, SHARD_B_2 };

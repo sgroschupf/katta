@@ -6,7 +6,7 @@ import java.util.List;
 import net.sf.katta.AbstractTest;
 import net.sf.katta.client.DeployClient;
 import net.sf.katta.lib.lucene.LuceneServer;
-import net.sf.katta.node.INodeManaged;
+import net.sf.katta.node.IContentServer;
 import net.sf.katta.node.Node;
 import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.protocol.metadata.IndexMetaData;
@@ -44,13 +44,13 @@ public abstract class AbstractIntegrationTest extends AbstractTest {
   private final boolean _shutdownAfterEachTest;
   private final boolean _undeployIndicesAfterEachTest;
 
-  private final Class<? extends INodeManaged> _nodeServerClass;
+  private final Class<? extends IContentServer> _nodeServerClass;
 
   public AbstractIntegrationTest(int nodeCount) {
     this(LuceneServer.class, nodeCount);
   }
 
-  public AbstractIntegrationTest(Class<? extends INodeManaged> nodeServerClass, int nodeCount) {
+  public AbstractIntegrationTest(Class<? extends IContentServer> nodeServerClass, int nodeCount) {
     this(nodeServerClass, nodeCount, false, true);
   }
 
@@ -58,7 +58,7 @@ public abstract class AbstractIntegrationTest extends AbstractTest {
     this(LuceneServer.class, nodeCount, shutdownAfterEachTest, undeployIndicesAfterEachTest);
   }
 
-  public AbstractIntegrationTest(Class<? extends INodeManaged> nodeServerClass, int nodeCount,
+  public AbstractIntegrationTest(Class<? extends IContentServer> nodeServerClass, int nodeCount,
           boolean shutdownAfterEachTest, boolean undeployIndicesAfterEachTest) {
     _nodeServerClass = nodeServerClass;
     _nodeCount = nodeCount;

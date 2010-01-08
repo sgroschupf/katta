@@ -42,13 +42,13 @@ public class ShardDeployOperationTest extends AbstractNodeOperationMockTest {
     File shardFolder = new File("shardFolder");
     Map<String, String> shardMD = new HashMap<String, String>();
     when(_shardManager.installShard((String) notNull(), (String) notNull())).thenReturn(shardFolder);
-    when(_nodeManaged.getShardMetaData((String) notNull())).thenReturn(shardMD);
+    when(_contentServer.getShardMetaData((String) notNull())).thenReturn(shardMD);
 
     DeployResult result = operation.execute(_context);
-    InOrder inOrder = inOrder(_protocol, _shardManager, _nodeManaged);
+    InOrder inOrder = inOrder(_protocol, _shardManager, _contentServer);
     for (String shard : operation.getShardNames()) {
       inOrder.verify(_shardManager).installShard(shard, operation.getShardPath(shard));
-      inOrder.verify(_nodeManaged).addShard(shard, shardFolder);
+      inOrder.verify(_contentServer).addShard(shard, shardFolder);
       inOrder.verify(_protocol).publishShard(_node, shard);
     }
     assertEquals(0, result.getShardExceptions().size());
@@ -68,16 +68,16 @@ public class ShardDeployOperationTest extends AbstractNodeOperationMockTest {
     File shardFolder = new File("shardFolder");
     Map<String, String> shardMD = new HashMap<String, String>();
     when(_shardManager.installShard((String) notNull(), (String) notNull())).thenReturn(shardFolder);
-    when(_nodeManaged.getShardMetaData((String) notNull())).thenReturn(shardMD);
+    when(_contentServer.getShardMetaData((String) notNull())).thenReturn(shardMD);
 
     String failingShard = operation.getShardNames().iterator().next();
-    doThrow(new Exception("testException")).when(_nodeManaged).addShard(failingShard, shardFolder);
+    doThrow(new Exception("testException")).when(_contentServer).addShard(failingShard, shardFolder);
 
     DeployResult result = operation.execute(_context);
-    InOrder inOrder = inOrder(_protocol, _shardManager, _nodeManaged);
+    InOrder inOrder = inOrder(_protocol, _shardManager, _contentServer);
     for (String shard : operation.getShardNames()) {
       inOrder.verify(_shardManager).installShard(shard, operation.getShardPath(shard));
-      inOrder.verify(_nodeManaged).addShard(shard, shardFolder);
+      inOrder.verify(_contentServer).addShard(shard, shardFolder);
       if (!shard.equals(failingShard)) {
         inOrder.verify(_protocol).publishShard(_node, shard);
       }

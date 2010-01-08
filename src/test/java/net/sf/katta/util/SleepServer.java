@@ -24,13 +24,13 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 
-import net.sf.katta.node.INodeManaged;
+import net.sf.katta.node.IContentServer;
 
 /**
  * This class implements the back-end side of a dummy server, to be used for
  * testing. It just sleeps for a while and then returns nothing.
  */
-public class SleepServer implements INodeManaged, ISleepServer {
+public class SleepServer implements IContentServer, ISleepServer {
 
   private Random rand = new Random();
   protected final Set<String> _shards = Collections.synchronizedSet(new HashSet<String>());

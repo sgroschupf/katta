@@ -18,7 +18,7 @@ package net.sf.katta.operation.node;
 import java.io.File;
 import java.util.Map;
 
-import net.sf.katta.node.INodeManaged;
+import net.sf.katta.node.IContentServer;
 import net.sf.katta.node.NodeContext;
 
 public class ShardDeployOperation extends AbstractShardOperation {
@@ -34,12 +34,12 @@ public class ShardDeployOperation extends AbstractShardOperation {
   protected void execute(NodeContext context, String shardName, DeployResult deployResult) throws Exception {
     String shardPath = getShardPath(shardName);
     File localShardFolder = context.getShardManager().installShard(shardName, shardPath);
-    INodeManaged nodeManaged = context.getNodeManaged();
-    if (!nodeManaged.getShards().contains(shardName)) {
-      nodeManaged.addShard(shardName, localShardFolder);
-      Map<String, String> shardMetaData = context.getNodeManaged().getShardMetaData(shardName);
+    IContentServer contentServer = context.getContentServer();
+    if (!contentServer.getShards().contains(shardName)) {
+      contentServer.addShard(shardName, localShardFolder);
+      Map<String, String> shardMetaData = context.getContentServer().getShardMetaData(shardName);
       if (shardMetaData == null) {
-        throw new IllegalStateException("node managed '" + context.getNodeManaged()
+        throw new IllegalStateException("node managed '" + context.getContentServer()
                 + "' does return NULL as shard metadata");
       }
       deployResult.addShardMetaDataMap(shardName, shardMetaData);

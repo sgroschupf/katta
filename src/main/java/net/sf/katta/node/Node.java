@@ -45,7 +45,7 @@ public class Node implements ConnectedComponent {
 
   private final NodeConfiguration _nodeConf;
   protected InteractionProtocol _protocol;
-  private final INodeManaged _nodeManaged;
+  private final IContentServer _contentServer;
   protected NodeContext _context;
   protected String _nodeName;
   private Server _rpcServer;
@@ -54,13 +54,13 @@ public class Node implements ConnectedComponent {
   private Thread _nodeOperatorThread;
   private boolean _stopped;
 
-  public Node(InteractionProtocol protocol, INodeManaged server) {
+  public Node(InteractionProtocol protocol, IContentServer server) {
     this(protocol, new NodeConfiguration(), server);
   }
 
-  public Node(InteractionProtocol protocol, final NodeConfiguration configuration, INodeManaged _nodeManaged) {
+  public Node(InteractionProtocol protocol, final NodeConfiguration configuration, IContentServer _nodeManaged) {
     _protocol = protocol;
-    this._nodeManaged = _nodeManaged;
+    this._contentServer = _nodeManaged;
     if (_nodeManaged == null) {
       throw new IllegalArgumentException("Null server passed to Node()");
     }
@@ -74,11 +74,11 @@ public class Node implements ConnectedComponent {
     if (_stopped) {
       throw new IllegalStateException("Node cannot be started again after it was shutdown.");
     }
-    LOG.info("starting rpc server with  server class = " + _nodeManaged.getClass().getCanonicalName());
+    LOG.info("starting rpc server with  server class = " + _contentServer.getClass().getCanonicalName());
     String hostName = NetworkUtil.getLocalhostName();
-    _rpcServer = startRPCServer(hostName, _nodeConf.getStartPort(), _nodeManaged);
+    _rpcServer = startRPCServer(hostName, _nodeConf.getStartPort(), _contentServer);
     _nodeName = hostName + ":" + _rpcServer.getListenerAddress().getPort();
-    _nodeManaged.setNodeName(_nodeName);
+    _contentServer.setNodeName(_nodeName);
 
     // we add hostName and port to the shardFolder to allow multiple nodes per
     // server with the same configuration
@@ -91,7 +91,7 @@ public class Node implements ConnectedComponent {
     } else {
       shardManager = new ShardManager(shardsFolder);
     }
-    _context = new NodeContext(_protocol, this, shardManager, _nodeManaged);
+    _context = new NodeContext(_protocol, this, shardManager, _contentServer);
     _protocol.registerComponent(this);
 
     startMonitor(_nodeName, _nodeConf);
@@ -175,7 +175,7 @@ public class Node implements ConnectedComponent {
     _protocol.unregisterComponent(this);
     _rpcServer.stop();
     try {
-      _context.getNodeManaged().shutdown();
+      _context.getContentServer().shutdown();
     } catch (Throwable t) {
       LOG.error("Error shutting down server", t);
     }
@@ -211,7 +211,7 @@ public class Node implements ConnectedComponent {
    * Starting the hadoop RPC server that response to query requests. We iterate
    * over a port range of node.server.port.start + 10000
    */
-  private static Server startRPCServer(String hostName, final int startPort, INodeManaged nodeManaged) {
+  private static Server startRPCServer(String hostName, final int startPort, IContentServer nodeManaged) {
     int serverPort = startPort;
     int tryCount = 10000;
     Server _rpcServer = null;

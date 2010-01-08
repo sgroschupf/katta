@@ -40,7 +40,7 @@ import net.sf.katta.lib.lucene.Hits;
 import net.sf.katta.lib.lucene.ILuceneClient;
 import net.sf.katta.lib.lucene.LuceneClient;
 import net.sf.katta.master.Master;
-import net.sf.katta.node.INodeManaged;
+import net.sf.katta.node.IContentServer;
 import net.sf.katta.node.Node;
 import net.sf.katta.node.monitor.MetricLogger;
 import net.sf.katta.node.monitor.MetricLogger.OutputType;
@@ -277,7 +277,7 @@ public class Katta {
           "Starts a local node") {
 
     private NodeConfiguration _nodeConfiguration;
-    private INodeManaged _server = null;
+    private IContentServer _server = null;
 
     @Override
     protected void parseArguments(ZkConfiguration zkConf, String[] args, Map<String, String> optionMap) {
@@ -289,9 +289,9 @@ public class Katta {
         serverClassName = _nodeConfiguration.getServerClassName();
       }
 
-      Class<?> serverClass = loadClass(serverClassName, INodeManaged.class);
+      Class<?> serverClass = loadClass(serverClassName, IContentServer.class);
       try {
-        _server = (INodeManaged) serverClass.newInstance();
+        _server = (IContentServer) serverClass.newInstance();
       } catch (Exception e) {
         throw new IllegalStateException("could not create instance of class '" + serverClassName + "': "
                 + e.getMessage());
@@ -396,7 +396,7 @@ public class Katta {
         Map<String, String> metaData = shard.getMetaDataMap();
         if (metaData != null) {
           try {
-            docCount += Integer.parseInt(metaData.get(INodeManaged.SHARD_SIZE_KEY));
+            docCount += Integer.parseInt(metaData.get(IContentServer.SHARD_SIZE_KEY));
           } catch (NumberFormatException e) {
             // ignore
           }

@@ -47,8 +47,8 @@ import org.junit.Test;
 public class NodeMockTest extends AbstractTest {
 
   private InteractionProtocol _protocol = mock(InteractionProtocol.class);
-  private INodeManaged _nodeManaged = mock(INodeManaged.class);
-  private Node _node = new Node(_protocol, _nodeManaged);
+  private IContentServer _contentServer = mock(IContentServer.class);
+  private Node _node = new Node(_protocol, _contentServer);
   private NodeQueue _queue = mock(NodeQueue.class);
 
   @Before
@@ -68,13 +68,13 @@ public class NodeMockTest extends AbstractTest {
     assertNotNull(_node.getName());
     assertNotNull(_node.getRpcServer());
     assertTrue(_node.getRPCServerPort() > 0);
-    verify(_nodeManaged).setNodeName((String) notNull());
+    verify(_contentServer).setNodeName((String) notNull());
     Thread.sleep(200);
     verify(nodeOperation).execute((NodeContext) notNull());
 
     _node.shutdown();
     verify(_protocol).unregisterComponent(_node);
-    verify(_nodeManaged).shutdown();
+    verify(_contentServer).shutdown();
   }
 
   @Test
@@ -112,17 +112,17 @@ public class NodeMockTest extends AbstractTest {
 
     // start and add shard
     _node.start();
-    verify(_nodeManaged, times(0)).addShard(anyString(), any(File.class));
+    verify(_contentServer, times(0)).addShard(anyString(), any(File.class));
     String shardName = "shard1";
     File shardFile = TestResources.SHARD1;
     _node.getContext().getShardManager().installShard(shardName, shardFile.getAbsolutePath());
 
     // restart, node should be added
     _node.shutdown();
-    _node = new Node(_protocol, _nodeManaged);
+    _node = new Node(_protocol, _contentServer);
     when(_protocol.publishNode(eq(_node), (NodeMetaData) notNull())).thenReturn(_queue);
     _node.start();
-    verify(_nodeManaged, times(1)).addShard(anyString(), any(File.class));
+    verify(_contentServer, times(1)).addShard(anyString(), any(File.class));
     verify(_protocol).publishShard(eq(_node), eq(shardName));
     _node.shutdown();
   }

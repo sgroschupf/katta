@@ -28,7 +28,7 @@ import java.util.Map;
  * The RPC calls from the client will not go through the Node.
  * The Hadoop RPC.Server uses a separate interface for those calls.
  */
-public interface INodeManaged {
+public interface IContentServer {
 
   /**
    * The name of the local machine, for example "sever21.foo.com:8000".

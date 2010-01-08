@@ -37,7 +37,7 @@ public class ShardUndeployOperation extends AbstractShardOperation {
   @Override
   protected void execute(NodeContext context, String shardName, DeployResult deployResult) throws Exception {
     context.getProtocol().unpublishShard(context.getNode(), shardName);
-    context.getNodeManaged().removeShard(shardName);
+    context.getContentServer().removeShard(shardName);
     context.getShardManager().uninstallShard(shardName);
   }
 

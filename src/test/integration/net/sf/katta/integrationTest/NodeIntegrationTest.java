@@ -76,7 +76,7 @@ public class NodeIntegrationTest extends AbstractIntegrationTest {
   }
 
   @Test
-  public void testNodeManaged() throws Exception {
+  public void testContentServer() throws Exception {
     deployTestIndices(1, getNodeCount());
     final InteractionProtocol protocol = _miniCluster.getProtocol();
     assertEquals(1, protocol.getIndices().size());

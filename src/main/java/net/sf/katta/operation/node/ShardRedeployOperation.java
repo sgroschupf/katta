@@ -18,7 +18,7 @@ package net.sf.katta.operation.node;
 import java.io.File;
 import java.util.Collection;
 
-import net.sf.katta.node.INodeManaged;
+import net.sf.katta.node.IContentServer;
 import net.sf.katta.node.NodeContext;
 import net.sf.katta.node.ShardManager;
 
@@ -43,9 +43,9 @@ public class ShardRedeployOperation extends AbstractShardOperation {
   @Override
   protected void execute(NodeContext context, String shardName, DeployResult deployResult) throws Exception {
     File localShardFolder = context.getShardManager().getShardFolder(shardName);
-    INodeManaged nodeManaged = context.getNodeManaged();
-    if (!nodeManaged.getShards().contains(shardName)) {
-      nodeManaged.addShard(shardName, localShardFolder);
+    IContentServer contentServer = context.getContentServer();
+    if (!contentServer.getShards().contains(shardName)) {
+      contentServer.addShard(shardName, localShardFolder);
     }
     publishShard(shardName, context);
   }

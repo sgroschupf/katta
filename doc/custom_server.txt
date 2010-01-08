@@ -1,4 +1,4 @@
-HOW TO CREATE A CUSTOM SERVER USING KATTA
+HOW TO CREATE A CUSTOM CONTENT SERVER
 =========================================
 
 Introduction
@@ -47,7 +47,7 @@ place one or more Zookeeper nodes, 10 server machines, one or more client machin
 to add the index (you can do this on any of the other machines, or use a separate machine). Now we
 need the custom software.
 
-Custom Server
+Custom Content Server
 -------------
 
     We start by defining an interface for our server. These methods will be called by our custom
@@ -72,7 +72,7 @@ listed. No retries will occur.
 calls from the client to the server nodes are listed in this interface.
 
     Now we are ready to write our actual server class. This class must implement our IGrepServer 
-interface and also the INodeManaged interface. INodeManaged lists all the calls our server will
+interface and also the IContentServer interface. IContentServer lists all the calls our server will
 get from the Katta Node class (start using shard, stop using shard, shutdown). To keep things
 simple we extend AbstractServer, which implements this interface and maintains the list of
 shards (directories) for us. It also takes care of VersionedProtocol (always returns version 0).
@@ -180,9 +180,9 @@ Starting The Nodes
 ------------------
 
     Make your classes are available on the classpath. One way to to drop your jar in Katt's lib dir.
-Then on all 10 server nodes tell katta to start a node using your server class:
-
-    bin/katta startNode com.foo.GrepServer
+	The either start a individual node with 
+	    bin/katta startNode -c com.foo.GrepServer
+    or configure node.server.class in katta.node.properties
 
     
 Deploy The Index

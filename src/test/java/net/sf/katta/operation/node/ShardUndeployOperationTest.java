@@ -33,10 +33,10 @@ public class ShardUndeployOperationTest extends AbstractNodeOperationMockTest {
     ShardUndeployOperation operation = new ShardUndeployOperation(shards);
 
     DeployResult result = operation.execute(_context);
-    InOrder inOrder = inOrder(_protocol, _shardManager, _nodeManaged);
+    InOrder inOrder = inOrder(_protocol, _shardManager, _contentServer);
     for (String shard : operation.getShardNames()) {
       inOrder.verify(_protocol).unpublishShard(_node, shard);
-      inOrder.verify(_nodeManaged).removeShard(shard);
+      inOrder.verify(_contentServer).removeShard(shard);
       inOrder.verify(_shardManager).uninstallShard(shard);
     }
     assertEquals(0, result.getShardExceptions().size());
@@ -48,13 +48,13 @@ public class ShardUndeployOperationTest extends AbstractNodeOperationMockTest {
     ShardUndeployOperation operation = new ShardUndeployOperation(shards);
 
     String failingShard = shards.get(0);
-    doThrow(new Exception("testException")).when(_nodeManaged).removeShard(failingShard);
+    doThrow(new Exception("testException")).when(_contentServer).removeShard(failingShard);
 
     DeployResult result = operation.execute(_context);
-    InOrder inOrder = inOrder(_protocol, _shardManager, _nodeManaged);
+    InOrder inOrder = inOrder(_protocol, _shardManager, _contentServer);
     for (String shard : operation.getShardNames()) {
       inOrder.verify(_protocol).unpublishShard(_node, shard);
-      inOrder.verify(_nodeManaged).removeShard(shard);
+      inOrder.verify(_contentServer).removeShard(shard);
       inOrder.verify(_shardManager).uninstallShard(shard);
     }
     assertEquals(1, result.getShardExceptions().size());

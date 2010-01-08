@@ -32,7 +32,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import net.sf.katta.node.INodeManaged;
+import net.sf.katta.node.IContentServer;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -46,7 +46,7 @@ import org.apache.log4j.Logger;
 /**
  * Implements search over a set of Hadoop <code>MapFile</code>s.
  */
-public class MapFileServer implements INodeManaged, IMapFileServer {
+public class MapFileServer implements IContentServer, IMapFileServer {
 
   private final static Logger LOG = Logger.getLogger(MapFileServer.class);
 
