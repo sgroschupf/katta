@@ -54,7 +54,9 @@ public class DefaultNodeSelectionPolicy implements INodeSelectionPolicy {
     Set<String> shards = _shardsToNodeMap.keySet();
     for (String shard : shards) {
       CircularList<String> nodes = _shardsToNodeMap.get(shard);
-      nodes.remove(node);
+      synchronized (nodes) {
+        nodes.remove(node);
+      }
     }
   }
 

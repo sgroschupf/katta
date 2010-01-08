@@ -24,11 +24,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 
+import net.sf.katta.AbstractTest;
 import net.sf.katta.client.DeployClient;
 import net.sf.katta.client.IIndexDeployFuture;
 import net.sf.katta.integrationTest.support.KattaMiniCluster;
 import net.sf.katta.protocol.InteractionProtocol;
-import net.sf.katta.testutil.PrintMethodNames;
 import net.sf.katta.testutil.TestResources;
 import net.sf.katta.testutil.TestUtil;
 import net.sf.katta.util.ISleepClient;
@@ -42,18 +42,15 @@ import org.I0Itec.zkclient.ZkServer;
 import org.apache.log4j.Logger;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.junit.Rule;
 import org.junit.Test;
 
 /**
  * This class tests the situation where you using 2 instances of Katta to talk
  * to 2 pools of nodes at the same time.
  */
-public class MultiClusterTest {
+public class MultiClusterTest extends AbstractTest {
 
   protected static final Logger LOG = Logger.getLogger(MultiClusterTest.class);
-  @Rule
-  public PrintMethodNames _printMethodNames = new PrintMethodNames();
 
   public static final String INDEX1 = "pool1";
   public static final String INDEX2 = "pool2";
