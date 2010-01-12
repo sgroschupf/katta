@@ -165,9 +165,8 @@
 	</target>
 
 	<target name="distUI" depends="jar, webapp" description="--> builds the Katta UI distribution">
-		<echo>====== Make sure you run 'ant coverage dist' for real distributions ====== </echo>
 		<defaultexcludes add="**/.git/**,**/.gitignore"/>
-		<delete dir="${build.dir.dist}" />
+		<delete dir="${build.dir.dist.ui}" />
 		<!-- creating a fileset for pulling all libs from ivycache cuz disk space is cheap -->
 		<ivy:cachefileset conf="compile" setid="libs" />
 
@@ -218,13 +217,13 @@
 		</chmod>
 
 		<tar longfile="gnu" compression="gzip" destfile="${build.release.file.ui}" >
-			<tarfileset dir="${build.dir.dist.ui}" prefix="${name}-${version}" filemode="755" >
+			<tarfileset dir="${build.dir.dist.ui}" prefix="katta-ui-${version}" filemode="755" >
 		         <include name="bin/**"/>
 				 <include name="extras/ec2/bin/**"/>
 				 <exclude name="bin/katta.ec2.properties"/>
 				 <exclude name="extras/ec2/bin/katta-ec2-env.sh"/>
 		    </tarfileset>
-		    <tarfileset dir="${build.dir.dist.ui}" prefix="${name}-${version}">
+		    <tarfileset dir="${build.dir.dist.ui}" prefix="katta-ui-${version}">
 		         <exclude name="bin/**"/>
 		     	 <exclude name="extras/ec2/bin/**"/>
 		    </tarfileset>
