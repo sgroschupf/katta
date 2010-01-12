@@ -80,7 +80,10 @@
 	<!-- ================================================================== -->
 	<!-- Generate a distribution                                            -->
 	<!-- ================================================================== -->
-	<target name="dist" depends="jar, doc, checkstyle, webapp" description="--> builds the Katta distribution">
+	<target name="dist" depends="distCore, distUI" description="--> builds all Katta distributions">
+	</target>
+
+	<target name="distCore" depends="jar, doc, checkstyle" description="--> builds the Katta Core distribution">
 		<echo>====== Make sure you run 'ant coverage dist' for real distributions ====== </echo>
 		<defaultexcludes add="**/.git/**,**/.gitignore"/>
 		<delete dir="${build.dir.dist}" />
@@ -126,10 +129,6 @@
 		<copy todir="${build.dir.dist}">
 			<fileset file="${build.dir}/${jar.name}" />
 		</copy>
-		<!-- copy webapp-->
-		<copy todir="${build.dir.dist}">
-			<fileset file="${basedir}/extras/katta.gui/katta.gui*.war" />
-		</copy>
 		<!-- copy extras-->
 		<copy todir="${build.dir.dist}/extras">
 			<fileset dir="${basedir}/extras">
@@ -159,6 +158,73 @@
 				 <exclude name="extras/ec2/bin/katta-ec2-env.sh"/>
 		    </tarfileset>
 		    <tarfileset dir="${build.dir.dist}" prefix="${name}-${version}">
+		         <exclude name="bin/**"/>
+		     	 <exclude name="extras/ec2/bin/**"/>
+		    </tarfileset>
+		</tar>
+	</target>
+
+	<target name="distUI" depends="jar, webapp" description="--> builds the Katta UI distribution">
+		<echo>====== Make sure you run 'ant coverage dist' for real distributions ====== </echo>
+		<defaultexcludes add="**/.git/**,**/.gitignore"/>
+		<delete dir="${build.dir.dist}" />
+		<!-- creating a fileset for pulling all libs from ivycache cuz disk space is cheap -->
+		<ivy:cachefileset conf="compile" setid="libs" />
+
+		<!-- create target directory -->
+		<mkdir dir="${build.dir.dist.ui}" />
+		<mkdir dir="${build.dir.dist.ui}/bin" />
+		<mkdir dir="${build.dir.dist.ui}/conf" />
+		<mkdir dir="${build.dir.dist.ui}/lib" />
+
+		<!-- copy launch script to target -->
+		<copy todir="${build.dir.dist.ui}/bin">
+			<fileset dir="${basedir}/bin">
+				<include name="katta"/>
+				<include name="katta-config.sh"/>
+			</fileset>
+		</copy>
+		<!-- copy  conf to target dir  -->
+		<copy todir="${build.dir.dist.ui}/conf">
+			<fileset dir="${basedir}/conf">
+				<include name="katta-env.sh"/>
+				<include name="katta.zk.properties"/>
+				<include name="log4j.properties"/>
+			</fileset>
+		</copy>
+		<!-- copy ivy cache to lib -->
+		<copy todir="${build.dir.dist.ui}/lib" flatten="true">
+			<fileset refid="libs" />
+		</copy>
+		<!-- copy project jar to dist dir -->
+		<copy todir="${build.dir.dist.ui}">
+			<fileset file="${build.dir}/${jar.name}" />
+		</copy>
+		<!-- copy webapp-->
+		<copy todir="${build.dir.dist.ui}">
+			<fileset file="${basedir}/extras/katta.gui/katta.gui*.war" />
+		</copy>
+		<!-- copy project files to dist dir -->
+		<copy todir="${build.dir.dist.ui}">
+			<fileset file="${basedir}/CHANGES.txt" />
+			<fileset file="${basedir}/LICENSE.txt" />
+			<fileset file="${basedir}/README.txt" />
+		</copy>
+		<!-- clean up all .git folders -->
+	
+		<chmod perm="u+x">
+		  <fileset dir="${build.dir.dist.ui}/bin">
+		  </fileset>
+		</chmod>
+
+		<tar longfile="gnu" compression="gzip" destfile="${build.release.file.ui}" >
+			<tarfileset dir="${build.dir.dist.ui}" prefix="${name}-${version}" filemode="755" >
+		         <include name="bin/**"/>
+				 <include name="extras/ec2/bin/**"/>
+				 <exclude name="bin/katta.ec2.properties"/>
+				 <exclude name="extras/ec2/bin/katta-ec2-env.sh"/>
+		    </tarfileset>
+		    <tarfileset dir="${build.dir.dist.ui}" prefix="${name}-${version}">
 		         <exclude name="bin/**"/>
 		     	 <exclude name="extras/ec2/bin/**"/>
 		    </tarfileset>
