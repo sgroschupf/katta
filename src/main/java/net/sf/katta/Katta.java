@@ -333,7 +333,7 @@ public class Katta {
   };
 
   protected static Command LIST_INDICES_COMMAND = new ProtocolCommand("listIndices", "[-d]",
-          "Lists all indexes. -d for detailed view.") {
+          "Lists all indices. -d for detailed view.") {
 
     private boolean _detailedView;
 
@@ -386,7 +386,7 @@ public class Katta {
       if (!indices.isEmpty()) {
         System.out.println(table.toString());
       }
-      System.out.println(indices.size() + " registered indexes");
+      System.out.println(indices.size() + " registered indices");
       System.out.println();
     }
 
@@ -508,9 +508,9 @@ public class Katta {
       System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
       System.out.println("            Index Analysis");
       System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-      List<String> indexes = protocol.getIndices();
+      List<String> indices = protocol.getIndices();
       CounterMap<IndexState> indexStateCounterMap = new CounterMap<IndexState>();
-      for (String index : indexes) {
+      for (String index : indices) {
         IndexMetaData indexMD = protocol.getIndexMD(index);
         if (indexMD.hasDeployError()) {
           indexStateCounterMap.increment(IndexState.ERROR);
@@ -524,17 +524,19 @@ public class Katta {
         tableIndexStates.addRow(indexState, indexStateCounterMap.getCount(indexState));
       }
       System.out.println(tableIndexStates.toString());
-      System.out.println(indexes.size() + " indexes published");
+      printResume("indices", indices.size(), indexStateCounterMap.getCount(IndexState.DEPLOYED));
 
       System.out.println("\n");
       System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
       System.out.println("            Shard Analysis");
       System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
-      for (String index : indexes) {
+      int totalShards = 0;
+      for (String index : indices) {
         System.out.println("checking " + index + " ...");
         IndexMetaData indexMD = protocol.getIndexMD(index);
         ReplicationReport replicationReport = protocol.getReplicationReport(indexMD);
         Set<Shard> shards = indexMD.getShards();
+        totalShards += shards.size() * indexMD.getReplicationLevel();
         for (Shard shard : shards) {
           int shardReplication = replicationReport.getReplicationCount(shard.getName());
           if (shardReplication < indexMD.getReplicationLevel()) {
@@ -547,16 +549,11 @@ public class Katta {
         }
       }
 
-      System.out.println("\n");
-      System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-      System.out.println("            Node Analysis");
-      System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-      Table tableNodeLoad = new Table("Node", "Connected", "Shard Status");
-      int totalShards = 0;
-      int totalAnnouncedShards = 0;
       long startTime = Long.MAX_VALUE;
       List<String> knownNodes = protocol.getKnownNodes();
       List<String> connectedNodes = protocol.getLiveNodes();
+      Table tableNodeLoad = new Table("Node", "Connected", "Shard Status");
+      int publishedShards = 0;
       for (String node : knownNodes) {
         boolean isConnected = connectedNodes.contains(node);
         int shardCount = 0;
@@ -571,8 +568,7 @@ public class Katta {
             }
           }
         }
-        totalShards += shardCount;
-        totalAnnouncedShards += announcedShardCount;
+        publishedShards += announcedShardCount;
         StringBuilder builder = new StringBuilder();
         builder.append(String.format(" %9s ", String.format("%d/%d", announcedShardCount, shardCount)));
         for (int i = 0; i < shardCount; i++) {
@@ -580,14 +576,12 @@ public class Katta {
         }
         tableNodeLoad.addRow(node, Boolean.toString(isConnected), builder);
       }
-      System.out.println(tableNodeLoad);
-      double progress = totalShards == 0 ? 0.0 : (double) totalAnnouncedShards / (double) totalShards;
-      System.out.printf("%d out of %d shards deployed (%.2f%%)\n", totalAnnouncedShards, totalShards, 100 * progress);
-      if (startTime < Long.MAX_VALUE && totalShards > 0 && totalAnnouncedShards > 0
-              && totalAnnouncedShards < totalShards) {
+      System.out.println();
+      printResume("shards", totalShards, publishedShards);
+      if (startTime < Long.MAX_VALUE && totalShards > 0 && publishedShards > 0 && publishedShards < totalShards) {
         long elapsed = System.currentTimeMillis() - startTime;
-        double timePerShard = (double) elapsed / (double) totalAnnouncedShards;
-        long remaining = Math.round(timePerShard * (totalShards - totalAnnouncedShards));
+        double timePerShard = (double) elapsed / (double) publishedShards;
+        long remaining = Math.round(timePerShard * (totalShards - publishedShards));
         Date finished = new Date(System.currentTimeMillis() + remaining);
         remaining /= 1000;
         long secs = remaining % 60;
@@ -597,6 +591,18 @@ public class Katta {
         System.out.printf("Estimated completion: %s (%dh %dm %ds)", finished, remaining, min, secs);
       }
 
+      System.out.println("\n\n");
+      System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+      System.out.println("            Node Analysis");
+      System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+
+      System.out.println(tableNodeLoad);
+      printResume("nodes", knownNodes.size(), connectedNodes.size());
+    }
+
+    private void printResume(String name, int maximum, int num) {
+      double progress = maximum == 0 ? 0.0 : (double) num / (double) maximum;
+      System.out.printf("%d out of %d " + name + " deployed (%.2f%%)\n", num, maximum, 100 * progress);
     }
 
   };
@@ -723,7 +729,7 @@ public class Katta {
   protected static Command SEARCH_COMMAND = new ProtocolCommand(
           "search",
           "<index name>[,<index name>,...] \"<query>\" [count]",
-          "Search in supplied indexes. The query should be in \". If you supply a result count hit details will be printed. To search in all indices write \"*\". This uses the client type LuceneClient.") {
+          "Search in supplied indices. The query should be in \". If you supply a result count hit details will be printed. To search in all indices write \"*\". This uses the client type LuceneClient.") {
 
     private String[] _indexNames;
     private String _query;
