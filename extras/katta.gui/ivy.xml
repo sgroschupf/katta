@@ -1,5 +1,5 @@
 <ivy-module version="2.0">
-    <info organisation="org.example" module="katta.gui"/>
+    <info organisation="101tec" module="katta.gui"/>
     <configurations defaultconfmapping="build->default;compile->compile(*),master(*);test,runtime->runtime(*),master(*)">
         <conf name="build"/>
         <conf name="compile"/>

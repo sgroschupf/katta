@@ -1,5 +1,8 @@
 Katta Change Log
 
+katta 0.6
+ fix KATTA-110, use a released 0.1 version of zkclient instead of the snapshot
+ 
 katta 0.6.rc1
  fix KATTA-109, split katta distribution into katta and katta.gui
  fix KATTA-17,  load test for katta
