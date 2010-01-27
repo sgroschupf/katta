@@ -142,6 +142,9 @@
 			<fileset file="${basedir}/CHANGES.txt" />
 			<fileset file="${basedir}/LICENSE.txt" />
 			<fileset file="${basedir}/README.txt" />
+			<fileset file="${basedir}/build.xml" />
+			<fileset file="${basedir}/ivy.xml" />
+			<fileset file="${root.dir}/ivysettings.xml" />
 		</copy>
 		<!-- clean up all .git folders -->
 	
@@ -175,6 +178,7 @@
 		<mkdir dir="${build.dir.dist.ui}/bin" />
 		<mkdir dir="${build.dir.dist.ui}/conf" />
 		<mkdir dir="${build.dir.dist.ui}/lib" />
+		<!--<mkdir dir="${build.dir.dist.ui}/src" />-->
 
 		<!-- copy launch script to target -->
 		<copy todir="${build.dir.dist.ui}/bin">
@@ -183,6 +187,11 @@
 				<include name="katta-config.sh"/>
 			</fileset>
 		</copy>
+		<!-- copy build src 
+		<copy todir="${build.dir.dist.ui}/src/build">
+			<fileset dir="${root.dir}/src/build" />
+		</copy>
+		-->
 		<!-- copy  conf to target dir  -->
 		<copy todir="${build.dir.dist.ui}/conf">
 			<fileset dir="${basedir}/conf">
@@ -208,6 +217,11 @@
 			<fileset file="${basedir}/CHANGES.txt" />
 			<fileset file="${basedir}/LICENSE.txt" />
 			<fileset file="${basedir}/README.txt" />
+			<!--
+			<fileset file="${basedir}/extras/katta.gui/build.xml" />
+			<fileset file="${basedir}/extras/katta.gui/ivy.xml" />
+			<fileset file="${basedir}/extras/katta.gui/ivysettings.xml" />
+			-->
 		</copy>
 		<!-- clean up all .git folders -->
 	

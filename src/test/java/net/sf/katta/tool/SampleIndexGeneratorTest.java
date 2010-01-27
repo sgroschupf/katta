@@ -21,6 +21,7 @@ import static org.junit.Assert.assertTrue;
 import java.io.File;
 
 import net.sf.katta.AbstractTest;
+import net.sf.katta.testutil.TestIoUtil;
 
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.store.FSDirectory;
@@ -31,10 +32,12 @@ public class SampleIndexGeneratorTest extends AbstractTest {
   @Test
   public void testCreateIndex() throws Exception {
     SampleIndexGenerator sampleIndexGenerator = new SampleIndexGenerator();
+    File inputFile = _temporaryFolder.newFile("inputFile");
+    TestIoUtil.writeFile(inputFile, "Project Gutenberg's Alice's Adventures in Wonderland, by Lewis Carroll",
+            "Title: Alice's Adventures in Wonderland");
     File file = _temporaryFolder.newFolder("sampleIndex");
     file.mkdirs();
-    sampleIndexGenerator.createIndex("./extras/benchmark/resources/alice.txt", file.getAbsolutePath(), 10, 10);
+    sampleIndexGenerator.createIndex(inputFile.getAbsolutePath(), file.getAbsolutePath(), 10, 10);
     assertTrue(IndexReader.indexExists(FSDirectory.open(file.listFiles()[0])));
   }
-
 }
