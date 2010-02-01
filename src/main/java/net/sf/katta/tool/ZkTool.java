@@ -44,8 +44,8 @@ public class ZkTool {
   public void ls(String path) {
     List<String> children = _zkClient.getChildren(path);
     System.out.println(String.format("Found %s items", children.size()));
-    if (path.charAt(path.length() - 1) != _conf.getSeparator()) {
-      path += _conf.getSeparator();
+    if (path.charAt(path.length() - 1) != ZkConfiguration.ZK_PATH_SEPARATOR) {
+      path += ZkConfiguration.ZK_PATH_SEPARATOR;
     }
     for (String child : children) {
       System.out.println(path + child);

@@ -34,7 +34,7 @@ public class ZkConfiguration extends KattaConfiguration {
   public static final String ZOOKEEPER_LOG_DATA_DIR = "zookeeper.log-data-dir";
 
   public static final String ZOOKEEPER_ROOT_PATH = "zookeeper.root-path";
-  public static final String ZK_PATH_SEPERATOR = "zookeeper.path-separator";
+  public static Character ZK_PATH_SEPARATOR='/';
 
   public ZkConfiguration() {
     super(System.getProperty(KATTA_PROPERTY_NAME, "/katta.zk.properties"));
@@ -96,22 +96,13 @@ public class ZkConfiguration extends KattaConfiguration {
     return getProperty(ZOOKEEPER_LOG_DATA_DIR);
   }
 
-  private Character _sep;
-
-  public char getSeparator() {
-    if (_sep == null) {
-      String s = getProperty(ZK_PATH_SEPERATOR, "/");
-      _sep = new Character(s.length() > 0 ? s.charAt(0) : '/');
-    }
-    return _sep.charValue();
-  }
-
+  
   public static final String DEFAULT_ROOT_PATH = "/katta";
   private static final String NODES = "nodes";
   private static final String WORK = "work";
 
   public String getZKNodeQueuePath(String node) {
-    return buildPath(getZkRootPath(), WORK, node + "-queue");
+    return buildZkPath(getZkRootPath(), WORK, node + "-queue");
   }
 
   public enum PathDef {
@@ -155,10 +146,10 @@ public class ZkConfiguration extends KattaConfiguration {
    */
   public String getZkPath(PathDef pathDef, String... names) {
     if (names.length == 0) {
-      return buildPath(getZkRootPath(), pathDef.getPath(getSeparator()));
+      return buildZkPath(getZkRootPath(), pathDef.getPath(ZK_PATH_SEPARATOR));
     }
-    String suffixPath = buildPath(names);
-    return buildPath(getZkRootPath(), pathDef.getPath(getSeparator()), suffixPath);
+    String suffixPath = buildZkPath(names);
+    return buildZkPath(getZkRootPath(), pathDef.getPath(ZK_PATH_SEPARATOR), suffixPath);
   }
 
   private String _rootPath;
@@ -187,12 +178,24 @@ public class ZkConfiguration extends KattaConfiguration {
     _rootPath = null;
   }
 
-  public String getZKName(String path) {
-    return path.substring(path.lastIndexOf(getSeparator()) + 1);
+  public static String getZKName(String path) {
+    return path.substring(path.lastIndexOf(ZK_PATH_SEPARATOR) + 1);
   }
 
-  private String buildPath(String... folders) {
-    return buildPath(getSeparator(), folders);
+  public static String getZkParent(String path) {
+    if (path.length() == 1) {
+      return null;
+    }
+    String name = getZKName(path);
+    String parent = path.substring(0, path.length() - name.length() - 1);
+    if (parent.equals("")) {
+      return String.valueOf(ZK_PATH_SEPARATOR);
+    }
+    return parent;
+  }
+
+  public static String buildZkPath(String... folders) {
+    return buildPath(ZK_PATH_SEPARATOR, folders);
   }
 
   static String buildPath(char separator, String... folders) {

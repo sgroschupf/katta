@@ -15,8 +15,6 @@
  */
 package net.sf.katta;
 
-import java.io.File;
-
 import net.sf.katta.util.ZkConfiguration;
 import net.sf.katta.util.ZkConfiguration.PathDef;
 
@@ -53,7 +51,7 @@ public class DefaultNameSpaceImpl implements IDefaultNameSpace {
   private void safeCreate(ZkClient zkClient, String path) {
     try {
       // first create parent directories
-      String parent = new File(path).getParent();
+      String parent =ZkConfiguration.getZkParent(path);
       if (parent != null && !zkClient.exists(parent)) {
         safeCreate(zkClient, parent);
       }

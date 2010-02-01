@@ -45,5 +45,12 @@ public class ZkConfigurationTest extends AbstractTest {
       System.clearProperty(ZkConfiguration.KATTA_PROPERTY_NAME);
     }
   }
+  
+  @Test
+  public void testZkParent() {
+    assertEquals("/katta", ZkConfiguration.getZkParent("/katta/abc"));
+    assertEquals("/", ZkConfiguration.getZkParent("/katta"));
+    assertEquals(null, ZkConfiguration.getZkParent("/"));
+  }
 
 }
