@@ -1,6 +1,7 @@
 Katta Change Log
 
 katta 0.6
+ fix KATTA-117, add command line option to print stacktrace on error
  fix KATTA-116, fix distribution of shards does not take currently deploying shards into account 
  fix KATTA-107, fix katta execution on cygwin 
  fix KATTA-112, ship build.xml in core distribution 

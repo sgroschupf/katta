@@ -80,9 +80,13 @@ public class Katta {
   protected static final Logger LOG = Logger.getLogger(Katta.class);
   private final static List<Command> COMMANDS = new ArrayList<Command>();
 
-  public static void main(final String[] args) throws Exception {
+  public static void main(String[] args) throws Exception {
     if (args.length < 1) {
       printUsageAndExit();
+    }
+    boolean showStackTrace = parseOptionMap(args).containsKey("-s");
+    if (showStackTrace) {
+      args = removeArg(args, "-s");
     }
     Command command = null;
     try {
@@ -91,7 +95,7 @@ public class Katta {
       command.execute();
     } catch (Exception e) {
       printError(e.getMessage());
-      if (parseOptionMap(args).containsKey("-s")) {
+      if (showStackTrace) {
         e.printStackTrace();
       }
       if (command != null) {
@@ -102,6 +106,16 @@ public class Katta {
       // e.printStackTrace();
       System.exit(1);
     }
+  }
+
+  private static String[] removeArg(String[] args, String argToRemove) {
+    List<String> newArgs = new ArrayList<String>();
+    for (String arg : args) {
+      if (!arg.equals(argToRemove)) {
+        newArgs.add(arg);
+      }
+    }
+    return newArgs.toArray(new String[newArgs.size()]);
   }
 
   protected static Command getCommand(String commandString) {
@@ -129,6 +143,9 @@ public class Katta {
   }
 
   private static void printUsageFooter() {
+    System.err.println();
+    System.err.println("Global Options:");
+    System.err.println("  -s\t\tshow stacktrace");
     System.err.println();
   }
 
