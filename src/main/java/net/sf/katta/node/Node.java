@@ -82,7 +82,8 @@ public class Node implements ConnectedComponent {
 
     // we add hostName and port to the shardFolder to allow multiple nodes per
     // server with the same configuration
-    File shardsFolder = new File(_nodeConf.getShardFolder(), _nodeName.replaceAll(":", "@"));
+    File shardsFolder = new File(_nodeConf.getShardFolder(), _nodeName.replaceAll(":", "_"));
+    LOG.info("local shard folder: " + shardsFolder.getAbsolutePath());
     int throttleInKbPerSec = _nodeConf.getShardDeployThrottle();
     final ShardManager shardManager;
     if (throttleInKbPerSec > 0) {
