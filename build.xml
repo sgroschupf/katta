@@ -100,6 +100,7 @@
 		<mkdir dir="${build.dir.dist}/lib" />
 		<mkdir dir="${build.dir.dist}/src" />
 		<mkdir dir="${build.dir.dist}/extras" />
+		<mkdir dir="${build.dir.dist}/logs" />
 
 		<!-- copy launch script to target -->
 		<copy todir="${build.dir.dist}/bin">
