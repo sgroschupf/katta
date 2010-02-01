@@ -164,6 +164,31 @@ public class IndexDeployOperationTest extends AbstractMasterNodeZkTest {
   }
 
   @Test
+  public void testDeployRespectsCurrentRunningDeployments() throws Exception {
+    // add nodes
+    List<Node> nodes = Mocks.mockNodes(2 * _shardCount);
+    List<NodeQueue> nodeQueues = Mocks.publisNodes(_protocol, nodes);
+
+    // add index
+    int replicationLevel = 1;
+    IndexDeployOperation operation1 = new IndexDeployOperation(_indexName, _indexPath, replicationLevel);
+    operation1.execute(_context, EMPTY_LIST);
+    List<MasterOperation> runningOps = new ArrayList<MasterOperation>();
+    runningOps.add(operation1);
+    IndexDeployOperation operation2 = new IndexDeployOperation(_indexName + "2", _indexPath, replicationLevel);
+    operation2.execute(_context, runningOps);
+
+    // check results
+    List<Integer> nodeQueueSizes = new ArrayList<Integer>();
+    for (NodeQueue nodeQueue : nodeQueues) {
+      nodeQueueSizes.add(nodeQueue.size());
+    }
+    for (Integer integer : nodeQueueSizes) {
+      assertEquals("unequal shard distribution: " + nodeQueueSizes, 1, integer.intValue());
+    }
+  }
+
+  @Test
   public void testDeployShardMd() throws Exception {
     List<Node> nodes = Mocks.mockNodes(3);
     List<NodeQueue> queues = Mocks.publisNodes(_protocol, nodes);

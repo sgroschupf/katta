@@ -15,6 +15,8 @@
  */
 package net.sf.katta.master;
 
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -43,11 +45,12 @@ public class DefaultDistributionPolicy implements IDeployPolicy {
   private final static Logger LOG = Logger.getLogger(DefaultDistributionPolicy.class);
 
   public Map<String, List<String>> createDistributionPlan(final Map<String, List<String>> currentShard2NodesMap,
-      final Map<String, List<String>> currentNode2ShardsMap, List<String> aliveNodes, final int replicationLevel) {
+          final Map<String, List<String>> currentNode2ShardsMap, List<String> aliveNodes, final int replicationLevel) {
     if (aliveNodes.size() == 0) {
       throw new IllegalArgumentException("no alive nodes to distribute to");
     }
 
+    sortAfterFreeCapacity(aliveNodes, currentNode2ShardsMap);
     CircularList<String> roundRobinNodes = new CircularList<String>(aliveNodes);
     Set<String> shards = currentShard2NodesMap.keySet();
     for (String shard : shards) {
@@ -57,11 +60,11 @@ public class DefaultDistributionPolicy implements IDeployPolicy {
 
       // now assign new nodes based on round robin algorithm
       neededDeployments = chooseNewNodes(currentNode2ShardsMap, roundRobinNodes, shard, assignedNodes,
-          neededDeployments);
+              neededDeployments);
 
       if (neededDeployments > 0) {
         LOG.warn("cannot replicate shard '" + shard + "' " + replicationLevel + " times, cause only "
-            + roundRobinNodes.size() + " nodes connected");
+                + roundRobinNodes.size() + " nodes connected");
       } else if (neededDeployments < 0) {
         LOG.info("found shard '" + shard + "' over-replicated");
         // TODO jz: maybe we should add a configurable threshold tha e.g. 10%
@@ -72,8 +75,19 @@ public class DefaultDistributionPolicy implements IDeployPolicy {
     return currentNode2ShardsMap;
   }
 
+  private void sortAfterFreeCapacity(List<String> aliveNodes, final Map<String, List<String>> node2ShardsMap) {
+    Collections.sort(aliveNodes, new Comparator<String>() {
+      @Override
+      public int compare(String node1, String node2) {
+        int size1 = node2ShardsMap.get(node1).size();
+        int size2 = node2ShardsMap.get(node2).size();
+        return (size1 < size2 ? -1 : (size1 == size2 ? 0 : 1));
+      }
+    });
+  }
+
   private int chooseNewNodes(final Map<String, List<String>> currentNode2ShardsMap,
-      CircularList<String> roundRobinNodes, String shard, Set<String> assignedNodes, int neededDeployments) {
+          CircularList<String> roundRobinNodes, String shard, Set<String> assignedNodes, int neededDeployments) {
     String tailNode = roundRobinNodes.getTail();
     String currentNode = null;
     while (neededDeployments > 0 && !tailNode.equals(currentNode)) {
@@ -91,7 +105,7 @@ public class DefaultDistributionPolicy implements IDeployPolicy {
   }
 
   private void removeOverreplicatedShards(final Map<String, List<String>> currentShard2NodesMap,
-      final Map<String, List<String>> currentNode2ShardsMap, String shard, int neededDeployments) {
+          final Map<String, List<String>> currentNode2ShardsMap, String shard, int neededDeployments) {
     while (neededDeployments < 0) {
       int maxShardServingCount = 0;
       String maxShardServingNode = null;

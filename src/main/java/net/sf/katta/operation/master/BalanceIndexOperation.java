@@ -51,7 +51,8 @@ public class BalanceIndexOperation extends AbstractIndexOperation {
 
     LOG.info("balancing shards for index '" + _indexName + "'");
     try {
-      List<OperationId> operationIds = distributeIndexShards(context, indexMD, protocol.getLiveNodes());
+      List<OperationId> operationIds = distributeIndexShards(context, indexMD, protocol.getLiveNodes(),
+              runningOperations);
       return operationIds;
     } catch (Exception e) {
       ExceptionUtil.rethrowInterruptedException(e);

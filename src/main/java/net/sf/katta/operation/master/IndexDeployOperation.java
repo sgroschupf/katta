@@ -71,7 +71,8 @@ public class IndexDeployOperation extends AbstractIndexOperation {
     try {
       _indexMD.getShards().addAll(readShardsFromFs(_indexName, _indexPath));
       LOG.info("Found shards '" + _indexMD.getShards() + "' for index '" + _indexName + "'");
-      List<OperationId> operationIds = distributeIndexShards(context, _indexMD, protocol.getLiveNodes());
+      List<OperationId> operationIds = distributeIndexShards(context, _indexMD, protocol.getLiveNodes(),
+              runningOperations);
       return operationIds;
     } catch (Exception e) {
       ExceptionUtil.rethrowInterruptedException(e);

@@ -36,6 +36,7 @@ import net.sf.katta.protocol.metadata.IndexMetaData;
 import net.sf.katta.protocol.metadata.IndexDeployError.ErrorType;
 import net.sf.katta.protocol.metadata.IndexMetaData.Shard;
 import net.sf.katta.util.CollectionUtil;
+import net.sf.katta.util.One2ManyListMap;
 
 import org.apache.log4j.Logger;
 
@@ -45,8 +46,10 @@ public abstract class AbstractIndexOperation implements MasterOperation {
   private static final Logger LOG = Logger.getLogger(AbstractIndexOperation.class);
   public static final char INDEX_SHARD_NAME_SEPARATOR = '#';
 
+  private Map<String, List<String>> _newShardsByNodeMap = new HashMap<String, List<String>>();
+
   protected List<OperationId> distributeIndexShards(MasterContext context, final IndexMetaData indexMD,
-          Collection<String> liveNodes) throws IndexDeployException {
+          Collection<String> liveNodes, List<MasterOperation> runningOperations) throws IndexDeployException {
     if (liveNodes.isEmpty()) {
       throw new IndexDeployException(ErrorType.NO_NODES_AVAILIBLE, "no nodes availible");
     }
@@ -58,6 +61,7 @@ public abstract class AbstractIndexOperation implements MasterOperation {
     final Map<String, List<String>> currentShard2NodesMap = protocol.getShard2NodesMap(shards);
     cloneMap(currentShard2NodesMap);
     Map<String, List<String>> currentNode2ShardsMap = getCurrentNode2ShardMap(liveNodes, currentShard2NodesMap);
+    addRunningDeployments(currentNode2ShardsMap, runningOperations);
 
     final Map<String, List<String>> newNode2ShardMap = context.getDeployPolicy().createDistributionPlan(
             currentShard2NodesMap, cloneMap(currentNode2ShardsMap), new ArrayList<String>(liveNodes),
@@ -66,6 +70,7 @@ public abstract class AbstractIndexOperation implements MasterOperation {
     // System.out.println(distributionMap);// node to shards
     Set<String> nodes = newNode2ShardMap.keySet();
     List<OperationId> operationIds = new ArrayList<OperationId>(nodes.size());
+    One2ManyListMap<String, String> newShardsByNode = new One2ManyListMap<String, String>();
     for (String node : nodes) {
       List<String> nodeShards = newNode2ShardMap.get(node);
       List<String> listOfAdded = CollectionUtil.getListOfAdded(currentNode2ShardsMap.get(node), nodeShards);
@@ -73,6 +78,7 @@ public abstract class AbstractIndexOperation implements MasterOperation {
         ShardDeployOperation deployInstruction = new ShardDeployOperation();
         for (String shard : listOfAdded) {
           deployInstruction.addShard(shard, indexMD.getShardPath(shard));
+          newShardsByNode.add(node, shard);
         }
         OperationId operationId = protocol.addNodeOperation(node, deployInstruction);
         operationIds.add(operationId);
@@ -84,7 +90,28 @@ public abstract class AbstractIndexOperation implements MasterOperation {
         operationIds.add(operationId);
       }
     }
+    _newShardsByNodeMap = newShardsByNode.asMap();
     return operationIds;
+  }
+
+  protected Map<String, List<String>> getNewShardsByNodeMap() {
+    return _newShardsByNodeMap;
+  }
+
+  private void addRunningDeployments(Map<String, List<String>> currentNode2ShardsMap,
+          List<MasterOperation> runningOperations) {
+    System.out.println(currentNode2ShardsMap);
+    for (MasterOperation masterOperation : runningOperations) {
+      if (masterOperation instanceof AbstractIndexOperation) {
+        AbstractIndexOperation indexOperation = (AbstractIndexOperation) masterOperation;
+        System.out.println("_: " + indexOperation.getNewShardsByNodeMap());
+        for (Entry<String, List<String>> entry : indexOperation.getNewShardsByNodeMap().entrySet()) {
+          currentNode2ShardsMap.get(entry.getKey()).addAll(entry.getValue());
+        }
+      }
+    }
+    System.out.println(currentNode2ShardsMap);
+    System.out.println("--------------------");
   }
 
   private Map<String, List<String>> cloneMap(Map<String, List<String>> currentShard2NodesMap) {

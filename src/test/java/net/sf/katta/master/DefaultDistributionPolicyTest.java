@@ -47,6 +47,24 @@ public class DefaultDistributionPolicyTest extends AbstractTest {
   }
 
   @Test
+  public void testEqualDistributionOnMultipleSequentialDeploys() throws Exception {
+    int replicationLevel = 1;
+    List<String> nodes = createNodes("node1", "node2", "node3", "node4");
+    createShards("shard1", "shard2");
+    Map<String, List<String>> node2ShardsMap = _distributionPolicy.createDistributionPlan(_currentShard2NodesMap,
+            _currentNode2ShardsMap, nodes, replicationLevel);
+    System.out.println(node2ShardsMap);
+
+    _currentShard2NodesMap.clear();
+    createShards("shard3", "shard4");
+    node2ShardsMap = _distributionPolicy.createDistributionPlan(_currentShard2NodesMap, _currentNode2ShardsMap, nodes,
+            replicationLevel);
+    for (String node : node2ShardsMap.keySet()) {
+      assertEquals("shards are not equally distributed: " + node2ShardsMap, 1, node2ShardsMap.get(node).size());
+    }
+  }
+
+  @Test
   public void testInitialDistribution_TooLessNodes() throws Exception {
     List<String> nodes = createNodes("node1");
     Set<String> shards = createShards("shard1", "shard2");
@@ -117,7 +135,9 @@ public class DefaultDistributionPolicyTest extends AbstractTest {
     Set<String> shards = new HashSet<String>();
     for (String shardName : shardNames) {
       shards.add(shardName);
-      _currentShard2NodesMap.put(shardName, new ArrayList<String>());
+      if (!_currentNode2ShardsMap.containsKey(shardName)) {
+        _currentShard2NodesMap.put(shardName, new ArrayList<String>());
+      }
     }
     return shards;
   }

@@ -30,7 +30,6 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 
-import java.io.Serializable;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -193,7 +192,7 @@ public class InteractionProtocolTest extends AbstractZkTest {
     _zk.getZkClient().createPersistent(_zk.getZkConf().getZkPath(PathDef.NODES_LIVE, "node1"));
     Thread.sleep(500);
     verify(childListener).added("node1");
-    verify(dataListener).handleDataChange(anyString(), (Serializable) any());
+    verify(dataListener).handleDataChange(anyString(), any());
     verifyNoMoreInteractions(childListener, dataListener);
 
     _protocol.unregisterComponent(component);
