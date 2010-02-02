@@ -431,7 +431,7 @@ public class Katta {
           return -1;
         }
         return fileSystem.getContentSummary(indexPath).getLength();
-      } catch (IOException e) {
+      } catch (Exception e) {
         return -1;
       }
     }
