@@ -541,7 +541,7 @@ public class Katta {
         tableIndexStates.addRow(indexState, indexStateCounterMap.getCount(indexState));
       }
       System.out.println(tableIndexStates.toString());
-      printResume("indices", indices.size(), indexStateCounterMap.getCount(IndexState.DEPLOYED));
+      printResume("indices", indices.size(), indexStateCounterMap.getCount(IndexState.DEPLOYED), "deployed");
 
       System.out.println("\n");
       System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
@@ -594,7 +594,7 @@ public class Katta {
         tableNodeLoad.addRow(node, Boolean.toString(isConnected), builder);
       }
       System.out.println();
-      printResume("shards", totalShards, publishedShards);
+      printResume("shards", totalShards, publishedShards, "deployed");
       if (startTime < Long.MAX_VALUE && totalShards > 0 && publishedShards > 0 && publishedShards < totalShards) {
         long elapsed = System.currentTimeMillis() - startTime;
         double timePerShard = (double) elapsed / (double) publishedShards;
@@ -614,12 +614,12 @@ public class Katta {
       System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
 
       System.out.println(tableNodeLoad);
-      printResume("nodes", knownNodes.size(), connectedNodes.size());
+      printResume("nodes", knownNodes.size(), connectedNodes.size(), "connected");
     }
 
-    private void printResume(String name, int maximum, int num) {
+    private void printResume(String name, int maximum, int num, String action) {
       double progress = maximum == 0 ? 0.0 : (double) num / (double) maximum;
-      System.out.printf("%d out of %d " + name + " deployed (%.2f%%)\n", num, maximum, 100 * progress);
+      System.out.printf("%d out of %d " + name + " " + action + " (%.2f%%)\n", num, maximum, 100 * progress);
     }
 
   };

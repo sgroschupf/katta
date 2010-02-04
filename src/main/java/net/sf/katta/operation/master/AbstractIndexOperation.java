@@ -100,18 +100,14 @@ public abstract class AbstractIndexOperation implements MasterOperation {
 
   private void addRunningDeployments(Map<String, List<String>> currentNode2ShardsMap,
           List<MasterOperation> runningOperations) {
-    System.out.println(currentNode2ShardsMap);
     for (MasterOperation masterOperation : runningOperations) {
       if (masterOperation instanceof AbstractIndexOperation) {
         AbstractIndexOperation indexOperation = (AbstractIndexOperation) masterOperation;
-        System.out.println("_: " + indexOperation.getNewShardsByNodeMap());
         for (Entry<String, List<String>> entry : indexOperation.getNewShardsByNodeMap().entrySet()) {
           currentNode2ShardsMap.get(entry.getKey()).addAll(entry.getValue());
         }
       }
     }
-    System.out.println(currentNode2ShardsMap);
-    System.out.println("--------------------");
   }
 
   private Map<String, List<String>> cloneMap(Map<String, List<String>> currentShard2NodesMap) {
