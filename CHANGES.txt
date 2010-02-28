@@ -1,6 +1,7 @@
 Katta Change Log
 
 katta 0.6.1
+ fix KATTA-122, removeIndex leaks file descriptors 
  fix KATTA-124, fix imbalanced shard distribution 
 
 katta 0.6.0

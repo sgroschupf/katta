@@ -124,14 +124,20 @@ public class LuceneServer implements IContentServer, ILuceneServer {
   public void removeShard(final String shardName) {
     LOG.info("LuceneServer " + _nodeName + " removing shard " + shardName);
     synchronized (_searcherByShard) {
-      final Searchable remove = _searcherByShard.remove(shardName);
+      final IndexSearcher remove = _searcherByShard.remove(shardName);
       if (remove == null) {
         return; // nothing to do.
       }
       try {
         _maxDoc -= remove.maxDoc();
       } catch (final IOException e) {
-        throw new RuntimeException("unable to retrive maxDocs from searchable");
+        throw new RuntimeException("unable to retrive maxDocs from searchable", e);
+      } finally {
+        try {
+          remove.close();
+        } catch (Exception e) {
+          LOG.error("LuceneServer " + _nodeName + " error removing shard " + shardName, e);
+        }
       }
     }
   }
