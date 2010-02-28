@@ -50,8 +50,6 @@ public class DefaultDistributionPolicy implements IDeployPolicy {
       throw new IllegalArgumentException("no alive nodes to distribute to");
     }
 
-    sortAfterFreeCapacity(aliveNodes, currentNode2ShardsMap);
-    CircularList<String> roundRobinNodes = new CircularList<String>(aliveNodes);
     Set<String> shards = currentShard2NodesMap.keySet();
     for (String shard : shards) {
       Set<String> assignedNodes = new HashSet<String>(replicationLevel);
@@ -59,6 +57,8 @@ public class DefaultDistributionPolicy implements IDeployPolicy {
       assignedNodes.addAll(currentShard2NodesMap.get(shard));
 
       // now assign new nodes based on round robin algorithm
+      sortAfterFreeCapacity(aliveNodes, currentNode2ShardsMap);
+      CircularList<String> roundRobinNodes = new CircularList<String>(aliveNodes);
       neededDeployments = chooseNewNodes(currentNode2ShardsMap, roundRobinNodes, shard, assignedNodes,
               neededDeployments);
 

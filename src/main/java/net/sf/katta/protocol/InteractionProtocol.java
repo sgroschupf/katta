@@ -252,14 +252,14 @@ public class InteractionProtocol {
     return _zkClient.getCreationTime(_zkConf.getZkPath(PathDef.SHARD_TO_NODES, shard, node));
   }
 
-  public Map<String, List<String>> getShard2NodesMap(Collection<Shard> shards) {
+  public Map<String, List<String>> getShard2NodesMap(Collection<String> shardNames) {
     final Map<String, List<String>> shard2NodeNames = new HashMap<String, List<String>>();
-    for (final Shard shard : shards) {
-      final String shard2NodeRootPath = _zkConf.getZkPath(PathDef.SHARD_TO_NODES, shard.getName());
+    for (final String shard : shardNames) {
+      final String shard2NodeRootPath = _zkConf.getZkPath(PathDef.SHARD_TO_NODES, shard);
       if (_zkClient.exists(shard2NodeRootPath)) {
-        shard2NodeNames.put(shard.getName(), _zkClient.getChildren(shard2NodeRootPath));
+        shard2NodeNames.put(shard, _zkClient.getChildren(shard2NodeRootPath));
       } else {
-        shard2NodeNames.put(shard.getName(), Collections.<String> emptyList());
+        shard2NodeNames.put(shard, Collections.<String> emptyList());
       }
     }
     return shard2NodeNames;

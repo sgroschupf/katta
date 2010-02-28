@@ -1,5 +1,8 @@
 Katta Change Log
 
+katta 0.6.1
+ fix KATTA-124, fix imbalanced shard distribution 
+
 katta 0.6.0
  fix KATTA-120, fix listIndices for wrong file pathes
  fix KATTA-117, add command line option to print stacktrace on error

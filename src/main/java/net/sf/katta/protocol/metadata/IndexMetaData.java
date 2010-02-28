@@ -16,8 +16,11 @@
 package net.sf.katta.protocol.metadata;
 
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -119,6 +122,14 @@ public class IndexMetaData implements Serializable {
     @Override
     public String toString() {
       return getName();
+    }
+
+    public static List<String> getShardNames(Collection<Shard> shards) {
+      List<String> shardNames = new ArrayList<String>(shards.size());
+      for (Shard shard : shards) {
+        shardNames.add(shard.getName());
+      }
+      return shardNames;
     }
 
   }

@@ -44,7 +44,7 @@ public abstract class AbstractIntegrationTest extends AbstractTest {
   private final boolean _shutdownAfterEachTest;
   private final boolean _undeployIndicesAfterEachTest;
 
-  private final Class<? extends IContentServer> _nodeServerClass;
+  private final Class<? extends IContentServer> _contentServerClass;
 
   public AbstractIntegrationTest(int nodeCount) {
     this(LuceneServer.class, nodeCount);
@@ -60,7 +60,7 @@ public abstract class AbstractIntegrationTest extends AbstractTest {
 
   public AbstractIntegrationTest(Class<? extends IContentServer> nodeServerClass, int nodeCount,
           boolean shutdownAfterEachTest, boolean undeployIndicesAfterEachTest) {
-    _nodeServerClass = nodeServerClass;
+    _contentServerClass = nodeServerClass;
     _nodeCount = nodeCount;
     _shutdownAfterEachTest = shutdownAfterEachTest;
     _undeployIndicesAfterEachTest = undeployIndicesAfterEachTest;
@@ -145,7 +145,7 @@ public abstract class AbstractIntegrationTest extends AbstractTest {
     FileUtil.deleteFolder(new NodeConfiguration().getShardFolder());
 
     // start katta cluster
-    _miniCluster = new KattaMiniCluster(_nodeServerClass, conf, nodeCount, _lastNodeStartPort);
+    _miniCluster = new KattaMiniCluster(_contentServerClass, conf, nodeCount, _lastNodeStartPort);
     // we permanently start the node on other
     // ports because hadoop rpc seems to make
     // some trouble if a rpc server is restarted on the same port immediately

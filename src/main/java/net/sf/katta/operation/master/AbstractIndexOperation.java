@@ -58,13 +58,14 @@ public abstract class AbstractIndexOperation implements MasterOperation {
     Set<Shard> shards = indexMD.getShards();
 
     // now distribute shards
-    final Map<String, List<String>> currentShard2NodesMap = protocol.getShard2NodesMap(shards);
-    cloneMap(currentShard2NodesMap);
-    Map<String, List<String>> currentNode2ShardsMap = getCurrentNode2ShardMap(liveNodes, currentShard2NodesMap);
-    addRunningDeployments(currentNode2ShardsMap, runningOperations);
+    final Map<String, List<String>> currentIndexShard2NodesMap = protocol
+            .getShard2NodesMap(Shard.getShardNames(shards));
+    Map<String, List<String>> currentGlobalNode2ShardsMap = getCurrentNode2ShardMap(liveNodes, protocol
+            .getShard2NodesMap(protocol.getShard2NodeShards()));
+    addRunningDeployments(currentGlobalNode2ShardsMap, runningOperations);
 
     final Map<String, List<String>> newNode2ShardMap = context.getDeployPolicy().createDistributionPlan(
-            currentShard2NodesMap, cloneMap(currentNode2ShardsMap), new ArrayList<String>(liveNodes),
+            currentIndexShard2NodesMap, cloneMap(currentGlobalNode2ShardsMap), new ArrayList<String>(liveNodes),
             indexMD.getReplicationLevel());
 
     // System.out.println(distributionMap);// node to shards
@@ -73,7 +74,7 @@ public abstract class AbstractIndexOperation implements MasterOperation {
     One2ManyListMap<String, String> newShardsByNode = new One2ManyListMap<String, String>();
     for (String node : nodes) {
       List<String> nodeShards = newNode2ShardMap.get(node);
-      List<String> listOfAdded = CollectionUtil.getListOfAdded(currentNode2ShardsMap.get(node), nodeShards);
+      List<String> listOfAdded = CollectionUtil.getListOfAdded(currentGlobalNode2ShardsMap.get(node), nodeShards);
       if (!listOfAdded.isEmpty()) {
         ShardDeployOperation deployInstruction = new ShardDeployOperation();
         for (String shard : listOfAdded) {
@@ -83,7 +84,7 @@ public abstract class AbstractIndexOperation implements MasterOperation {
         OperationId operationId = protocol.addNodeOperation(node, deployInstruction);
         operationIds.add(operationId);
       }
-      List<String> listOfRemoved = CollectionUtil.getListOfRemoved(currentNode2ShardsMap.get(node), nodeShards);
+      List<String> listOfRemoved = CollectionUtil.getListOfRemoved(currentGlobalNode2ShardsMap.get(node), nodeShards);
       if (!listOfRemoved.isEmpty()) {
         ShardUndeployOperation undeployInstruction = new ShardUndeployOperation(listOfRemoved);
         OperationId operationId = protocol.addNodeOperation(node, undeployInstruction);

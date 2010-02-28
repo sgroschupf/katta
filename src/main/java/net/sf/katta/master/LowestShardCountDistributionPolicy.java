@@ -1,5 +1,5 @@
 /**
- * Copyright 2008 the original author or authors.
+j * Copyright 2008 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,6 +33,9 @@ import org.apache.log4j.Logger;
  * This code attempts to select the node that has the fewest shards, to deploy
  * replicate shards to, and to select the node that has the most shards to
  * remove excess replicas from.
+ * 
+ * @deprecated DefaultDistributionPolicy already contains the same functionality
+ *             since version 6.1
  */
 public class LowestShardCountDistributionPolicy implements IDeployPolicy {
 

@@ -62,6 +62,7 @@ public class DefaultDistributionPolicyTest extends AbstractTest {
     for (String node : node2ShardsMap.keySet()) {
       assertEquals("shards are not equally distributed: " + node2ShardsMap, 1, node2ShardsMap.get(node).size());
     }
+    System.out.println(node2ShardsMap);
   }
 
   @Test

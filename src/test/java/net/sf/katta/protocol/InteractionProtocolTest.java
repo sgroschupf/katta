@@ -327,8 +327,7 @@ public class InteractionProtocolTest extends AbstractZkTest {
     // remove one shard completely
     _protocol.unpublishShard(node1, "shard2");
 
-    Map<String, List<String>> shard2NodesMap = _protocol.getShard2NodesMap(Arrays.asList(new IndexMetaData.Shard(
-            "shard1", "path1")));
+    Map<String, List<String>> shard2NodesMap = _protocol.getShard2NodesMap(Arrays.asList("shard1"));
     assertEquals(1, shard2NodesMap.size());
     assertEquals(1, shard2NodesMap.get("shard1").size());
   }

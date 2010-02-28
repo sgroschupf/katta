@@ -24,6 +24,7 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.HashSet;
 import java.util.Random;
+import java.util.Set;
 import java.util.UUID;
 
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
@@ -42,6 +43,10 @@ import org.apache.lucene.util.Version;
 public class SampleIndexGenerator {
 
   public void createIndex(String input, String output, int wordsPerDoc, int indexSize) {
+    createIndex(getWordList(input), output, wordsPerDoc, indexSize);
+  }
+
+  public void createIndex(String[] wordList, String output, int wordsPerDoc, int indexSize) {
     long startTime = System.currentTimeMillis();
     String hostname = "unknown";
     InetAddress addr;
@@ -51,15 +56,8 @@ public class SampleIndexGenerator {
     } catch (UnknownHostException e) {
       throw new RuntimeException("Unable to get localhostname", e);
     }
-    String[] wordList;
-    try {
-      wordList = getWordList(input);
-    } catch (IOException e) {
-      throw new RuntimeException("Unable to read sample text", e);
-    }
 
     File index = new File(output, hostname + "-" + UUID.randomUUID().toString());
-
     int count = wordList.length;
     Random random = new Random(System.currentTimeMillis());
     try {
@@ -93,7 +91,6 @@ public class SampleIndexGenerator {
     } catch (Exception e) {
       throw new RuntimeException("Unable to write index", e);
     }
-
   }
 
   /**
@@ -101,17 +98,21 @@ public class SampleIndexGenerator {
    * 
    * @throws IOException
    */
-  private String[] getWordList(String input) throws IOException {
-    HashSet<String> hashSet = new HashSet<String>();
-    BufferedReader in = new BufferedReader(new FileReader(input));
-    String str;
-    while ((str = in.readLine()) != null) {
-      String[] words = str.split(" ");
-      for (String word : words) {
-        hashSet.add(word);
+  private String[] getWordList(String input) {
+    try {
+      Set<String> hashSet = new HashSet<String>();
+      BufferedReader in = new BufferedReader(new FileReader(input));
+      String str;
+      while ((str = in.readLine()) != null) {
+        String[] words = str.split(" ");
+        for (String word : words) {
+          hashSet.add(word);
+        }
       }
+      in.close();
+      return hashSet.toArray(new String[hashSet.size()]);
+    } catch (IOException e) {
+      throw new RuntimeException("Unable to read sample text", e);
     }
-    in.close();
-    return hashSet.toArray(new String[hashSet.size()]);
   }
 }
