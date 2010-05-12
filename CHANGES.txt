@@ -1,6 +1,7 @@
 Katta Change Log
 
 katta 0.6.2
+ fix KATTA-135, fix NPE in AbstractIndexOperation.addRunningDeployments
  fix KATTA-125, fix ConcurrentModificationException in net.sf.katta.protocol.InteractionProtocol
  
 katta 0.6.1

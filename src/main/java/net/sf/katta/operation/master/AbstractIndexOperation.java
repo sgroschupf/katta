@@ -105,7 +105,12 @@ public abstract class AbstractIndexOperation implements MasterOperation {
       if (masterOperation instanceof AbstractIndexOperation) {
         AbstractIndexOperation indexOperation = (AbstractIndexOperation) masterOperation;
         for (Entry<String, List<String>> entry : indexOperation.getNewShardsByNodeMap().entrySet()) {
-          currentNode2ShardsMap.get(entry.getKey()).addAll(entry.getValue());
+          List<String> shardList = currentNode2ShardsMap.get(entry.getKey());
+          if (shardList == null) {
+            shardList = new ArrayList<String>(entry.getValue().size());
+            currentNode2ShardsMap.put(entry.getKey(), shardList);
+          }
+          shardList.addAll(entry.getValue());
         }
       }
     }
@@ -126,7 +131,7 @@ public abstract class AbstractIndexOperation implements MasterOperation {
     final Map<String, List<String>> currentNodeToShardsMap = CollectionUtil.invertListMap(currentShard2NodesMap);
     for (String node : liveNodes) {
       if (!currentNodeToShardsMap.containsKey(node)) {
-        currentNodeToShardsMap.put(node, new ArrayList<String>());
+        currentNodeToShardsMap.put(node, new ArrayList<String>(3));
       }
     }
     return currentNodeToShardsMap;
