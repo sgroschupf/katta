@@ -23,6 +23,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -49,12 +50,17 @@ import net.sf.katta.protocol.metadata.IndexMetaData;
 import net.sf.katta.protocol.metadata.NodeMetaData;
 import net.sf.katta.protocol.metadata.IndexMetaData.Shard;
 import net.sf.katta.testutil.Mocks;
+import net.sf.katta.testutil.mockito.WaitingAnswer;
 import net.sf.katta.util.ZkConfiguration.PathDef;
 
 import org.I0Itec.zkclient.Gateway;
 import org.I0Itec.zkclient.IZkDataListener;
 import org.I0Itec.zkclient.ZkClient;
 import org.I0Itec.zkclient.util.ZkPathUtil;
+import org.apache.zookeeper.WatchedEvent;
+import org.apache.zookeeper.Watcher.Event.EventType;
+import org.apache.zookeeper.Watcher.Event.KeeperState;
+import org.apache.zookeeper.proto.WatcherEvent;
 import org.junit.Test;
 import org.mockito.InOrder;
 
@@ -342,5 +348,28 @@ public class InteractionProtocolTest extends AbstractZkTest {
     String nodeName2 = "node2";
     _protocol.setMetric(nodeName2, new MetricsRecord(nodeName1));
     assertNotSame(_protocol.getMetric(nodeName1).getServerId(), _protocol.getMetric(nodeName2).getServerId());
+  }
+
+  @Test
+  /**see KATTA-125*/
+  public void testConcurrentModification() throws Exception {
+    ConnectedComponent component1 = mock(ConnectedComponent.class);
+    WaitingAnswer waitingAnswer = new WaitingAnswer();
+    doAnswer(waitingAnswer).when(component1).disconnect();
+    _protocol = _zk.createInteractionProtocol();
+    _protocol.registerComponent(component1);
+    WatchedEvent expiredEvent = new WatchedEvent(new WatcherEvent(EventType.None.getIntValue(), KeeperState.Expired
+            .getIntValue(), null));
+    _protocol.getZkClient().process(
+            new WatchedEvent(new WatcherEvent(EventType.None.getIntValue(), KeeperState.SyncConnected.getIntValue(),
+                    null)));
+    _protocol.getZkClient().process(expiredEvent);
+    // verify(component1).disconnect();
+
+    ConnectedComponent component2 = mock(ConnectedComponent.class, "2ndComp");
+    _protocol.registerComponent(component2);
+    _protocol.unregisterComponent(component2);
+    waitingAnswer.release();
+    _protocol.disconnect();
   }
 }

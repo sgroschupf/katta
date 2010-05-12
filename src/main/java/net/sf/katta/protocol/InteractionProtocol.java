@@ -79,7 +79,7 @@ public class InteractionProtocol {
   private IZkStateListener _stateListener = new IZkStateListener() {
     @Override
     public void handleStateChanged(KeeperState state) throws Exception {
-      Set<ConnectedComponent> components = _zkListenerByComponent.keySet();
+      Set<ConnectedComponent> components = new HashSet<ConnectedComponent>(_zkListenerByComponent.keySet());
       switch (state) {
       case Disconnected:
       case Expired:

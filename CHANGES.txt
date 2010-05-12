@@ -1,5 +1,8 @@
 Katta Change Log
 
+katta 0.6.2
+ fix KATTA-125, fix ConcurrentModificationException in net.sf.katta.protocol.InteractionProtocol
+ 
 katta 0.6.1
  fix KATTA-122, removeIndex leaks file descriptors 
  fix KATTA-124, fix imbalanced shard distribution 
