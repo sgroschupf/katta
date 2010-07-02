@@ -169,8 +169,12 @@ public class Client implements IShardProxyManager, ConnectedComponent {
 
   protected void removeIndex(String index) {
     List<String> shards = _indexToShards.remove(index);
-    for (String shard : shards) {
-      _selectionPolicy.remove(shard);
+    if (shards != null) {
+      for (String shard : shards) {
+        _selectionPolicy.remove(shard);
+      }
+    } else {
+      LOG.warn("got remove event for index '" + index + "' but have no shards for it");
     }
   }
 
