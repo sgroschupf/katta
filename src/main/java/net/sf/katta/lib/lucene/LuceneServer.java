@@ -715,7 +715,7 @@ public class LuceneServer implements IContentServer, ILuceneServer {
     }
   }
 
-  protected class KattaHitQueue extends PriorityQueue implements Iterable<Hit> {
+  protected class KattaHitQueue extends PriorityQueue<Hit> implements Iterable<Hit> {
 
     private final int _maxSize;
 
@@ -737,9 +737,7 @@ public class LuceneServer implements IContentServer, ILuceneServer {
     }
 
     @Override
-    protected final boolean lessThan(final Object a, final Object b) {
-      final Hit hitA = (Hit) a;
-      final Hit hitB = (Hit) b;
+    protected final boolean lessThan(final Hit hitA, final Hit hitB) {
       if (hitA.getScore() == hitB.getScore()) {
         // todo this of cource do not work since we have same shardKeys
         // (should we increment docIds?)
@@ -755,7 +753,7 @@ public class LuceneServer implements IContentServer, ILuceneServer {
         }
 
         public Hit next() {
-          return (Hit) KattaHitQueue.this.pop();
+          return KattaHitQueue.this.pop();
         }
 
         public void remove() {

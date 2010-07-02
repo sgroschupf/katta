@@ -42,8 +42,8 @@ public class OperationRegistry {
   }
 
   private void releaseDoneWatchdogs() {
-    for (Iterator iterator = _watchdogs.iterator(); iterator.hasNext();) {
-      OperationWatchdog watchdog = (OperationWatchdog) iterator.next();
+    for (Iterator<OperationWatchdog> iterator = _watchdogs.iterator(); iterator.hasNext();) {
+      OperationWatchdog watchdog = iterator.next();
       if (watchdog.isDone()) {
         _context.getMasterQueue().removeWatchdog(watchdog);
         iterator.remove();
@@ -53,8 +53,8 @@ public class OperationRegistry {
 
   public synchronized List<MasterOperation> getRunningOperations() {
     List<MasterOperation> operations = new ArrayList<MasterOperation>();
-    for (Iterator iterator = _watchdogs.iterator(); iterator.hasNext();) {
-      OperationWatchdog watchdog = (OperationWatchdog) iterator.next();
+    for (Iterator<OperationWatchdog> iterator = _watchdogs.iterator(); iterator.hasNext();) {
+      OperationWatchdog watchdog = iterator.next();
       if (watchdog.isDone()) {
         iterator.remove(); // lazy cleaning
       } else {
@@ -65,8 +65,8 @@ public class OperationRegistry {
   }
 
   public synchronized void shutdown() {
-    for (Iterator iterator = _watchdogs.iterator(); iterator.hasNext();) {
-      OperationWatchdog watchdog = (OperationWatchdog) iterator.next();
+    for (Iterator<OperationWatchdog> iterator = _watchdogs.iterator(); iterator.hasNext();) {
+      OperationWatchdog watchdog = iterator.next();
       watchdog.cancel();
       iterator.remove();
     }

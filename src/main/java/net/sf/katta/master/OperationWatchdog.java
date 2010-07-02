@@ -100,8 +100,8 @@ public class OperationWatchdog implements ConnectedComponent, Serializable {
     }
 
     List<String> liveNodes = _context.getProtocol().getLiveNodes();
-    for (Iterator iter = _openOperationIds.iterator(); iter.hasNext();) {
-      OperationId operationId = (OperationId) iter.next();
+    for (Iterator<OperationId> iter = _openOperationIds.iterator(); iter.hasNext();) {
+      OperationId operationId = iter.next();
       if (!_context.getProtocol().isNodeOperationQueued(operationId) || !liveNodes.contains(operationId.getNodeName())) {
         iter.remove();
       }
