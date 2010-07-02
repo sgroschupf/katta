@@ -1,6 +1,7 @@
 Katta Change Log
 
 katta 0.6.2
+ fix KATTA-141, fix ec2 scripts
  fix KATTA-128, set node RPC handler count from 1 to 25 and make it configurable
  fix KATTA-130, fix unzipping, when parent dirs do not exists 
  fix KATTA-126,	some improvements in use of java generics

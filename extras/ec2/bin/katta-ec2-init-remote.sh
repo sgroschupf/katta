@@ -62,7 +62,7 @@ if [ "$IS_MASTER" == "true" ]; then
   # Katta
 
 
-  "$KATTA_HOME"/bin/katta-daemon.sh start katta\ startMaster
+  "$KATTA_HOME"/bin/katta-daemon.sh start startMaster
 else
   # SLAVE
   # Prep Ganglia
@@ -74,7 +74,7 @@ else
 
   # Katta
 
-  "$KATTA_HOME"/bin/katta-daemon.sh start katta\ startNode
+  "$KATTA_HOME"/bin/katta-daemon.sh start startNode
 fi
 
 # Run this script on next boot
