@@ -25,6 +25,7 @@ public class NodeConfiguration extends KattaConfiguration {
   private static final String SHARD_DEPLOY_THROTTLE = "node.shard.deploy.throttle";
   private static final String MONITOR_CLASS = "node.monitor.class";
   private static final String SERVER_CLASS = "node.server.class";
+  private static final String RPC_HANDLER_COUNT = "node.rpc.handler-count";
 
   public NodeConfiguration() {
     super("/katta.node.properties");
@@ -71,6 +72,14 @@ public class NodeConfiguration extends KattaConfiguration {
 
   public Class<?> getServerClass() {
     return getClass(SERVER_CLASS);
+  }
+
+  public int getRpcHandlerCount() {
+    return getInt(RPC_HANDLER_COUNT, 25);
+  }
+
+  public void setRpcHandlerCount(int handlerCount) {
+    setProperty(RPC_HANDLER_COUNT, handlerCount);
   }
 
 }

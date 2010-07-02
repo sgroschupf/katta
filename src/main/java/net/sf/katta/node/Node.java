@@ -76,7 +76,7 @@ public class Node implements ConnectedComponent {
     }
     LOG.info("starting rpc server with  server class = " + _contentServer.getClass().getCanonicalName());
     String hostName = NetworkUtil.getLocalhostName();
-    _rpcServer = startRPCServer(hostName, _nodeConf.getStartPort(), _contentServer);
+    _rpcServer = startRPCServer(hostName, _nodeConf.getStartPort(), _contentServer, _nodeConf.getRpcHandlerCount());
     _nodeName = hostName + ":" + _rpcServer.getListenerAddress().getPort();
     _contentServer.setNodeName(_nodeName);
 
@@ -212,13 +212,14 @@ public class Node implements ConnectedComponent {
    * Starting the hadoop RPC server that response to query requests. We iterate
    * over a port range of node.server.port.start + 10000
    */
-  private static Server startRPCServer(String hostName, final int startPort, IContentServer nodeManaged) {
+  private static Server startRPCServer(String hostName, final int startPort, IContentServer nodeManaged,
+          int handlerCount) {
     int serverPort = startPort;
     int tryCount = 10000;
     Server _rpcServer = null;
     while (_rpcServer == null) {
       try {
-        _rpcServer = RPC.getServer(nodeManaged, "0.0.0.0", serverPort, new Configuration());
+        _rpcServer = RPC.getServer(nodeManaged, "0.0.0.0", serverPort, handlerCount, false, new Configuration());
         LOG.info(nodeManaged.getClass().getSimpleName() + " server started on : " + hostName + ":" + serverPort);
       } catch (final BindException e) {
         if (serverPort - startPort < tryCount) {
