@@ -153,6 +153,9 @@ public class FileUtil {
       if (entry.isDirectory()) {
         targetFile.mkdirs();
       } else {
+        if (!targetFile.getParentFile().exists()) {
+          targetFile.getParentFile().mkdirs(); // KATTA-130
+        }
         int count;
         final byte data[] = new byte[BUFFER];
         final FileOutputStream fos = new FileOutputStream(targetFile);
