@@ -181,7 +181,7 @@ public class LuceneClient implements ILuceneClient {
     }
   }
 
-  private DocumentFrequencyWritable getDocFrequencies(final Query query, final String[] indexNames)
+  protected DocumentFrequencyWritable getDocFrequencies(final Query query, final String[] indexNames)
           throws KattaException {
     ClientResult<DocumentFrequencyWritable> results = kattaClient.broadcastToIndices(TIMEOUT, true, DOC_FREQ_METHOD,
             DOC_FREQ_METHOD_SHARD_ARG_IDX, indexNames, new QueryWritable(query), null);

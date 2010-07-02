@@ -22,17 +22,18 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import org.apache.hadoop.io.Writable;
+import org.mortbay.log.Log;
 
 public class DocumentFrequencyWritable implements Writable {
   private ReadWriteLock _frequenciesLock = new ReentrantReadWriteLock(true);
   private Map<TermWritable, Integer> _frequencies = new HashMap<TermWritable, Integer>();
 
-  private AtomicInteger _numDocs = new AtomicInteger();
+  private AtomicLong _numDocs = new AtomicLong();
 
   public void put(final String field, final String term, final int frequency) {
     _frequenciesLock.writeLock().lock();
@@ -76,7 +77,11 @@ public class DocumentFrequencyWritable implements Writable {
     return get(new TermWritable(field, term));
   }
 
-  public void addNumDocs(final int numDocs) {
+  public void addNumDocs(long numDocs) {
+    if (Long.MAX_VALUE - numDocs - _numDocs.get() < 0) {
+      Log.warn("max number of documents exceeded " + _numDocs.get() + " + " + numDocs);
+      numDocs = Long.MAX_VALUE;
+    }
     _numDocs.addAndGet(numDocs);
   }
 
@@ -103,7 +108,7 @@ public class DocumentFrequencyWritable implements Writable {
         final int frequency = in.readInt();
         _frequencies.put(term, frequency);
       }
-      _numDocs.set(in.readInt());
+      _numDocs.set(in.readLong());
     } finally {
       _frequenciesLock.writeLock().unlock();
     }
@@ -118,18 +123,21 @@ public class DocumentFrequencyWritable implements Writable {
         final Integer frequency = _frequencies.get(key);
         out.writeInt(frequency);
       }
-      out.writeInt(_numDocs.get());
+      out.writeLong(_numDocs.get());
     } finally {
       _frequenciesLock.readLock().unlock();
     }
   }
 
-  public int getNumDocs() {
+  public long getNumDocs() {
     return _numDocs.get();
   }
 
-  public void setNumDocs(final int numDocs) {
-    _numDocs.set(numDocs);
+  public int getNumDocsAsInteger() {
+    if (_numDocs.get() > Integer.MAX_VALUE) {
+      return Integer.MAX_VALUE;
+    }
+    return (int) _numDocs.get();
   }
 
   @Override

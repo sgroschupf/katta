@@ -293,7 +293,6 @@ public class LuceneServer implements IContentServer, ILuceneServer {
 
     final HashSet<Term> termSet = new HashSet<Term>();
     rewrittenQuery.extractTerms(termSet);
-    int numDocs = 0;
     for (final String shard : shards) {
       final java.util.Iterator<Term> termIterator = termSet.iterator();
       while (termIterator.hasNext()) {
@@ -301,9 +300,8 @@ public class LuceneServer implements IContentServer, ILuceneServer {
         final int docFreq = docFreq(shard, term);
         docFreqs.put(term.field(), term.text(), docFreq);
       }
-      numDocs += shardSize(shard);
+      docFreqs.addNumDocs(shardSize(shard));
     }
-    docFreqs.setNumDocs(numDocs);
     return docFreqs;
   }
 
@@ -397,7 +395,7 @@ public class LuceneServer implements IContentServer, ILuceneServer {
   protected final void search(final Query query, final DocumentFrequencyWritable freqs, final String[] shards,
           final HitsMapWritable result, final int max, Sort sort) throws IOException {
     final Query rewrittenQuery = rewrite(query, shards);
-    final int numDocs = freqs.getNumDocs();
+    final int numDocs = freqs.getNumDocsAsInteger();
     final Weight weight = rewrittenQuery.weight(new CachedDfSource(freqs.getAll(), numDocs, new DefaultSimilarity()));
     // Limit the request to the number requested or the total number of
     // documents, whichever is smaller.

@@ -31,6 +31,7 @@ import java.util.Set;
 import net.sf.katta.client.DeployClient;
 import net.sf.katta.client.IndexState;
 import net.sf.katta.integrationTest.support.AbstractIntegrationTest;
+import net.sf.katta.lib.lucene.DocumentFrequencyWritable;
 import net.sf.katta.lib.lucene.Hit;
 import net.sf.katta.lib.lucene.Hits;
 import net.sf.katta.lib.lucene.ILuceneClient;
@@ -365,6 +366,26 @@ public class LuceneClientTest extends AbstractIntegrationTest {
     } catch (KattaException e) {
       assertEquals("No shards for indices: [doesNotExist]", e.getMessage());
     }
+  }
+
+  @Test
+  public void testNumDocGreaterMaxInteger_KATTA_140() throws Exception {
+    deployTestIndices(1, 1);
+    LuceneClient client = new LuceneClient(_miniCluster.getZkConfiguration()) {
+      @Override
+      protected DocumentFrequencyWritable getDocFrequencies(Query q, String[] indexNames) throws KattaException {
+        DocumentFrequencyWritable docFreq = new DocumentFrequencyWritable();
+        docFreq.put("foo", "bar", 23);
+        docFreq.addNumDocs(Integer.MAX_VALUE);
+        docFreq.addNumDocs(23);
+        // docFreq.
+        return docFreq;
+      }
+    };
+    final Query query = new QueryParser(Version.LUCENE_CURRENT, "", new KeywordAnalyzer()).parse("foo: bar");
+    client.search(query, new String[] { INDEX_NAME }, 10, null);
+    // client.search(query, new String[] { INDEX_NAME }, 10, new Sort(new
+    // SortField("foo", SortField.STRING)));
   }
 
   private void writeToLog(Hit hit) {
