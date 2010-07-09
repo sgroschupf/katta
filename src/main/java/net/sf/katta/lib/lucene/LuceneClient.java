@@ -28,6 +28,7 @@ import java.util.concurrent.Future;
 import net.sf.katta.client.Client;
 import net.sf.katta.client.ClientResult;
 import net.sf.katta.client.INodeSelectionPolicy;
+import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.util.ClientConfiguration;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.ZkConfiguration;
@@ -63,6 +64,10 @@ public class LuceneClient implements ILuceneClient {
 
   public LuceneClient(final INodeSelectionPolicy nodeSelectionPolicy) {
     kattaClient = new Client(ILuceneServer.class, nodeSelectionPolicy);
+  }
+
+  public LuceneClient(InteractionProtocol protocol) {
+    kattaClient = new Client(ILuceneServer.class, protocol);
   }
 
   public LuceneClient(final ZkConfiguration zkConfig) {

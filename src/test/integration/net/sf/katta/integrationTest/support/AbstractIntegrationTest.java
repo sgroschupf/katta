@@ -167,8 +167,8 @@ public abstract class AbstractIntegrationTest extends AbstractTest {
     }
   }
 
-  protected void deployTestIndices(int indexCount, int replicationCount) throws InterruptedException {
-    _miniCluster.deployTestIndexes(INDEX_FILE, indexCount, replicationCount);
+  protected List<String> deployTestIndices(int indexCount, int replicationCount) throws InterruptedException {
+    return _miniCluster.deployTestIndexes(INDEX_FILE, indexCount, replicationCount);
   }
 
   protected final int countShardDeployments(InteractionProtocol protocol, String indexName) {

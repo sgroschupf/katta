@@ -15,16 +15,57 @@
  */
 package net.sf.katta.client;
 
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyString;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import net.sf.katta.AbstractTest;
+import net.sf.katta.protocol.IAddRemoveListener;
 import net.sf.katta.protocol.InteractionProtocol;
+import net.sf.katta.protocol.metadata.IndexMetaData;
+import net.sf.katta.protocol.metadata.IndexMetaData.Shard;
 import net.sf.katta.util.ClientConfiguration;
 import net.sf.katta.util.ISleepServer;
+import net.sf.katta.util.ZkConfiguration.PathDef;
 
+import org.I0Itec.zkclient.IZkDataListener;
 import org.junit.Test;
 
 public class ClientTest extends AbstractTest {
+
+  @Test
+  public void testAddRemoveIndexForSearching() throws Exception {
+    InteractionProtocol protocol = mock(InteractionProtocol.class);
+    Client client = new Client(ISleepServer.class, new DefaultNodeSelectionPolicy(), protocol,
+            new ClientConfiguration());
+    IndexMetaData indexMD = new IndexMetaData("index1", "path", 1);
+    indexMD.getShards().add(new Shard("shard1", "path"));
+    indexMD.getShards().add(new Shard("shard2", "path"));
+    client.addIndexForSearching(indexMD);
+    verify(protocol, times(2)).registerChildListener(eq(client), eq(PathDef.SHARD_TO_NODES), anyString(),
+            any(IAddRemoveListener.class));
+
+    client.removeIndex(indexMD.getName());
+    verify(protocol, times(2)).unregisterChildListener(eq(client), eq(PathDef.SHARD_TO_NODES), anyString());
+  }
+
+  @Test
+  public void testAddRemoveIndexForWatching() throws Exception {
+    InteractionProtocol protocol = mock(InteractionProtocol.class);
+    Client client = new Client(ISleepServer.class, new DefaultNodeSelectionPolicy(), protocol,
+            new ClientConfiguration());
+    IndexMetaData indexMD = new IndexMetaData("index1", "path", 1);
+    indexMD.getShards().add(new Shard("shard1", "path"));
+    indexMD.getShards().add(new Shard("shard2", "path"));
+    client.addIndexForWatching(indexMD.getName());
+    verify(protocol, times(1)).registerDataListener(eq(client), eq(PathDef.INDICES_METADATA), anyString(),
+            any(IZkDataListener.class));
+
+    client.removeIndex(indexMD.getName());
+    verify(protocol, times(1)).unregisterDataChanges(eq(client), eq(PathDef.INDICES_METADATA), anyString());
+  }
 
   @Test
   public void testClose() throws Exception {

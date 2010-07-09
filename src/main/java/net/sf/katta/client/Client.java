@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import net.sf.katta.lib.lucene.ILuceneServer;
 import net.sf.katta.protocol.ConnectedComponent;
 import net.sf.katta.protocol.IAddRemoveListener;
 import net.sf.katta.protocol.InteractionProtocol;
@@ -53,6 +54,7 @@ public class Client implements IShardProxyManager, ConnectedComponent {
 
   protected final Class<? extends VersionedProtocol> _serverClass;
 
+  protected final Set<String> _indicesToWatch = new HashSet<String>();
   protected final Map<String, List<String>> _indexToShards = new HashMap<String, List<String>>();
   protected final Map<String, VersionedProtocol> _node2ProxyMap = new HashMap<String, VersionedProtocol>();
 
@@ -71,6 +73,10 @@ public class Client implements IShardProxyManager, ConnectedComponent {
 
   public Client(Class<? extends VersionedProtocol> serverClass, final ZkConfiguration config) {
     this(serverClass, new DefaultNodeSelectionPolicy(), config);
+  }
+
+  public Client(Class<ILuceneServer> serverClass, InteractionProtocol protocol) {
+    this(serverClass, new DefaultNodeSelectionPolicy(), protocol, new ClientConfiguration());
   }
 
   public Client(Class<? extends VersionedProtocol> serverClass, final INodeSelectionPolicy nodeSelectionPolicy) {
@@ -172,9 +178,14 @@ public class Client implements IShardProxyManager, ConnectedComponent {
     if (shards != null) {
       for (String shard : shards) {
         _selectionPolicy.remove(shard);
+        _protocol.unregisterChildListener(this, PathDef.SHARD_TO_NODES, shard);
       }
     } else {
-      LOG.warn("got remove event for index '" + index + "' but have no shards for it");
+      if (_indicesToWatch.contains(index)) {
+        _protocol.unregisterDataChanges(this, PathDef.INDICES_METADATA, index);
+      } else {
+        LOG.warn("got remove event for index '" + index + "' but have no shards for it");
+      }
     }
   }
 
@@ -190,6 +201,7 @@ public class Client implements IShardProxyManager, ConnectedComponent {
   }
 
   protected void addIndexForWatching(final String indexName) {
+    _indicesToWatch.add(indexName);
     _protocol.registerDataListener(this, PathDef.INDICES_METADATA, indexName, new IZkDataListener() {
       @Override
       public void handleDataDeleted(String dataPath) throws Exception {
@@ -201,7 +213,7 @@ public class Client implements IShardProxyManager, ConnectedComponent {
         IndexMetaData metaData = (IndexMetaData) data;
         if (isIndexSearchable(metaData)) {
           addIndexForSearching(metaData);
-          _protocol.unregisterDataChanges(Client.this, dataPath, this);
+          _protocol.unregisterDataChanges(Client.this, dataPath);
         }
       }
     });

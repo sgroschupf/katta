@@ -179,11 +179,16 @@ public class KattaMiniCluster {
     return _master;
   }
 
-  public void deployTestIndexes(File indexFile, int deployCount, int replicationCount) throws InterruptedException {
+  public List<String> deployTestIndexes(File indexFile, int deployCount, int replicationCount)
+          throws InterruptedException {
+    List<String> indices = new ArrayList<String>();
     IDeployClient deployClient = new DeployClient(_protocol);
     for (int i = 0; i < deployCount; i++) {
-      deployClient.addIndex(indexFile.getName() + i, indexFile.getAbsolutePath(), replicationCount).joinDeployment();
+      String indexName = indexFile.getName() + i;
+      deployClient.addIndex(indexName, indexFile.getAbsolutePath(), replicationCount).joinDeployment();
+      indices.add(indexName);
     }
+    return indices;
   }
 
   public ZkConfiguration getZkConfiguration() {

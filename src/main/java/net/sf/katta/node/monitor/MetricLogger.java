@@ -69,7 +69,7 @@ public class MetricLogger implements IZkDataListener, ConnectedComponent {
   }
 
   protected void unsubscribeDataUpdates(String nodeName) {
-    _protocol.unregisterDataChanges(this, PathDef.NODE_METRICS, nodeName, this);
+    _protocol.unregisterDataChanges(this, PathDef.NODE_METRICS, nodeName);
   }
 
   @Override

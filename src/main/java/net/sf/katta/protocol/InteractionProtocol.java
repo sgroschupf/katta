@@ -72,9 +72,8 @@ public class InteractionProtocol {
 
   // we govern the various listener and ephemerals to remove burden from
   // listener-users to unregister/delete them
-  protected One2ManyListMap<ConnectedComponent, Object> _zkListenerByComponent = new One2ManyListMap<ConnectedComponent, Object>();
+  protected One2ManyListMap<ConnectedComponent, ListenerAdapter> _zkListenerByComponent = new One2ManyListMap<ConnectedComponent, ListenerAdapter>();
   private One2ManyListMap<ConnectedComponent, String> _zkEphemeralPublishesByComponent = new One2ManyListMap<ConnectedComponent, String>();
-  private One2ManyListMap<Object, String> _zkPathesByListener = new One2ManyListMap<Object, String>();
 
   private IZkStateListener _stateListener = new IZkStateListener() {
     @Override
@@ -122,17 +121,14 @@ public class InteractionProtocol {
   }
 
   public void unregisterComponent(ConnectedComponent component) {
-    List<Object> listeners = _zkListenerByComponent.removeKey(component);
-    for (Object listener : listeners) {
-      List<String> zkPathes = _zkPathesByListener.getValues(listener);
-      for (String zkPath : zkPathes) {
-        if (listener instanceof IZkChildListener) {
-          _zkClient.unsubscribeChildChanges(zkPath, (IZkChildListener) listener);
-        } else if (listener instanceof IZkDataListener) {
-          _zkClient.unsubscribeDataChanges(zkPath, (IZkDataListener) listener);
-        } else {
-          throw new IllegalStateException("could not handle lister of type " + listener.getClass().getName());
-        }
+    List<ListenerAdapter> listeners = _zkListenerByComponent.removeKey(component);
+    for (ListenerAdapter listener : listeners) {
+      if (listener instanceof IZkChildListener) {
+        _zkClient.unsubscribeChildChanges(listener.getPath(), (IZkChildListener) listener);
+      } else if (listener instanceof IZkDataListener) {
+        _zkClient.unsubscribeDataChanges(listener.getPath(), (IZkDataListener) listener);
+      } else {
+        throw new IllegalStateException("could not handle lister of type " + listener.getClass().getName());
       }
     }
 
@@ -159,26 +155,17 @@ public class InteractionProtocol {
     _zkClient.close();
   }
 
-  private List<String> registerAddRemoveListener(final ConnectedComponent component, final IAddRemoveListener listener,
-          String zkPath) {
-    synchronized (component) {
-      AddRemoveListenerAdapter zkListener = new AddRemoveListenerAdapter(_zkClient, zkPath, listener);
-      _zkPathesByListener.add(zkListener, zkPath);
-      _zkListenerByComponent.add(component, zkListener);
-      return zkListener.getCachedChilds();
+  public int getRegisteredComponentCount() {
+    return _zkListenerByComponent.size();
+  }
+
+  public int getRegisteredListenerCount() {
+    int count = 0;
+    Collection<List<ListenerAdapter>> values = _zkListenerByComponent.asMap().values();
+    for (List<ListenerAdapter> list : values) {
+      count += list.size();
     }
-  }
-
-  private void registerDataListener(ConnectedComponent component, IZkDataListener dataListener, String zkPath) {
-    _zkClient.subscribeDataChanges(zkPath, dataListener);
-    _zkListenerByComponent.add(component, dataListener);
-    _zkPathesByListener.add(dataListener, zkPath);
-  }
-
-  private void unregisterDataListener(ConnectedComponent component, IZkDataListener dataListener, String zkPath) {
-    _zkClient.unsubscribeDataChanges(zkPath, dataListener);
-    _zkListenerByComponent.removeValue(component, dataListener);
-    _zkPathesByListener.removeValue(dataListener, zkPath);
+    return count;
   }
 
   public List<String> registerChildListener(ConnectedComponent component, PathDef pathDef, IAddRemoveListener listener) {
@@ -190,18 +177,73 @@ public class InteractionProtocol {
     return registerAddRemoveListener(component, listener, _zkConf.getZkPath(pathDef, childName));
   }
 
+  public void unregisterChildListener(ConnectedComponent component, PathDef pathDef) {
+    unregisterAddRemoveListener(component, _zkConf.getZkPath(pathDef));
+  }
+
+  public void unregisterChildListener(ConnectedComponent component, PathDef pathDef, String childName) {
+    unregisterAddRemoveListener(component, _zkConf.getZkPath(pathDef, childName));
+  }
+
   public void registerDataListener(ConnectedComponent component, PathDef pathDef, String childName,
           IZkDataListener listener) {
     registerDataListener(component, listener, _zkConf.getZkPath(pathDef, childName));
   }
 
-  public void unregisterDataChanges(ConnectedComponent component, PathDef pathDef, String childName,
-          IZkDataListener listener) {
-    unregisterDataListener(component, listener, _zkConf.getZkPath(pathDef, childName));
+  public void unregisterDataChanges(ConnectedComponent component, PathDef pathDef, String childName) {
+    unregisterDataListener(component, _zkConf.getZkPath(pathDef, childName));
   }
 
-  public void unregisterDataChanges(ConnectedComponent component, String dataPath, IZkDataListener listener) {
-    unregisterDataListener(component, listener, dataPath);
+  public void unregisterDataChanges(ConnectedComponent component, String dataPath) {
+    unregisterDataListener(component, dataPath);
+  }
+
+  private void registerDataListener(ConnectedComponent component, IZkDataListener dataListener, String zkPath) {
+    synchronized (component) {
+      ZkDataListenerAdapter listenerAdapter = new ZkDataListenerAdapter(dataListener, zkPath);
+      _zkClient.subscribeDataChanges(zkPath, listenerAdapter);
+      _zkListenerByComponent.add(component, listenerAdapter);
+    }
+  }
+
+  private void unregisterDataListener(ConnectedComponent component, String zkPath) {
+    synchronized (component) {
+      ZkDataListenerAdapter listenerAdapter = getComponentListener(component, ZkDataListenerAdapter.class, zkPath);
+      _zkClient.unsubscribeDataChanges(zkPath, listenerAdapter);
+      _zkListenerByComponent.removeValue(component, listenerAdapter);
+    }
+  }
+
+  private List<String> registerAddRemoveListener(final ConnectedComponent component, final IAddRemoveListener listener,
+          String zkPath) {
+    synchronized (component) {
+      AddRemoveListenerAdapter listenerAdapter = new AddRemoveListenerAdapter(zkPath, listener);
+      synchronized (listenerAdapter) {
+        List<String> childs = _zkClient.subscribeChildChanges(zkPath, listenerAdapter);
+        listenerAdapter.setCachedChilds(childs);
+      }
+      _zkListenerByComponent.add(component, listenerAdapter);
+      return listenerAdapter.getCachedChilds();
+    }
+  }
+
+  private void unregisterAddRemoveListener(final ConnectedComponent component, String zkPath) {
+    synchronized (component) {
+      AddRemoveListenerAdapter listenerAdapter = getComponentListener(component, AddRemoveListenerAdapter.class, zkPath);
+      _zkClient.unsubscribeChildChanges(zkPath, listenerAdapter);
+      _zkListenerByComponent.removeValue(component, listenerAdapter);
+    }
+  }
+
+  private <T extends ListenerAdapter> T getComponentListener(final ConnectedComponent component,
+          Class<T> listenerClass, String zkPath) {
+    for (ListenerAdapter pathListener : _zkListenerByComponent.getValues(component)) {
+      if (listenerClass.isAssignableFrom(pathListener.getClass()) && pathListener.getPath().equals(zkPath)) {
+        return (T) pathListener;
+      }
+    }
+    throw new IllegalStateException("no listener adapter for component " + component + " and path " + zkPath
+            + " found: " + _zkListenerByComponent);
   }
 
   public List<String> getKnownNodes() {
@@ -498,14 +540,36 @@ public class InteractionProtocol {
     }
   }
 
-  static class AddRemoveListenerAdapter implements IZkChildListener {
+  static class ListenerAdapter {
+    private final String _path;
+
+    public ListenerAdapter(String path) {
+      _path = path;
+    }
+
+    public final String getPath() {
+      return _path;
+    }
+
+    @Override
+    public String toString() {
+      return getClass().getSimpleName() + ":" + getPath();
+    }
+
+  }
+
+  static class AddRemoveListenerAdapter extends ListenerAdapter implements IZkChildListener {
 
     private List<String> _cachedChilds;
     private final IAddRemoveListener _listener;
 
-    public AddRemoveListenerAdapter(ZkClient zkClient, String path, IAddRemoveListener listener) {
+    public AddRemoveListenerAdapter(String path, IAddRemoveListener listener) {
+      super(path);
       _listener = listener;
-      _cachedChilds = zkClient.subscribeChildChanges(path, this);
+    }
+
+    public void setCachedChilds(List<String> cachedChilds) {
+      _cachedChilds = cachedChilds;
       if (_cachedChilds == null) {
         _cachedChilds = Collections.EMPTY_LIST;
       }
@@ -529,6 +593,26 @@ public class InteractionProtocol {
         _listener.removed(removedChild);
       }
       _cachedChilds = currentChilds;
+    }
+  }
+
+  static class ZkDataListenerAdapter extends ListenerAdapter implements IZkDataListener {
+
+    private final IZkDataListener _dataListener;
+
+    public ZkDataListenerAdapter(IZkDataListener dataListener, String path) {
+      super(path);
+      _dataListener = dataListener;
+    }
+
+    @Override
+    public void handleDataChange(String dataPath, Object data) throws Exception {
+      _dataListener.handleDataChange(dataPath, data);
+    }
+
+    @Override
+    public void handleDataDeleted(String dataPath) throws Exception {
+      _dataListener.handleDataDeleted(dataPath);
     }
 
   }

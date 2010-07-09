@@ -128,12 +128,12 @@ public class LuceneLoadIntegrationTest extends AbstractTest {
     File[] listFiles = resultDir.listFiles();
     File logFile;
     File resultFile;
-    if (listFiles[0].getName().contains("log")) {
-      logFile = listFiles[0];
-      resultFile = listFiles[1];
-    } else {
-      logFile = listFiles[1];
+    if (listFiles[0].getName().contains("-results-")) {
       resultFile = listFiles[0];
+      logFile = listFiles[1];
+    } else {
+      resultFile = listFiles[1];
+      logFile = listFiles[0];
     }
     assertThat(TestIoUtil.countLines(logFile), almostEquals(300, 50));
     int iterations = 1 + (endRate - startRate) / step;

@@ -177,12 +177,12 @@ public class LoadTestMasterOperationTest extends AbstractTest {
     File[] listFiles = resultFolder.listFiles();
     File logFile;
     File resultFile;
-    if (listFiles[0].getName().contains("log")) {
-      logFile = listFiles[0];
-      resultFile = listFiles[1];
-    } else {
-      logFile = listFiles[1];
+    if (listFiles[0].getName().contains("-results-")) {
       resultFile = listFiles[0];
+      logFile = listFiles[1];
+    } else {
+      resultFile = listFiles[1];
+      logFile = listFiles[0];
     }
     assertEquals(1 + 4, TestIoUtil.countLines(logFile));
     assertEquals(1 + 2, TestIoUtil.countLines(resultFile));

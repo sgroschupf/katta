@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Set;
 
 import net.sf.katta.client.DeployClient;
+import net.sf.katta.client.IDeployClient;
 import net.sf.katta.client.IndexState;
 import net.sf.katta.integrationTest.support.AbstractIntegrationTest;
 import net.sf.katta.lib.lucene.DocumentFrequencyWritable;
@@ -77,6 +78,25 @@ public class LuceneClientTest extends AbstractIntegrationTest {
 
   public LuceneClientTest() {
     super(2);
+  }
+
+  @Test
+  public void testAddRemoveIndices() throws Exception {
+    ILuceneClient client = new LuceneClient(_protocol);
+    IDeployClient deployClient = new DeployClient(_protocol);
+
+    int listenerCountBeforeDeploys = _protocol.getRegisteredListenerCount();
+    deployClient.addIndex("newIndex1", INDEX_FILE.getAbsolutePath(), 1).joinDeployment();
+    deployClient.addIndex("newIndex2", INDEX_FILE.getAbsolutePath(), 1).joinDeployment();
+    deployClient.addIndex("newIndex3", INDEX_FILE.getAbsolutePath(), 1).joinDeployment();
+    final Query query = new QueryParser(Version.LUCENE_CURRENT, "", new KeywordAnalyzer()).parse("content: the");
+    client.search(query, new String[] { "newIndex1" }, 10);
+
+    deployClient.removeIndex("newIndex1");
+    deployClient.removeIndex("newIndex2");
+    deployClient.removeIndex("newIndex3");
+    Thread.sleep(2000);
+    assertEquals(listenerCountBeforeDeploys, _protocol.getRegisteredListenerCount());
   }
 
   @Test
