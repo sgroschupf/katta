@@ -1,5 +1,8 @@
 Katta Change Log
 
+katta 0.6.3
+ fix KATTA-147, upgrade to zookeeper 3.3.1
+
 katta 0.6.2
  fix KATTA-146, fix ConcurrentModificationException when multiple LuceneClient objects are created simultaneously
  fix KATTA-145, fix NullPointerException when a LuceneClient is created and an index is reomoved concurrently 
