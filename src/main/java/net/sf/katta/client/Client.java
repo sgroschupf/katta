@@ -97,9 +97,12 @@ public class Client implements IShardProxyManager, ConnectedComponent {
   public Client(Class<? extends VersionedProtocol> serverClass, final INodeSelectionPolicy policy,
           final InteractionProtocol protocol, ClientConfiguration clientConfiguration) {
     Set<String> keys = new HashSet<String>(clientConfiguration.getKeys());
-    for (String key : keys) {
-      // simply set all properties / adding non-hadoop properties shouldn't hurt
-      _hadoopConf.set(key, clientConfiguration.getProperty(key));
+    synchronized (Configuration.class) {// fix for KATTA-146
+      for (String key : keys) {
+        // simply set all properties / adding non-hadoop properties shouldn't
+        // hurt
+        _hadoopConf.set(key, clientConfiguration.getProperty(key));
+      }
     }
 
     _serverClass = serverClass;
