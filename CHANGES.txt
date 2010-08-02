@@ -1,6 +1,7 @@
 Katta Change Log
 
 katta 0.6.2
+ fix KATTA-145, fix NullPointerException when a LuceneClient is created and an index is reomoved concurrently 
  fix KATTA-142, fix memory leak in client usage when adding and removing indices
  fix KATTA-136, fix NPE in client on remove index event
  fix KATTA-141, fix ec2 scripts

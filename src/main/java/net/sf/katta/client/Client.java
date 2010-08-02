@@ -192,10 +192,12 @@ public class Client implements IShardProxyManager, ConnectedComponent {
   protected void addOrWatchNewIndexes(List<String> indexes) {
     for (String index : indexes) {
       IndexMetaData indexMD = _protocol.getIndexMD(index);
-      if (isIndexSearchable(indexMD)) {
-        addIndexForSearching(indexMD);
-      } else {
-        addIndexForWatching(index);
+      if (indexMD != null) {// could be undeployed in meantime
+        if (isIndexSearchable(indexMD)) {
+          addIndexForSearching(indexMD);
+        } else {
+          addIndexForWatching(index);
+        }
       }
     }
   }
