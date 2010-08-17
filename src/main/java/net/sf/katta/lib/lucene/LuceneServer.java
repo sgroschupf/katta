@@ -82,7 +82,6 @@ public class LuceneServer implements IContentServer, ILuceneServer {
   protected ExecutorService _threadPool = Executors.newFixedThreadPool(100);
 
   protected String _nodeName;
-  protected int _maxDoc = 0;
 
   public LuceneServer() {
     // do nothing
@@ -108,10 +107,7 @@ public class LuceneServer implements IContentServer, ILuceneServer {
     LOG.info("LuceneServer " + _nodeName + " got shard " + shardName);
     try {
       IndexSearcher indexSearcher = new IndexSearcher(FSDirectory.open(shardDir.getAbsoluteFile()));
-      synchronized (_searcherByShard) {
-        _searcherByShard.put(shardName, indexSearcher);
-        _maxDoc += indexSearcher.maxDoc();
-      }
+      _searcherByShard.put(shardName, indexSearcher);
     } catch (CorruptIndexException e) {
       LOG.error("Error building index for shard " + shardName, e);
       throw e;
@@ -123,22 +119,14 @@ public class LuceneServer implements IContentServer, ILuceneServer {
    */
   public void removeShard(final String shardName) {
     LOG.info("LuceneServer " + _nodeName + " removing shard " + shardName);
-    synchronized (_searcherByShard) {
-      final IndexSearcher remove = _searcherByShard.remove(shardName);
-      if (remove == null) {
-        return; // nothing to do.
-      }
-      try {
-        _maxDoc -= remove.maxDoc();
-      } catch (final IOException e) {
-        throw new RuntimeException("unable to retrive maxDocs from searchable", e);
-      } finally {
-        try {
-          remove.close();
-        } catch (Exception e) {
-          LOG.error("LuceneServer " + _nodeName + " error removing shard " + shardName, e);
-        }
-      }
+    final IndexSearcher remove = _searcherByShard.remove(shardName);
+    if (remove == null) {
+      return; // nothing to do.
+    }
+    try {
+      remove.close();
+    } catch (Exception e) {
+      LOG.error("LuceneServer " + _nodeName + " error removing shard " + shardName, e);
     }
   }
 
