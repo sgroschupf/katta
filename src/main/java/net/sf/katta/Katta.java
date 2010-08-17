@@ -48,8 +48,8 @@ import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.protocol.ReplicationReport;
 import net.sf.katta.protocol.metadata.IndexDeployError;
 import net.sf.katta.protocol.metadata.IndexMetaData;
-import net.sf.katta.protocol.metadata.NodeMetaData;
 import net.sf.katta.protocol.metadata.IndexMetaData.Shard;
+import net.sf.katta.protocol.metadata.NodeMetaData;
 import net.sf.katta.tool.SampleIndexGenerator;
 import net.sf.katta.tool.loadtest.LoadTestMasterOperation;
 import net.sf.katta.tool.loadtest.query.AbstractQueryExecutor;
@@ -290,8 +290,8 @@ public class Katta {
     }
   };
 
-  protected static Command START_NODE_COMMAND = new ProtocolCommand("startNode", "[-c <serverClass>]",
-          "Starts a local node") {
+  protected static Command START_NODE_COMMAND = new ProtocolCommand("startNode",
+          "[-c <serverClass>] [-p <port number>]", "Starts a local node") {
 
     private NodeConfiguration _nodeConfiguration;
     private IContentServer _server = null;
@@ -304,6 +304,10 @@ public class Katta {
         serverClassName = optionMap.get("-c");
       } else {
         serverClassName = _nodeConfiguration.getServerClassName();
+      }
+      if (optionMap.containsKey("-p")) {
+        String portNumber = optionMap.get("-p");
+        _nodeConfiguration.setStartPort(Integer.parseInt(portNumber));
       }
 
       Class<?> serverClass = loadClass(serverClassName, IContentServer.class);
@@ -396,8 +400,8 @@ public class Katta {
         if (!_detailedView) {
           table.addRow(index, state, replicationState, indexMD.getPath(), shards.size(), entries, indexBytes);
         } else {
-          table.addRow(index, state, replicationState, indexMD.getPath(), shards.size(), entries, indexBytes, indexMD
-                  .getReplicationLevel());
+          table.addRow(index, state, replicationState, indexMD.getPath(), shards.size(), entries, indexBytes,
+                  indexMD.getReplicationLevel());
         }
       }
       if (!indices.isEmpty()) {
@@ -834,6 +838,7 @@ public class Katta {
     private LoadTestMasterOperation _masterOperation;
     private File _resultFolder;
 
+    @Override
     protected void parseArguments(ZkConfiguration zkConf, String[] args, java.util.Map<String, String> optionMap) {
       validateMinArguments(args, 11);
       String zkRootPath = args[1];
