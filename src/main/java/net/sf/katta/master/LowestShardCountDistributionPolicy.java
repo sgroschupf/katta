@@ -198,7 +198,7 @@ public class LowestShardCountDistributionPolicy implements IDeployPolicy {
         final boolean nodeContainsShard = assignedNodes.contains(currentNode);
         if (LOG.isDebugEnabled()) {
           LOG.debug(String.format("chooseNewNodes: for shard %s, Current test node is %s, shardCount %d, %s", shard,
-                  currentNode, nodeShards.getValue(), nodeContainsShard ? "contains shard" : "can take shard"));
+                  currentNode, nodeShards.getValue().get(), nodeContainsShard ? "contains shard" : "can take shard"));
         }
 
         if (nodeContainsShard) {
