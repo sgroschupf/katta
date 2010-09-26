@@ -18,6 +18,7 @@ package net.sf.katta.lib.lucene;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collection;
 import java.util.Collections;
@@ -94,6 +95,11 @@ public class LuceneServer implements IContentServer, ILuceneServer {
     _nodeName = nodeName;
   }
 
+  public String getNodeName() {
+    return _nodeName;
+  }
+
+
   /**
    * Adds an shard index search for given name to the list of shards
    * MultiSearcher search in.
@@ -141,7 +147,7 @@ public class LuceneServer implements IContentServer, ILuceneServer {
    * @return the number of documents in the shard.
    */
   protected int shardSize(String shardName) {
-    final Searchable searchable = _searcherByShard.get(shardName);
+    final Searchable searchable = getSearcherByShard(shardName);
     if (searchable != null) {
       final IndexSearcher indexSearcher = (IndexSearcher) searchable;
       int size = indexSearcher.getIndexReader().numDocs();
@@ -177,6 +183,15 @@ public class LuceneServer implements IContentServer, ILuceneServer {
       searchable.close();
     }
     _searcherByShard.clear();
+  }
+
+  /**
+   * Returns the <code>IndexSearcher</code> of the given shardName.
+   * @param shardName the name of the shard
+   * @return the <code>IndexSearcher</code> of the given shardName
+   */
+  protected IndexSearcher getSearcherByShard(String shardName) {
+      return _searcherByShard.get(shardName);
   }
 
   /**
@@ -233,7 +248,7 @@ public class LuceneServer implements IContentServer, ILuceneServer {
     }
 
     long completeSearchTime = 0;
-    final HitsMapWritable result = new net.sf.katta.lib.lucene.HitsMapWritable(_nodeName);
+    final HitsMapWritable result = new net.sf.katta.lib.lucene.HitsMapWritable(getNodeName());
     long start = 0;
     if (LOG.isDebugEnabled()) {
       start = System.currentTimeMillis();
@@ -431,7 +446,7 @@ public class LuceneServer implements IContentServer, ILuceneServer {
             final ScoreDoc[] docs = scoreDocs[i];
             if (pos < docs.length) {
               scoreDoc = docs[pos];
-              final Hit hit = new Hit(shards[i], _nodeName, scoreDoc.score, scoreDoc.doc);
+              final Hit hit = new Hit(shards[i], getNodeName(), scoreDoc.score, scoreDoc.doc);
               if (!hq.insert(hit)) {
                 // no doc left that has a higher score than the lowest score in
                 // the queue
@@ -459,7 +474,7 @@ public class LuceneServer implements IContentServer, ILuceneServer {
       sortFieldsTypes = WritableType.detectWritableTypes(fieldDoc.fields);
       result.setSortFieldTypes(sortFieldsTypes);
       finalHitList = mergeFieldSort(new FieldSortComparator(sort.getSort(), sortFieldsTypes), limit, scoreDocs, shards,
-              _nodeName);
+              getNodeName());
     }
 
     for (Hit hit : finalHitList) {
@@ -518,7 +533,7 @@ public class LuceneServer implements IContentServer, ILuceneServer {
    * @throws IOException
    */
   protected Document doc(final String shardName, final int docId) throws IOException {
-    final Searchable searchable = _searcherByShard.get(shardName);
+    final Searchable searchable = getSearcherByShard(shardName);
     if (searchable != null) {
       return searchable.doc(docId);
     }
@@ -537,16 +552,18 @@ public class LuceneServer implements IContentServer, ILuceneServer {
     final Query[] queries = new Query[shardNames.length];
     for (int i = 0; i < shardNames.length; i++) {
       final String shard = shardNames[i];
-      final IndexSearcher searcher = _searcherByShard.get(shard);
+      final IndexSearcher searcher = getSearcherByShard(shard);
       if (searcher == null) {
-        LOG.error("Node " + _nodeName + ": unknown shard " + shard);
+        LOG.error("Node " + getNodeName() + ": unknown shard " + shard);
         // TODO PVo should we throw an exception here?
       } else {
         queries[i] = searcher.rewrite(original);
       }
     }
-    if (queries.length > 0) {
+    if (queries.length > 0 && queries[0] != null) {
       return queries[0].combine(queries);
+    } else {
+      LOG.error("No queries available for shards: " + Arrays.toString(shardNames));
     }
     return original;
   }
@@ -561,7 +578,7 @@ public class LuceneServer implements IContentServer, ILuceneServer {
    */
   protected int docFreq(final String shardName, final Term term) throws IOException {
     int result = 0;
-    final Searchable searchable = _searcherByShard.get(shardName);
+    final Searchable searchable = getSearcherByShard(shardName);
     if (searchable != null) {
       result = searchable.docFreq(term);
     } else {
@@ -590,7 +607,7 @@ public class LuceneServer implements IContentServer, ILuceneServer {
 
     @Override
     public SearchResult call() throws Exception {
-      final IndexSearcher indexSearcher = _searcherByShard.get(_shardName);
+      final IndexSearcher indexSearcher = getSearcherByShard(_shardName);
       final TopDocs docs;
       if (_sort != null) {
         docs = indexSearcher.search(_weight, null, _limit, _sort);
