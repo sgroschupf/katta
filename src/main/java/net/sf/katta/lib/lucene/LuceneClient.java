@@ -44,7 +44,6 @@ import org.apache.lucene.search.Sort;
 public class LuceneClient implements ILuceneClient {
 
   protected final static Logger LOG = Logger.getLogger(LuceneClient.class);
-  private final static long TIMEOUT = 12000;
 
   @SuppressWarnings("unused")
   private static Method getMethod(String name, Class<?>... parameterTypes) {
@@ -56,31 +55,40 @@ public class LuceneClient implements ILuceneClient {
     }
   }
 
-  private Client kattaClient;
+  private long _timeout = 12000;
+  private Client _kattaClient;
 
   public LuceneClient() {
-    kattaClient = new Client(ILuceneServer.class);
+    _kattaClient = new Client(ILuceneServer.class);
   }
 
   public LuceneClient(final INodeSelectionPolicy nodeSelectionPolicy) {
-    kattaClient = new Client(ILuceneServer.class, nodeSelectionPolicy);
+    _kattaClient = new Client(ILuceneServer.class, nodeSelectionPolicy);
   }
 
   public LuceneClient(InteractionProtocol protocol) {
-    kattaClient = new Client(ILuceneServer.class, protocol);
+    _kattaClient = new Client(ILuceneServer.class, protocol);
   }
 
   public LuceneClient(final ZkConfiguration zkConfig) {
-    kattaClient = new Client(ILuceneServer.class, zkConfig);
+    _kattaClient = new Client(ILuceneServer.class, zkConfig);
   }
 
   public LuceneClient(final INodeSelectionPolicy policy, final ZkConfiguration zkConfig) {
-    kattaClient = new Client(ILuceneServer.class, policy, zkConfig);
+    _kattaClient = new Client(ILuceneServer.class, policy, zkConfig);
   }
 
   public LuceneClient(final INodeSelectionPolicy policy, final ZkConfiguration zkConfig,
           ClientConfiguration clientConfiguration) {
-    kattaClient = new Client(ILuceneServer.class, policy, zkConfig, clientConfiguration);
+    _kattaClient = new Client(ILuceneServer.class, policy, zkConfig, clientConfiguration);
+  }
+
+  public long getTimeout() {
+    return _timeout;
+  }
+
+  public void setTimeout(long timeout) {
+    this._timeout = timeout;
   }
 
   public Hits search(final Query query, final String[] indexNames) throws KattaException {
@@ -114,10 +122,10 @@ public class LuceneClient implements ILuceneClient {
     final DocumentFrequencyWritable docFreqs = getDocFrequencies(query, indexNames);
     ClientResult<HitsMapWritable> results;
     if (sort == null) {
-      results = kattaClient.broadcastToIndices(TIMEOUT, true, SEARCH_METHOD, SEARCH_METHOD_SHARD_ARG_IDX, indexNames,
+      results = _kattaClient.broadcastToIndices(_timeout, true, SEARCH_METHOD, SEARCH_METHOD_SHARD_ARG_IDX, indexNames,
               new QueryWritable(query), docFreqs, null, Integer.valueOf(count));
     } else {
-      results = kattaClient.broadcastToIndices(TIMEOUT, true, SORTED_SEARCH_METHOD, SEARCH_METHOD_SHARD_ARG_IDX,
+      results = _kattaClient.broadcastToIndices(_timeout, true, SORTED_SEARCH_METHOD, SEARCH_METHOD_SHARD_ARG_IDX,
               indexNames, new QueryWritable(query), docFreqs, null, Integer.valueOf(count), new SortWritable(sort));
 
     }
@@ -163,7 +171,7 @@ public class LuceneClient implements ILuceneClient {
   }
 
   public int count(final Query query, final String[] indexNames) throws KattaException {
-    ClientResult<Integer> results = kattaClient.broadcastToIndices(TIMEOUT, true, COUNT_METHOD,
+    ClientResult<Integer> results = _kattaClient.broadcastToIndices(_timeout, true, COUNT_METHOD,
             COUNT_METHOD_SHARD_ARG_IDX, indexNames, new QueryWritable(query), null);
     if (results.isError()) {
       throw results.getKattaException();
@@ -188,7 +196,7 @@ public class LuceneClient implements ILuceneClient {
 
   protected DocumentFrequencyWritable getDocFrequencies(final Query query, final String[] indexNames)
           throws KattaException {
-    ClientResult<DocumentFrequencyWritable> results = kattaClient.broadcastToIndices(TIMEOUT, true, DOC_FREQ_METHOD,
+    ClientResult<DocumentFrequencyWritable> results = _kattaClient.broadcastToIndices(_timeout, true, DOC_FREQ_METHOD,
             DOC_FREQ_METHOD_SHARD_ARG_IDX, indexNames, new QueryWritable(query), null);
     if (results.isError()) {
       throw results.getKattaException();
@@ -250,7 +258,8 @@ public class LuceneClient implements ILuceneClient {
       method = GET_DETAILS_FIELDS_METHOD;
       shardArgIdx = GET_DETAILS_FIELDS_METHOD_SHARD_ARG_IDX;
     }
-    ClientResult<MapWritable> results = kattaClient.broadcastToShards(TIMEOUT, true, method, shardArgIdx, shards, args);
+    ClientResult<MapWritable> results = _kattaClient.broadcastToShards(_timeout, true, method, shardArgIdx, shards,
+            args);
     if (results.isError()) {
       throw results.getKattaException();
     }
@@ -288,11 +297,11 @@ public class LuceneClient implements ILuceneClient {
   }
 
   public double getQueryPerMinute() {
-    return kattaClient.getQueryPerMinute();
+    return _kattaClient.getQueryPerMinute();
   }
 
   public void close() {
-    kattaClient.close();
+    _kattaClient.close();
   }
 
 }

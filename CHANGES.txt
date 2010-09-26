@@ -1,6 +1,7 @@
 Katta Change Log
 
 katta 0.6.3
+ fix KATTA-157, set timeout on LuceneClient
  fix KATTA-154, HitsMapWritable readFields does not add hits optimally
  fix KATTA-152, modify LuceneServer for easier sub-classing
  fix KATTA-159, LuceneServerTest does not compile
