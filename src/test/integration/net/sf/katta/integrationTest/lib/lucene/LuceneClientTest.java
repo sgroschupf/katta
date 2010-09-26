@@ -15,15 +15,6 @@
  */
 package net.sf.katta.integrationTest.lib.lucene;
 
-import static org.hamcrest.CoreMatchers.instanceOf;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
 import java.io.File;
 import java.util.List;
 import java.util.Set;
@@ -64,6 +55,16 @@ import org.apache.lucene.search.SortField;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.Version;
 import org.junit.Test;
+
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
+import static org.hamcrest.CoreMatchers.instanceOf;
 
 /**
  * Test for {@link LuceneClient}.
@@ -202,6 +203,7 @@ public class LuceneClientTest extends AbstractIntegrationTest {
       final Writable writable = details2.get(new Text("path"));
       assertNotNull(writable);
     }
+    client.close();
   }
 
   @Test
@@ -266,6 +268,7 @@ public class LuceneClientTest extends AbstractIntegrationTest {
     query = new QueryParser(Version.LUCENE_CURRENT, "", new KeywordAnalyzer()).parse("text:abc2");
     hits = client.search(query, new String[] { indexName }, 20, sort);
     assertEquals(1, hits.size());
+    client.close();
   }
 
   @Test
@@ -332,6 +335,7 @@ public class LuceneClientTest extends AbstractIntegrationTest {
     for (final Hit hit : hits.getHits()) {
       LOG.info(hit.getNode() + " -- " + hit.getScore() + " -- " + hit.getDocId());
     }
+    client.close();
   }
 
   @Test
@@ -361,6 +365,7 @@ public class LuceneClientTest extends AbstractIntegrationTest {
         }
       }
     }
+    client.close();
   }
 
   @Test
@@ -374,6 +379,7 @@ public class LuceneClientTest extends AbstractIntegrationTest {
     for (final Hit hit : hits.getHits()) {
       LOG.info(hit.getNode() + " -- " + hit.getScore() + " -- " + hit.getDocId());
     }
+    client.close();
   }
 
   @Test
@@ -386,6 +392,7 @@ public class LuceneClientTest extends AbstractIntegrationTest {
     } catch (KattaException e) {
       assertEquals("No shards for indices: [doesNotExist]", e.getMessage());
     }
+    client.close();
   }
 
   @Test
@@ -406,6 +413,7 @@ public class LuceneClientTest extends AbstractIntegrationTest {
     client.search(query, new String[] { INDEX_NAME }, 10, null);
     // client.search(query, new String[] { INDEX_NAME }, 10, new Sort(new
     // SortField("foo", SortField.STRING)));
+    client.close();
   }
 
   private void writeToLog(Hit hit) {
