@@ -42,7 +42,7 @@ public class LuceneServerTest extends AbstractTest {
   @Test
   public void testPriorityQueue() throws Exception {
     // tests some simple PriorityQueue behavior
-    LuceneServer.KattaHitQueue queue = new LuceneServer().new KattaHitQueue(2);
+    LuceneServer.KattaHitQueue queue = new LuceneServer.KattaHitQueue(2);
     Hit hit1 = new Hit("shard", "node", 1f, 1);
     Hit hit2 = new Hit("shard", "node", 2f, 1);
     Hit hit3 = new Hit("shard", "node", 3f, 1);
@@ -60,7 +60,7 @@ public class LuceneServerTest extends AbstractTest {
 
   @Test
   public void testPriorityQueue_sameScore() throws Exception {
-    LuceneServer.KattaHitQueue queue = new LuceneServer().new KattaHitQueue(2);
+    LuceneServer.KattaHitQueue queue = new LuceneServer.KattaHitQueue(2);
     Hit hit1 = new Hit("shard", "node", 1f, 1);
     Hit hit2 = new Hit("shard", "node", 1f, 2);
     Hit hit3 = new Hit("shard", "node", 1f, 3);

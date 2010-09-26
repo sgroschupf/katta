@@ -1,6 +1,7 @@
 Katta Change Log
 
 katta 0.6.3
+ fix KATTA-159, LuceneServerTest does not compile
  fix KATTA-150, port parameter for startNode command
  fix KATTA-149, remove unnecessary synchronization from LuceneServer
  fix KATTA-148, fix debug statement which prevent katta from running with debug log level

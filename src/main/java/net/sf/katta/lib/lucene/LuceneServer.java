@@ -47,7 +47,6 @@ import org.apache.lucene.document.FieldSelector;
 import org.apache.lucene.document.Fieldable;
 import org.apache.lucene.index.CorruptIndexException;
 import org.apache.lucene.index.Term;
-import org.apache.lucene.queryParser.ParseException;
 import org.apache.lucene.search.Collector;
 import org.apache.lucene.search.DefaultSimilarity;
 import org.apache.lucene.search.Explanation;
@@ -703,7 +702,7 @@ public class LuceneServer implements IContentServer, ILuceneServer {
     }
   }
 
-  protected class KattaHitQueue extends PriorityQueue<Hit> implements Iterable<Hit> {
+  protected static class KattaHitQueue extends PriorityQueue<Hit> implements Iterable<Hit> {
 
     private final int _maxSize;
 
