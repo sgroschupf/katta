@@ -510,12 +510,16 @@ public class Client implements IShardProxyManager, ConnectedComponent {
   @Override
   public void disconnect() {
     // nothing to do - only connection to zk dropped. Proxies might still be
-    // availible.
+    // available.
   }
 
   @Override
   public void reconnect() {
     // TODO jz: re-read index information ?
+  }
+
+  public List<String> getIndices() {
+    return new ArrayList<String>(_indexToShards.keySet());
   }
 
 }
