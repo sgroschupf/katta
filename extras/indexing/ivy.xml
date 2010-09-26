@@ -1,7 +1,7 @@
 <ivy-module version="2.0">
 	<info organisation="101tec" module="katta/indexing" />
 
-	<!-- project configuration 
+	<!-- project configuration
     -->
 	<configurations>
 		<conf name="ant" description="for ant usage" />
@@ -26,12 +26,12 @@
 		<dependency org="org.apache.hadoop" name="hadoop-test" rev="0.20.1" conf="test" />
 		<dependency org="org.apache.commons" name="commons-httpclient" rev="3.0.1" conf="test" />
 		<dependency org="commons-logging" name="commons-logging" rev="1.0.4" conf="test" />
-    	
-		<!-- REPORT Dependencies-->
-		<dependency org="net.sourceforge.cobertura" name="cobertura" rev="1.9.1" conf="instrument" />
-		<dependency org="net.sf.checkstyle" name="checkstyle-all" rev="5.0-beta2" conf="checkstyle" />		
 
-		
+		<!-- REPORT Dependencies-->
+		<dependency org="net.sourceforge.cobertura" name="cobertura" rev="1.9.3" conf="instrument" />
+		<dependency org="net.sf.checkstyle" name="checkstyle-all" rev="5.0-beta2" conf="checkstyle" />
+
+
     </dependencies>
 
 </ivy-module>
