@@ -37,9 +37,11 @@ public class CheckIndicesOperation extends AbstractIndexOperation {
 
     for (String indexName : indices) {
       IndexMetaData indexMD = protocol.getIndexMD(indexName);
-      if ((indexMD.hasDeployError() && isRecoverable(indexMD.getDeployError(), liveNodes.size()))
-              || canAndShouldRegulateReplication(protocol, indexMD)) {
-        protocol.addMasterOperation(new BalanceIndexOperation(indexName));
+      if (indexMD != null) { // can be removed already
+        if ((indexMD.hasDeployError() && isRecoverable(indexMD.getDeployError(), liveNodes.size()))
+                || canAndShouldRegulateReplication(protocol, indexMD)) {
+          protocol.addMasterOperation(new BalanceIndexOperation(indexName));
+        }
       }
     }
     return null;

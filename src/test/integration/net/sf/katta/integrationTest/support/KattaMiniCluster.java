@@ -21,6 +21,7 @@ import java.util.List;
 
 import net.sf.katta.client.DeployClient;
 import net.sf.katta.client.IDeployClient;
+import net.sf.katta.client.IIndexDeployFuture;
 import net.sf.katta.lib.lucene.LuceneServer;
 import net.sf.katta.master.Master;
 import net.sf.katta.node.IContentServer;
@@ -182,11 +183,16 @@ public class KattaMiniCluster {
   public List<String> deployTestIndexes(File indexFile, int deployCount, int replicationCount)
           throws InterruptedException {
     List<String> indices = new ArrayList<String>();
+    ArrayList<IIndexDeployFuture> deployFutures = new ArrayList<IIndexDeployFuture>();
     IDeployClient deployClient = new DeployClient(_protocol);
     for (int i = 0; i < deployCount; i++) {
       String indexName = indexFile.getName() + i;
-      deployClient.addIndex(indexName, indexFile.getAbsolutePath(), replicationCount).joinDeployment();
+      IIndexDeployFuture deployFuture = deployClient.addIndex(indexName, indexFile.getAbsolutePath(), replicationCount);
       indices.add(indexName);
+      deployFutures.add(deployFuture);
+    }
+    for (IIndexDeployFuture deployFuture : deployFutures) {
+      deployFuture.joinDeployment();
     }
     return indices;
   }
