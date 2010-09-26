@@ -39,8 +39,8 @@ public class HitsMapWritable implements Writable {
   private int _totalHits;
   private WritableType[] _sortFieldTypes;
 
-  private List<Hit> _hits = new ArrayList<Hit>();
-  private Set<String> _shards = new HashSet<String>();
+  private List<Hit> _hits;
+  private Set<String> _shards;
 
   public HitsMapWritable() {
     // for serialization
@@ -48,6 +48,8 @@ public class HitsMapWritable implements Writable {
 
   public HitsMapWritable(final String nodeName) {
     _nodeName = nodeName;
+    _hits = new ArrayList<Hit>();
+    _shards = new HashSet<String>();
   }
 
   public void readFields(final DataInput in) throws IOException {
@@ -69,11 +71,15 @@ public class HitsMapWritable implements Writable {
     }
     final int shardCount = in.readInt();
     HashMap<Byte, String> shardByShardIndex = new HashMap<Byte, String>(shardCount);
+    _shards = new HashSet<String>(shardCount);
     for (int i = 0; i < shardCount; i++) {
-      shardByShardIndex.put((byte) i, in.readUTF());
+      String shardName = in.readUTF();
+      shardByShardIndex.put((byte) i, shardName);
+      _shards.add(shardName);
     }
 
     final int hitCount = in.readInt();
+    _hits = new ArrayList<Hit>(hitCount + 1);
     for (int i = 0; i < hitCount; i++) {
       final byte shardIndex = in.readByte();
       final float score = in.readFloat();
@@ -99,7 +105,7 @@ public class HitsMapWritable implements Writable {
 
     if (LOG.isDebugEnabled()) {
       final long end = System.currentTimeMillis();
-      LOG.debug("HitsMap reading took " + (end - start) / 1000.0 + "sec.");
+      LOG.debug("HitsMap reading of " + hitCount + " entries took " + (end - start) / 1000.0 + "sec.");
     }
   }
 
