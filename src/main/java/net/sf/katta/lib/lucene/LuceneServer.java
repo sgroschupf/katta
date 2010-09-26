@@ -43,9 +43,9 @@ import org.apache.hadoop.io.MapWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.log4j.Logger;
 import org.apache.lucene.document.Document;
-import org.apache.lucene.document.Field;
 import org.apache.lucene.document.FieldSelector;
 import org.apache.lucene.document.Fieldable;
+import org.apache.lucene.document.MapFieldSelector;
 import org.apache.lucene.index.CorruptIndexException;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.search.Collector;
@@ -98,7 +98,6 @@ public class LuceneServer implements IContentServer, ILuceneServer {
   public String getNodeName() {
     return _nodeName;
   }
-
 
   /**
    * Adds an shard index search for given name to the list of shards
@@ -187,11 +186,13 @@ public class LuceneServer implements IContentServer, ILuceneServer {
 
   /**
    * Returns the <code>IndexSearcher</code> of the given shardName.
-   * @param shardName the name of the shard
+   * 
+   * @param shardName
+   *          the name of the shard
    * @return the <code>IndexSearcher</code> of the given shardName
    */
   protected IndexSearcher getSearcherByShard(String shardName) {
-      return _searcherByShard.get(shardName);
+    return _searcherByShard.get(shardName);
   }
 
   /**
@@ -320,22 +321,8 @@ public class LuceneServer implements IContentServer, ILuceneServer {
    * @return
    * @throws IOException
    */
-  @SuppressWarnings("unchecked")
   public MapWritable getDetails(final String[] shards, final int docId) throws IOException {
-    final MapWritable result = new MapWritable();
-    final Document doc = doc(shards[0], docId);
-    final List<Fieldable> fields = doc.getFields();
-    for (final Fieldable field : fields) {
-      final String name = field.name();
-      if (field.isBinary()) {
-        final byte[] binaryValue = field.getBinaryValue();
-        result.put(new Text(name), new BytesWritable(binaryValue));
-      } else {
-        final String stringValue = field.stringValue();
-        result.put(new Text(name), new Text(stringValue));
-      }
-    }
-    return result;
+    return getDetails(shards, docId, null);
   }
 
   /**
@@ -353,17 +340,16 @@ public class LuceneServer implements IContentServer, ILuceneServer {
    */
   public MapWritable getDetails(final String[] shards, final int docId, final String[] fieldNames) throws IOException {
     final MapWritable result = new MapWritable();
-    final Document doc = doc(shards[0], docId);
-    for (final String fieldName : fieldNames) {
-      final Field field = doc.getField(fieldName);
-      if (field != null) {
-        if (field.isBinary()) {
-          final byte[] binaryValue = field.getBinaryValue();
-          result.put(new Text(fieldName), new BytesWritable(binaryValue));
-        } else {
-          final String stringValue = field.stringValue();
-          result.put(new Text(fieldName), new Text(stringValue));
-        }
+    final Document doc = doc(shards[0], docId, fieldNames);
+    final List<Fieldable> fields = doc.getFields();
+    for (final Fieldable field : fields) {
+      final String name = field.name();
+      if (field.isBinary()) {
+        final byte[] binaryValue = field.getBinaryValue();
+        result.put(new Text(name), new BytesWritable(binaryValue));
+      } else {
+        final String stringValue = field.stringValue();
+        result.put(new Text(name), new Text(stringValue));
       }
     }
     return result;
@@ -524,18 +510,24 @@ public class LuceneServer implements IContentServer, ILuceneServer {
   }
 
   /**
-   * Returns a specified lucene document from a given shard.
+   * Returns a specified lucene document from a given shard where all or only
+   * the given fields are loaded from the index.
    * 
    * @param shardName
    * @param docId
+   * @param fieldNames
    * @return
    * @throws CorruptIndexException
    * @throws IOException
    */
-  protected Document doc(final String shardName, final int docId) throws IOException {
+  protected Document doc(final String shardName, final int docId, final String[] fieldNames) throws IOException {
     final Searchable searchable = getSearcherByShard(shardName);
     if (searchable != null) {
-      return searchable.doc(docId);
+      if (fieldNames == null) {
+        return searchable.doc(docId);
+      } else {
+        return searchable.doc(docId, new MapFieldSelector(fieldNames));
+      }
     }
     throw new IllegalArgumentException("shard " + shardName + " unknown");
   }

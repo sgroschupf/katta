@@ -60,6 +60,7 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -137,8 +138,26 @@ public class LuceneClientTest extends AbstractIntegrationTest {
       final MapWritable details = client.getDetails(hit);
       final Set<Writable> keySet = details.keySet();
       assertFalse(keySet.isEmpty());
-      final Writable writable = details.get(new Text("path"));
-      assertNotNull(writable);
+      assertNotNull(details.get(new Text("path")));
+      assertNotNull(details.get(new Text("category")));
+    }
+    client.close();
+  }
+
+  @Test
+  public void testGetDetailsWithFieldNames() throws Exception {
+    deployTestIndices(1, 1);
+    ILuceneClient client = new LuceneClient(_miniCluster.getZkConfiguration());
+    final Query query = new QueryParser(Version.LUCENE_CURRENT, "", new KeywordAnalyzer()).parse("content: the");
+    final Hits hits = client.search(query, new String[] { INDEX_NAME }, 10);
+    assertNotNull(hits);
+    assertEquals(10, hits.getHits().size());
+    for (final Hit hit : hits.getHits()) {
+      final MapWritable details = client.getDetails(hit, new String[] { "path" });
+      final Set<Writable> keySet = details.keySet();
+      assertFalse(keySet.isEmpty());
+      assertNotNull(details.get(new Text("path")));
+      assertNull(details.get(new Text("category")));
     }
     client.close();
   }
@@ -271,6 +290,7 @@ public class LuceneClientTest extends AbstractIntegrationTest {
     client.close();
   }
 
+  @SuppressWarnings("unchecked")
   @Test
   public void testSortedSearch() throws Exception {
     // write and deploy test index
