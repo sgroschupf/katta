@@ -410,8 +410,23 @@ public class LuceneClientTest extends AbstractIntegrationTest {
       client.search(query, new String[] { "doesNotExist" });
       fail("Should have failed.");
     } catch (KattaException e) {
-      assertEquals("No shards for indices: [doesNotExist]", e.getMessage());
+      assertEquals("Index [pattern(s)] '[doesNotExist]' do not match to any deployed index: []", e.getMessage());
     }
+    client.close();
+  }
+
+  @Test
+  public void testIndexPattern() throws Exception {
+    deploy3Indices();
+    ILuceneClient client = new LuceneClient(_miniCluster.getZkConfiguration());
+    final Query query = new QueryParser(Version.LUCENE_CURRENT, "", new KeywordAnalyzer()).parse("foo: bar");
+    final Hits hits = client.search(query, new String[] { "index[2-3]+" });
+    assertNotNull(hits);
+    for (final Hit hit : hits.getHits()) {
+      writeToLog(hit);
+    }
+    assertEquals(8, hits.size());
+    assertEquals(8, hits.getHits().size());
     client.close();
   }
 

@@ -28,6 +28,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 import net.sf.katta.lib.lucene.ILuceneServer;
 import net.sf.katta.protocol.ConnectedComponent;
@@ -455,36 +456,42 @@ public class Client implements IShardProxyManager, ConnectedComponent {
   // -------------------- Node management --------------------
 
   private Map<String, List<String>> getNode2ShardsMap(final String[] indexNames) throws KattaException {
-    String[] indexesToSearchIn = indexNames;
-    for (String indexName : indexNames) {
-      if ("*".equals(indexName)) {
-        // TODO jz: refactor to seperate methods but leave as deprecated
-        indexesToSearchIn = new String[_indexToShards.keySet().size()];
-        indexesToSearchIn = _indexToShards.keySet().toArray(indexesToSearchIn);
-        break;
-      }
-    }
-
-    List<String> shardsToSearchIn = getShardsToSearchIn(indexesToSearchIn);
+    Collection<String> shardsToSearchIn = getShardsToSearchIn(indexNames);
     final Map<String, List<String>> nodeShardsMap = _selectionPolicy.createNode2ShardsMap(shardsToSearchIn);
     return nodeShardsMap;
   }
 
-  private List<String> getShardsToSearchIn(String[] indexNames) throws KattaException {
-    List<String> shards = new ArrayList<String>();
+  private Collection<String> getShardsToSearchIn(String[] indexNames) throws KattaException {
+    Collection<String> allShards = new HashSet<String>();
     for (String index : indexNames) {
-      List<String> theseShards = _indexToShards.get(index);
-      if (theseShards != null) {
-        List<String> shardsForIndex = _indexToShards.get(index);
-        if (shardsForIndex == null) {
-          throw new KattaException("Index '" + index + "' not deployed on any shard.");
+      if ("*".equals(index)) {
+        for (Collection<String> shardsOfIndex : _indexToShards.values()) {
+          allShards.addAll(shardsOfIndex);
         }
-        shards.addAll(shardsForIndex);
+        break;
+      }
+      List<String> shardsForIndex = _indexToShards.get(index);
+      if (shardsForIndex != null) {
+        allShards.addAll(shardsForIndex);
       } else {
-        LOG.warn("No shards found for index " + index);
+        Pattern pattern = Pattern.compile(index);
+        int matched = 0;
+        for (String ind : _indexToShards.keySet()) {
+          if (pattern.matcher(ind).matches()) {
+            allShards.addAll(_indexToShards.get(ind));
+            matched++;
+          }
+        }
+        if (matched == 0) {
+          LOG.warn("No shards found for index name/pattern: " + index);
+        }
       }
     }
-    return shards;
+    if (allShards.isEmpty()) {
+      throw new KattaException("Index [pattern(s)] '" + Arrays.toString(indexNames)
+              + "' do not match to any deployed index: " + getIndices());
+    }
+    return allShards;
   }
 
   public double getQueryPerMinute() {
