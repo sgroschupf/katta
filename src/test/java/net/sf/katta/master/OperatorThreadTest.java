@@ -15,15 +15,6 @@
  */
 package net.sf.katta.master;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.notNull;
-import static org.mockito.Mockito.inOrder;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -40,9 +31,24 @@ import net.sf.katta.testutil.Mocks;
 import net.sf.katta.testutil.TestUtil;
 import net.sf.katta.testutil.mockito.SleepingAnswer;
 
+import org.I0Itec.zkclient.exception.ZkInterruptedException;
 import org.junit.Test;
 import org.mockito.InOrder;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
+import static org.mockito.Mockito.atLeast;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import static org.mockito.Matchers.notNull;
+
+@SuppressWarnings("unchecked")
 public class OperatorThreadTest {
 
   protected static final List EMPTY_LIST = Collections.EMPTY_LIST;
@@ -54,9 +60,8 @@ public class OperatorThreadTest {
 
   @Test(timeout = 10000)
   public void testSafeMode() throws Exception {
-    final MasterOperation operation = mock(MasterOperation.class);
+    final MasterOperation operation = mockOperation(ExecutionInstruction.EXECUTE);
     when(_queue.peek()).thenReturn(operation).thenAnswer(new SleepingAnswer());
-    setupExecutionInstruction(operation, ExecutionInstruction.EXECUTE);
     when(_protocol.getLiveNodes()).thenReturn(EMPTY_LIST);
 
     long safeModeMaxTime = 200;
@@ -110,14 +115,11 @@ public class OperatorThreadTest {
 
   @Test(timeout = 10000)
   public void testOperationExecution() throws Exception {
-    final MasterOperation masterOperation1 = mock(MasterOperation.class);
-    final MasterOperation masterOperation2 = mock(MasterOperation.class);
-    final MasterOperation masterOperation3 = mock(MasterOperation.class);
+    final MasterOperation masterOperation1 = mockOperation(ExecutionInstruction.EXECUTE);
+    final MasterOperation masterOperation2 = mockOperation(ExecutionInstruction.EXECUTE);
+    final MasterOperation masterOperation3 = mockOperation(ExecutionInstruction.EXECUTE);
     when(_queue.peek()).thenReturn(masterOperation1).thenReturn(masterOperation2).thenReturn(masterOperation3)
             .thenAnswer(new SleepingAnswer());
-    setupExecutionInstruction(masterOperation1, ExecutionInstruction.EXECUTE);
-    setupExecutionInstruction(masterOperation2, ExecutionInstruction.EXECUTE);
-    setupExecutionInstruction(masterOperation3, ExecutionInstruction.EXECUTE);
 
     when(_protocol.getLiveNodes()).thenReturn(Arrays.asList("node1"));
     long safeModeMaxTime = 200;
@@ -150,7 +152,7 @@ public class OperatorThreadTest {
     OperationWatchdog watchdog = mock(OperationWatchdog.class);
     when(_queue.moveOperationToWatching(leaderOperation, operationIds)).thenReturn(watchdog);
 
-    // start the ooperator
+    // start the operator
     long safeModeMaxTime = 200;
     final OperatorThread operatorThread = new OperatorThread(_context, safeModeMaxTime);
     operatorThread.start();
@@ -214,6 +216,62 @@ public class OperatorThreadTest {
     assertTrue(operatorThread.getOperationRegistry().getRunningOperations().contains(watchdog2.getOperation()));
   }
 
+  @Test(timeout = 10000)
+  public void testInterruptedException_Queue() throws Exception {
+    when(_protocol.getLiveNodes()).thenReturn(Arrays.asList("node1"));
+    when(_queue.peek()).thenThrow(new InterruptedException());
+    OperatorThread operatorThread = new OperatorThread(_context, 50);
+    operatorThread.start();
+    operatorThread.join();
+  }
+
+  @Test(timeout = 10000)
+  public void testInterruptedException_Queue_Zk() throws Exception {
+    when(_protocol.getLiveNodes()).thenReturn(Arrays.asList("node1"));
+    ZkInterruptedException zkInterruptedException = mock(ZkInterruptedException.class);
+    when(_queue.peek()).thenThrow(zkInterruptedException);
+    OperatorThread operatorThread = new OperatorThread(_context, 50);
+    operatorThread.start();
+    operatorThread.join();
+  }
+
+  @Test(timeout = 10000)
+  public void testInterruptedException_Operation() throws Exception {
+    when(_protocol.getLiveNodes()).thenReturn(Arrays.asList("node1"));
+    final MasterOperation masterOperation = mockOperation(ExecutionInstruction.EXECUTE);
+    when(masterOperation.execute(_context, EMPTY_LIST)).thenThrow(new InterruptedException());
+    when(_queue.peek()).thenReturn(masterOperation);
+    OperatorThread operatorThread = new OperatorThread(_context, 50);
+    operatorThread.start();
+    operatorThread.join();
+  }
+
+  @Test(timeout = 1000000)
+  public void testInterruptedException_Operation_Zk() throws Exception {
+    when(_protocol.getLiveNodes()).thenReturn(Arrays.asList("node1"));
+    ZkInterruptedException zkInterruptedException = mock(ZkInterruptedException.class);
+    final MasterOperation masterOperation = mockOperation(ExecutionInstruction.EXECUTE);
+    when(masterOperation.execute(_context, EMPTY_LIST)).thenThrow(zkInterruptedException);
+    when(_queue.peek()).thenReturn(masterOperation);
+    OperatorThread operatorThread = new OperatorThread(_context, 50);
+    operatorThread.start();
+    operatorThread.join();
+  }
+
+  @Test(timeout = 10000000)
+  public void testDontStopOnOOM() throws Exception {
+    when(_protocol.getLiveNodes()).thenReturn(Arrays.asList("node1"));
+    when(_queue.peek()).thenThrow(new OutOfMemoryError("test exception")).thenAnswer(new SleepingAnswer());
+
+    OperatorThread operatorThread = new OperatorThread(_context, 50);
+    operatorThread.start();
+    operatorThread.join(100);
+
+    assertEquals(true, operatorThread.isAlive());
+    operatorThread.interrupt();
+    verify(_queue, atLeast(2)).peek();
+  }
+
   private void runLockSituation(final MasterOperation leaderOperation1, final MasterOperation leaderOperation2,
           ExecutionInstruction instruction) throws Exception, InterruptedException {
     String nodeName = "node1";
@@ -230,7 +288,7 @@ public class OperatorThreadTest {
     when(leaderOperation1.execute(_context, EMPTY_LIST)).thenReturn(operationIds);
     when(_queue.peek()).thenReturn(leaderOperation1).thenReturn(leaderOperation2).thenAnswer(new SleepingAnswer());
 
-    // start the ooperator
+    // start the operator
     long safeModeMaxTime = 200;
     OperatorThread operatorThread = new OperatorThread(_context, safeModeMaxTime);
     operatorThread.start();
@@ -242,6 +300,12 @@ public class OperatorThreadTest {
 
     operatorThread.interrupt();
     operatorThread.join();
+  }
+
+  private MasterOperation mockOperation(ExecutionInstruction instruction) throws Exception {
+    MasterOperation masterOperation = mock(MasterOperation.class);
+    when(masterOperation.getExecutionInstruction((List<MasterOperation>) notNull())).thenReturn(instruction);
+    return masterOperation;
   }
 
   private void setupExecutionInstruction(final MasterOperation leaderOperation, ExecutionInstruction instruction)

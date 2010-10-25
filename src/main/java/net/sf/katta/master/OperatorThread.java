@@ -70,23 +70,28 @@ class OperatorThread extends Thread {
       recreateWatchdogs();
 
       while (true) {
-        // TODO jz: poll only for a certain amount of time and then execute a
-        // global check operation ?
-        MasterOperation operation = _queue.peek();
-        List<OperationId> nodeOperationIds = null;
         try {
-          List<MasterOperation> runningOperations = _registry.getRunningOperations();
-          ExecutionInstruction instruction = operation.getExecutionInstruction(runningOperations);
-          nodeOperationIds = executeOperation(operation, instruction, runningOperations);
-        } catch (Exception e) {
+          // TODO jz: poll only for a certain amount of time and then execute a
+          // global check operation ?
+          MasterOperation operation = _queue.peek();
+          List<OperationId> nodeOperationIds = null;
+          try {
+            List<MasterOperation> runningOperations = _registry.getRunningOperations();
+            ExecutionInstruction instruction = operation.getExecutionInstruction(runningOperations);
+            nodeOperationIds = executeOperation(operation, instruction, runningOperations);
+          } catch (Exception e) {
+            ExceptionUtil.rethrowInterruptedException(e);
+            LOG.error("failed to execute " + operation, e);
+          }
+          if (nodeOperationIds != null && !nodeOperationIds.isEmpty()) {
+            OperationWatchdog watchdog = _queue.moveOperationToWatching(operation, nodeOperationIds);
+            _registry.watchFor(watchdog);
+          } else {
+            _queue.remove();
+          }
+        } catch (Throwable e) {
           ExceptionUtil.rethrowInterruptedException(e);
-          LOG.error("failed to execute " + operation, e);
-        }
-        if (nodeOperationIds != null && !nodeOperationIds.isEmpty()) {
-          OperationWatchdog watchdog = _queue.moveOperationToWatching(operation, nodeOperationIds);
-          _registry.watchFor(watchdog);
-        } else {
-          _queue.remove();
+          LOG.fatal("master operation failure", e);
         }
       }
     } catch (final InterruptedException e) {

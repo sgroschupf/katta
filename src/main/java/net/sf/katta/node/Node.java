@@ -255,7 +255,7 @@ public class Node implements ConnectedComponent {
     return _protocol;
   }
 
-  private static class NodeOperationProcessor implements Runnable {
+  protected static class NodeOperationProcessor implements Runnable {
 
     private final NodeQueue _queue;
     private final NodeContext _nodeContext;
@@ -269,16 +269,22 @@ public class Node implements ConnectedComponent {
     public void run() {
       try {
         while (_nodeContext.getNode().isRunning()) {
-          NodeOperation operation = _queue.peek();
-          OperationResult operationResult;
           try {
-            LOG.info("executing " + operation);
-            operationResult = operation.execute(_nodeContext);
-          } catch (Exception e) {
-            LOG.error(_nodeContext.getNode().getName() + ": failed to execute " + operation, e);
-            operationResult = new OperationResult(_nodeContext.getNode().getName(), e);
+            NodeOperation operation = _queue.peek();
+            OperationResult operationResult;
+            try {
+              LOG.info("executing " + operation);
+              operationResult = operation.execute(_nodeContext);
+            } catch (Exception e) {
+              ExceptionUtil.rethrowInterruptedException(e);
+              LOG.error(_nodeContext.getNode().getName() + ": failed to execute " + operation, e);
+              operationResult = new OperationResult(_nodeContext.getNode().getName(), e);
+            }
+            _queue.complete(operationResult);// only remove after finish
+          } catch (Throwable e) {
+            ExceptionUtil.rethrowInterruptedException(e);
+            LOG.fatal(_nodeContext.getNode().getName() + ": operation failure ", e);
           }
-          _queue.complete(operationResult);// only remove after finish
         }
       } catch (InterruptedException e) {
         Thread.interrupted();

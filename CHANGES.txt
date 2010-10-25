@@ -1,6 +1,7 @@
 Katta Change Log
 
 katta 0.6.3
+ fix KATTA-163, don't exit node/master operation thread in case an unexpected exception occurs
  fix KATTA-160, Stop trying to rebalance/replicate an index when the index could not be found in the file system any more
  fix KATTA-134, cobertura.jar version mismatch when compiling /extras/indexing
  fix KATTA-153, LuceneServer loads all fields from index, even if only fewer are requested
