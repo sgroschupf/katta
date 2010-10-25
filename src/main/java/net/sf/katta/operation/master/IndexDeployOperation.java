@@ -28,9 +28,9 @@ import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.protocol.metadata.IndexMetaData;
 import net.sf.katta.protocol.metadata.IndexDeployError.ErrorType;
 import net.sf.katta.protocol.metadata.IndexMetaData.Shard;
+import net.sf.katta.util.HadoopUtil;
 
 import org.I0Itec.zkclient.ExceptionUtil;
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -116,10 +116,7 @@ public class IndexDeployOperation extends AbstractIndexOperation {
     }
     FileSystem fileSystem;
     try {
-      synchronized (FileSystem.class) {
-        // had once a ConcurrentModificationException
-        fileSystem = FileSystem.get(uri, new Configuration());
-      }
+      fileSystem = HadoopUtil.getFileSystem(new Path(uri.toString()));
     } catch (final IOException e) {
       throw new IndexDeployException(ErrorType.INDEX_NOT_ACCESSIBLE, "unable to retrive file system for index path '"
               + indexPathString + "', make sure your path starts with hadoop support prefix like file:// or hdfs://", e);

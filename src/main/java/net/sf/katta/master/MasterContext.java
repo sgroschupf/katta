@@ -15,8 +15,15 @@
  */
 package net.sf.katta.master;
 
+import java.io.IOException;
+
 import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.protocol.MasterQueue;
+import net.sf.katta.protocol.metadata.IndexMetaData;
+import net.sf.katta.util.HadoopUtil;
+
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 
 public class MasterContext {
 
@@ -46,6 +53,10 @@ public class MasterContext {
 
   public MasterQueue getMasterQueue() {
     return _masterQueue;
+  }
+
+  public FileSystem getFileSystem(IndexMetaData indexMd) throws IOException {
+    return HadoopUtil.getFileSystem(new Path(indexMd.getPath()));
   }
 
 }

@@ -24,6 +24,8 @@ import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.protocol.metadata.IndexMetaData;
 
 import org.I0Itec.zkclient.ExceptionUtil;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.apache.log4j.Logger;
 
 public class BalanceIndexOperation extends AbstractIndexOperation {
@@ -46,6 +48,18 @@ public class BalanceIndexOperation extends AbstractIndexOperation {
     }
     if (!canAndShouldRegulateReplication(protocol, indexMD)) {
       LOG.info("skip balancing for index '" + _indexName + "' cause there is no possible optimization");
+      return null;
+    }
+    try {
+      FileSystem fileSystem = context.getFileSystem(indexMD);
+      Path path = new Path(indexMD.getPath());
+      if (!fileSystem.exists(path)) {
+        LOG.warn("skip balancing for index '" + _indexName + "' cause source '" + path + "' does not exists anymore");
+        return null;
+      }
+    } catch (Exception e) {
+      LOG.error("skip balancing of index '" + _indexName + "' cause failed to access source '" + indexMD.getPath()
+              + "'", e);
       return null;
     }
 
