@@ -76,7 +76,7 @@ public class Client implements IShardProxyManager, ConnectedComponent {
     this(serverClass, new DefaultNodeSelectionPolicy(), config);
   }
 
-  public Client(Class<ILuceneServer> serverClass, InteractionProtocol protocol) {
+  public Client(Class<? extends ILuceneServer> serverClass, InteractionProtocol protocol) {
     this(serverClass, new DefaultNodeSelectionPolicy(), protocol, new ClientConfiguration());
   }
 

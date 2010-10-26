@@ -59,28 +59,28 @@ public class LuceneClient implements ILuceneClient {
   private Client _kattaClient;
 
   public LuceneClient() {
-    _kattaClient = new Client(ILuceneServer.class);
+    _kattaClient = new Client(getServerClass());
   }
 
   public LuceneClient(final INodeSelectionPolicy nodeSelectionPolicy) {
-    _kattaClient = new Client(ILuceneServer.class, nodeSelectionPolicy);
+    _kattaClient = new Client(getServerClass(), nodeSelectionPolicy);
   }
 
   public LuceneClient(InteractionProtocol protocol) {
-    _kattaClient = new Client(ILuceneServer.class, protocol);
+    _kattaClient = new Client(getServerClass(), protocol);
   }
 
   public LuceneClient(final ZkConfiguration zkConfig) {
-    _kattaClient = new Client(ILuceneServer.class, zkConfig);
+    _kattaClient = new Client(getServerClass(), zkConfig);
   }
 
   public LuceneClient(final INodeSelectionPolicy policy, final ZkConfiguration zkConfig) {
-    _kattaClient = new Client(ILuceneServer.class, policy, zkConfig);
+    _kattaClient = new Client(getServerClass(), policy, zkConfig);
   }
 
   public LuceneClient(final INodeSelectionPolicy policy, final ZkConfiguration zkConfig,
           ClientConfiguration clientConfiguration) {
-    _kattaClient = new Client(ILuceneServer.class, policy, zkConfig, clientConfiguration);
+    _kattaClient = new Client(getServerClass(), policy, zkConfig, clientConfiguration);
   }
 
   public long getTimeout() {
@@ -304,4 +304,11 @@ public class LuceneClient implements ILuceneClient {
     _kattaClient.close();
   }
 
+  protected Client getKattaClient() {
+    return _kattaClient;
+  }
+
+  protected Class<? extends ILuceneServer> getServerClass() {
+    return ILuceneServer.class;
+  }
 }
