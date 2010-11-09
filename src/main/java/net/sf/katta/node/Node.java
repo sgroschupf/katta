@@ -123,9 +123,12 @@ public class Node implements ConnectedComponent {
   @Override
   public synchronized void disconnect() {
     LOG.info(_nodeName + " disconnected");
-    _nodeOperatorThread.interrupt();
     try {
-      _nodeOperatorThread.join();
+      do {
+        LOG.info("trying to stop node-processor...");
+        _nodeOperatorThread.interrupt();
+        _nodeOperatorThread.join(2500);
+      } while (_nodeOperatorThread.isAlive());
     } catch (InterruptedException e) {
       Thread.interrupted();
     }

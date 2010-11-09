@@ -1,5 +1,5 @@
 /**
- * Copyright 2008 the original author or authors.
+ * Copyright 2009 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,21 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package net.sf.katta.operation.node;
+package net.sf.katta.testutil.mockito;
 
 import java.io.Serializable;
 
-import net.sf.katta.node.NodeContext;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
-/**
- * An operation executed by an {@link Node}.
- */
-public interface NodeOperation extends Serializable {
+public class SerializableThrowsExceptionAnswer<T> implements Answer<T>, Serializable {
 
-  /**
-   * @param context
-   * @return null or an {@link OperationResult}
-   * @throws InterruptedException
-   */
-  OperationResult execute(NodeContext context) throws InterruptedException;
+  private static final long serialVersionUID = 1L;
+  private final Exception _exception;
+
+  public SerializableThrowsExceptionAnswer(Exception exception) {
+    _exception = exception;
+  }
+
+  @Override
+  public T answer(InvocationOnMock invocation) throws Throwable {
+    throw _exception;
+  }
+
 }

@@ -15,14 +15,15 @@
  */
 package net.sf.katta.node;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import net.sf.katta.AbstractTest;
 import net.sf.katta.util.SleepServer;
 
 import org.apache.log4j.Logger;
 import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Test for {@link SleepServer}.
@@ -47,7 +48,7 @@ public class SleepServerTest extends AbstractTest {
     long start = System.currentTimeMillis();
     server.sleep(100, 0, null);
     long time = System.currentTimeMillis() - start;
-    assertTrue(time >= 100);
+    assertTrue("took " + time, time >= 100);
   }
 
   @Test

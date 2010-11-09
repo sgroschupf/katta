@@ -18,6 +18,7 @@ package net.sf.katta.node;
 import net.sf.katta.AbstractZkTest;
 import net.sf.katta.lib.lucene.LuceneServer;
 import net.sf.katta.operation.node.NodeOperation;
+import net.sf.katta.operation.node.OperationResult;
 import net.sf.katta.testutil.mockito.SerializableCountDownLatchAnswer;
 
 import org.junit.Test;
@@ -57,6 +58,55 @@ public class NodeZkTest extends AbstractZkTest {
     answer.getCountDownLatch().await();
 
     node.shutdown();
+  }
+
+  @Test(timeout = 20000)
+  public void testNodeOperationPickup_AfterReconnect() throws Exception {
+    Node node = new Node(_zk.getInteractionProtocol(), new LuceneServer());
+    node.start();
+
+    node.disconnect();
+    node.reconnect();
+    NodeOperation operation1 = mock(NodeOperation.class, withSettings().serializable());
+    NodeOperation operation2 = mock(NodeOperation.class, withSettings().serializable());
+
+    SerializableCountDownLatchAnswer answer = new SerializableCountDownLatchAnswer(2);
+    when(operation1.execute((NodeContext) notNull())).thenAnswer(answer);
+    when(operation2.execute((NodeContext) notNull())).thenAnswer(answer);
+    _protocol.addNodeOperation(node.getName(), operation1);
+    _protocol.addNodeOperation(node.getName(), operation2);
+    answer.getCountDownLatch().await();
+
+    node.shutdown();
+  }
+
+  @Test(timeout = 2000000)
+  public void testNodeReconnectWithInterruptSwallowingOperation() throws Exception {
+    Node node = new Node(_zk.getInteractionProtocol(), new LuceneServer());
+    node.start();
+    _protocol.addNodeOperation(node.getName(), new InterruptSwallowingOperation());
+    Thread.sleep(200);
+    node.disconnect();
+    node.reconnect();
+
+    node.shutdown();
+  }
+
+  private static class InterruptSwallowingOperation implements NodeOperation {
+
+    private static final long serialVersionUID = 1L;
+
+    @Override
+    public OperationResult execute(NodeContext context) throws InterruptedException {
+      try {
+        System.out.println("NodeZkTest.InterruptSwallowingOperation.execute()- entering sleep");
+        Thread.sleep(Long.MAX_VALUE);
+      } catch (InterruptedException e) {
+        System.out.println("NodeZkTest.InterruptSwallowingOperation.execute()- leaving sleep");
+      }
+      return null;
+    }
+
   }
 
   @Test(timeout = 10000)
