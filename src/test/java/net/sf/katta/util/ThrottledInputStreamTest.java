@@ -15,21 +15,68 @@
  */
 package net.sf.katta.util;
 
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
-
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import net.sf.katta.AbstractTest;
 import net.sf.katta.util.ThrottledInputStream.ThrottleSemaphore;
 
 import org.junit.Test;
 
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
 public class ThrottledInputStreamTest extends AbstractTest {
 
   private static final int READ_TIME = 2000;
+
+  @Test()
+  public void testThrottleSemaphore() throws Exception {
+    int bytesPerSecond = 30000;
+    final ThrottleSemaphore semaphore = new ThrottleSemaphore(bytesPerSecond);
+    Thread[] threads = new Thread[3];
+    final AtomicInteger totalAquiredBytes = new AtomicInteger();
+    final List<String> errors = new ArrayList<String>();
+    long time = System.currentTimeMillis();
+    for (int i = 0; i < threads.length; i++) {
+      threads[i] = new Thread() {
+        public void run() {
+          try {
+            int mbPerThread = 1;
+            for (int i = 0; i < mbPerThread * 256; i++) {
+              int acquireBytes;
+              acquireBytes = semaphore.aquireBytes(4096);
+              totalAquiredBytes.addAndGet(acquireBytes);
+              // System.out.println(getName() + "[" + i + "]: " + acquireBytes);
+              if (acquireBytes <= 0) {
+                errors.add("acquired bytes incorrect " + acquireBytes);
+              }
+              Thread.sleep(new Random().nextInt(1000));
+            }
+          } catch (Exception e) {
+            errors.add("unknown exception: " + e.getMessage());
+          }
+        };
+      };
+      threads[i].setName("thread" + i);
+      threads[i].start();
+    }
+
+    for (Thread thread : threads) {
+      thread.join();
+    }
+    if (!errors.isEmpty()) {
+      fail("errors occurred: " + errors);
+    }
+    long tookTimeInSec = (System.currentTimeMillis() - time) / 1000;
+    System.out.println("aquired " + totalAquiredBytes + " bytes in " + tookTimeInSec + " sec");
+    assertTrue(totalAquiredBytes.get() / tookTimeInSec <= bytesPerSecond);
+  }
 
   @Test(timeout = 10000)
   public void testThrottleRead() throws Exception {

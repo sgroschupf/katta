@@ -63,8 +63,8 @@ public class ThrottledInputStream extends InputStream implements PositionedReada
 
   @Override
   public int read(byte[] b, int off, int len) throws IOException {
-    int aquired = _semaphore.aquireBytes(len);
-    return _inputStream.read(b, off, aquired);
+    len = _semaphore.aquireBytes(len);
+    return _inputStream.read(b, off, len);
   }
 
   @Override
@@ -104,11 +104,11 @@ public class ThrottledInputStream extends InputStream implements PositionedReada
 
   /**
    * This semaphore maintains the permitted bytes in a given timeframe. Each
-   * {@link #aquireBytes(int)} blocks if necessary until at least once byte
-   * couldb be aquired.
+   * {@link #aquireBytes(int)} blocks if necessary until at least one byte can
+   * be acquired.
    * 
    * <p>
-   * The time unit is bytes/second wheras the window of one second is splitted
+   * The time unit is bytes/second whereas the window of one second is splitted
    * into smaller windows to allow more steadied operations.
    * 
    * <p>
@@ -120,25 +120,33 @@ public class ThrottledInputStream extends InputStream implements PositionedReada
 
     private static final int SECOND = 1000;
     private final int _maxBytesPerWindow;
-    private int _remainingBytesInCurrentWindow;
-    private long _nextWindowStartTime;
     private final int _windowsPerSecond;
+    private volatile int _remainingBytesInCurrentWindow;
+    private volatile long _nextWindowStartTime;
 
     public ThrottleSemaphore(float bytesPerSecond) {
       this(bytesPerSecond, 10);
     }
 
     public ThrottleSemaphore(float bytesPerSecond, int windowsPerSecond) {
+      checkForGreaterZero((int) bytesPerSecond);
+      checkForGreaterZero(windowsPerSecond);
       _windowsPerSecond = windowsPerSecond;
       _maxBytesPerWindow = (int) (bytesPerSecond / windowsPerSecond);
+    }
+
+    private void checkForGreaterZero(int value) {
+      if (value <= 0) {
+        throw new IllegalArgumentException("argument must be greater the 0 but is " + value);
+      }
     }
 
     public synchronized int aquireBytes(int desired) throws IOException {
       try {
         waitForAllowedBytes();
-        int auiredBytes = Math.min(desired, _remainingBytesInCurrentWindow);
-        _remainingBytesInCurrentWindow -= auiredBytes;
-        return auiredBytes;
+        int aquiredBytes = Math.min(desired, _remainingBytesInCurrentWindow);
+        _remainingBytesInCurrentWindow -= aquiredBytes;
+        return aquiredBytes;
       } catch (InterruptedException e) {
         throw new InterruptedIOException();
       }
@@ -146,7 +154,7 @@ public class ThrottledInputStream extends InputStream implements PositionedReada
 
     private void waitForAllowedBytes() throws InterruptedException {
       updateWindow();
-      while (_remainingBytesInCurrentWindow == 0) {
+      while (_remainingBytesInCurrentWindow <= 0) {
         updateWindow();
         Thread.sleep(_nextWindowStartTime - System.currentTimeMillis());
       }
