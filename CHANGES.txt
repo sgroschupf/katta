@@ -1,6 +1,7 @@
 Katta Change Log
 
 katta 0.6.3
+ fix KATTA-165, fix IndexOutOfBoundsException when adding index with enabled throttling
  fix KATTA-161, fix deadlock situation when node gets disconnected from zk and so becomes unresponsive
  fix KATTA-162, Allow LuceneClient to be extended more easily
  fix KATTA-156, allow shard selection by regular expression
