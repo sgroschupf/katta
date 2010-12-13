@@ -648,7 +648,7 @@ public class LuceneServer implements IContentServer, ILuceneServer {
       try {
         df = dfMap.get(new TermWritable(term.field(), term.text()));
       } catch (final NullPointerException e) {
-        throw new IllegalArgumentException("df for term " + term.text() + " not available");
+        throw new IllegalArgumentException("df for term " + term.text() + " not available in df-map:" + dfMap, e);
       }
       return df;
     }
