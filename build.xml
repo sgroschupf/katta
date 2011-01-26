@@ -4,7 +4,7 @@
 	<!-- all standard ant tasks are in the common build file-->
 	<import file="${root.dir}/src/build/ant/common-build.xml" />
 
-	
+
 
 	<!-- ================================================================== -->
 	<!-- Integration Tests                                                  -->
@@ -59,7 +59,7 @@
 		<fail if="tests.failed">Tests failed!</fail>
 	</target>
 
-	
+
     <target name="webapp" description="--> builds the Katta web gui, requires grails be installed.">
     	<property environment="env"/>
     	<fail message="Grails need be installed and GRAILS_HOME need to be set.">
@@ -73,10 +73,10 @@
     	<exec executable="${env.GRAILS_HOME}/bin/grails"   dir="${basedir}/extras/katta.gui">
     		<arg line="war"/>
     	</exec>
-        
+
     </target>
-	
-	
+
+
 	<!-- ================================================================== -->
 	<!-- Generate a distribution                                            -->
 	<!-- ================================================================== -->
@@ -137,7 +137,7 @@
 				<include name="**/indexing/src/**"/>
 			</fileset>
 		</copy>
-		
+
 		<!-- copy project jar to dist dir -->
 		<copy todir="${build.dir.dist}">
 			<fileset file="${basedir}/CHANGES.txt" />
@@ -148,7 +148,7 @@
 			<fileset file="${root.dir}/ivysettings.xml" />
 		</copy>
 		<!-- clean up all .git folders -->
-	
+
 		<chmod perm="u+x">
 		  <fileset dir="${build.dir.dist}/bin">
 		  </fileset>
@@ -188,7 +188,7 @@
 				<include name="katta-config.sh"/>
 			</fileset>
 		</copy>
-		<!-- copy build src 
+		<!-- copy build src
 		<copy todir="${build.dir.dist.ui}/src/build">
 			<fileset dir="${root.dir}/src/build" />
 		</copy>
@@ -225,7 +225,7 @@
 			-->
 		</copy>
 		<!-- clean up all .git folders -->
-	
+
 		<chmod perm="u+x">
 		  <fileset dir="${build.dir.dist.ui}/bin">
 		  </fileset>
@@ -283,6 +283,7 @@
 		<concat destfile="${basedir.ivy.instance}/.settings/org.eclipse.jdt.core.prefs" append="true">
 			 <filelist dir="${root.dir}/src/build/eclipse" files="formatter"/>
 		</concat>
+		<replaceregexp file=".classpath" match="path=&quot;(.*).jar&quot;" replace="path=&quot;\1.jar&quot; sourcepath=&quot;\1-sources.jar&quot;" flags="g" />
 	</target>
 
 	<target name="clean-eclipse" depends="install-ivy" description="--> cleans the eclipse project files">

@@ -15,8 +15,6 @@
  */
 package net.sf.katta.integrationTest.lib.lucene;
 
-import static org.junit.Assert.assertEquals;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -32,6 +30,8 @@ import org.apache.lucene.queryParser.QueryParser;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.util.Version;
 import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
 
 public class LuceneSearchIntegrationTest extends AbstractIntegrationTest {
 
@@ -209,7 +209,7 @@ public class LuceneSearchIntegrationTest extends AbstractIntegrationTest {
           client = _client;
         }
         while (!_stopped) {
-          final Query query = new QueryParser(Version.LUCENE_CURRENT, "", new KeywordAnalyzer()).parse("foo:bar");
+          final Query query = new QueryParser(Version.LUCENE_30, "", new KeywordAnalyzer()).parse("foo:bar");
           Hits hits = client.search(query, new String[] { "*" });
           _firedQueryCount++;
           if (hits.size() != _expectedTotalHitCount) {

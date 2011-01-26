@@ -15,9 +15,6 @@
  */
 package net.sf.katta.integrationTest;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-
 import java.io.File;
 import java.util.Arrays;
 import java.util.Collection;
@@ -34,6 +31,9 @@ import org.apache.lucene.queryParser.QueryParser;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.util.Version;
 import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 
 public class NodeIntegrationTest extends AbstractIntegrationTest {
 
@@ -82,7 +82,7 @@ public class NodeIntegrationTest extends AbstractIntegrationTest {
     assertEquals(1, protocol.getIndices().size());
 
     LuceneClient luceneClient = new LuceneClient(_miniCluster.getZkConfiguration());
-    final Query query = new QueryParser(Version.LUCENE_CURRENT, "", new KeywordAnalyzer()).parse("content: the");
+    final Query query = new QueryParser(Version.LUCENE_30, "", new KeywordAnalyzer()).parse("content: the");
     luceneClient.count(query, new String[] { INDEX_NAME });
     luceneClient.close();
   }

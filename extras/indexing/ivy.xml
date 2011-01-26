@@ -19,7 +19,7 @@
 
 	<dependencies defaultconfmapping="*->default">
 		<dependency org="org.apache" name="log4j" rev="1.2.15" conf="compile" />
-		<dependency org="org.apache.lucene" name="lucene-core" rev="3.0.0" conf="compile,job" />
+		<dependency org="org.apache.lucene" name="lucene-core" rev="3.0.3" conf="compile,job" />
 		<dependency org="org.apache.hadoop" name="hadoop-core" rev="0.20.1" conf="compile" />
 
 		<dependency org="junit" name="junit" rev="4.7" conf="test" />

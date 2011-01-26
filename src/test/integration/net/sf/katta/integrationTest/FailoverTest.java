@@ -15,10 +15,6 @@
  */
 package net.sf.katta.integrationTest;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-
 import java.util.List;
 import java.util.Set;
 
@@ -46,6 +42,10 @@ import org.apache.zookeeper.Watcher.Event.KeeperState;
 import org.apache.zookeeper.proto.WatcherEvent;
 import org.junit.Test;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
 public class FailoverTest extends AbstractIntegrationTest {
 
   public FailoverTest() {
@@ -71,7 +71,7 @@ public class FailoverTest extends AbstractIntegrationTest {
   public void testNodeFailure() throws Exception {
     deployTestIndices(1, getNodeCount());
     final LuceneClient client = new LuceneClient(_miniCluster.getZkConfiguration());
-    Query query = new QueryParser(Version.LUCENE_CURRENT, "", new KeywordAnalyzer()).parse("foo:bar");
+    Query query = new QueryParser(Version.LUCENE_30, "", new KeywordAnalyzer()).parse("foo:bar");
     assertEquals(4, client.count(query, new String[] { INDEX_NAME }));
 
     // kill 1st of 3 nodes

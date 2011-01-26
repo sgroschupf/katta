@@ -15,9 +15,6 @@
  */
 package net.sf.katta.integrationTest.lib.lucene;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -54,6 +51,9 @@ import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.Version;
 import org.junit.AfterClass;
 import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Test common lucene operations on sharded indices through katta interface
@@ -149,12 +149,13 @@ public class LuceneComplianceTest extends AbstractIntegrationTest {
             (_documents1.size() + _documents2.size()) / 2, sort);
   }
 
+  @SuppressWarnings("unchecked")
   private void checkQueryResults(IndexSearcher indexSearcher, String kattaIndexName, String fieldName,
           String queryTerm, int resultCount, Sort sort) throws Exception {
 
     // final Query query = new QueryParser("", new
     // KeywordAnalyzer()).parse(fieldName + ": " + queryTerm);
-    final Query query = new QueryParser(Version.LUCENE_CURRENT, "", new KeywordAnalyzer()).parse(fieldName + ": "
+    final Query query = new QueryParser(Version.LUCENE_30, "", new KeywordAnalyzer()).parse(fieldName + ": "
             + queryTerm);
     final TopDocs searchResultsLucene;
     final Hits searchResultsKatta;
@@ -216,8 +217,8 @@ public class LuceneComplianceTest extends AbstractIntegrationTest {
   private static void writeIndex(File file, List<Document> documents) throws IOException {
     file.mkdirs();
     assertTrue(file.exists());
-    IndexWriter indexWriter = new IndexWriter(FSDirectory.open(file), new StandardAnalyzer(Version.LUCENE_CURRENT),
-            true, MaxFieldLength.UNLIMITED);
+    IndexWriter indexWriter = new IndexWriter(FSDirectory.open(file), new StandardAnalyzer(Version.LUCENE_30), true,
+            MaxFieldLength.UNLIMITED);
     for (Document document : documents) {
       indexWriter.addDocument(document);
     }

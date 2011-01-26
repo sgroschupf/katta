@@ -15,10 +15,6 @@
  */
 package net.sf.katta.lib.lucene;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
-
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
@@ -36,6 +32,10 @@ import org.apache.lucene.queryParser.QueryParser;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.util.Version;
 import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
 
 public class LuceneServerTest extends AbstractTest {
 
@@ -272,7 +272,7 @@ public class LuceneServerTest extends AbstractTest {
       server.addShard(shard.getName(), shard);
     }
 
-    QueryParser parser = new QueryParser(Version.LUCENE_CURRENT, "field", new KeywordAnalyzer());
+    QueryParser parser = new QueryParser(Version.LUCENE_30, "field", new KeywordAnalyzer());
     Query query = parser.parse("foo: bar");
     QueryWritable writable = new QueryWritable(query);
 

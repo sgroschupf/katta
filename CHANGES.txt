@@ -1,5 +1,8 @@
 Katta Change Log
 
+katta 0.6.4
+ fix KATTA-172, upgrade to lucene-3.0.3 (from 3.0.0)
+
 katta 0.6.3
  fix KATTA-165, fix IndexOutOfBoundsException when adding index with enabled throttling
  fix KATTA-161, fix deadlock situation when node gets disconnected from zk and so becomes unresponsive

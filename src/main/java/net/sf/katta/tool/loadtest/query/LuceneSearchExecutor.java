@@ -51,7 +51,7 @@ public class LuceneSearchExecutor extends AbstractQueryExecutor {
 
   @Override
   public void execute(NodeContext nodeContext, String queryString) throws Exception {
-    final Query query = new QueryParser(Version.LUCENE_CURRENT, "", new KeywordAnalyzer()).parse(queryString);
+    final Query query = new QueryParser(Version.LUCENE_30, "", new KeywordAnalyzer()).parse(queryString);
     _client.search(query, _indices, _count);
   }
 

@@ -48,8 +48,8 @@ import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.protocol.ReplicationReport;
 import net.sf.katta.protocol.metadata.IndexDeployError;
 import net.sf.katta.protocol.metadata.IndexMetaData;
-import net.sf.katta.protocol.metadata.IndexMetaData.Shard;
 import net.sf.katta.protocol.metadata.NodeMetaData;
+import net.sf.katta.protocol.metadata.IndexMetaData.Shard;
 import net.sf.katta.tool.SampleIndexGenerator;
 import net.sf.katta.tool.loadtest.LoadTestMasterOperation;
 import net.sf.katta.tool.loadtest.query.AbstractQueryExecutor;
@@ -204,6 +204,7 @@ public class Katta {
     deployClient.removeIndex(indexName);
   }
 
+  @SuppressWarnings("unchecked")
   protected static <T> Class<T> loadClass(String serverClassName, Class<T> instanceOfClass) {
     try {
       Class<?> loadedClass = Katta.class.getClassLoader().loadClass(serverClassName);
@@ -400,8 +401,8 @@ public class Katta {
         if (!_detailedView) {
           table.addRow(index, state, replicationState, indexMD.getPath(), shards.size(), entries, indexBytes);
         } else {
-          table.addRow(index, state, replicationState, indexMD.getPath(), shards.size(), entries, indexBytes,
-                  indexMD.getReplicationLevel());
+          table.addRow(index, state, replicationState, indexMD.getPath(), shards.size(), entries, indexBytes, indexMD
+                  .getReplicationLevel());
         }
       }
       if (!indices.isEmpty()) {
@@ -777,7 +778,7 @@ public class Katta {
 
     void search(final String[] indexNames, final String queryString, final int count) throws Exception {
       final ILuceneClient client = new LuceneClient();
-      final Query query = new QueryParser(Version.LUCENE_CURRENT, "", new KeywordAnalyzer()).parse(queryString);
+      final Query query = new QueryParser(Version.LUCENE_30, "", new KeywordAnalyzer()).parse(queryString);
       final long start = System.currentTimeMillis();
       final Hits hits = client.search(query, indexNames, count);
       final long end = System.currentTimeMillis();
@@ -793,7 +794,7 @@ public class Katta {
 
     void search(final String[] indexNames, final String queryString) throws Exception {
       final ILuceneClient client = new LuceneClient();
-      final Query query = new QueryParser(Version.LUCENE_CURRENT, "", new KeywordAnalyzer()).parse(queryString);
+      final Query query = new QueryParser(Version.LUCENE_30, "", new KeywordAnalyzer()).parse(queryString);
       final long start = System.currentTimeMillis();
       final int hitsSize = client.count(query, indexNames);
       final long end = System.currentTimeMillis();
@@ -978,7 +979,6 @@ public class Katta {
       parseArguments(zkConf, args, parseOptionMap(args));
     }
 
-    @SuppressWarnings("unused")
     protected void parseArguments(ZkConfiguration zkConf, String[] args, Map<String, String> optionMap)
             throws Exception {
       // subclasses may override
