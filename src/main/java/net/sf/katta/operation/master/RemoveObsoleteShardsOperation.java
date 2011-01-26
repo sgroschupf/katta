@@ -47,7 +47,7 @@ public class RemoveObsoleteShardsOperation implements MasterOperation {
     Collection<String> nodeShards = protocol.getNodeShards(_nodeName);
     List<String> obsoletShards = collectObsoleteShards(protocol, nodeShards, runningOperations);
     if (!obsoletShards.isEmpty()) {
-      Log.info("found following shards obolete on node " + _nodeName + ": " + obsoletShards);
+      Log.info("found following shards obsolete on node " + _nodeName + ": " + obsoletShards);
       protocol.addNodeOperation(_nodeName, new ShardUndeployOperation(obsoletShards));
     }
 

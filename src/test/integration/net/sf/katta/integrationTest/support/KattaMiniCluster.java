@@ -88,6 +88,7 @@ public class KattaMiniCluster {
       _startedNodes++;
     }
     TestUtil.waitUntilLeaveSafeMode(_master);
+    TestUtil.waitUntilNumberOfLiveNode(_protocol, _nodes.size());
   }
 
   public Node startAdditionalNode() throws Exception {
