@@ -19,7 +19,6 @@ import java.util.Comparator;
 
 import net.sf.katta.util.WritableType;
 
-import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.SortField;
 
 /**
@@ -30,6 +29,7 @@ import org.apache.lucene.search.SortField;
  * This code leans on the lucene code from {@link FieldSortedHitQueue}
  * 
  */
+@SuppressWarnings("unchecked")
 class FieldSortComparator implements Comparator<Hit> {
 
   private static Comparator<Comparable> COMPARABLE_COMPARATOR = new ComparableComparator();

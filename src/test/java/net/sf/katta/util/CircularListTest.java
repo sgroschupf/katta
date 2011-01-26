@@ -15,19 +15,19 @@
  */
 package net.sf.katta.util;
 
-import static org.junit.Assert.assertEquals;
-
 import java.util.Arrays;
 
 import net.sf.katta.AbstractTest;
 
 import org.junit.Test;
 
+import static org.junit.Assert.assertEquals;
+
 public class CircularListTest extends AbstractTest {
 
   @Test
   public void testConstructor() {
-    CircularList list = new CircularList();
+    CircularList<Integer> list = new CircularList<Integer>();
     assertEquals(0, list.size());
     assertEquals(null, list.getNext());
     assertEquals(null, list.getTop());
@@ -37,7 +37,7 @@ public class CircularListTest extends AbstractTest {
 
   @Test
   public void testAdd_GetNext() {
-    CircularList list = new CircularList();
+    CircularList<Integer> list = new CircularList<Integer>();
     assertEquals(0, list.size());
 
     int valueCount = 100;
@@ -62,7 +62,7 @@ public class CircularListTest extends AbstractTest {
 
   @Test
   public void testMoveToEnd() {
-    CircularList list = new CircularList();
+    CircularList<Integer> list = new CircularList<Integer>();
     int valueCount = 10;
     for (int i = 0; i < valueCount; i++) {
       list.add(new Integer(i));
@@ -84,7 +84,7 @@ public class CircularListTest extends AbstractTest {
 
   @Test
   public void testMoveToMid() {
-    CircularList list = new CircularList();
+    CircularList<Integer> list = new CircularList<Integer>();
     // test just work if valueCount is even
     int valueCount = 10;
     for (int i = 0; i < valueCount; i++) {
@@ -107,7 +107,7 @@ public class CircularListTest extends AbstractTest {
 
   @Test
   public void testRemoveTop() {
-    CircularList list = new CircularList();
+    CircularList<Integer> list = new CircularList<Integer>();
     int valueCount = 10;
     for (int i = 0; i < valueCount; i++) {
       list.add(new Integer(i));
@@ -130,7 +130,7 @@ public class CircularListTest extends AbstractTest {
 
   @Test
   public void testRemove() {
-    CircularList list = new CircularList();
+    CircularList<Integer> list = new CircularList<Integer>();
     int valueCount = 10;
     for (int i = 0; i < valueCount; i++) {
       list.add(new Integer(i));
@@ -150,10 +150,11 @@ public class CircularListTest extends AbstractTest {
     assertEquals(new Integer(valueCount - 7), list.getTop());
     list.moveToEnd();
     list.moveToMid();
-    while (list.size() > 0)
+    while (list.size() > 0) {
       list.remove(list.getTop());
+    }
 
-    list.remove("nothing");
+    list.remove(000);
   }
 
   @Test

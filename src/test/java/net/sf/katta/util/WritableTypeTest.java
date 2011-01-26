@@ -15,10 +15,6 @@
  */
 package net.sf.katta.util;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.fail;
-
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -34,10 +30,14 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.WritableComparable;
 import org.junit.Test;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.fail;
+
+@SuppressWarnings("unchecked")
 public class WritableTypeTest extends AbstractTest {
 
   private final static Comparable[] COMPARABLES;
-
   private final static WritableComparable[] CONVERTED_COMPARABLES;
 
   static {

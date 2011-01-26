@@ -15,8 +15,6 @@
  */
 package net.sf.katta.util;
 
-import net.sf.katta.client.Client;
-
 /**
  * 
  * Configuration for a {@link Client}.

@@ -22,7 +22,6 @@ import java.util.List;
 
 import net.sf.katta.operation.OperationId;
 import net.sf.katta.operation.master.MasterOperation;
-import net.sf.katta.operation.node.NodeOperation;
 import net.sf.katta.operation.node.OperationResult;
 import net.sf.katta.protocol.ConnectedComponent;
 import net.sf.katta.protocol.IAddRemoveListener;

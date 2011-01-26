@@ -20,7 +20,6 @@ import java.util.Collection;
 
 import net.sf.katta.node.IContentServer;
 import net.sf.katta.node.NodeContext;
-import net.sf.katta.node.ShardManager;
 
 /**
  * Redploys shards which are already installed in {@link ShardManager}.

@@ -18,7 +18,6 @@ package net.sf.katta.testutil.mockito;
 import java.util.List;
 
 import org.apache.log4j.Logger;
-import org.mockito.Mockito;
 import org.mockito.exceptions.Reporter;
 import org.mockito.internal.debugging.Location;
 import org.mockito.internal.invocation.Invocation;

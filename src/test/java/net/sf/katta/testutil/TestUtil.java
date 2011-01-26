@@ -15,8 +15,6 @@
  */
 package net.sf.katta.testutil;
 
-import static org.junit.Assert.assertEquals;
-
 import java.io.File;
 import java.util.Set;
 import java.util.concurrent.Callable;
@@ -38,6 +36,8 @@ import org.mockito.exceptions.base.MockitoAssertionError;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.mockito.stubbing.Stubber;
+
+import static org.junit.Assert.assertEquals;
 
 public class TestUtil {
 
@@ -148,7 +148,7 @@ public class TestUtil {
    */
 
   public static Stubber createCountDownAnswer(final CountDownLatch countDownLatch) {
-    return Mockito.doAnswer(new Answer() {
+    return Mockito.doAnswer(new Answer<Object>() {
       public Object answer(InvocationOnMock invocation) throws Throwable {
         countDownLatch.countDown();
         return null;

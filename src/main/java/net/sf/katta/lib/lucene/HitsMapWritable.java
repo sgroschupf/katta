@@ -163,7 +163,6 @@ public class HitsMapWritable implements Writable {
   /**
    * @deprecated use {@link #addHit(Hit)} instead
    */
-  @SuppressWarnings("unused")
   public void addHitToShard(final String shard, final Hit hit) {
     addHit(hit);
   }
