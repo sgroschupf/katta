@@ -108,6 +108,7 @@ public class Master implements ConnectedComponent {
         upgradeAction.upgrade(_protocol);
       }
       _protocol.setVersion(Version.readFromJar());
+      LOG.info(getMasterName() + " became master with " + queue.size() + " waiting master operations");
       startNodeManagement();
       MasterContext masterContext = new MasterContext(_protocol, this, _deployPolicy, queue);
       _operatorThread = new OperatorThread(masterContext, _safeModeMaxTime);

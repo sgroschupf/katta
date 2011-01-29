@@ -23,7 +23,7 @@
 		<dependency org="commons-math" name="commons-math" rev="1.2" conf="compile" />
 
 		<!-- hadoop files system & rpc -->
-		<dependency org="org.apache.hadoop" name="hadoop-core" rev="0.20.1" conf="compile" />
+		<dependency org="org.apache.hadoop" name="hadoop" rev="0.20.2-core" conf="compile" />
 		<dependency org="jets3t" name="jets3t" rev="0.6.1" conf="compile" /> <!-- s3 fs-->
 		<dependency org="org.apache.commons" name="commons-httpclient" rev="3.0.1" conf="compile" /> <!-- s3 fs-->
 		<dependency org="org.apache.commons" name="commons-net" rev="1.4.1" conf="compile" /> <!-- ftp fs-->
@@ -56,8 +56,8 @@
 
 
 		<!-- TEST Dependencies -->
-		<dependency org="org.apache.hadoop" name="hadoop-test" rev="0.20.1" conf="test" />
-		<dependency org="junit" name="junit" rev="4.7" conf="test" />
+		<dependency org="org.apache.hadoop.test" name="hadoop" rev="0.20.2-test" conf="test" />
+		<dependency org="junit" name="junit" rev="4.8.1" conf="test" />
         <dependency org="org.mockito" name="mockito-core" rev="1.8.1" conf="test" />
 		<dependency org="org.hamcrest" name="hamcrest-library" rev="1.1" conf="test" />
 		<dependency org="org.hamcrest" name="hamcrest-core" rev="1.1" conf="test" />
