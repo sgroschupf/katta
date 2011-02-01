@@ -23,28 +23,36 @@ import net.sf.katta.util.ZkConfiguration.PathDef;
 import org.I0Itec.zkclient.IZkDataListener;
 import org.apache.log4j.Logger;
 
-//TODO PVo test all edge cases
 public class IndexDeployFuture implements IIndexDeployFuture, IZkDataListener, ConnectedComponent {
 
   private static Logger LOG = Logger.getLogger(IndexDeployFuture.class);
 
   private final InteractionProtocol _protocol;
   private final String _indexName;
+  private volatile boolean _registered;
 
   public IndexDeployFuture(InteractionProtocol protocol, String indexName) {
     _protocol = protocol;
     _indexName = indexName;
-
     _protocol.registerComponent(this);
     _protocol.registerDataListener(this, PathDef.INDICES_METADATA, indexName, this);
+    _registered = true;
   }
 
   public synchronized IndexState getState() {
+    if (!_registered) {
+      return IndexState.DEPLOYED;
+    }
+
     IndexMetaData indexMD = _protocol.getIndexMD(_indexName);
     if (indexMD == null) {
       return IndexState.DEPLOYING;
     } else if (indexMD.hasDeployError()) {
       return IndexState.ERROR;
+    }
+    if (_registered) {
+      _registered = false;
+      _protocol.unregisterComponent(this);
     }
     return IndexState.DEPLOYED;
   }
@@ -77,23 +85,21 @@ public class IndexDeployFuture implements IIndexDeployFuture, IZkDataListener, C
     wakeSleeper();
   }
 
-  private synchronized void wakeSleeper() {
-    if (!isDeploymentRunning()) {
-      _protocol.unregisterComponent(this);
-    }
-    notifyAll();
+  public synchronized void handleDataDeleted(String dataPath) {
+    _registered = false;
+    _protocol.unregisterComponent(this);
+    wakeSleeper();
   }
 
-  public synchronized void handleDataDeleted(String dataPath) {
-    throw new IllegalStateException();
+  private synchronized void wakeSleeper() {
+    notifyAll();
   }
 
   @Override
   public void reconnect() {
     // sg: we just want to make sure we get the very latest state of the
     // index, since we might missed a event. With zookeeper 3.x we should still
-    // have
-    // subcribed notifcatins and dont need to resubscribe
+    // have subscribed notifications and don't need to re-subscribe
     LOG.warn("Reconnecting IndexDeployFuture");
     wakeSleeper();
   }

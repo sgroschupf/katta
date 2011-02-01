@@ -15,14 +15,15 @@
  */
 package net.sf.katta.client;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
 import net.sf.katta.AbstractZkTest;
 import net.sf.katta.protocol.metadata.IndexDeployError;
 import net.sf.katta.protocol.metadata.IndexMetaData;
 import net.sf.katta.protocol.metadata.IndexDeployError.ErrorType;
 
 import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 public class IndexDeployFutureTest extends AbstractZkTest {
 
@@ -68,6 +69,17 @@ public class IndexDeployFutureTest extends AbstractZkTest {
     deployFuture.reconnect();
     _protocol.publishIndex(new IndexMetaData(indexName, "path", 1));
     thread.join();
+  }
+
+  @Test
+  public void testJoinIndexDeployment_DeleteIndex() throws Exception {
+    String indexName = "indexA";
+    IndexDeployFuture deployFuture = new IndexDeployFuture(_protocol, indexName);
+    assertEquals(IndexState.DEPLOYING, deployFuture.joinDeployment(200));
+
+    _protocol.publishIndex(new IndexMetaData(indexName, "path", 1));
+    _protocol.unpublishIndex(indexName);
+    assertEquals(IndexState.DEPLOYED, deployFuture.joinDeployment(200));
   }
 
 }
