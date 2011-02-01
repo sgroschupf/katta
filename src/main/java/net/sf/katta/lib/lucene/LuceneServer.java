@@ -242,7 +242,11 @@ public class LuceneServer implements IContentServer, ILuceneServer {
    * @return the <code>IndexSearcher</code> of the given shardName
    */
   protected IndexSearcher getSearcherByShard(String shardName) {
-    return _searcherByShard.get(shardName);
+    IndexSearcher indexSearcher = _searcherByShard.get(shardName);
+    if (indexSearcher == null) {
+      throw new IllegalStateException("no index-server for shard '" + shardName + "' found - probably undeployed");
+    }
+    return indexSearcher;
   }
 
   @Override
@@ -298,7 +302,6 @@ public class LuceneServer implements IContentServer, ILuceneServer {
   @Override
   public DocumentFrequencyWritable getDocFreqs(final QueryWritable input, final String[] shards) throws IOException {
     Query luceneQuery = input.getQuery();
-
     final Query rewrittenQuery = rewrite(luceneQuery, shards);
     final DocumentFrequencyWritable docFreqs = new DocumentFrequencyWritable();
 
@@ -306,9 +309,10 @@ public class LuceneServer implements IContentServer, ILuceneServer {
     rewrittenQuery.extractTerms(termSet);
     for (final String shard : shards) {
       final java.util.Iterator<Term> termIterator = termSet.iterator();
+      IndexSearcher searcher = getSearcherByShard(shard);
       while (termIterator.hasNext()) {
         final Term term = termIterator.next();
-        final int docFreq = docFreq(shard, term);
+        final int docFreq = searcher.docFreq(term);
         docFreqs.put(term.field(), term.text(), docFreq);
       }
       docFreqs.addNumDocs(shardSize(shard));
@@ -498,14 +502,11 @@ public class LuceneServer implements IContentServer, ILuceneServer {
    */
   protected Document doc(final String shardName, final int docId, final String[] fieldNames) throws IOException {
     final Searchable searchable = getSearcherByShard(shardName);
-    if (searchable != null) {
-      if (fieldNames == null) {
-        return searchable.doc(docId);
-      } else {
-        return searchable.doc(docId, new MapFieldSelector(fieldNames));
-      }
+    if (fieldNames == null) {
+      return searchable.doc(docId);
+    } else {
+      return searchable.doc(docId, new MapFieldSelector(fieldNames));
     }
-    throw new IllegalArgumentException("shard " + shardName + " unknown");
   }
 
   /**
@@ -522,8 +523,7 @@ public class LuceneServer implements IContentServer, ILuceneServer {
       final String shard = shardNames[i];
       final IndexSearcher searcher = getSearcherByShard(shard);
       if (searcher == null) {
-        LOG.error("Node " + getNodeName() + ": unknown shard " + shard);
-        // TODO PVo should we throw an exception here?
+        throw new IllegalStateException("no index-server for shard '" + shard + "' found - probably undeployed");
       } else {
         queries[i] = searcher.rewrite(original);
       }
@@ -534,25 +534,6 @@ public class LuceneServer implements IContentServer, ILuceneServer {
       LOG.error("No queries available for shards: " + Arrays.toString(shardNames));
     }
     return original;
-  }
-
-  /**
-   * Returns the document frequency for a given term within a given shard.
-   * 
-   * @param shardName
-   * @param term
-   * @return
-   * @throws IOException
-   */
-  protected int docFreq(final String shardName, final Term term) throws IOException {
-    int result = 0;
-    final Searchable searchable = getSearcherByShard(shardName);
-    if (searchable != null) {
-      result = searchable.docFreq(term);
-    } else {
-      LOG.error("No shard with the name '" + shardName + "' on in this searcher.");
-    }
-    return result;
   }
 
   /**
@@ -686,6 +667,7 @@ public class LuceneServer implements IContentServer, ILuceneServer {
       throw new UnsupportedOperationException();
     }
 
+    @Override
     public Document doc(final int i, final FieldSelector fieldSelector) {
       throw new UnsupportedOperationException();
     }
