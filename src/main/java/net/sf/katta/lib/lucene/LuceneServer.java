@@ -27,12 +27,15 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 import net.sf.katta.node.IContentServer;
 import net.sf.katta.util.ClassUtil;
@@ -85,9 +88,11 @@ public class LuceneServer implements IContentServer, ILuceneServer {
   private final static Logger LOG = Logger.getLogger(LuceneServer.class);
   public final static String CONF_KEY_SEARCHER_FACTORY_CLASS = "lucene.searcher.factory-class";
   public final static String CONF_KEY_COLLECTOR_TIMOUT_PERCENTAGE = "lucene.collector.timeout-percentage";
+  public final static String CONF_KEY_SEARCHER_THREADPOOL_CORESIZE = "lucene.searcher.threadpool.core-size";
+  public final static String CONF_KEY_SEARCHER_THREADPOOL_MAXSIZE = "lucene.searcher.threadpool.max-size";
 
   protected final Map<String, IndexSearcher> _searcherByShard = new ConcurrentHashMap<String, IndexSearcher>();
-  protected ExecutorService _threadPool = Executors.newFixedThreadPool(100);
+  protected ExecutorService _threadPool;
 
   protected String _nodeName;
   private float _timeoutPercentage = 0.75f;
@@ -106,7 +111,8 @@ public class LuceneServer implements IContentServer, ILuceneServer {
    * @param timeoutPercentage
    */
   public LuceneServer(String name, ISeacherFactory seacherFactory, float timeoutPercentage) {
-    _nodeName = name;
+    Properties properties = new Properties();
+    init(name, new NodeConfiguration(properties));
     _seacherFactory = seacherFactory;
     _timeoutPercentage = timeoutPercentage;
   }
@@ -125,6 +131,9 @@ public class LuceneServer implements IContentServer, ILuceneServer {
       throw new IllegalArgumentException("illegal value '" + _timeoutPercentage + "' for "
               + CONF_KEY_COLLECTOR_TIMOUT_PERCENTAGE + ". Only values between 0 and 1 are allowed.");
     }
+    int coreSize = nodeConfiguration.getInt(CONF_KEY_SEARCHER_THREADPOOL_CORESIZE, 25);
+    int maxSize = nodeConfiguration.getInt(CONF_KEY_SEARCHER_THREADPOOL_MAXSIZE, 100);
+    _threadPool = new ThreadPoolExecutor(coreSize, maxSize, 100L, TimeUnit.MINUTES, new LinkedBlockingQueue<Runnable>());
   }
 
   public String getNodeName() {
