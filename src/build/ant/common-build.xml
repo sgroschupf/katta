@@ -68,6 +68,7 @@
 		</javac>
 	</target>
 
+
 	<!-- ================================================================== -->
 	<!-- Tests                                                              -->
 	<!-- ================================================================== -->
@@ -169,7 +170,7 @@
 	<!-- ================================================================== -->
 
 
-	<target name="jar" depends="compile-katta">
+	<target name="jar" depends="compile-katta" description="--> create jar classes">
 		<tstamp>
 			<format property="timestamp" pattern="MMM dd yyyy, HH:mm:ss" />
 		</tstamp>
@@ -182,6 +183,30 @@
 		<jar jarfile="${build.dir}/${jar.name}" >
 			<fileset dir="${build.dir.main-classes}"/>
 			<fileset dir="${main.src.dir}" includes="**/*.java"/>
+			<manifest>
+				<section name="net/sf/katta">
+					<attribute name="Implementation-Vendor" value="101tec inc" />
+					<attribute name="Implementation-Title" value="Katta" />
+					<attribute name="Implementation-Version" value="${version}" />
+					<attribute name="Compile-Time" value="${timestamp}" />
+					<attribute name="Compiled-By" value="${user.name}" />
+					<attribute name="Git-Revision" value="${build.current.revision}" />
+				</section>
+			</manifest>
+		</jar>
+	</target>
+
+	<target name="jar-test" depends="compile-test" description="--> create jar with test-classes">
+		<tstamp>
+			<format property="timestamp" pattern="MMM dd yyyy, HH:mm:ss" />
+		</tstamp>
+		<!-- git version -->
+		<exec outputproperty="build.current.revision" command="git">
+			<arg line=" log -1 --pretty=format:%h" />
+		</exec>
+		<echo>Reversion: ${build.current.revision}</echo>
+
+		<jar jarfile="${build.dir}/test-${jar.name}" basedir="${build.dir.test-classes}">
 			<manifest>
 				<section name="net/sf/katta">
 					<attribute name="Implementation-Vendor" value="101tec inc" />
