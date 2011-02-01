@@ -40,7 +40,8 @@ public class SleepServer implements IContentServer, ISleepServer {
     return 0L;
   }
 
-  public void setNodeName(String nodeName) {
+  @Override
+  public void init(String nodeName, NodeConfiguration nodeConfiguration) {
     _nodeName = nodeName;
   }
 

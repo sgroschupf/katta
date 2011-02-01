@@ -33,6 +33,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import net.sf.katta.node.IContentServer;
+import net.sf.katta.util.NodeConfiguration;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -51,7 +52,7 @@ public class MapFileServer implements IContentServer, IMapFileServer {
   private final static Logger LOG = Logger.getLogger(MapFileServer.class);
 
   private final Configuration _conf = new Configuration();
-  private final FileSystem _fileSystem ;
+  private final FileSystem _fileSystem;
   private final Map<String, MapFile.Reader> _readerByShard = new ConcurrentHashMap<String, MapFile.Reader>();
   private String _nodeName;
 
@@ -63,7 +64,8 @@ public class MapFileServer implements IContentServer, IMapFileServer {
     return 0L;
   }
 
-  public void setNodeName(String nodeName) {
+  @Override
+  public void init(String nodeName, NodeConfiguration nodeConfiguration) {
     _nodeName = nodeName;
   }
 
@@ -92,7 +94,7 @@ public class MapFileServer implements IContentServer, IMapFileServer {
       throw e;
     }
   }
-  
+
   @Override
   public Collection<String> getShards() {
     return Collections.unmodifiableCollection(_readerByShard.keySet());
@@ -119,17 +121,18 @@ public class MapFileServer implements IContentServer, IMapFileServer {
       }
     }
   }
-  
+
   /**
    * Returns data about a shard. Currently the only standard key is
-   * SHARD_SIZE_KEY. This value will be reported by the listIndexes command.
-   * The units depend on the type of server. It is OK to return an empty
-   * map or null.
+   * SHARD_SIZE_KEY. This value will be reported by the listIndexes command. The
+   * units depend on the type of server. It is OK to return an empty map or
+   * null.
    * 
-   * @param shardName The name of the shard to measure. 
-   * This was the name provided in addShard().
+   * @param shardName
+   *          The name of the shard to measure. This was the name provided in
+   *          addShard().
    * @return a map of key/value pairs which describe the shard.
-   * @throws Exception 
+   * @throws Exception
    */
   public Map<String, String> getShardMetaData(String shardName) throws Exception {
     final MapFile.Reader reader = _readerByShard.get(shardName);
@@ -165,7 +168,6 @@ public class MapFileServer implements IContentServer, IMapFileServer {
     _readerByShard.clear();
   }
 
-
   public TextArrayWritable get(Text key, String[] shards) throws IOException {
     ExecutorService executor = Executors.newCachedThreadPool();
     Collection<Future<Text>> futures = new ArrayList<Future<Text>>();
@@ -194,8 +196,8 @@ public class MapFileServer implements IContentServer, IMapFileServer {
         }
       } catch (ExecutionException e) {
         /*
-         *  This MapFile red threw an exception.
-         *  Stop processing and throw an IOE.
+         * This MapFile red threw an exception. Stop processing and throw an
+         * IOE.
          */
         Throwable t = e.getCause();
         if (t instanceof IOException) {
@@ -212,22 +214,21 @@ public class MapFileServer implements IContentServer, IMapFileServer {
         LOG.warn("Timed out while getting MapLookup", e);
       } catch (InterruptedException e) {
         /*
-         *  Something went wrong while waiting for result. Should not happen
-         *  because we wait for 0 msec, and the future is done. Continue as if
-         *  the MapLookup had returned null.
+         * Something went wrong while waiting for result. Should not happen
+         * because we wait for 0 msec, and the future is done. Continue as if
+         * the MapLookup had returned null.
          */
         LOG.warn("Interrupted while getting RPC result", e);
       }
     }
     return new TextArrayWritable(resultList);
   }
-  
-  
+
   private class MapLookup implements Callable<Text> {
 
     private MapFile.Reader _reader;
     private WritableComparable<?> _key;
-    
+
     public MapLookup(Reader reader, WritableComparable<?> key) {
       _reader = reader;
       _key = key;
@@ -240,7 +241,7 @@ public class MapFileServer implements IContentServer, IMapFileServer {
         return (Text) result;
       }
     }
-    
+
   }
 
 }

@@ -55,6 +55,7 @@ import net.sf.katta.tool.loadtest.LoadTestMasterOperation;
 import net.sf.katta.tool.loadtest.query.AbstractQueryExecutor;
 import net.sf.katta.tool.loadtest.query.LuceneSearchExecutor;
 import net.sf.katta.tool.loadtest.query.MapfileAccessExecutor;
+import net.sf.katta.util.ClassUtil;
 import net.sf.katta.util.NodeConfiguration;
 import net.sf.katta.util.StringUtil;
 import net.sf.katta.util.WebApp;
@@ -204,19 +205,6 @@ public class Katta {
     deployClient.removeIndex(indexName);
   }
 
-  @SuppressWarnings("unchecked")
-  protected static <T> Class<T> loadClass(String serverClassName, Class<T> instanceOfClass) {
-    try {
-      Class<?> loadedClass = Katta.class.getClassLoader().loadClass(serverClassName);
-      if (!instanceOfClass.isAssignableFrom(loadedClass)) {
-        throw new IllegalStateException("Class " + serverClassName + " does not implement " + instanceOfClass.getName());
-      }
-      return (Class<T>) loadedClass;
-    } catch (ClassNotFoundException e) {
-      throw new IllegalStateException("Can not find class '" + serverClassName + "'");
-    }
-  }
-
   protected static void validateMinArguments(String[] args, int minCount) {
     if (args.length < minCount) {
       throw new IllegalArgumentException("not enough arguments");
@@ -311,13 +299,8 @@ public class Katta {
         _nodeConfiguration.setStartPort(Integer.parseInt(portNumber));
       }
 
-      Class<?> serverClass = loadClass(serverClassName, IContentServer.class);
-      try {
-        _server = (IContentServer) serverClass.newInstance();
-      } catch (Exception e) {
-        throw new IllegalStateException("could not create instance of class '" + serverClassName + "': "
-                + e.getMessage());
-      }
+      Class<?> serverClass = ClassUtil.forName(serverClassName, IContentServer.class);
+      _server = (IContentServer) ClassUtil.newInstance(serverClass);
     }
 
     @Override
@@ -916,7 +899,7 @@ public class Katta {
     protected void parseArguments(ZkConfiguration zkConf, String[] args, java.util.Map<String, String> optionMap)
             throws Exception {
       validateMinArguments(args, 2);
-      _clazz = loadClass(args[1], Object.class);
+      _clazz = ClassUtil.forName(args[1], Object.class);
       _method = _clazz.getMethod("main", args.getClass());
       if (_method == null) {
         throw new IllegalArgumentException("class " + _clazz.getName() + " doesn't have a main method");

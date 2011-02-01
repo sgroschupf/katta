@@ -73,7 +73,7 @@ public class SleepServerTest extends AbstractTest {
   @Test
   public void testShards() throws IllegalArgumentException {
     SleepServer server = new SleepServer();
-    server.setNodeName("sleepy");
+    server.init("sleepy", newNodeConfiguration());
     try {
       server.sleep(0L, 0, new String[] { "not-found" });
       fail("Should have failed");

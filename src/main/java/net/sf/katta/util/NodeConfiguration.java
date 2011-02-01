@@ -16,6 +16,7 @@
 package net.sf.katta.util;
 
 import java.io.File;
+import java.util.Properties;
 
 @SuppressWarnings("serial")
 public class NodeConfiguration extends KattaConfiguration {
@@ -33,6 +34,10 @@ public class NodeConfiguration extends KattaConfiguration {
 
   public NodeConfiguration(File file) {
     super(file);
+  }
+
+  public NodeConfiguration(Properties properties) {
+    super(properties, "n/a");
   }
 
   public int getStartPort() {

@@ -279,6 +279,9 @@ public class Client implements IShardProxyManager, ConnectedComponent {
    * Broadcast a method call to all indices. Return all the results in a
    * Collection.
    * 
+   * @param <T>
+   * @param timeout
+   * @param shutdown
    * @param method
    *          The server's method to call.
    * @param shardArrayParamIndex
@@ -288,7 +291,7 @@ public class Client implements IShardProxyManager, ConnectedComponent {
    *          disable.
    * @param args
    *          The arguments to pass to the method when run on the server.
-   * @return
+   * @return the results
    * @throws KattaException
    */
   public <T> ClientResult<T> broadcastToAll(long timeout, boolean shutdown, Method method, int shardArrayParamIndex,

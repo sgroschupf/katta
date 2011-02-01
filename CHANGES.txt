@@ -1,6 +1,8 @@
 Katta Change Log
 
 katta 0.6.4
+ fix KATTA-171, use timeout from Client in the LuceneServer as well
+ fix KATTA-174, allow configuration of content-server through katta.node.properties
  fix KATTA-173, upgrade to hadoop-0.20.2 (from 0.20.1)
  fix KATTA-172, upgrade to lucene-3.0.3 (from 3.0.0)
 

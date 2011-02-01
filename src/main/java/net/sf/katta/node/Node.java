@@ -58,10 +58,10 @@ public class Node implements ConnectedComponent {
     this(protocol, new NodeConfiguration(), server);
   }
 
-  public Node(InteractionProtocol protocol, final NodeConfiguration configuration, IContentServer _nodeManaged) {
+  public Node(InteractionProtocol protocol, final NodeConfiguration configuration, IContentServer contentServer) {
     _protocol = protocol;
-    this._contentServer = _nodeManaged;
-    if (_nodeManaged == null) {
+    _contentServer = contentServer;
+    if (contentServer == null) {
       throw new IllegalArgumentException("Null server passed to Node()");
     }
     _nodeConf = configuration;
@@ -78,7 +78,7 @@ public class Node implements ConnectedComponent {
     String hostName = NetworkUtil.getLocalhostName();
     _rpcServer = startRPCServer(hostName, _nodeConf.getStartPort(), _contentServer, _nodeConf.getRpcHandlerCount());
     _nodeName = hostName + ":" + _rpcServer.getListenerAddress().getPort();
-    _contentServer.setNodeName(_nodeName);
+    _contentServer.init(_nodeName, _nodeConf);
 
     // we add hostName and port to the shardFolder to allow multiple nodes per
     // server with the same configuration

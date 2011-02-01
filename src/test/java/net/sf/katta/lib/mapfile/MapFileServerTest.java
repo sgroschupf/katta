@@ -15,10 +15,6 @@
  */
 package net.sf.katta.lib.mapfile;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-
 import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -35,6 +31,10 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 import org.apache.log4j.Logger;
 import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Test for {@link MapFileServer }.
@@ -55,7 +55,7 @@ public class MapFileServerTest extends AbstractTest {
   @Test
   public void testShardA1() throws Exception {
     MapFileServer server = new MapFileServer();
-    server.setNodeName(NODE_NAME);
+    server.init(NODE_NAME, newNodeConfiguration());
     server.addShard(SHARD_A_1, new File(TestResources.MAP_FILE_A, "a1"));
     assertNotNull(server.getShardMetaData(SHARD_A_1));
     assertEquals("3", server.getShardMetaData(SHARD_A_1).get(IContentServer.SHARD_SIZE_KEY));
@@ -71,7 +71,7 @@ public class MapFileServerTest extends AbstractTest {
   @Test
   public void testShardA2() throws Exception {
     MapFileServer server = new MapFileServer();
-    server.setNodeName(NODE_NAME);
+    server.init(NODE_NAME, newNodeConfiguration());
     server.addShard(SHARD_A_2, new File(TestResources.MAP_FILE_A, "a2"));
     assertEquals("3", server.getShardMetaData(SHARD_A_2).get(IContentServer.SHARD_SIZE_KEY));
     String[] shards = new String[] { SHARD_A_2 };
@@ -86,7 +86,7 @@ public class MapFileServerTest extends AbstractTest {
   @Test
   public void testMapFile1() throws Exception {
     MapFileServer server = new MapFileServer();
-    server.setNodeName(NODE_NAME);
+    server.init(NODE_NAME, newNodeConfiguration());
     server.addShard(SHARD_A_1, new File(TestResources.MAP_FILE_A, "a1"));
     server.addShard(SHARD_A_2, new File(TestResources.MAP_FILE_A, "a2"));
     server.addShard(SHARD_A_3, new File(TestResources.MAP_FILE_A, "a3"));
@@ -109,7 +109,7 @@ public class MapFileServerTest extends AbstractTest {
   @Test
   public void testBothMapFiles() throws Exception {
     MapFileServer server = new MapFileServer();
-    server.setNodeName(NODE_NAME);
+    server.init(NODE_NAME, newNodeConfiguration());
     server.addShard(SHARD_A_1, new File(TestResources.MAP_FILE_A, "a1"));
     server.addShard(SHARD_A_2, new File(TestResources.MAP_FILE_A, "a2"));
     server.addShard(SHARD_A_3, new File(TestResources.MAP_FILE_A, "a3"));
@@ -144,7 +144,7 @@ public class MapFileServerTest extends AbstractTest {
   @Test
   public void testMultiThreadedAccess() throws Exception {
     final MapFileServer server = new MapFileServer();
-    server.setNodeName(NODE_NAME);
+    server.init(NODE_NAME, newNodeConfiguration());
     server.addShard(SHARD_A_1, new File(TestResources.MAP_FILE_A, "a1"));
     server.addShard(SHARD_A_2, new File(TestResources.MAP_FILE_A, "a2"));
     server.addShard(SHARD_A_3, new File(TestResources.MAP_FILE_A, "a3"));

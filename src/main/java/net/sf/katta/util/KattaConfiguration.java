@@ -20,8 +20,11 @@ import java.io.Serializable;
 import java.util.Properties;
 import java.util.Set;
 
+import org.apache.log4j.Logger;
+
 public class KattaConfiguration implements Serializable {
 
+  private final static Logger LOG = Logger.getLogger(KattaConfiguration.class);
   private static final long serialVersionUID = 1L;
   protected Properties _properties;
   private final String _resourcePath;
@@ -86,6 +89,20 @@ public class KattaConfiguration implements Serializable {
     try {
       return Integer.parseInt(getProperty(key));
     } catch (NumberFormatException e) {
+      LOG.warn("failed to parse value '" + getProperty(key) + "' for key '" + key + "' - returning default value '"
+              + defaultValue + "'");
+      return defaultValue;
+    } catch (IllegalStateException e) {
+      return defaultValue;
+    }
+  }
+
+  public float getFloat(final String key, final float defaultValue) {
+    try {
+      return Float.parseFloat(getProperty(key));
+    } catch (NumberFormatException e) {
+      LOG.warn("failed to parse value '" + getProperty(key) + "' for key '" + key + "' - returning default value '"
+              + defaultValue + "'");
       return defaultValue;
     } catch (IllegalStateException e) {
       return defaultValue;
@@ -98,11 +115,12 @@ public class KattaConfiguration implements Serializable {
 
   public Class<?> getClass(final String key) {
     final String className = getProperty(key);
-    try {
-      return Class.forName(className);
-    } catch (ClassNotFoundException e) {
-      throw new RuntimeException("can not create class " + className, e);
-    }
+    return ClassUtil.forName(className, Object.class);
+  }
+
+  public Class<?> getClass(final String key, Class<?> defaultValue) {
+    final String className = getProperty(key, defaultValue.getName());
+    return ClassUtil.forName(className, Object.class);
   }
 
   public Set<String> getKeys() {

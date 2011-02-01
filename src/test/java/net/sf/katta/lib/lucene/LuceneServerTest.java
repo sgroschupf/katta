@@ -16,26 +16,41 @@
 package net.sf.katta.lib.lucene;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import junit.framework.Assert;
 import net.sf.katta.AbstractTest;
 import net.sf.katta.testutil.TestResources;
+import net.sf.katta.testutil.mockito.ChainedAnswer;
+import net.sf.katta.testutil.mockito.SleepingAnswer;
 
-import org.apache.lucene.analysis.KeywordAnalyzer;
-import org.apache.lucene.queryParser.QueryParser;
-import org.apache.lucene.search.Query;
-import org.apache.lucene.util.Version;
+import org.apache.lucene.search.Collector;
+import org.apache.lucene.search.Filter;
+import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.Weight;
 import org.junit.Test;
+import org.mockito.internal.stubbing.answers.CallsRealMethods;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
+
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
+
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyString;
 
 public class LuceneServerTest extends AbstractTest {
 
@@ -76,206 +91,91 @@ public class LuceneServerTest extends AbstractTest {
     assertSame(hit3, queue.pop());
   }
 
-  // @Test
-  // public void testRemoveAndAdd() throws IOException, ParseException,
-  // InterruptedException {
-  // final ZkConfiguration conf = new ZkConfiguration();
-  // final ZKClient client = new ZKClient(conf);
-  // final ZkServer server = new ZkServer(conf);
-  // Thread.sleep(3000);
-  // if (client.exists(IPaths.ROOT_PATH)) {
-  // client.deleteRecursiv(IPaths.ROOT_PATH);
-  // }
-  // server.startMasterOrNode(client, true);
-  //
-  // final Query query = new Query("foo: bar");
-  //
-  // final Node node = startNodeServer();
-  // final ISearch searchServer = (ISearch) RPC.getProxy(ISearch.class, 0L,
-  // new
-  // InetSocketAddress(NetworkUtil
-  // .getLocalhostName(), 20000), new Configuration());
-  // AssignedShard shard = new AssignedShard("bla2",
-  // "src/test/testIndexA/bIndex");
-  // searchServer.addShard(shard);
-  // DocumentFrequenceWritable docFreqs = searchServer.getDocFreqs(query, new
-  // String[] { shard.getName() });
-  // searchServer.setSimilarityDocFreqs(docFreqs);
-  // HitsMapWritable searchHits = searchServer.search(new Query("foo: bar"),
-  // new
-  // String[] { shard.getName() });
-  // Hits hits = searchHits.getHits();
-  // assertNotNull(hits);
-  // assertEquals(1, hits.getHits().size());
-  //
-  // searchServer.removeShard(shard);
-  // docFreqs = searchServer.getDocFreqs(query, new String[] { shard.getName()
-  // });
-  // docFreqs = searchServer.getDocFreqs(query, new String[] {});
-  // searchServer.setSimilarityDocFreqs(docFreqs);
-  // searchHits = searchServer.search(query, new String[] { shard.getName()
-  // });
-  // hits = searchHits.getHits();
-  // assertNotNull(hits);
-  // assertEquals(0, hits.getHits().size());
-  //
-  // shard = new AssignedShard("bla2", "src/test/testIndexA/aIndex");
-  // searchServer.addShard(shard);
-  // docFreqs = searchServer.getDocFreqs(query, new String[] { shard.getName()
-  // });
-  // searchServer.setSimilarityDocFreqs(docFreqs);
-  // searchHits = searchServer.search(query, new String[] { shard.getName()
-  // });
-  // hits = searchHits.getHits();
-  // assertNotNull(hits);
-  // assertEquals(2, hits.getHits().size());
-  //
-  // RPC.stopClient();
-  // node.shutdown();
-  // Thread.sleep(3000);
-  // client.close();
-  // server.shutdown();
-  // }
-  //
+  @Test
+  public void testConfiguration() throws Exception {
+    // no property in configuration
+    LuceneServer server = new LuceneServer();
+    server.init("server", newNodeConfiguration());
+    assertEquals("server", server.getNodeName());
+    assertEquals(0.75f, server.getTimeoutPercentage(), 0.5);
+    server.shutdown();
 
-  //
-  // public void testGetDtails() throws IOException, ParseException,
-  // InterruptedException {
-  // final ZkConfiguration conf = new ZkConfiguration();
-  // final ZKClient client = new ZKClient(conf);
-  // final ZkServer server = new ZkServer(conf);
-  // Thread.sleep(3000);
-  // if (client.exists(IPaths.ROOT_PATH)) {
-  // client.deleteRecursiv(IPaths.ROOT_PATH);
-  // }
-  // server.startMasterOrNode(client, true);
-  //
-  // final Node node = startNodeServer();
-  // final ISearch searchServer = (ISearch) RPC.getProxy(ISearch.class, 0L,
-  // new
-  // InetSocketAddress(NetworkUtil
-  // .getLocalhostName(), 20000), new Configuration());
-  // final AssignedShard shard = new AssignedShard("bla2",
-  // "src/test/testIndexA/dIndex");
-  // searchServer.addShard(shard);
-  //
-  // final Query query = new Query("content: the");
-  // final DocumentFrequenceWritable docFreqs =
-  // searchServer.getDocFreqs(query,
-  // new String[] { shard.getName() });
-  // searchServer.setSimilarityDocFreqs(docFreqs);
-  // final HitsMapWritable searchHits = searchServer.search(query, new
-  // String[]
-  // { shard.getName() }, 10);
-  // final Hits hits = searchHits.getHits();
-  // assertNotNull(hits);
-  // assertEquals(937, hits.size());
-  // List<Hit> hits2 = hits.getHits();
-  // assertEquals(10, hits2.size());
-  // for (Hit hit : hits2) {
-  // MapWritable details = searchServer.getDetails(hit.getShard(),
-  // hit.getDocId());
-  // assertNotNull(details);
-  // Writable writable = details.get(new Text("path"));
-  // assertNotNull(writable);
-  // assertTrue(writable.toString().length() > 0);
-  // }
-  //
-  // RPC.stopClient();
-  // node.shutdown();
-  // Thread.sleep(3000);
-  // client.close();
-  // server.shutdown();
-  // }
-  //
-  // public void testGetResultCount() throws IOException, ParseException,
-  // InterruptedException {
-  // final ZkConfiguration conf = new ZkConfiguration();
-  // final ZKClient client = new ZKClient(conf);
-  // final ZkServer server = new ZkServer(conf);
-  // Thread.sleep(3000);
-  // if (client.exists(IPaths.ROOT_PATH)) {
-  // client.deleteRecursiv(IPaths.ROOT_PATH);
-  // }
-  // server.startMasterOrNode(client, true);
-  //
-  // final Node node = startNodeServer();
-  // final ISearch searchServer = (ISearch) RPC.getProxy(ISearch.class, 0L,
-  // new
-  // InetSocketAddress(NetworkUtil
-  // .getLocalhostName(), 20000), new Configuration());
-  // final AssignedShard shard = new AssignedShard("bla2",
-  // "src/test/testIndexA/dIndex");
-  // searchServer.addShard(shard);
-  //
-  // final Query query = new Query("content: the");
-  // final IntWritable count = searchServer.getResultCount(query, new String[]
-  // {
-  // shard.getName() });
-  // assertNotNull(count);
-  // assertEquals(937, count.get());
-  //
-  // RPC.stopClient();
-  // node.shutdown();
-  // Thread.sleep(3000);
-  // client.close();
-  // server.shutdown();
-  // }
-  //
-  // public void testSearchRange() throws IOException, ParseException,
-  // InterruptedException {
-  // final ZkConfiguration conf = new ZkConfiguration();
-  // final ZKClient client = new ZKClient(conf);
-  // final ZkServer server = new ZkServer(conf);
-  // Thread.sleep(3000);
-  // if (client.exists(IPaths.ROOT_PATH)) {
-  // client.deleteRecursiv(IPaths.ROOT_PATH);
-  // }
-  // server.startMasterOrNode(client, true);
-  //
-  // final Node node = startNodeServer();
-  // final ISearch searchServer = (ISearch) RPC.getProxy(ISearch.class, 0L,
-  // new
-  // InetSocketAddress(NetworkUtil
-  // .getLocalhostName(), 20000), new Configuration());
-  // final AssignedShard shard = new AssignedShard("bla2",
-  // "src/test/testIndexA/dIndex");
-  // searchServer.addShard(shard);
-  //
-  // final Query query = new Query("content: the");
-  // final DocumentFrequenceWritable docFreqs =
-  // searchServer.getDocFreqs(query,
-  // new String[] { shard.getName() });
-  // searchServer.setSimilarityDocFreqs(docFreqs);
-  // final HitsMapWritable searchHits = searchServer.search(query, new
-  // String[]
-  // { shard.getName() }, 37);
-  // final Hits hits = searchHits.getHits();
-  // assertNotNull(hits);
-  // assertEquals(937, hits.size());
-  // assertEquals(37, hits.getHits().size());
-  //
-  // RPC.stopClient();
-  // node.shutdown();
-  // Thread.sleep(3000);
-  // client.close();
-  // server.shutdown();
-  // }
-  //
+    // property in configuration
+    server = new LuceneServer();
+    server.init("server", newNodeConfiguration(LuceneServer.CONF_KEY_COLLECTOR_TIMOUT_PERCENTAGE, "0.5"));
+    assertEquals("server", server.getNodeName());
+    assertEquals(0.5f, server.getTimeoutPercentage(), 0.5);
+  }
 
   @Test
-  public void testMultiThreadSearch() throws Exception {
-    LuceneServer server = new LuceneServer();
-    File[] shards = TestResources.INDEX1.listFiles();
-    String[] shardNames = TestResources.INDEX1.list();
+  public void testSearch_Timeout() throws Exception {
+    int clientTiemout = 10000;
+    // disabled timeout
+    LuceneServer server = new LuceneServer("server", new DefaultSearcherFactory(), 0.0f);
+    String[] shardNames = addIndexShards(server, TestResources.INDEX1);
+
+    QueryWritable queryWritable = new QueryWritable(parseQuery("foo: b*"));
+    DocumentFrequencyWritable freqs = server.getDocFreqs(queryWritable, shardNames);
+    HitsMapWritable result = server.search(queryWritable, freqs, shardNames, clientTiemout, 1000);
+    assertEquals(4, result.getHitList().size());
+    server.shutdown();
+
+    // timeout - success
+    server = new LuceneServer("server", new DefaultSearcherFactory(), 0.5f);
+    addIndexShards(server, TestResources.INDEX1);
+    freqs = server.getDocFreqs(queryWritable, shardNames);
+    result = server.search(queryWritable, freqs, shardNames, clientTiemout, 1000);
+    assertEquals(4, result.getHitList().size());
+    server.shutdown();
+
+    // timeout - failure
+    final long serverTimeout = 100;
+    final DefaultSearcherFactory seacherFactory = new DefaultSearcherFactory();
+    ISeacherFactory mockSeacherFactory = mock(ISeacherFactory.class);
+    final AtomicInteger shardsWithTiemoutCount = new AtomicInteger();
+    when(mockSeacherFactory.createSearcher(anyString(), any(File.class))).thenAnswer(new Answer<IndexSearcher>() {
+      @Override
+      public IndexSearcher answer(InvocationOnMock invocation) throws Throwable {
+        final IndexSearcher indexSearcher = seacherFactory.createSearcher((String) invocation.getArguments()[0],
+                (File) invocation.getArguments()[1]);
+        synchronized (shardsWithTiemoutCount) {
+          if (shardsWithTiemoutCount.intValue() >= 2) {
+            // 2 from 4 shards will get tiemout
+            return indexSearcher;
+          }
+          shardsWithTiemoutCount.incrementAndGet();
+        }
+        IndexSearcher indexSearcherSpy = spy(indexSearcher);
+        doAnswer(new ChainedAnswer(new SleepingAnswer(serverTimeout * 2), new CallsRealMethods())).when(
+                indexSearcherSpy).search(any(Weight.class), any(Filter.class), any(Collector.class));
+        return indexSearcherSpy;
+      }
+    });
+    server = new LuceneServer("server", mockSeacherFactory, 0.01f);
+    assertEquals(serverTimeout, server.getCollectorTiemout(clientTiemout));
+    addIndexShards(server, TestResources.INDEX1);
+    freqs = server.getDocFreqs(queryWritable, shardNames);
+    result = server.search(queryWritable, freqs, shardNames, clientTiemout, 1000);
+    assertTrue(result.getHitList().size() < 4);
+    assertTrue(result.getHitList().size() >= 1);
+    server.shutdown();
+  }
+
+  private String[] addIndexShards(LuceneServer server, File index) throws IOException {
+    File[] shards = index.listFiles();
+    String[] shardNames = index.list();
     for (File shard : shards) {
       server.addShard(shard.getName(), shard);
     }
+    return shardNames;
+  }
 
-    QueryParser parser = new QueryParser(Version.LUCENE_30, "field", new KeywordAnalyzer());
-    Query query = parser.parse("foo: bar");
-    QueryWritable writable = new QueryWritable(query);
+  @Test
+  public void testSearch_MultiThread() throws Exception {
+    LuceneServer server = new LuceneServer("ls", new DefaultSearcherFactory(), 0.75f);
+    String[] shardNames = addIndexShards(server, TestResources.INDEX1);
 
+    QueryWritable writable = new QueryWritable(parseQuery("foo: bar"));
     DocumentFrequencyWritable freqs = server.getDocFreqs(writable, shardNames);
 
     ExecutorService es = Executors.newFixedThreadPool(100);
@@ -315,7 +215,7 @@ public class LuceneServerTest extends AbstractTest {
 
     @Override
     public HitsMapWritable call() throws Exception {
-      return _server.search(_query, _freqs, _shards, 2);
+      return _server.search(_query, _freqs, _shards, 10000, 2);
     }
 
   }

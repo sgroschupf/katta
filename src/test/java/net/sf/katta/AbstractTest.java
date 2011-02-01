@@ -15,9 +15,17 @@
  */
 package net.sf.katta;
 
+import java.util.Properties;
+
 import net.sf.katta.testutil.PrintMethodNames;
+import net.sf.katta.util.NodeConfiguration;
 
 import org.I0Itec.zkclient.NetworkUtil;
+import org.apache.lucene.analysis.KeywordAnalyzer;
+import org.apache.lucene.queryParser.ParseException;
+import org.apache.lucene.queryParser.QueryParser;
+import org.apache.lucene.search.Query;
+import org.apache.lucene.util.Version;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
@@ -50,4 +58,18 @@ public class AbstractTest {
       }
     };
   }
+
+  protected Query parseQuery(String queryString) throws ParseException {
+    QueryParser parser = new QueryParser(Version.LUCENE_30, "field", new KeywordAnalyzer());
+    return parser.parse(queryString);
+  }
+
+  protected NodeConfiguration newNodeConfiguration(String... keyValuePairs) {
+    Properties properties = new Properties();
+    for (int i = 0; i < keyValuePairs.length; i = i + 2) {
+      properties.setProperty(keyValuePairs[i], keyValuePairs[i + 1]);
+    }
+    return new NodeConfiguration(properties);
+  }
+
 }

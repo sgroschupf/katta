@@ -29,49 +29,52 @@ public interface ILuceneServer extends VersionedProtocol {
 
   /**
    * Returns all Hits that match the query. This might be significant slower as
-   * {@link #search(QueryWritable, DocumentFrequencyWritable , String[], int)} since we
+   * {@link #search(QueryWritable, DocumentFrequencyWritable , String[], long, int)} since we
    * replace count with Integer.MAX_VALUE.
-   * 
+   *
    * @param query         The query to run.
    * @param freqs         Term frequency information for term weighting.
    * @param shardNames    A array of shard names to search in.
+   * @param timeout       How long the query is allowed to run before getting interrupted
    * @return A list of hits from the search.
    * @throws IOException     If the search had a problem reading files.
    */
-  public HitsMapWritable search(QueryWritable query, DocumentFrequencyWritable freqs, String[] shardNames) throws IOException;
+  public HitsMapWritable search(QueryWritable query, DocumentFrequencyWritable freqs, String[] shardNames, long timeout) throws IOException;
 
 
   /**
    * @param query         The query to run.
    * @param freqs         Term frequency information for term weighting.
    * @param shardNames    A array of shard names to search in.
+   * @param timeout       How long the query is allowed to run before getting interrupted
    * @param count         The top n high score hits.
    * @return A list of hits from the search.
    * @throws IOException     If the search had a problem reading files.
    */
-  public HitsMapWritable search(QueryWritable query, DocumentFrequencyWritable freqs, String[] shardNames, int count)
+  public HitsMapWritable search(QueryWritable query, DocumentFrequencyWritable freqs, String[] shardNames, long timeout, int count)
       throws IOException;
 
   /**
    * Sorts the returned hits based on the sort parameter.
-   * 
+   *
    * @param query         The query to run.
    * @param freqs         Term frequency information for term weighting.
    * @param shardNames    A array of shard names to search in.
+   * @param timeout       How long the query is allowed to run before getting interrupted
    * @param count         The top n high score hits.
    * @param sort          sort criteria for returned hits
    * @return A list of hits from the search.
    * @throws IOException     If the search had a problem reading files.
    */
-  public HitsMapWritable search(QueryWritable query, DocumentFrequencyWritable freqs, String[] shardNames, int count,
+  public HitsMapWritable search(QueryWritable query, DocumentFrequencyWritable freqs, String[] shardNames, long timeout, int count,
       SortWritable sort) throws IOException;
-  
+
   /**
    * Returns the number of documents a term occurs in. In a distributed search
    * environment, we need to get this first and then query all nodes again with
    * this information to ensure we compute TF IDF correctly. See
-   * {@link http://lucene.apache.org/java/2_3_0/api/org/apache/lucene/search/Similarity.html}
-   * 
+   * <a href="http://lucene.apache.org/java/2_3_0/api/org/apache/lucene/search/Similarity.html">Lucene's Similarity</a>
+   *
    * @param input       TODO is this really just a Lucene query?
    * @param shards      The shards to search in.
    * @return A list of hits from the search.
@@ -82,11 +85,11 @@ public interface ILuceneServer extends VersionedProtocol {
   /**
    * Returns only the requested fields of a lucene document.  The fields are returned
    * as a map.
-   * 
+   *
    * @param shards       The shards to ask for the document.
    * @param docId        The document that is desired.
    * @param fields       The fields to return.
-   * @return             TODO what does this return?  A map?
+   * @return             details of the document
    * @throws IOException
    */
   public MapWritable getDetails(String[] shards, int docId, String[] fields) throws IOException;
@@ -96,10 +99,10 @@ public interface ILuceneServer extends VersionedProtocol {
    * is inserted into the returned map. In most cases
    * {@link #getDetails(String[], int, String[])} would be a better choice for
    * performance reasons.
-   * 
+   *
    * @param shards       The shards to ask for the document.
    * @param docId        The document that is desired.
-   * @return
+   * @return details of the document
    * @throws IOException
    */
   public MapWritable getDetails(String[] shards, int docId) throws IOException;
@@ -108,11 +111,12 @@ public interface ILuceneServer extends VersionedProtocol {
    * Returns the number of documents that match the given query. This the
    * fastest way in case you just need the number of documents. Note that the
    * number of matching documents is also included in HitsMapWritable.
-   * 
+   *
    * @param query
    * @param shards
-   * @return
+   * @param timout How long the query is allowed to run before getting interrupted
+   * @return number of documents
    * @throws IOException
    */
-  public int getResultCount(QueryWritable query, String[] shards) throws IOException;
+  public int getResultCount(QueryWritable query, String[] shards, long timout) throws IOException;
 }

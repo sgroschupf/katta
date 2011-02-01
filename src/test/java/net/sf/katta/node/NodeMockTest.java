@@ -15,19 +15,6 @@
  */
 package net.sf.katta.node;
 
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Matchers.notNull;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.reset;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
 import java.io.File;
 import java.io.IOException;
 
@@ -43,6 +30,21 @@ import net.sf.katta.util.NodeConfiguration;
 import org.apache.hadoop.fs.FileUtil;
 import org.junit.Before;
 import org.junit.Test;
+
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyString;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Matchers.notNull;
 
 public class NodeMockTest extends AbstractTest {
 
@@ -68,7 +70,7 @@ public class NodeMockTest extends AbstractTest {
     assertNotNull(_node.getName());
     assertNotNull(_node.getRpcServer());
     assertTrue(_node.getRPCServerPort() > 0);
-    verify(_contentServer).setNodeName((String) notNull());
+    verify(_contentServer).init((String) notNull(), (NodeConfiguration) notNull());
     Thread.sleep(200);
     verify(nodeOperation).execute((NodeContext) notNull());
 

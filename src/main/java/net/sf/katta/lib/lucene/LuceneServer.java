@@ -35,6 +35,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import net.sf.katta.node.IContentServer;
+import net.sf.katta.util.ClassUtil;
+import net.sf.katta.util.NodeConfiguration;
 import net.sf.katta.util.WritableType;
 
 import org.apache.hadoop.io.BytesWritable;
@@ -60,10 +62,14 @@ import org.apache.lucene.search.Searchable;
 import org.apache.lucene.search.Searcher;
 import org.apache.lucene.search.Similarity;
 import org.apache.lucene.search.Sort;
+import org.apache.lucene.search.TimeLimitingCollector;
 import org.apache.lucene.search.TopDocs;
+import org.apache.lucene.search.TopDocsCollector;
+import org.apache.lucene.search.TopFieldCollector;
 import org.apache.lucene.search.TopFieldDocs;
+import org.apache.lucene.search.TopScoreDocCollector;
 import org.apache.lucene.search.Weight;
-import org.apache.lucene.store.FSDirectory;
+import org.apache.lucene.search.TimeLimitingCollector.TimeExceededException;
 import org.apache.lucene.util.PriorityQueue;
 
 /**
@@ -77,26 +83,60 @@ import org.apache.lucene.util.PriorityQueue;
 public class LuceneServer implements IContentServer, ILuceneServer {
 
   private final static Logger LOG = Logger.getLogger(LuceneServer.class);
+  public final static String CONF_KEY_SEARCHER_FACTORY_CLASS = "lucene.searcher.factory-class";
+  public final static String CONF_KEY_COLLECTOR_TIMOUT_PERCENTAGE = "lucene.collector.timeout-percentage";
 
   protected final Map<String, IndexSearcher> _searcherByShard = new ConcurrentHashMap<String, IndexSearcher>();
   protected ExecutorService _threadPool = Executors.newFixedThreadPool(100);
 
   protected String _nodeName;
+  private float _timeoutPercentage = 0.75f;
+  private ISeacherFactory _seacherFactory;
 
   public LuceneServer() {
-    // do nothing
+    // default way of initializing an IContentServer
+  }
+
+  /**
+   * Constructor for testing purpose, {@link #init(String, NodeConfiguration)}
+   * need not to be called.
+   * 
+   * @param name
+   * @param seacherFactory
+   * @param timeoutPercentage
+   */
+  public LuceneServer(String name, ISeacherFactory seacherFactory, float timeoutPercentage) {
+    _nodeName = name;
+    _seacherFactory = seacherFactory;
+    _timeoutPercentage = timeoutPercentage;
   }
 
   public long getProtocolVersion(final String protocol, final long clientVersion) throws IOException {
     return 0L;
   }
 
-  public void setNodeName(String nodeName) {
+  @Override
+  public void init(String nodeName, NodeConfiguration nodeConfiguration) {
     _nodeName = nodeName;
+    _seacherFactory = (ISeacherFactory) ClassUtil.newInstance(nodeConfiguration.getClass(
+            CONF_KEY_SEARCHER_FACTORY_CLASS, DefaultSearcherFactory.class));
+    _timeoutPercentage = nodeConfiguration.getFloat(CONF_KEY_COLLECTOR_TIMOUT_PERCENTAGE, _timeoutPercentage);
+    if (_timeoutPercentage < 0 || _timeoutPercentage > 1) {
+      throw new IllegalArgumentException("illegal value '" + _timeoutPercentage + "' for "
+              + CONF_KEY_COLLECTOR_TIMOUT_PERCENTAGE + ". Only values between 0 and 1 are allowed.");
+    }
   }
 
   public String getNodeName() {
     return _nodeName;
+  }
+
+  public float getTimeoutPercentage() {
+    return _timeoutPercentage;
+  }
+
+  public long getCollectorTiemout(long clientTimeout) {
+    return (long) (_timeoutPercentage * clientTimeout);
   }
 
   /**
@@ -110,7 +150,7 @@ public class LuceneServer implements IContentServer, ILuceneServer {
   public void addShard(final String shardName, final File shardDir) throws IOException {
     LOG.info("LuceneServer " + _nodeName + " got shard " + shardName);
     try {
-      IndexSearcher indexSearcher = new IndexSearcher(FSDirectory.open(shardDir.getAbsoluteFile()));
+      IndexSearcher indexSearcher = _seacherFactory.createSearcher(shardName, shardDir);
       _searcherByShard.put(shardName, indexSearcher);
     } catch (CorruptIndexException e) {
       LOG.error("Error building index for shard " + shardName, e);
@@ -146,14 +186,15 @@ public class LuceneServer implements IContentServer, ILuceneServer {
    * @return the number of documents in the shard.
    */
   protected int shardSize(String shardName) {
-    final Searchable searchable = getSearcherByShard(shardName);
-    if (searchable != null) {
-      final IndexSearcher indexSearcher = (IndexSearcher) searchable;
+    final IndexSearcher indexSearcher = getSearcherByShard(shardName);
+    if (indexSearcher != null) {
       int size = indexSearcher.getIndexReader().numDocs();
-      LOG.debug("Shard " + shardName + " has " + size + " docs.");
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("Shard '" + shardName + "' has " + size + " docs.");
+      }
       return size;
     }
-    throw new IllegalArgumentException("Shard " + shardName + " unknown");
+    throw new IllegalArgumentException("Shard '" + shardName + "' unknown");
   }
 
   /**
@@ -195,49 +236,21 @@ public class LuceneServer implements IContentServer, ILuceneServer {
     return _searcherByShard.get(shardName);
   }
 
-  /**
-   * Returns all Hits that match the query. This might be significant slower as
-   * {@link #search(QueryWritable, DocumentFrequencyWritable , String[], int)}
-   * since we replace count with Integer.MAX_VALUE.
-   * 
-   * @param query
-   *          The query to run.
-   * @param freqs
-   *          Term frequency information for term weighting.
-   * @param shardNames
-   *          A array of shard names to search in.
-   * @return A list of hits from the search.
-   * @throws IOException
-   *           If the search had a problem reading files.
-   */
-  public HitsMapWritable search(QueryWritable query, DocumentFrequencyWritable freqs, String[] shardNames)
+  @Override
+  public HitsMapWritable search(QueryWritable query, DocumentFrequencyWritable freqs, String[] shardNames, long timeout)
           throws IOException {
-    return search(query, freqs, shardNames, Integer.MAX_VALUE);
-  }
-
-  /**
-   * @param query
-   *          The query to run.
-   * @param freqs
-   *          Term frequency information for term weighting.
-   * @param shardNames
-   *          A array of shard names to search in.
-   * @param count
-   *          The top n high score hits.
-   * @return A list of hits from the search.
-   * @throws ParseException
-   *           If the query is ill-formed.
-   * @throws IOException
-   *           If the search had a problem reading files.
-   */
-  public HitsMapWritable search(final QueryWritable query, final DocumentFrequencyWritable freqs,
-          final String[] shards, final int count) throws IOException {
-    return search(query, freqs, shards, count, null);
+    return search(query, freqs, shardNames, timeout, Integer.MAX_VALUE);
   }
 
   @Override
-  public HitsMapWritable search(QueryWritable query, DocumentFrequencyWritable freqs, String[] shards, int count,
-          SortWritable sortWritable) throws IOException {
+  public HitsMapWritable search(final QueryWritable query, final DocumentFrequencyWritable freqs,
+          final String[] shards, final long timeout, final int count) throws IOException {
+    return search(query, freqs, shards, timeout, count, null);
+  }
+
+  @Override
+  public HitsMapWritable search(QueryWritable query, DocumentFrequencyWritable freqs, String[] shards,
+          final long timeout, int count, SortWritable sortWritable) throws IOException {
     if (LOG.isDebugEnabled()) {
       LOG.debug("You are searching with the query: '" + query.getQuery() + "'");
     }
@@ -258,7 +271,7 @@ public class LuceneServer implements IContentServer, ILuceneServer {
     if (sortWritable != null) {
       sort = sortWritable.getSort();
     }
-    search(luceneQuery, freqs, shards, result, count, sort);
+    search(luceneQuery, freqs, shards, result, count, sort, timeout);
     if (LOG.isDebugEnabled()) {
       final long end = System.currentTimeMillis();
       LOG.debug("Search took " + (end - start) / 1000.0 + "sec.");
@@ -273,21 +286,7 @@ public class LuceneServer implements IContentServer, ILuceneServer {
     return result;
   }
 
-  /**
-   * Returns the number of documents a term occurs in. In a distributed search
-   * environment, we need to get this first and then query all nodes again with
-   * this information to ensure we compute TF IDF correctly. See {@link http
-   * ://lucene
-   * .apache.org/java/2_3_0/api/org/apache/lucene/search/Similarity.html}
-   * 
-   * @param input
-   *          TODO is this really just a Lucene query?
-   * @param shards
-   *          The shards to search in.
-   * @return A list of hits from the search.
-   * @throws IOException
-   *           If the search had a problem reading files.
-   */
+  @Override
   public DocumentFrequencyWritable getDocFreqs(final QueryWritable input, final String[] shards) throws IOException {
     Query luceneQuery = input.getQuery();
 
@@ -308,36 +307,12 @@ public class LuceneServer implements IContentServer, ILuceneServer {
     return docFreqs;
   }
 
-  /**
-   * Returns the lucene document. Each field:value tuple of the lucene document
-   * is inserted into the returned map. In most cases
-   * {@link #getDetails(String[], int, String[])} would be a better choice for
-   * performance reasons.
-   * 
-   * @param shards
-   *          The shards to ask for the document.
-   * @param docId
-   *          The document that is desired.
-   * @return
-   * @throws IOException
-   */
+  @Override
   public MapWritable getDetails(final String[] shards, final int docId) throws IOException {
     return getDetails(shards, docId, null);
   }
 
-  /**
-   * Returns only the requested fields of a lucene document. The fields are
-   * returned as a map.
-   * 
-   * @param shard
-   *          The shard to ask for the document.
-   * @param docId
-   *          The document that is desired.
-   * @param fields
-   *          The fields to return.
-   * @return TODO what does this return? A map?
-   * @throws IOException
-   */
+  @Override
   public MapWritable getDetails(final String[] shards, final int docId, final String[] fieldNames) throws IOException {
     final MapWritable result = new MapWritable();
     final Document doc = doc(shards[0], docId, fieldNames);
@@ -355,19 +330,10 @@ public class LuceneServer implements IContentServer, ILuceneServer {
     return result;
   }
 
-  /**
-   * Returns the number of documents that match the given query. This the
-   * fastest way in case you just need the number of documents. Note that the
-   * number of matching documents is also included in HitsMapWritable.
-   * 
-   * @param query
-   * @param shards
-   * @return
-   * @throws IOException
-   */
-  public int getResultCount(final QueryWritable query, final String[] shards) throws IOException {
+  @Override
+  public int getResultCount(final QueryWritable query, final String[] shards, long timeout) throws IOException {
     final DocumentFrequencyWritable docFreqs = getDocFreqs(query, shards);
-    return search(query, docFreqs, shards, 1).getTotalHits();
+    return search(query, docFreqs, shards, timeout, 1).getTotalHits();
   }
 
   /**
@@ -381,20 +347,20 @@ public class LuceneServer implements IContentServer, ILuceneServer {
    * @throws IOException
    */
   protected final void search(final Query query, final DocumentFrequencyWritable freqs, final String[] shards,
-          final HitsMapWritable result, final int max, Sort sort) throws IOException {
+          final HitsMapWritable result, final int max, Sort sort, long timeout) throws IOException {
+    timeout = getCollectorTiemout(timeout);
     final Query rewrittenQuery = rewrite(query, shards);
     final int numDocs = freqs.getNumDocsAsInteger();
     final Weight weight = rewrittenQuery.weight(new CachedDfSource(freqs.getAll(), numDocs, new DefaultSimilarity()));
     // Limit the request to the number requested or the total number of
     // documents, whichever is smaller.
-    final int limit = Math.min(numDocs, max);
     int totalHits = 0;
     final int shardsCount = shards.length;
 
     // Run the search in parallel on the shards with a thread pool.
     List<Future<SearchResult>> tasks = new ArrayList<Future<SearchResult>>();
     for (int i = 0; i < shardsCount; i++) {
-      SearchCall call = new SearchCall(shards[i], weight, limit, sort);
+      SearchCall call = new SearchCall(shards[i], weight, max, sort, timeout);
       Future<SearchResult> future = _threadPool.submit(call);
       tasks.add(future);
     }
@@ -420,6 +386,7 @@ public class LuceneServer implements IContentServer, ILuceneServer {
     result.addTotalHits(totalHits);
 
     final Iterable<Hit> finalHitList;
+    int limit = Math.min(numDocs, max);
     if (sort == null || totalHits == 0) {
       final KattaHitQueue hq = new KattaHitQueue(limit);
       int pos = 0;
@@ -589,24 +556,48 @@ public class LuceneServer implements IContentServer, ILuceneServer {
     private final Weight _weight;
     private final int _limit;
     private final Sort _sort;
+    private final long _timeout;
 
-    public SearchCall(String shardName, Weight weight, int limit, Sort sort) {
+    public SearchCall(String shardName, Weight weight, int limit, Sort sort, long timeout) {
       _shardName = shardName;
       _weight = weight;
       _limit = limit;
       _sort = sort;
+      _timeout = timeout;
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public SearchResult call() throws Exception {
       final IndexSearcher indexSearcher = getSearcherByShard(_shardName);
-      final TopDocs docs;
+      int nDocs = Math.min(_limit, indexSearcher.maxDoc());
+
+      TopDocsCollector resultCollector;
       if (_sort != null) {
-        docs = indexSearcher.search(_weight, null, _limit, _sort);
+        boolean fillFields = true;// see IndexSearcher#search(...)
+        boolean fieldSortDoTrackScores = false;
+        boolean fieldSortDoMaxScore = false;
+        resultCollector = TopFieldCollector.create(_sort, nDocs, fillFields, fieldSortDoTrackScores,
+                fieldSortDoMaxScore, !_weight.scoresDocsOutOfOrder());
       } else {
-        docs = indexSearcher.search(_weight, null, _limit);
+        resultCollector = TopScoreDocCollector.create(nDocs, !_weight.scoresDocsOutOfOrder());
       }
+      try {
+        indexSearcher.search(_weight, null, wrapInTimeoutCollector(resultCollector));
+      } catch (TimeExceededException e) {
+        LOG.warn("encountered exceeded timout for query '" + _weight.getQuery() + " on shard '" + _shardName
+                + "' with timeout set to '" + _timeout + "'");
+      }
+      TopDocs docs = resultCollector.topDocs();
       return new SearchResult(docs.totalHits, docs.scoreDocs);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Collector wrapInTimeoutCollector(TopDocsCollector resultCollector) {
+      if (_timeout <= 0) {
+        return resultCollector;
+      }
+      return new TimeLimitingCollector(resultCollector, _timeout);
     }
   }
 
