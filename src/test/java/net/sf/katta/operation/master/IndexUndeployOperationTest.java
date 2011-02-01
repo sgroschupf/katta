@@ -15,19 +15,22 @@
  */
 package net.sf.katta.operation.master;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-
 import java.util.List;
 
 import net.sf.katta.node.Node;
 import net.sf.katta.operation.node.ShardUndeployOperation;
 import net.sf.katta.protocol.NodeQueue;
 import net.sf.katta.testutil.Mocks;
+import net.sf.katta.util.ZkConfiguration.PathDef;
 
 import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+
+import static org.fest.assertions.Assertions.assertThat;
 
 public class IndexUndeployOperationTest extends AbstractMasterNodeZkTest {
 
@@ -39,8 +42,10 @@ public class IndexUndeployOperationTest extends AbstractMasterNodeZkTest {
     deployIndex(nodes, nodeQueues);
     assertNotNull(_protocol.getIndexMD(_indexName));
     assertNull(_protocol.getIndexMD(_indexName).getDeployError());
+    assertThat(_protocol.getZkClient().getChildren(getZkConf().getZkPath(PathDef.SHARD_TO_NODES))).isNotEmpty();
+    String shardName = _protocol.getIndexMD(_indexName).getShards().iterator().next().getName();
 
-    // balance the index does not change anything
+    // undeploy
     IndexUndeployOperation undeployOperation = new IndexUndeployOperation(_indexName);
     undeployOperation.execute(_context, EMPTY_LIST);
     for (NodeQueue nodeqQueue : nodeQueues) {
@@ -49,6 +54,13 @@ public class IndexUndeployOperationTest extends AbstractMasterNodeZkTest {
     }
     assertNull(_protocol.getIndexMD(_indexName));
     assertEquals(0, _protocol.getIndices().size());
+    assertThat(_protocol.getZkClient().getChildren(getZkConf().getZkPath(PathDef.SHARD_TO_NODES))).isEmpty();
+
+    // again delete shard-to-node path - see KATTA-178
+    _protocol.getZkClient().createPersistent(getZkConf().getZkPath(PathDef.SHARD_TO_NODES, shardName));
+    assertThat(_protocol.getZkClient().getChildren(getZkConf().getZkPath(PathDef.SHARD_TO_NODES))).isNotEmpty();
+    undeployOperation.nodeOperationsComplete(_context, EMPTY_LIST);
+    assertThat(_protocol.getZkClient().getChildren(getZkConf().getZkPath(PathDef.SHARD_TO_NODES))).isEmpty();
   }
 
   @Test

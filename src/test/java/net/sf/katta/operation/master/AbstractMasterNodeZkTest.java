@@ -30,6 +30,7 @@ import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.protocol.NodeQueue;
 import net.sf.katta.testutil.Mocks;
 import net.sf.katta.testutil.TestResources;
+import net.sf.katta.util.ZkConfiguration;
 
 public abstract class AbstractMasterNodeZkTest extends AbstractZkTest {
 
@@ -44,6 +45,10 @@ public abstract class AbstractMasterNodeZkTest extends AbstractZkTest {
   protected String _indexName = _indexFile.getName();
   protected String _indexPath = _indexFile.getAbsolutePath();
   protected int _shardCount = _indexFile.listFiles().length;
+
+  protected ZkConfiguration getZkConf() {
+    return _protocol.getZkConfiguration();
+  }
 
   protected void deployIndexWithError() throws Exception {
     IndexDeployOperation deployOperation = new IndexDeployOperation(_indexName, _indexPath, 3);

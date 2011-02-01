@@ -15,6 +15,7 @@
  */
 package net.sf.katta.operation.master;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -27,11 +28,16 @@ import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.protocol.metadata.IndexMetaData;
 import net.sf.katta.protocol.metadata.IndexMetaData.Shard;
 import net.sf.katta.util.CollectionUtil;
+import net.sf.katta.util.ZkConfiguration;
+import net.sf.katta.util.ZkConfiguration.PathDef;
+
+import org.I0Itec.zkclient.ZkClient;
 
 public class IndexUndeployOperation implements MasterOperation {
 
   private static final long serialVersionUID = 1L;
   private final String _indexName;
+  private IndexMetaData _indexMD;
 
   public IndexUndeployOperation(String indexName) {
     _indexName = indexName;
@@ -40,22 +46,28 @@ public class IndexUndeployOperation implements MasterOperation {
   @Override
   public List<OperationId> execute(MasterContext context, List<MasterOperation> runningOperations) throws Exception {
     InteractionProtocol protocol = context.getProtocol();
-    IndexMetaData indexMD = protocol.getIndexMD(_indexName);
+    _indexMD = protocol.getIndexMD(_indexName);
 
-    Map<String, List<String>> shard2NodesMap = protocol.getShard2NodesMap(Shard.getShardNames(indexMD.getShards()));
+    Map<String, List<String>> shard2NodesMap = protocol.getShard2NodesMap(Shard.getShardNames(_indexMD.getShards()));
     Map<String, List<String>> node2ShardsMap = CollectionUtil.invertListMap(shard2NodesMap);
     Set<String> nodes = node2ShardsMap.keySet();
+    List<OperationId> nodeOperationIds = new ArrayList<OperationId>(nodes.size());
     for (String node : nodes) {
       List<String> nodeShards = node2ShardsMap.get(node);
-      protocol.addNodeOperation(node, new ShardUndeployOperation(nodeShards));
+      OperationId operationId = protocol.addNodeOperation(node, new ShardUndeployOperation(nodeShards));
+      nodeOperationIds.add(operationId);
     }
     protocol.unpublishIndex(_indexName);
-    return null;
+    return nodeOperationIds;
   }
 
   @Override
   public void nodeOperationsComplete(MasterContext context, List<OperationResult> results) throws Exception {
-    // nothing todo
+    ZkClient zkClient = context.getProtocol().getZkClient();
+    ZkConfiguration zkConf = context.getProtocol().getZkConfiguration();
+    for (Shard shard : _indexMD.getShards()) {
+      zkClient.deleteRecursive(zkConf.getZkPath(PathDef.SHARD_TO_NODES, shard.getName()));
+    }
   }
 
   @Override

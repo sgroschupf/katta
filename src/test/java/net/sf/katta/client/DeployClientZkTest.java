@@ -15,17 +15,18 @@
  */
 package net.sf.katta.client;
 
+import net.sf.katta.AbstractZkTest;
+import net.sf.katta.protocol.metadata.IndexMetaData;
+import net.sf.katta.testutil.TestResources;
+
+import org.junit.Test;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import net.sf.katta.AbstractZkTest;
-import net.sf.katta.protocol.metadata.IndexMetaData;
-import net.sf.katta.testutil.TestResources;
-
-import org.junit.Test;
 
 public class DeployClientZkTest extends AbstractZkTest {
 

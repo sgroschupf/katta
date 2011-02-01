@@ -134,6 +134,10 @@ public abstract class AbstractIntegrationTest extends AbstractTest {
     // subclasses may override
   }
 
+  protected ZkConfiguration getZkConfiguration() {
+    return _miniCluster.getZkConfiguration();
+  }
+
   public int getNodeCount() {
     return _nodeCount;
   }

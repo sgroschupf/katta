@@ -1,9 +1,5 @@
 package net.sf.katta.integrationTest;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-
 import java.io.File;
 import java.util.Set;
 
@@ -17,8 +13,13 @@ import net.sf.katta.protocol.metadata.IndexDeployError.ErrorType;
 import net.sf.katta.protocol.metadata.IndexMetaData.Shard;
 import net.sf.katta.testutil.TestResources;
 import net.sf.katta.testutil.TestUtil;
+import net.sf.katta.util.ZkConfiguration.PathDef;
 
 import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 public class MasterIntegrationTest extends AbstractIntegrationTest {
 
@@ -56,6 +57,7 @@ public class MasterIntegrationTest extends AbstractIntegrationTest {
     for (Shard shard : shards) {
       assertEquals(0, protocol.getShardNodes(shard.getName()).size());
     }
+    assertEquals(0, protocol.getZkClient().getChildren(getZkConfiguration().getZkPath(PathDef.SHARD_TO_NODES)).size());
   }
 
   @Test(timeout = 20000)

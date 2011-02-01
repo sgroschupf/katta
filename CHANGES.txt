@@ -1,6 +1,7 @@
 Katta Change Log
 
 katta 0.6.4
+ fix KATTA-178, undeploying indices can leave empty shard-to-node pathes
  fix KATTA-177, IndexDeployFuture not safe for quick undeployments
  fix KATTA-80,  add jar-test target to build which builds a jar of test classes
  fix KATTA-175, make lucene-server thread pool parameters configurable
