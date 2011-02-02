@@ -21,6 +21,7 @@
 		<dependency org="org.apache.lucene" name="lucene-core" rev="3.0.3" conf="compile" />
 		<dependency org="commons-cli" name="commons-cli" rev="1.2" conf="compile" />
 		<dependency org="commons-math" name="commons-math" rev="1.2" conf="compile" />
+		<dependency org="google" name="guava" rev="r08" conf="compile" />
 
 		<!-- hadoop files system & rpc -->
 		<dependency org="org.apache.hadoop" name="hadoop" rev="0.20.2-core" conf="compile" />
