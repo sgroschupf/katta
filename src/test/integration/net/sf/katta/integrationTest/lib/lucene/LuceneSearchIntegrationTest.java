@@ -18,9 +18,11 @@ package net.sf.katta.integrationTest.lib.lucene;
 import java.util.ArrayList;
 import java.util.List;
 
+import net.sf.katta.client.Client;
 import net.sf.katta.integrationTest.support.AbstractIntegrationTest;
 import net.sf.katta.lib.lucene.Hits;
 import net.sf.katta.lib.lucene.ILuceneClient;
+import net.sf.katta.lib.lucene.ILuceneServer;
 import net.sf.katta.lib.lucene.LuceneClient;
 import net.sf.katta.util.StringUtil;
 
@@ -144,17 +146,29 @@ public class LuceneSearchIntegrationTest extends AbstractIntegrationTest {
   }
 
   private void startAndStopNodes(long queryTime) throws Exception {
+    Client client = new Client(ILuceneServer.class, _protocol);
     Thread.sleep(queryTime / 4);
+    System.out.println("-----------------------SHUTDOWN NODE1: "
+            + _protocol.getShard2NodesMap(_protocol.getShard2NodeShards()));
+    System.out.println(client.getSelectionPolicy().toString());
     _miniCluster.shutdownNode(0);
 
     Thread.sleep(queryTime / 4);
+    System.out.println("-----------------------SHUTDOWN NODE2: "
+            + _protocol.getShard2NodesMap(_protocol.getShard2NodeShards()));
+    System.out.println(client.getSelectionPolicy().toString());
     _miniCluster.shutdownNode(0);
 
     Thread.sleep(queryTime / 4);
+    System.out.println("-----------------------START NEW NODE: "
+            + _protocol.getShard2NodesMap(_protocol.getShard2NodeShards()));
+    System.out.println(client.getSelectionPolicy().toString());
     _miniCluster.startAdditionalNode();
 
-    Thread.sleep(queryTime / 4);
-
+    System.out.println("-----------------------SHUTDOWN NEW NODE: "
+            + _protocol.getShard2NodesMap(_protocol.getShard2NodeShards()));
+    System.out.println(client.getSelectionPolicy().toString());
+    Thread.sleep(queryTime / 2);
     _miniCluster.shutdownNode(_miniCluster.getRunningNodeCount() - 1);
   }
 
@@ -214,7 +228,7 @@ public class LuceneSearchIntegrationTest extends AbstractIntegrationTest {
           _firedQueryCount++;
           if (hits.size() != _expectedTotalHitCount) {
             _unexpectedResultCount++;
-            LOG.warn("expected " + _expectedTotalHitCount + " hits but got " + hits.size());
+            LOG.error("expected " + _expectedTotalHitCount + " hits but got " + hits.size());
           }
         }
         if (_client == null) {

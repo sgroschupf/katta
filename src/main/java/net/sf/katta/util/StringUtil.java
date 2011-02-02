@@ -15,6 +15,8 @@
  */
 package net.sf.katta.util;
 
+import java.util.Map;
+
 public class StringUtil {
 
   /**
@@ -71,4 +73,23 @@ public class StringUtil {
     }
     return string;
   }
+
+  /**
+   * Gets all thread stack traces.
+   * 
+   * @return string of all thread stack traces
+   */
+  public static String getThreadDump() {
+    StringBuilder sb = new StringBuilder();
+    Map<Thread, StackTraceElement[]> stacks = Thread.getAllStackTraces();
+    for (Thread thread : stacks.keySet()) {
+      sb.append(thread.toString()).append('\n');
+      for (StackTraceElement stackTraceElement : thread.getStackTrace()) {
+        sb.append("\tat ").append(stackTraceElement.toString()).append('\n');
+      }
+      sb.append('\n');
+    }
+    return sb.toString();
+  }
+
 }

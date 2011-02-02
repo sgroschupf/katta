@@ -15,12 +15,6 @@
  */
 package net.sf.katta.client;
 
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 import net.sf.katta.AbstractTest;
 import net.sf.katta.protocol.IAddRemoveListener;
 import net.sf.katta.protocol.InteractionProtocol;
@@ -32,6 +26,14 @@ import net.sf.katta.util.ZkConfiguration.PathDef;
 
 import org.I0Itec.zkclient.IZkDataListener;
 import org.junit.Test;
+
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyString;
+import static org.mockito.Matchers.eq;
 
 public class ClientTest extends AbstractTest {
 
@@ -77,4 +79,5 @@ public class ClientTest extends AbstractTest {
     verify(protocol).unregisterComponent(client);
     verify(protocol).disconnect();
   }
+
 }

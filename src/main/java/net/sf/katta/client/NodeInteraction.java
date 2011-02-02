@@ -48,7 +48,7 @@ class NodeInteraction<T> implements Runnable {
   private final int _tryCount;
   private final int _maxTryCount;
   private final INodeExecutor _workQueue;
-  private final IShardProxyManager _shardManager;
+  private final INodeProxyManager _shardManager;
   private final IResultReceiver<T> _result;
   private final int instanceId = interactionInstanceCounter++;
 
@@ -95,7 +95,7 @@ class NodeInteraction<T> implements Runnable {
    *         retry we write the error to it.
    */
   public NodeInteraction(Method method, Object[] args, int shardArrayIndex, String node,
-          Map<String, List<String>> node2ShardsMap, int tryCount, int maxTryCount, IShardProxyManager shardManager,
+          Map<String, List<String>> node2ShardsMap, int tryCount, int maxTryCount, INodeProxyManager shardManager,
           INodeExecutor workQueue, IResultReceiver<T> result) {
     _method = method;
     // Make a copy in case we will be modifying the shard list.
@@ -115,10 +115,9 @@ class NodeInteraction<T> implements Runnable {
   public void run() {
     String methodDesc = null;
     try {
-      VersionedProtocol proxy = _shardManager.getProxy(_node);
+      VersionedProtocol proxy = _shardManager.getProxy(_node, false);
       if (proxy == null) {
         throw new KattaException("No proxy for node: " + _node);
-        // TODO proxy should be given to constructor to simplify things
       }
       if (_shardArrayIndex >= 0) {
         // We need to pass the list of shards to the server's method.
@@ -131,8 +130,8 @@ class NodeInteraction<T> implements Runnable {
                 .getInvocationHandler(proxy), instanceId));
         startTime = System.currentTimeMillis();
       }
-      // System.out.println(_node + ":" + proxy);
       T result = (T) _method.invoke(proxy, _args);
+      _shardManager.reportNodeCommunicationSuccess(_node);
       if (LOG.isTraceEnabled()) {
         LOG.trace(String.format("Calling %s returned %s, took %d msec (id=%d)", methodDesc, resultToString(result),
                 (System.currentTimeMillis() - startTime), instanceId));
@@ -144,7 +143,7 @@ class NodeInteraction<T> implements Runnable {
       _result.addResult(result, _shards);
     } catch (Throwable t) {
       // Notify the work queue, so it can mark the node as down.
-      _shardManager.nodeFailed(_node, t);
+      _shardManager.reportNodeCommunicationFailure(_node, t);
       if (_tryCount >= _maxTryCount) {
         LOG.error(String.format("Error calling %s (try # %d of %d) (id=%d)", (methodDesc != null ? methodDesc : _method
                 + " on " + _node), _tryCount, _maxTryCount, instanceId), t);

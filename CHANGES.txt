@@ -1,6 +1,7 @@
 Katta Change Log
 
 katta 0.6.4
+ fix KATTA-181, don't remove node-shard-mapping from client if proxy fails one time
  fix KATTA-179, undeployment of index can lead to NPE in BooleanQuery - improve exception message
  fix KATTA-178, undeploying indices can leave empty shard-to-node pathes
  fix KATTA-177, IndexDeployFuture not safe for quick undeployments

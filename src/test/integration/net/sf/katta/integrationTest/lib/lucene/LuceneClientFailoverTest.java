@@ -1,5 +1,6 @@
 package net.sf.katta.integrationTest.lib.lucene;
 
+import net.sf.katta.client.NodeProxyManager;
 import net.sf.katta.client.ShardAccessException;
 import net.sf.katta.integrationTest.support.AbstractIntegrationTest;
 import net.sf.katta.lib.lucene.Hits;
@@ -47,6 +48,7 @@ public class LuceneClientFailoverTest extends AbstractIntegrationTest {
   public void testGetDetails_NodeProxyDownAfterClientInitialization() throws Exception {
     deployTestIndices(1, getNodeCount());
     LuceneClient luceneClient = new LuceneClient(_miniCluster.getZkConfiguration());
+    ((NodeProxyManager) luceneClient.getClient().getProxyManager()).setSuccessiveProxyFailuresBeforeReestablishing(1);
     final Query query = new QueryParser(Version.LUCENE_30, "", new KeywordAnalyzer()).parse("content: the");
     Hits hits = luceneClient.search(query, new String[] { INDEX_NAME }, 10);
 
@@ -59,7 +61,7 @@ public class LuceneClientFailoverTest extends AbstractIntegrationTest {
     }
     assertFalse(luceneClient.getDetails(hits.getHits().get(0)).isEmpty());
     assertFalse(luceneClient.getDetails(hits.getHits().get(0)).isEmpty());
-    // search 2 time to ensure we get all availible nodes
+    // search 2 time to ensure we get all available nodes
     System.out.println("=========================");
     shutdownNodes();
     luceneClient.close();

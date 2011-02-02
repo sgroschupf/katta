@@ -8,6 +8,7 @@ import net.sf.katta.client.DeployClient;
 import net.sf.katta.lib.lucene.LuceneServer;
 import net.sf.katta.node.IContentServer;
 import net.sf.katta.node.Node;
+import net.sf.katta.operation.master.IndexDeployOperation;
 import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.protocol.metadata.IndexMetaData;
 import net.sf.katta.protocol.metadata.IndexMetaData.Shard;
@@ -142,6 +143,10 @@ public abstract class AbstractIntegrationTest extends AbstractTest {
     return _nodeCount;
   }
 
+  public Class<? extends IContentServer> getContentServerClass() {
+    return _contentServerClass;
+  }
+
   private final KattaMiniCluster startMiniCluster(int nodeCount, int indexCount, int replicationCount) throws Exception {
     ZkConfiguration conf = new ZkConfiguration();
     FileUtil.deleteFolder(new File(conf.getZKDataDir()));
@@ -184,4 +189,11 @@ public abstract class AbstractIntegrationTest extends AbstractTest {
     return shardDeployCount;
   }
 
+  protected IndexMetaData deployIndex(String indexName, File indexFile, int replication) throws Exception {
+    IndexDeployOperation deployOperation = new IndexDeployOperation(indexName, "file://" + indexFile.getAbsolutePath(),
+            replication);
+    _protocol.addMasterOperation(deployOperation);
+    TestUtil.waitUntilIndexDeployed(_protocol, INDEX_NAME);
+    return _protocol.getIndexMD(indexName);
+  }
 }

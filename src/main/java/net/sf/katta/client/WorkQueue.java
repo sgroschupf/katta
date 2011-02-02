@@ -43,7 +43,7 @@ class WorkQueue<T> implements INodeExecutor {
 
   public interface INodeInteractionFactory<T> {
     public Runnable createInteraction(Method method, Object[] args, int shardArrayParamIndex, String node,
-            Map<String, List<String>> nodeShardMap, int tryCount, int maxTryCount,IShardProxyManager shardManager,
+            Map<String, List<String>> nodeShardMap, int tryCount, int maxTryCount,INodeProxyManager shardManager,
             INodeExecutor nodeExecutor, IResultReceiver<T> results);
   }
 
@@ -55,7 +55,7 @@ class WorkQueue<T> implements INodeExecutor {
   }
 
   private final INodeInteractionFactory<T> interactionFactory;
-  private final IShardProxyManager shardManager;
+  private final INodeProxyManager shardManager;
   private final Method method;
   private final int shardArrayParamIndex;
   private final Object[] args;
@@ -86,11 +86,11 @@ class WorkQueue<T> implements INodeExecutor {
    * @param args
    *          The arguments to pass in to the method on the server side.
    */
-  protected WorkQueue(IShardProxyManager shardManager, Set<String> allShards, Method method, int shardArrayParamIndex,
+  protected WorkQueue(INodeProxyManager shardManager, Set<String> allShards, Method method, int shardArrayParamIndex,
           Object... args) {
     this(new INodeInteractionFactory<T>() {
       public Runnable createInteraction(Method method, Object[] args, int shardArrayParamIndex, String node,
-          Map<String, List<String>> nodeShardMap, int tryCount, int maxTryCount, IShardProxyManager shardManager,
+          Map<String, List<String>> nodeShardMap, int tryCount, int maxTryCount, INodeProxyManager shardManager,
           INodeExecutor nodeExecutor, IResultReceiver<T> results) {
         return new NodeInteraction<T>(method, args, shardArrayParamIndex, node, nodeShardMap, tryCount, maxTryCount,
             shardManager, nodeExecutor, results);
@@ -118,7 +118,7 @@ class WorkQueue<T> implements INodeExecutor {
    * @param args
    *          The arguments to pass in to the method on the server side.
    */
-  protected WorkQueue(INodeInteractionFactory<T> interactionFactory, IShardProxyManager shardManager,
+  protected WorkQueue(INodeInteractionFactory<T> interactionFactory, INodeProxyManager shardManager,
           Set<String> allShards, Method method, int shardArrayParamIndex, Object... args) {
     if (shardManager == null || allShards == null || method == null) {
       throw new IllegalArgumentException("Null passed to new WorkQueue()");

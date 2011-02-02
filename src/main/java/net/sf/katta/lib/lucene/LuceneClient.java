@@ -83,6 +83,10 @@ public class LuceneClient implements ILuceneClient {
     _kattaClient = new Client(getServerClass(), policy, zkConfig, clientConfiguration);
   }
 
+  public Client getClient() {
+    return _kattaClient;
+  }
+
   public long getTimeout() {
     return _timeout;
   }
@@ -135,6 +139,10 @@ public class LuceneClient implements ILuceneClient {
     }
     Hits result = new Hits();
     HitsMapWritable exampleHitWritable = null;
+    if (!results.getMissingShards().isEmpty()) {
+      LOG.warn("incomplete result - missing shard-results: " + results.getMissingShards() + ", "
+              + results.getShardCoverage());
+    }
     for (HitsMapWritable hmw : results.getResults()) {
       List<Hit> hits = hmw.getHitList();
       if (exampleHitWritable == null && !hits.isEmpty()) {

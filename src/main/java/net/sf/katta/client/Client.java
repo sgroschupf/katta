@@ -15,10 +15,7 @@
  */
 package net.sf.katta.client;
 
-import java.io.IOException;
 import java.lang.reflect.Method;
-import java.lang.reflect.Proxy;
-import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -30,7 +27,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 
-import net.sf.katta.lib.lucene.ILuceneServer;
 import net.sf.katta.protocol.ConnectedComponent;
 import net.sf.katta.protocol.IAddRemoveListener;
 import net.sf.katta.protocol.InteractionProtocol;
@@ -44,29 +40,25 @@ import net.sf.katta.util.ZkConfiguration.PathDef;
 
 import org.I0Itec.zkclient.IZkDataListener;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.ipc.RPC;
 import org.apache.hadoop.ipc.VersionedProtocol;
 import org.apache.log4j.Logger;
 
-public class Client implements IShardProxyManager, ConnectedComponent {
+public class Client implements ConnectedComponent {
 
   protected final static Logger LOG = Logger.getLogger(Client.class);
   private static final String[] ALL_INDICES = new String[] { "*" };
 
-  protected final Class<? extends VersionedProtocol> _serverClass;
-
   protected final Set<String> _indicesToWatch = new HashSet<String>();
   protected final Map<String, List<String>> _indexToShards = new HashMap<String, List<String>>();
-  protected final Map<String, VersionedProtocol> _node2ProxyMap = new HashMap<String, VersionedProtocol>();
 
   protected final INodeSelectionPolicy _selectionPolicy;
   private long _queryCount = 0;
   private final long _startupTime;
 
-  private Configuration _hadoopConf = new Configuration();
   private final ClientConfiguration _clientConfiguration;
   private final int _maxTryCount;
   protected InteractionProtocol _protocol;
+  private INodeProxyManager _proxyManager;
 
   public Client(Class<? extends VersionedProtocol> serverClass) {
     this(serverClass, new DefaultNodeSelectionPolicy(), new ZkConfiguration());
@@ -76,7 +68,7 @@ public class Client implements IShardProxyManager, ConnectedComponent {
     this(serverClass, new DefaultNodeSelectionPolicy(), config);
   }
 
-  public Client(Class<? extends ILuceneServer> serverClass, InteractionProtocol protocol) {
+  public Client(Class<? extends VersionedProtocol> serverClass, InteractionProtocol protocol) {
     this(serverClass, new DefaultNodeSelectionPolicy(), protocol, new ClientConfiguration());
   }
 
@@ -98,15 +90,15 @@ public class Client implements IShardProxyManager, ConnectedComponent {
   public Client(Class<? extends VersionedProtocol> serverClass, final INodeSelectionPolicy policy,
           final InteractionProtocol protocol, ClientConfiguration clientConfiguration) {
     Set<String> keys = new HashSet<String>(clientConfiguration.getKeys());
+    Configuration hadoopConf = new Configuration();
     synchronized (Configuration.class) {// fix for KATTA-146
       for (String key : keys) {
         // simply set all properties / adding non-hadoop properties shouldn't
         // hurt
-        _hadoopConf.set(key, clientConfiguration.getProperty(key));
+        hadoopConf.set(key, clientConfiguration.getProperty(key));
       }
     }
-
-    _serverClass = serverClass;
+    _proxyManager = new NodeProxyManager(serverClass, hadoopConf, policy);
     _selectionPolicy = policy;
     _protocol = protocol;
     _clientConfiguration = clientConfiguration;
@@ -133,42 +125,16 @@ public class Client implements IShardProxyManager, ConnectedComponent {
     _startupTime = System.currentTimeMillis();
   }
 
-  // --------------- Proxy handling ----------------------
-
-  /**
-   * @param node
-   * @return true if connection could be or is established
-   */
-  protected boolean eastablishNodeProxyIfNecessary(String node) {
-    try {
-      synchronized (_node2ProxyMap) {
-        if (!_node2ProxyMap.containsKey(node)) {
-          _node2ProxyMap.put(node, createNodeProxy(node));
-        }
-        return true;
-      }
-    } catch (Exception e) {
-      LOG.warn("Could not create proxy for node '" + node + "' - " + e.getClass().getSimpleName() + ": "
-              + e.getMessage());
-      return false;
-    }
+  public INodeSelectionPolicy getSelectionPolicy() {
+    return _selectionPolicy;
   }
 
-  protected VersionedProtocol createNodeProxy(final String node) throws IOException {
-    LOG.debug("creating proxy for node: " + node);
+  public INodeProxyManager getProxyManager() {
+    return _proxyManager;
+  }
 
-    String[] hostName_port = node.split(":");
-    if (hostName_port.length != 2) {
-      throw new RuntimeException("invalid node name format '" + node
-              + "' (It should be a host name with a port number devided by a ':')");
-    }
-    final String hostName = hostName_port[0];
-    final String port = hostName_port[1];
-    final InetSocketAddress inetSocketAddress = new InetSocketAddress(hostName, Integer.parseInt(port));
-    VersionedProtocol proxy = RPC.getProxy(_serverClass, 0L, inetSocketAddress, _hadoopConf);
-    LOG.debug(String.format("Created a proxy %s for %s:%s %s", Proxy.getInvocationHandler(proxy), hostName, port,
-            inetSocketAddress));
-    return proxy;
+  public void setProxyCreator(INodeProxyManager proxyManager) {
+    _proxyManager = proxyManager;
   }
 
   protected void removeIndexes(List<String> indexes) {
@@ -231,38 +197,38 @@ public class Client implements IShardProxyManager, ConnectedComponent {
     for (Shard shard : shards) {
       shardNames.add(shard.getName());
     }
-    _indexToShards.put(indexMD.getName(), shardNames);
     for (final String shardName : shardNames) {
       List<String> nodes = _protocol.registerChildListener(this, PathDef.SHARD_TO_NODES, shardName,
               new IAddRemoveListener() {
                 @Override
-                public void removed(String name) {
-                  LOG.info("shard " + shardName + ": removed node " + name);
+                public void removed(String nodeName) {
+                  LOG.info("shard '" + shardName + "' removed from node " + nodeName + "'");
                   Collection<String> shardNodes = new ArrayList<String>(_selectionPolicy.getShardNodes(shardName));
-                  shardNodes.remove(name);
+                  shardNodes.remove(nodeName);
                   _selectionPolicy.update(shardName, shardNodes);
                 }
 
                 @Override
-                public void added(String name) {
-                  LOG.info("shard " + shardName + ": added node " + name);
-                  boolean connectionEstablished = eastablishNodeProxyIfNecessary(name);
-                  if (connectionEstablished) {
+                public void added(String nodeName) {
+                  LOG.info("shard '" + shardName + "' added to node '" + nodeName + "'");
+                  VersionedProtocol proxy = _proxyManager.getProxy(nodeName, true);
+                  if (proxy != null) {
                     Collection<String> shardNodes = new ArrayList<String>(_selectionPolicy.getShardNodes(shardName));
-                    shardNodes.add(name);
+                    shardNodes.add(nodeName);
                     _selectionPolicy.update(shardName, shardNodes);
                   }
                 }
               });
       Collection<String> shardNodes = new ArrayList<String>(3);
       for (String node : nodes) {
-        boolean connectionEstablished = eastablishNodeProxyIfNecessary(node);
-        if (connectionEstablished) {
+        VersionedProtocol proxy = _proxyManager.getProxy(node, true);
+        if (proxy != null) {
           shardNodes.add(node);
         }
       }
       _selectionPolicy.update(shardName, shardNodes);
     }
+    _indexToShards.put(indexMD.getName(), shardNames);
   }
 
   protected boolean isIndexSearchable(final IndexMetaData indexMD) {
@@ -419,7 +385,7 @@ public class Client implements IShardProxyManager, ConnectedComponent {
     nodeShardsMap = Collections.synchronizedMap(nodeShardMapCopy);
     nodeShardMapCopy = null;
 
-    WorkQueue<T> workQueue = new WorkQueue<T>(this, allShards, method, shardArrayParamIndex, args);
+    WorkQueue<T> workQueue = new WorkQueue<T>(_proxyManager, allShards, method, shardArrayParamIndex, args);
 
     for (String node : nodeShardsMap.keySet()) {
       workQueue.execute(node, nodeShardsMap, 1, _maxTryCount);
@@ -432,28 +398,6 @@ public class Client implements IShardProxyManager, ConnectedComponent {
               (System.currentTimeMillis() - start), results != null ? results : "null"));
     }
     return results;
-  }
-
-  // --------------------- IShardProxyManager ----------------------------
-
-  // NodeInteractions will use these methods.
-
-  public VersionedProtocol getProxy(String node) {
-    return _node2ProxyMap.get(node);
-  }
-
-  public void nodeFailed(String node, Throwable t) {
-    // TODO jz: maybe we should inspect the exception to identify if its really
-    // an proxy problem ?
-    synchronized (_node2ProxyMap) {
-      VersionedProtocol proxy = _node2ProxyMap.remove(node);
-      RPC.stopProxy(proxy);
-    }
-    _selectionPolicy.removeNode(node);
-  }
-
-  public Map<String, List<String>> createNode2ShardsMap(Collection<String> shards) throws ShardAccessException {
-    return _selectionPolicy.createNode2ShardsMap(shards);
   }
 
   // -------------------- Node management --------------------
@@ -509,11 +453,8 @@ public class Client implements IShardProxyManager, ConnectedComponent {
     if (_protocol != null) {
       _protocol.unregisterComponent(this);
       _protocol.disconnect();
-      Collection<VersionedProtocol> proxies = _node2ProxyMap.values();
-      for (VersionedProtocol search : proxies) {
-        RPC.stopProxy(search);
-      }
       _protocol = null;
+      _proxyManager.shutdown();
     }
   }
 

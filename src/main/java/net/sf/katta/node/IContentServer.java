@@ -19,6 +19,8 @@ import java.io.File;
 import java.util.Collection;
 import java.util.Map;
 
+import org.apache.hadoop.ipc.VersionedProtocol;
+
 import net.sf.katta.util.NodeConfiguration;
 
 /**
@@ -26,18 +28,18 @@ import net.sf.katta.util.NodeConfiguration;
  * Katta server instance it is managing. The Node class talks to Zookeeper, and
  * manages the shards on disk. It tells the server when to start and stop using
  * the shards, and when to shut down.
- * 
+ *
  * The RPC calls from the client will not go through the Node. The Hadoop
  * RPC.Server uses a separate interface for those calls.
- * 
+ *
  * Implementations need to have a default constructor.
  */
-public interface IContentServer {
+public interface IContentServer extends VersionedProtocol {
 
   /**
    * Initializes the content-server after the instance has been created. Passes
    * the node-name.
-   * 
+   *
    * @param nodeName
    *          the name of the local machine, for example "sever21.foo.com:8000".
    *          Use this name in your results if you need to refer to the current
@@ -51,7 +53,7 @@ public interface IContentServer {
   /**
    * Include the shard (directory of data) when computing results. The shard is
    * a directory, ready to be used.
-   * 
+   *
    * @param shardName
    *          The name of the shard. Will be used in removeShard(). May also be
    *          used in requests.
@@ -64,7 +66,7 @@ public interface IContentServer {
   /**
    * Stop including the shard (directory of data). After this call returns, the
    * server should use the directory, or even assume that it exists.
-   * 
+   *
    * @param shardName
    *          Which shard to stop using. This was the name provided in
    *          addShard().
@@ -90,7 +92,7 @@ public interface IContentServer {
    * SHARD_SIZE_KEY. This value will be reported by the listIndexes command. The
    * units depend on the type of server. It is OK to return an empty map or
    * null.
-   * 
+   *
    * @param shardName
    *          The name of the shard to measure. This was the name provided in
    *          addShard().
@@ -101,7 +103,7 @@ public interface IContentServer {
 
   /**
    * Release all resources. No further calls will happen after this call.
-   * 
+   *
    * @throws Exception
    */
   public void shutdown() throws Exception;

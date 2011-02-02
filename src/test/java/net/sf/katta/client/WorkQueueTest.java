@@ -15,10 +15,6 @@
  */
 package net.sf.katta.client;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -37,6 +33,10 @@ import net.sf.katta.client.WorkQueue.INodeInteractionFactory;
 import org.apache.hadoop.ipc.VersionedProtocol;
 import org.apache.log4j.Logger;
 import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Test for {@link WorkQueue}.
@@ -285,7 +285,7 @@ public class WorkQueueTest extends AbstractTest {
     public VersionedProtocol getProxy(String node);
   }
 
-  public static class TestShardManager implements IShardProxyManager {
+  public static class TestShardManager implements INodeProxyManager {
 
     private int numNodes;
     private int replication;
@@ -355,11 +355,11 @@ public class WorkQueueTest extends AbstractTest {
       return Collections.unmodifiableMap(_selectionPolicy.createNode2ShardsMap(shards));
     }
 
-    public VersionedProtocol getProxy(String node) {
+    public VersionedProtocol getProxy(String node, boolean establishIfNotExists) {
       return proxyProvider != null ? proxyProvider.getProxy(node) : null;
     }
 
-    public void nodeFailed(String node, Throwable t) {
+    public void reportNodeCommunicationFailure(String node, Throwable t) {
       _selectionPolicy.removeNode(node);
     }
 
@@ -373,6 +373,15 @@ public class WorkQueueTest extends AbstractTest {
 
     public Map<String, List<String>> getMap() {
       return Collections.unmodifiableMap(shardMap);
+    }
+
+    @Override
+    public void shutdown() {
+    }
+
+    @Override
+    public void reportNodeCommunicationSuccess(String node) {
+
     }
 
   }
@@ -405,7 +414,7 @@ public class WorkQueueTest extends AbstractTest {
     }
 
     public Runnable createInteraction(Method method, final Object[] args, int shardArrayParamIndex, final String node,
-            Map<String, List<String>> nodeShardMap, int tryCount, int maxTryCount, IShardProxyManager shardManager,
+            Map<String, List<String>> nodeShardMap, int tryCount, int maxTryCount, INodeProxyManager shardManager,
             INodeExecutor nodeExecutor, final IResultReceiver<Integer> results) {
       calls.add(new Entry(node, method, args));
       final long additionalSleepTime2 = additionalSleepTime;
@@ -462,7 +471,7 @@ public class WorkQueueTest extends AbstractTest {
   public static <T> INodeInteractionFactory<T> nullFactory() {
     return new INodeInteractionFactory<T>() {
       public Runnable createInteraction(Method method, Object[] args, int shardArrayParamIndex, String node,
-              Map<String, List<String>> nodeShardMap, int tryCount, int maxTryCount, IShardProxyManager shardManager,
+              Map<String, List<String>> nodeShardMap, int tryCount, int maxTryCount, INodeProxyManager shardManager,
               INodeExecutor nodeExecutor, IResultReceiver<T> results) {
         return null;
       }
