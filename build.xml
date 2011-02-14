@@ -36,7 +36,7 @@
 
 		<ivy:cachepath pathid="test.path.id" conf="test" />
 
-		<junit showoutput="no" printsummary="yes" haltonfailure="no" fork="yes" forkmode="perBatch" maxmemory="256m" dir="${basedir}" errorProperty="tests.failed" failureProperty="tests.failed">
+		<junit showoutput="no" printsummary="yes" haltonfailure="no" fork="yes" forkmode="perTest" maxmemory="256m" dir="${basedir}" errorProperty="tests.failed" failureProperty="tests.failed">
 			<classpath>
 				<pathelement location="${build.dir.main-classes}" />
 				<pathelement location="${build.dir.it-classes}" />

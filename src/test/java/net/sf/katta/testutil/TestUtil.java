@@ -16,16 +16,20 @@
 package net.sf.katta.testutil;
 
 import java.io.File;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import net.sf.katta.master.Master;
+import net.sf.katta.node.Node;
 import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.protocol.metadata.IndexMetaData;
 import net.sf.katta.protocol.metadata.IndexMetaData.Shard;
 import net.sf.katta.util.FileUtil;
+import net.sf.katta.util.ZkConfiguration;
+import net.sf.katta.util.ZkConfiguration.PathDef;
 
 import org.I0Itec.zkclient.IDefaultNameSpace;
 import org.I0Itec.zkclient.ZkServer;
@@ -38,6 +42,8 @@ import org.mockito.stubbing.Answer;
 import org.mockito.stubbing.Stubber;
 
 import static org.junit.Assert.assertEquals;
+
+import static org.fest.assertions.Assertions.assertThat;
 
 public class TestUtil {
 
@@ -253,6 +259,32 @@ public class TestUtil {
       }
     }, TimeUnit.SECONDS, 30);
     assertEquals(nodeCount, protocol.getLiveNodes().size());
+  }
+
+  public static void waitUntilEmptyOperationQueues(final InteractionProtocol protocol, final Master master,
+          final List<Node> nodes) throws Exception {
+    waitUntil(true, new Callable<Boolean>() {
+      @Override
+      public Boolean call() throws Exception {
+        return operationQueuesEmpty(protocol, master, nodes);
+      }
+
+    }, TimeUnit.SECONDS, 30);
+    assertThat(operationQueuesEmpty(protocol, master, nodes)).as("node operation queues are empty").isTrue();
+  }
+
+  private static Boolean operationQueuesEmpty(final InteractionProtocol protocol, Master master, final List<Node> nodes) {
+    ZkConfiguration zkConf = protocol.getZkConfiguration();
+    if (protocol.getZkClient().countChildren(zkConf.getZkPath(PathDef.MASTER_QUEUE, "operations")) > 0) {
+      return false;
+    }
+    for (Node node : nodes) {
+      if (protocol.getZkClient().countChildren(zkConf.getZkPath(PathDef.NODE_QUEUE, node.getName(), "operations")) > 0) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
 }

@@ -114,7 +114,7 @@ public class FailoverTest extends AbstractIntegrationTest {
       zkClient.process(event);
       zkClient.getEventLock().unlock();
       IndexState indexState = deployFuture.joinDeployment();
-      assertEquals(IndexState.DEPLOYED, indexState);
+      assertEquals("" + deployClient.getIndexMetaData(indexName).getDeployError(), IndexState.DEPLOYED, indexState);
 
       if (indexState == IndexState.ERROR) {
         IndexDeployError deployError = protocol.getIndexMD(indexName).getDeployError();

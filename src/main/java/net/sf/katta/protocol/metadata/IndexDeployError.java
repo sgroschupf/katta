@@ -20,6 +20,8 @@ import java.util.List;
 
 import net.sf.katta.util.One2ManyListMap;
 
+import com.google.common.base.Objects;
+
 public class IndexDeployError implements Serializable {
 
   private static final long serialVersionUID = 1L;
@@ -60,5 +62,10 @@ public class IndexDeployError implements Serializable {
 
   public List<Exception> getShardErrors(String shardName) {
     return _shard2ExceptionsMap.getValues(shardName);
+  }
+
+  @Override
+  public String toString() {
+    return Objects.toStringHelper(this).addValue(_indexName).addValue(_errorType).addValue(_exception).toString();
   }
 }
