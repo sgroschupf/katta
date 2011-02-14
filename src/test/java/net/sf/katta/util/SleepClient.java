@@ -32,26 +32,27 @@ public class SleepClient implements ISleepClient {
 
   protected final static Logger LOG = Logger.getLogger(SleepClient.class);
 
-  private Client kattaClient;
+  private Client _client;
 
   public SleepClient(final INodeSelectionPolicy nodeSelectionPolicy) {
-    kattaClient = new Client(ISleepServer.class, nodeSelectionPolicy);
+    _client = new Client(ISleepServer.class, nodeSelectionPolicy);
   }
 
   public SleepClient() {
-    kattaClient = new Client(ISleepServer.class);
+    _client = new Client(ISleepServer.class);
   }
 
   public SleepClient(final ZkConfiguration config) {
-    kattaClient = new Client(ISleepServer.class, config);
+    _client = new Client(ISleepServer.class, config);
   }
 
   public SleepClient(final INodeSelectionPolicy policy, final ZkConfiguration config) {
-    kattaClient = new Client(ISleepServer.class, policy, config);
+    _client = new Client(ISleepServer.class, policy, config);
   }
-  
-  public SleepClient(final INodeSelectionPolicy policy, final ZkConfiguration config, final ClientConfiguration clientConfiguration) {
-    kattaClient = new Client(ISleepServer.class, policy, config, clientConfiguration);
+
+  public SleepClient(final INodeSelectionPolicy policy, final ZkConfiguration config,
+          final ClientConfiguration clientConfiguration) {
+    _client = new Client(ISleepServer.class, policy, config, clientConfiguration);
   }
 
   private static final Method SLEEP_METHOD;
@@ -77,7 +78,7 @@ public class SleepClient implements ISleepClient {
   }
 
   public int sleepShards(final long msec, final int delta, final String[] shards) throws KattaException {
-    ClientResult<Integer> results = kattaClient.broadcastToShards(msec + delta + 3000, true, SLEEP_METHOD,
+    ClientResult<Integer> results = _client.broadcastToShards(msec + delta + 3000, true, SLEEP_METHOD,
             SLEEP_METHOD_SHARD_ARG_IDX, shards != null ? Arrays.asList(shards) : null, msec, delta, null);
     if (results.isError()) {
       throw results.getKattaException();
@@ -94,7 +95,7 @@ public class SleepClient implements ISleepClient {
   }
 
   public int sleepIndices(final long msec, final int delta, final String[] indices) throws KattaException {
-    ClientResult<Integer> results = kattaClient.broadcastToIndices(msec + delta + 3000, true, SLEEP_METHOD,
+    ClientResult<Integer> results = _client.broadcastToIndices(msec + delta + 3000, true, SLEEP_METHOD,
             SLEEP_METHOD_SHARD_ARG_IDX, indices, msec, delta, null);
     if (results.isError()) {
       throw results.getKattaException();
@@ -106,8 +107,12 @@ public class SleepClient implements ISleepClient {
     return totalShards;
   }
 
+  public Client getClient() {
+    return _client;
+  }
+
   public void close() {
-    kattaClient.close();
+    _client.close();
   }
 
 }

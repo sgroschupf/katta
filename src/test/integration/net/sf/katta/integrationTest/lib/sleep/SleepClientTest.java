@@ -15,27 +15,39 @@
  */
 package net.sf.katta.integrationTest.lib.sleep;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 
+import net.sf.katta.client.Client;
 import net.sf.katta.client.DefaultNodeSelectionPolicy;
 import net.sf.katta.client.DeployClient;
 import net.sf.katta.client.IDeployClient;
 import net.sf.katta.integrationTest.support.AbstractIntegrationTest;
+import net.sf.katta.protocol.InteractionProtocol;
+import net.sf.katta.protocol.metadata.IndexMetaData;
 import net.sf.katta.testutil.TestResources;
+import net.sf.katta.testutil.TestUtil;
+import net.sf.katta.util.ClassUtil;
 import net.sf.katta.util.ClientConfiguration;
-import net.sf.katta.util.ISleepClient;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.SleepClient;
 import net.sf.katta.util.SleepServer;
 
+import org.I0Itec.zkclient.ZkClient;
+import org.I0Itec.zkclient.ZkConnection;
+import org.apache.zookeeper.Watcher;
+import org.apache.zookeeper.ZooKeeper;
 import org.junit.AfterClass;
 import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
+import static org.fest.assertions.Assertions.assertThat;
 
 /**
  * Test for {@link SleepClient}.
@@ -45,7 +57,7 @@ public class SleepClientTest extends AbstractIntegrationTest {
   protected static final String INDEX1 = "index1";
   protected static final String[] INDEX_1 = { INDEX1 };
 
-  protected static ISleepClient _client;
+  protected static SleepClient _client;
 
   public SleepClientTest() {
     super(SleepServer.class, 1, false, false);
@@ -111,6 +123,7 @@ public class SleepClientTest extends AbstractIntegrationTest {
     }
   }
 
+  @Test
   public void testNonExistantShard() throws Exception {
     try {
       _client.sleepShards(0, 0, new String[] { "doesNotExist" });
@@ -120,12 +133,39 @@ public class SleepClientTest extends AbstractIntegrationTest {
     }
   }
 
+  @Test
   public void testNonExistantIndex() throws Exception {
     try {
       _client.sleepIndices(0, 0, new String[] { "doesNotExist" });
       fail("Should have failed.");
     } catch (KattaException e) {
-      assertEquals("No shards for indices: [doesNotExist]", e.getMessage());
+      assertEquals("Index [pattern(s)] '[doesNotExist]' do not match to any deployed index: [index1]", e.getMessage());
     }
+  }
+
+  @Test
+  public void testCleanupOfClientWatchesOnUndeploy_KATTA_182() throws Exception {
+    IDeployClient deployClient = new DeployClient(_miniCluster.getProtocol());
+    IndexMetaData indexMD = deployClient.getIndexMetaData(INDEX1);
+    deployClient.removeIndex(INDEX1);
+    TestUtil.waitUntilShardsUndeployed(_protocol, indexMD);
+
+    Client client = _client.getClient();
+    assertThat(client.getIndices()).excludes((Object) INDEX_1);
+    Map<String, Set<Watcher>> existWatches = getExistsWatches(client);
+    assertThat(existWatches).isEmpty();
+
+  }
+
+  @SuppressWarnings("unchecked")
+  private Map<String, Set<Watcher>> getExistsWatches(Client client) {
+    InteractionProtocol protocol = (InteractionProtocol) ClassUtil.getPrivateFieldValue(client, "_protocol");
+    ZkClient zkClient = protocol.getZkClient();
+    ZkConnection zkConnection = (ZkConnection) ClassUtil.getPrivateFieldValue(zkClient, "_connection");
+    ZooKeeper zookeeper = zkConnection.getZookeeper();
+    Object watchManager = ClassUtil.getPrivateFieldValue(zookeeper, "watchManager");
+    Map<String, Set<Watcher>> existWatches = (Map<String, Set<Watcher>>) ClassUtil.getPrivateFieldValue(watchManager,
+            "existWatches");
+    return existWatches;
   }
 }

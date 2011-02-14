@@ -15,6 +15,8 @@
  */
 package net.sf.katta.util;
 
+import java.lang.reflect.Field;
+
 import org.I0Itec.zkclient.ExceptionUtil;
 
 public class ClassUtil {
@@ -49,6 +51,45 @@ public class ClassUtil {
       return clazz.newInstance();
     } catch (Exception e) {
       throw new RuntimeException("could not instantiate class " + clazz.getName(), e);
+    }
+  }
+
+  /**
+   * 
+   * @param object
+   * @param fieldName
+   * @return the value of the (private) field of the given object with the given
+   *         name
+   */
+  public static Object getPrivateFieldValue(Object object, String fieldName) {
+    return getPrivateFieldValue(object.getClass(), object, fieldName);
+  }
+
+  /**
+   * @param clazz
+   * @param object
+   * @param fieldName
+   * @return the value of the (private) field of the given object declared in
+   *         the given class with the given name
+   */
+  public static Object getPrivateFieldValue(Class<?> clazz, Object object, String fieldName) {
+    Field field = null;
+    do {
+      try {
+        field = clazz.getDeclaredField(fieldName);
+      } catch (NoSuchFieldException e) {
+        // proceed with superclass
+      }
+      clazz = clazz.getSuperclass();
+    } while (clazz != null);
+    try {
+      if (field == null) {
+        throw new NoSuchFieldException("no field '" + fieldName + "' in object " + object);
+      }
+      field.setAccessible(true);
+      return field.get(object);
+    } catch (Exception e) {
+      throw ExceptionUtil.convertToRuntimeException(e);
     }
   }
 

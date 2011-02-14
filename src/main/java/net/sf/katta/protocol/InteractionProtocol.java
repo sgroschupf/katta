@@ -235,6 +235,7 @@ public class InteractionProtocol {
     }
   }
 
+  @SuppressWarnings("unchecked")
   private <T extends ListenerAdapter> T getComponentListener(final ConnectedComponent component,
           Class<T> listenerClass, String zkPath) {
     for (ListenerAdapter pathListener : _zkListenerByComponent.getValues(component)) {
@@ -424,10 +425,11 @@ public class InteractionProtocol {
   }
 
   public void unpublishIndex(String indexName) {
-    for (Shard shard : getIndexMD(indexName).getShards()) {
+    IndexMetaData indexMD = getIndexMD(indexName);
+    _zkClient.delete(_zkConf.getZkPath(PathDef.INDICES_METADATA, indexName));
+    for (Shard shard : indexMD.getShards()) {
       _zkClient.deleteRecursive(_zkConf.getZkPath(PathDef.SHARD_TO_NODES, shard.getName()));
     }
-    _zkClient.delete(_zkConf.getZkPath(PathDef.INDICES_METADATA, indexName));
   }
 
   public IndexMetaData getIndexMD(String index) {
@@ -571,7 +573,7 @@ public class InteractionProtocol {
     public void setCachedChilds(List<String> cachedChilds) {
       _cachedChilds = cachedChilds;
       if (_cachedChilds == null) {
-        _cachedChilds = Collections.EMPTY_LIST;
+        _cachedChilds = Collections.emptyList();
       }
     }
 
@@ -582,7 +584,7 @@ public class InteractionProtocol {
     @Override
     public synchronized void handleChildChange(String parentPath, List<String> currentChilds) throws Exception {
       if (currentChilds == null) {
-        currentChilds = Collections.EMPTY_LIST;
+        currentChilds = Collections.emptyList();
       }
       List<String> addedChilds = CollectionUtil.getListOfAdded(_cachedChilds, currentChilds);
       List<String> removedChilds = CollectionUtil.getListOfRemoved(_cachedChilds, currentChilds);
