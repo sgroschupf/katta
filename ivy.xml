@@ -16,7 +16,7 @@
 
 		<!-- COMPILE Dependencies -->
 		<dependency org="zkclient" name="zkclient" rev="0.2.dev" conf="compile" />
-		<dependency org="zookeeper" name="zookeeper" rev="3.3.1" conf="compile" />
+		<dependency org="zookeeper" name="zookeeper" rev="3.3.2" conf="compile" />
 		<dependency org="log4j" name="log4j" rev="1.2.15" conf="compile,instrument" />
 		<dependency org="org.apache.lucene" name="lucene-core" rev="3.0.3" conf="compile" />
 		<dependency org="commons-cli" name="commons-cli" rev="1.2" conf="compile" />
