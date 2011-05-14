@@ -23,6 +23,7 @@ import java.lang.reflect.Method;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -48,8 +49,8 @@ import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.protocol.ReplicationReport;
 import net.sf.katta.protocol.metadata.IndexDeployError;
 import net.sf.katta.protocol.metadata.IndexMetaData;
-import net.sf.katta.protocol.metadata.NodeMetaData;
 import net.sf.katta.protocol.metadata.IndexMetaData.Shard;
+import net.sf.katta.protocol.metadata.NodeMetaData;
 import net.sf.katta.tool.SampleIndexGenerator;
 import net.sf.katta.tool.loadtest.LoadTestMasterOperation;
 import net.sf.katta.tool.loadtest.query.AbstractQueryExecutor;
@@ -318,13 +319,30 @@ public class Katta {
 
   };
 
-  protected static Command LIST_NODES_COMMAND = new ProtocolCommand("listNodes", "", "Lists all nodes") {
+  protected static Command LIST_NODES_COMMAND = new ProtocolCommand("listNodes", "[-d] [-b] [-n] [-S]",
+          "Lists all nodes. -b for batch mode, -n don't write column headers, -S for sorting the node names.") {
+
+    private boolean _batchMode;
+    private boolean _skipColumnNames;
+    private boolean _sorted;
+
+    @Override
+    protected void parseArguments(ZkConfiguration zkConf, String[] args, java.util.Map<String, String> optionMap) {
+      _batchMode = optionMap.containsKey("-b");
+      _skipColumnNames = optionMap.containsKey("-n");
+      _sorted = optionMap.containsKey("-S");
+    }
 
     @Override
     public void execute(ZkConfiguration zkConf, InteractionProtocol protocol) {
       final List<String> knownNodes = protocol.getKnownNodes();
       final List<String> liveNodes = protocol.getLiveNodes();
       final Table table = new Table();
+      table.setBatchMode(_batchMode);
+      table.setSkipColumnNames(_skipColumnNames);
+      if (_sorted) {
+        Collections.sort(knownNodes);
+      }
       int numNodes = 0;
       for (final String node : knownNodes) {
         numNodes++;
@@ -337,14 +355,22 @@ public class Katta {
     }
   };
 
-  protected static Command LIST_INDICES_COMMAND = new ProtocolCommand("listIndices", "[-d]",
-          "Lists all indices. -d for detailed view.") {
+  protected static Command LIST_INDICES_COMMAND = new ProtocolCommand(
+          "listIndices",
+          "[-d] [-b] [-n] [-S]",
+          "Lists all indices. -d for detailed view, -b for batch mode, -n don't write column headers, -S for sorting the shard names.") {
 
     private boolean _detailedView;
+    private boolean _batchMode;
+    private boolean _skipColumnNames;
+    private boolean _sorted;
 
     @Override
     protected void parseArguments(ZkConfiguration zkConf, String[] args, java.util.Map<String, String> optionMap) {
       _detailedView = optionMap.containsKey("-d");
+      _batchMode = optionMap.containsKey("-b");
+      _skipColumnNames = optionMap.containsKey("-n");
+      _sorted = optionMap.containsKey("-S");
     }
 
     @Override
@@ -357,8 +383,13 @@ public class Katta {
         table = new Table(new String[] { "Name", "Status", "Replication State", "Path", "Shards", "Entries",
                 "Disk Usage", "Replication Count" });
       }
+      table.setBatchMode(_batchMode);
+      table.setSkipColumnNames(_skipColumnNames);
 
       List<String> indices = protocol.getIndices();
+      if (_sorted) {
+        Collections.sort(indices);
+      }
       for (final String index : indices) {
         final IndexMetaData indexMD = protocol.getIndexMD(index);
         Set<Shard> shards = indexMD.getShards();
@@ -384,15 +415,17 @@ public class Katta {
         if (!_detailedView) {
           table.addRow(index, state, replicationState, indexMD.getPath(), shards.size(), entries, indexBytes);
         } else {
-          table.addRow(index, state, replicationState, indexMD.getPath(), shards.size(), entries, indexBytes, indexMD
-                  .getReplicationLevel());
+          table.addRow(index, state, replicationState, indexMD.getPath(), shards.size(), entries, indexBytes,
+                  indexMD.getReplicationLevel());
         }
       }
       if (!indices.isEmpty()) {
         System.out.println(table.toString());
       }
-      System.out.println(indices.size() + " registered indices");
-      System.out.println();
+      if (!_batchMode) {
+        System.out.println(indices.size() + " registered indices");
+        System.out.println();
+      }
     }
 
     private int calculateIndexEntries(Set<Shard> shards) {
@@ -506,7 +539,21 @@ public class Katta {
     }
   };
 
-  protected static Command CHECK_COMMAND = new ProtocolCommand("check", "", "Analyze index/shard/node status") {
+  protected static Command CHECK_COMMAND = new ProtocolCommand(
+          "check",
+          "[-b] [-n] [-S]",
+          "Analyze index/shard/node status. -b for batch mode, -n don't write column names, -S for sorting the index/shard/node names.") {
+
+    private boolean _batchMode;
+    private boolean _skipColumnNames;
+    private boolean _sorted;
+
+    @Override
+    protected void parseArguments(ZkConfiguration zkConf, String[] args, java.util.Map<String, String> optionMap) {
+      _batchMode = optionMap.containsKey("-b");
+      _skipColumnNames = optionMap.containsKey("-n");
+      _sorted = optionMap.containsKey("-S");
+    }
 
     @Override
     public void execute(ZkConfiguration zkConf, InteractionProtocol protocol) throws Exception {
@@ -514,6 +561,9 @@ public class Katta {
       System.out.println("            Index Analysis");
       System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
       List<String> indices = protocol.getIndices();
+      if (_sorted) {
+        Collections.sort(indices);
+      }
       CounterMap<IndexState> indexStateCounterMap = new CounterMap<IndexState>();
       for (String index : indices) {
         IndexMetaData indexMD = protocol.getIndexMD(index);
@@ -524,7 +574,12 @@ public class Katta {
         }
       }
       Table tableIndexStates = new Table("Index State", "Count");
-      Set<IndexState> keySet = indexStateCounterMap.keySet();
+      tableIndexStates.setBatchMode(_batchMode);
+      tableIndexStates.setSkipColumnNames(_skipColumnNames);
+      List<IndexState> keySet = new ArrayList<IndexState>(indexStateCounterMap.keySet());
+      if (_sorted) {
+        Collections.sort(keySet);
+      }
       for (IndexState indexState : keySet) {
         tableIndexStates.addRow(indexState, indexStateCounterMap.getCount(indexState));
       }
@@ -541,6 +596,7 @@ public class Katta {
         IndexMetaData indexMD = protocol.getIndexMD(index);
         ReplicationReport replicationReport = protocol.getReplicationReport(indexMD);
         Set<Shard> shards = indexMD.getShards();
+        // cannot sort shards because Shard is declared inside IndexMetaData
         totalShards += shards.size() * indexMD.getReplicationLevel();
         for (Shard shard : shards) {
           int shardReplication = replicationReport.getReplicationCount(shard.getName());
@@ -558,6 +614,11 @@ public class Katta {
       List<String> knownNodes = protocol.getKnownNodes();
       List<String> connectedNodes = protocol.getLiveNodes();
       Table tableNodeLoad = new Table("Node", "Connected", "Shard Status");
+      tableNodeLoad.setBatchMode(_batchMode);
+      tableNodeLoad.setSkipColumnNames(_skipColumnNames);
+      if (_sorted) {
+        Collections.sort(knownNodes);
+      }
       int publishedShards = 0;
       for (String node : knownNodes) {
         boolean isConnected = connectedNodes.contains(node);
@@ -1007,6 +1068,8 @@ public class Katta {
 
     private String[] _header;
     private final List<String[]> _rows = new ArrayList<String[]>();
+    private boolean _batchMode;
+    private boolean _skipColumnNames;
 
     public Table(final String... header) {
       _header = header;
@@ -1019,6 +1082,22 @@ public class Katta {
 
     public void setHeader(String... header) {
       _header = header;
+    }
+
+    public boolean isBatchMode() {
+      return _batchMode;
+    }
+
+    public void setBatchMode(boolean batchMode) {
+      this._batchMode = batchMode;
+    }
+
+    public boolean isSkipColumnNames() {
+      return _skipColumnNames;
+    }
+
+    public void setSkipColumnNames(boolean skipCoulmnNames) {
+      this._skipColumnNames = skipCoulmnNames;
     }
 
     public void addRow(final Object... row) {
@@ -1038,29 +1117,50 @@ public class Katta {
         rowWidth += columnSize;
       }
       rowWidth += 2 + (Math.max(0, columnSizes.length - 1) * 3) + 2;
-      builder.append("\n" + getChar(rowWidth, "-") + "\n");
-      // Header.
-      builder.append("| ");
       String leftPad = "";
-      for (int i = 0; i < _header.length; i++) {
-        final String column = _header[i];
-        builder.append(leftPad);
-        builder.append(column + getChar(columnSizes[i] - column.length(), " "));
-        leftPad = " | ";
+      if (!_batchMode) {
+        builder.append('\n').append(getChar(rowWidth, "-")).append('\n');
       }
-      builder.append(" |\n");
-      builder.append(getChar(rowWidth, "=") + "\n");
+      if (!_skipColumnNames) {
+        // Header.
+        if (!_batchMode) {
+          builder.append("| ");
+        }
+        for (int i = 0; i < _header.length; i++) {
+          final String column = _header[i];
+          builder.append(leftPad);
+          builder.append(column).append(getChar(columnSizes[i] - column.length(), " "));
+          if (!_batchMode) {
+            leftPad = " | ";
+          } else {
+            leftPad = " ";
+          }
+        }
+        if (!_batchMode) {
+          builder.append(" |\n").append(getChar(rowWidth, "="));// .append('\n');
+        }
+        builder.append('\n');
+      }
       // Rows.
       for (final Object[] row : _rows) {
-        builder.append("| ");
+        if (!_batchMode) {
+          builder.append("| ");
+        }
         leftPad = "";
         for (int i = 0; i < row.length; i++) {
           builder.append(leftPad);
           builder.append(row[i]);
           builder.append(getChar(columnSizes[i] - row[i].toString().length(), " "));
-          leftPad = " | ";
+          if (!_batchMode) {
+            leftPad = " | ";
+          } else {
+            leftPad = " ";
+          }
         }
-        builder.append(" |\n" + getChar(rowWidth, "-") + "\n");
+        if (!_batchMode) {
+          builder.append(" |\n").append(getChar(rowWidth, "-"));
+        }
+        builder.append('\n');
       }
 
       return builder.toString();
