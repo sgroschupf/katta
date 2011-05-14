@@ -72,7 +72,11 @@
 		<dependency org="asm" name="asm" rev="3.0" conf="instrument" />
 		<dependency org="asm" name="asm-tree" rev="3.0" conf="instrument" />
 		<dependency org="oro" name="oro" rev="2.0.8" conf="instrument" />
-		<dependency org="net.sf.checkstyle" name="checkstyle-all" rev="5.0-beta2" conf="checkstyle" />
+		<dependency org="net.sf.checkstyle" name="checkstyle" rev="5.2" conf="checkstyle" />
+		<dependency org="commons-beanutils" name="commons-beanutils-core" rev="1.8.3" conf="checkstyle" />
+		<dependency org="google" name="guava" rev="r08" conf="checkstyle" />
+		<dependency org="commons-logging" name="commons-logging" rev="1.0.4" conf="checkstyle" />
+		<dependency org="antlr" name="antlr" rev="3.2" conf="checkstyle" />
 
     </dependencies>
 
