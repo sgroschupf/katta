@@ -29,10 +29,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletionService;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -374,23 +375,24 @@ public class LuceneServer implements IContentServer, ILuceneServer {
     final int shardsCount = shards.length;
 
     // Run the search in parallel on the shards with a thread pool.
-    List<Future<SearchResult>> tasks = new ArrayList<Future<SearchResult>>();
+    CompletionService<SearchResult> csSearch = new ExecutorCompletionService<SearchResult>(_threadPool);
+
     for (int i = 0; i < shardsCount; i++) {
-      SearchCall call = new SearchCall(shards[i], weight, max, sort, timeout);
-      Future<SearchResult> future = _threadPool.submit(call);
-      tasks.add(future);
+      SearchCall call = new SearchCall(shards[i], weight, max, sort, timeout, i);
+      csSearch.submit(call);
     }
 
     final ScoreDoc[][] scoreDocs = new ScoreDoc[shardsCount][];
     ScoreDoc scoreDocExample = null;
     for (int i = 0; i < shardsCount; i++) {
-      SearchResult searchResult;
       try {
-        searchResult = tasks.get(i).get();
+        final SearchResult searchResult = csSearch.take().get();
+        final int callIndex = searchResult.getSearchCallIndex();
+
         totalHits += searchResult._totalHits;
-        scoreDocs[i] = searchResult._scoreDocs;
-        if (scoreDocExample == null && scoreDocs[i].length > 0) {
-          scoreDocExample = scoreDocs[i][0];
+        scoreDocs[callIndex] = searchResult._scoreDocs;
+        if (scoreDocExample == null && scoreDocs[callIndex].length > 0) {
+          scoreDocExample = scoreDocs[callIndex][0];
         }
       } catch (InterruptedException e) {
         throw new IOException("Multithread shard search interrupted:", e);
@@ -552,13 +554,15 @@ public class LuceneServer implements IContentServer, ILuceneServer {
     protected final int _limit;
     protected final Sort _sort;
     protected final long _timeout;
+    protected final int _callIndex;
 
-    public SearchCall(String shardName, Weight weight, int limit, Sort sort, long timeout) {
+    public SearchCall(String shardName, Weight weight, int limit, Sort sort, long timeout, int callIndex) {
       _shardName = shardName;
       _weight = weight;
       _limit = limit;
       _sort = sort;
       _timeout = timeout;
+      _callIndex = callIndex;
     }
 
     @Override
@@ -584,7 +588,7 @@ public class LuceneServer implements IContentServer, ILuceneServer {
                 + "' with timeout set to '" + _timeout + "'");
       }
       TopDocs docs = resultCollector.topDocs();
-      return new SearchResult(docs.totalHits, docs.scoreDocs);
+      return new SearchResult(docs.totalHits, docs.scoreDocs, _callIndex);
     }
 
     @SuppressWarnings({ "rawtypes" })
@@ -600,10 +604,12 @@ public class LuceneServer implements IContentServer, ILuceneServer {
 
     protected final int _totalHits;
     protected final ScoreDoc[] _scoreDocs;
+    protected int _searchCallIndex;
 
-    public SearchResult(int totalHits, ScoreDoc[] scoreDocs) {
+    public SearchResult(int totalHits, ScoreDoc[] scoreDocs, int searchCallIndex) {
       _totalHits = totalHits;
       _scoreDocs = scoreDocs;
+      _searchCallIndex = searchCallIndex;
     }
 
     public int getTotalHits() {
@@ -612,6 +618,10 @@ public class LuceneServer implements IContentServer, ILuceneServer {
 
     public ScoreDoc[] getScoreDocs() {
       return _scoreDocs;
+    }
+
+    public int getSearchCallIndex() {
+      return _searchCallIndex;
     }
 
   }
