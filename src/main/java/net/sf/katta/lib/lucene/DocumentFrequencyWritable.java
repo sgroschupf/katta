@@ -29,6 +29,8 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import org.apache.hadoop.io.Writable;
 import org.mortbay.log.Log;
 
+import com.google.common.base.Objects;
+
 public class DocumentFrequencyWritable implements Writable {
   private ReadWriteLock _frequenciesLock = new ReentrantReadWriteLock(true);
   private Map<TermWritable, Integer> _frequencies = new HashMap<TermWritable, Integer>();
@@ -142,6 +144,7 @@ public class DocumentFrequencyWritable implements Writable {
 
   @Override
   public String toString() {
-    return "numDocs: " + getNumDocs() + getAll();
+    return Objects.toStringHelper(this).add("totalNumberOfDocs", getNumDocs()).add("termFrequencies", getAll())
+            .toString();
   }
 }

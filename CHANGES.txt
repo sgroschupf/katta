@@ -1,6 +1,7 @@
 Katta Change Log
 
 katta 0.6.4
+ fix KATTA-186, make message about document and term statistics more readable
  fix KATTA-189, improve multithreaded shard search by using ExecutorCompletionService 
  fix KATTA-190, make inner classes of LuceneServer protected
  fix KATTA-187, add additional parameters to the Katta client to change the output format for easier scripting and parsing
