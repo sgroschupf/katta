@@ -17,7 +17,7 @@ package net.sf.katta.protocol;
 
 /**
  * A component which is connected to a node-cluster / zk-server. But sometimes
- * connections drop. So this is the lifecylce for connections (once they are
+ * connections drop. So this is the lifecycle for connections (once they are
  * already connected).
  * 
  */

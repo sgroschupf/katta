@@ -36,6 +36,8 @@ import org.I0Itec.zkclient.NetworkUtil;
 import org.I0Itec.zkclient.ZkServer;
 import org.apache.log4j.Logger;
 
+import com.google.common.base.Preconditions;
+
 public class Master implements ConnectedComponent {
 
   protected final static Logger LOG = Logger.getLogger(Master.class);
@@ -78,11 +80,13 @@ public class Master implements ConnectedComponent {
   }
 
   public synchronized void start() {
+    Preconditions.checkState(!isShutdown(), "master was already shut-down");
     becomePrimaryOrSecondaryMaster();
   }
 
   @Override
   public synchronized void reconnect() {
+    disconnect();// just to be sure we do not open a 2nd operator thread
     becomePrimaryOrSecondaryMaster();
   }
 
@@ -100,7 +104,10 @@ public class Master implements ConnectedComponent {
     }
   }
 
-  private void becomePrimaryOrSecondaryMaster() {
+  private synchronized void becomePrimaryOrSecondaryMaster() {
+    if (isShutdown()) {
+      return;
+    }
     MasterQueue queue = _protocol.publishMaster(this);
     if (queue != null) {
       UpgradeAction upgradeAction = UpgradeRegistry.findUpgradeAction(_protocol, Version.readFromJar());
@@ -136,6 +143,10 @@ public class Master implements ConnectedComponent {
 
   public synchronized boolean isMaster() {
     return _operatorThread != null;
+  }
+
+  private synchronized boolean isShutdown() {
+    return _protocol == null;
   }
 
   public String getMasterName() {

@@ -1,6 +1,7 @@
 Katta Change Log
 
 katta 0.6.4
+ fix KATTA-192, make master failover more robust
  fix KATTA-184, upgrade to zookeeper 3.3.2 (from 3.3.1)
  fix KATTA-183, zkclient can get unresponsive through OOM
  fix KATTA-182, fix memory leak in client - ZooKeeper$ZkWatchManager.existWatches can grow huge

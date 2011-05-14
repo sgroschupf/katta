@@ -33,10 +33,10 @@ import net.sf.katta.operation.master.MasterOperation;
 import net.sf.katta.operation.node.NodeOperation;
 import net.sf.katta.operation.node.OperationResult;
 import net.sf.katta.protocol.metadata.IndexMetaData;
+import net.sf.katta.protocol.metadata.IndexMetaData.Shard;
 import net.sf.katta.protocol.metadata.MasterMetaData;
 import net.sf.katta.protocol.metadata.NodeMetaData;
 import net.sf.katta.protocol.metadata.Version;
-import net.sf.katta.protocol.metadata.IndexMetaData.Shard;
 import net.sf.katta.util.CollectionUtil;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.One2ManyListMap;
@@ -49,10 +49,14 @@ import org.I0Itec.zkclient.IZkDataListener;
 import org.I0Itec.zkclient.IZkStateListener;
 import org.I0Itec.zkclient.ZkClient;
 import org.I0Itec.zkclient.exception.ZkNoNodeException;
+import org.I0Itec.zkclient.exception.ZkNodeExistsException;
 import org.I0Itec.zkclient.util.ZkPathUtil;
 import org.I0Itec.zkclient.util.ZkPathUtil.PathFilter;
 import org.apache.log4j.Logger;
 import org.apache.zookeeper.Watcher.Event.KeeperState;
+
+import com.google.common.collect.HashMultimap;
+import com.google.common.collect.SetMultimap;
 
 /**
  * Abstracts the interaction between master and nodes via zookeeper files and
@@ -73,7 +77,7 @@ public class InteractionProtocol {
   // we govern the various listener and ephemerals to remove burden from
   // listener-users to unregister/delete them
   protected One2ManyListMap<ConnectedComponent, ListenerAdapter> _zkListenerByComponent = new One2ManyListMap<ConnectedComponent, ListenerAdapter>();
-  private One2ManyListMap<ConnectedComponent, String> _zkEphemeralPublishesByComponent = new One2ManyListMap<ConnectedComponent, String>();
+  private SetMultimap<ConnectedComponent, String> _zkEphemeralPublishesByComponent = HashMultimap.create();
 
   private IZkStateListener _stateListener = new IZkStateListener() {
     @Override
@@ -131,10 +135,10 @@ public class InteractionProtocol {
         throw new IllegalStateException("could not handle lister of type " + listener.getClass().getName());
       }
     }
-
     // we deleting the ephemeral's since this is the fastest and the safest
+
     // way, but if this does not work, it shouldn't be too bad
-    List<String> zkPublishes = _zkEphemeralPublishesByComponent.removeKey(component);
+    Collection<String> zkPublishes = _zkEphemeralPublishesByComponent.removeAll(component);
     for (String zkPath : zkPublishes) {
       _zkClient.delete(zkPath);
     }
@@ -142,6 +146,7 @@ public class InteractionProtocol {
     if (_zkListenerByComponent.size() == 0) {
       _zkClient.unsubscribeStateChanges(_stateListener);
     }
+    LOG.info("unregistering component " + component + ": " + _zkListenerByComponent);
   }
 
   public void disconnect() {
@@ -347,13 +352,13 @@ public class InteractionProtocol {
     cleanupOldMasterData(masterName, zkMasterPath);
 
     boolean isMaster;
-    if (!_zkClient.exists(zkMasterPath)) {
-      LOG.info(masterName + " starting as master...");
+    try {
       createEphemeral(master, zkMasterPath, new MasterMetaData(masterName, System.currentTimeMillis()));
       isMaster = true;
-    } else {
-      LOG.info(masterName + " starting as secondary master...");
+      LOG.info(masterName + " started as master");
+    } catch (ZkNodeExistsException e) {
       registerDataListener(master, new IZkDataListener() {
+        @Override
         public void handleDataDeleted(final String dataPath) throws KattaException {
           master.handleMasterDisappearedEvent();
         }
@@ -364,6 +369,7 @@ public class InteractionProtocol {
         }
       }, zkMasterPath);
       isMaster = false;
+      LOG.info(masterName + " started as secondary master");
     }
 
     MasterQueue queue = null;
@@ -456,7 +462,7 @@ public class InteractionProtocol {
     if (_zkClient.exists(shard2NodePath)) {
       _zkClient.delete(shard2NodePath);
     }
-    _zkEphemeralPublishesByComponent.removeValue(node, shard2NodePath);
+    _zkEphemeralPublishesByComponent.remove(node, shard2NodePath);
   }
 
   public void setMetric(String nodeName, MetricsRecord metricsRecord) {
@@ -478,7 +484,7 @@ public class InteractionProtocol {
 
   private void createEphemeral(ConnectedComponent component, String path, Serializable content) {
     _zkClient.createEphemeral(path, content);
-    _zkEphemeralPublishesByComponent.add(component, path);
+    _zkEphemeralPublishesByComponent.put(component, path);
   }
 
   public void addMasterOperation(MasterOperation operation) {

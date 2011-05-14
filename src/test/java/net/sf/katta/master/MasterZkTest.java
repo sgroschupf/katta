@@ -15,13 +15,6 @@
  */
 package net.sf.katta.master;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.mockito.Matchers.notNull;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.withSettings;
-
 import java.util.List;
 
 import net.sf.katta.AbstractZkTest;
@@ -47,6 +40,15 @@ import org.I0Itec.zkclient.Gateway;
 import org.I0Itec.zkclient.ZkClient;
 import org.junit.Test;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.withSettings;
+
+import static org.mockito.Matchers.notNull;
+
 public class MasterZkTest extends AbstractZkTest {
 
   @Test
@@ -58,6 +60,7 @@ public class MasterZkTest extends AbstractZkTest {
     assertEquals(numberOfListeners, _zk.getZkClient().numberOfListeners());
   }
 
+  @SuppressWarnings("unchecked")
   @Test(timeout = 10000)
   public void testMasterOperationPickup() throws Exception {
     Master master = new Master(_zk.getInteractionProtocol(), false);
@@ -82,6 +85,23 @@ public class MasterZkTest extends AbstractZkTest {
     master.shutdown();
   }
 
+  @Test(timeout = 500000)
+  public void testMasterChange_OnSessionReconnect() throws Exception {
+    Master master = new Master(_zk.getInteractionProtocol(), false);
+    Node node = Mocks.mockNode();// leave safe mode
+    _protocol.publishNode(node, new NodeMetaData("node1"));
+    master.start();
+    TestUtil.waitUntilLeaveSafeMode(master);
+
+    Master secMaster = new Master(_zk.getInteractionProtocol(), false);
+    secMaster.start();
+
+    master.disconnect();
+    master.reconnect();
+    master.shutdown();
+    secMaster.shutdown();
+  }
+
   @Test(timeout = 50000)
   public void testMasterChangeWhileDeploingIndex() throws Exception {
     Master master = new Master(_zk.getInteractionProtocol(), false);
@@ -103,7 +123,7 @@ public class MasterZkTest extends AbstractZkTest {
     Master secMaster = new Master(_zk.getInteractionProtocol(), false);
     secMaster.start();
 
-    // phase III - finsih node operations/ mater operation should be finished
+    // phase III - finish node operations/ mater operation should be finished
     while (!nodeQueue.isEmpty()) {
       nodeQueue.remove();
     }
