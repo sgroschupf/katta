@@ -66,13 +66,13 @@ import org.apache.lucene.search.Searcher;
 import org.apache.lucene.search.Similarity;
 import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.TimeLimitingCollector;
+import org.apache.lucene.search.TimeLimitingCollector.TimeExceededException;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.search.TopDocsCollector;
 import org.apache.lucene.search.TopFieldCollector;
 import org.apache.lucene.search.TopFieldDocs;
 import org.apache.lucene.search.TopScoreDocCollector;
 import org.apache.lucene.search.Weight;
-import org.apache.lucene.search.TimeLimitingCollector.TimeExceededException;
 import org.apache.lucene.util.PriorityQueue;
 
 /**
@@ -117,6 +117,7 @@ public class LuceneServer implements IContentServer, ILuceneServer {
     _timeoutPercentage = timeoutPercentage;
   }
 
+  @Override
   public long getProtocolVersion(final String protocol, final long clientVersion) throws IOException {
     return 0L;
   }
@@ -156,6 +157,7 @@ public class LuceneServer implements IContentServer, ILuceneServer {
    * @param shardDir
    * @throws IOException
    */
+  @Override
   public void addShard(final String shardName, final File shardDir) throws IOException {
     LOG.info("LuceneServer " + _nodeName + " got shard " + shardName);
     try {
@@ -170,6 +172,7 @@ public class LuceneServer implements IContentServer, ILuceneServer {
   /**
    * Removes a search by given shardName from the list of searchers.
    */
+  @Override
   public void removeShard(final String shardName) {
     LOG.info("LuceneServer " + _nodeName + " removing shard " + shardName);
     final IndexSearcher remove = _searcherByShard.remove(shardName);
@@ -218,6 +221,7 @@ public class LuceneServer implements IContentServer, ILuceneServer {
    * @return a map of key/value pairs which describe the shard.
    * @throws Exception
    */
+  @Override
   public Map<String, String> getShardMetaData(String shardName) throws Exception {
     Map<String, String> metaData = new HashMap<String, String>();
     metaData.put(SHARD_SIZE_KEY, Integer.toString(shardSize(shardName)));
@@ -227,6 +231,7 @@ public class LuceneServer implements IContentServer, ILuceneServer {
   /**
    * Close all Lucene indices. No further calls will be made after this one.
    */
+  @Override
   public void shutdown() throws IOException {
     for (final Searchable searchable : _searcherByShard.values()) {
       searchable.close();
@@ -365,8 +370,6 @@ public class LuceneServer implements IContentServer, ILuceneServer {
     final Query rewrittenQuery = rewrite(query, shards);
     final int numDocs = freqs.getNumDocsAsInteger();
     final Weight weight = rewrittenQuery.weight(new CachedDfSource(freqs.getAll(), numDocs, new DefaultSimilarity()));
-    // Limit the request to the number requested or the total number of
-    // documents, whichever is smaller.
     int totalHits = 0;
     final int shardsCount = shards.length;
 
@@ -399,6 +402,8 @@ public class LuceneServer implements IContentServer, ILuceneServer {
     result.addTotalHits(totalHits);
 
     final Iterable<Hit> finalHitList;
+    // Limit the request to the number requested or the total number of
+    // documents, whichever is smaller.
     int limit = Math.min(numDocs, max);
     if (sort == null || totalHits == 0) {
       final KattaHitQueue hq = new KattaHitQueue(limit);
@@ -540,13 +545,13 @@ public class LuceneServer implements IContentServer, ILuceneServer {
    * Implements a single thread of a search. Each shard has a separate
    * SearchCall and they are run more or less in parallel.
    */
-  private class SearchCall implements Callable<SearchResult> {
+  protected class SearchCall implements Callable<SearchResult> {
 
-    private final String _shardName;
-    private final Weight _weight;
-    private final int _limit;
-    private final Sort _sort;
-    private final long _timeout;
+    protected final String _shardName;
+    protected final Weight _weight;
+    protected final int _limit;
+    protected final Sort _sort;
+    protected final long _timeout;
 
     public SearchCall(String shardName, Weight weight, int limit, Sort sort, long timeout) {
       _shardName = shardName;
@@ -557,7 +562,7 @@ public class LuceneServer implements IContentServer, ILuceneServer {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({ "rawtypes" })
     public SearchResult call() throws Exception {
       final IndexSearcher indexSearcher = getSearcherByShard(_shardName);
       int nDocs = Math.min(_limit, indexSearcher.maxDoc());
@@ -582,7 +587,7 @@ public class LuceneServer implements IContentServer, ILuceneServer {
       return new SearchResult(docs.totalHits, docs.scoreDocs);
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({ "rawtypes" })
     private Collector wrapInTimeoutCollector(TopDocsCollector resultCollector) {
       if (_timeout <= 0) {
         return resultCollector;
@@ -591,7 +596,7 @@ public class LuceneServer implements IContentServer, ILuceneServer {
     }
   }
 
-  private static class SearchResult {
+  protected static class SearchResult {
 
     protected final int _totalHits;
     protected final ScoreDoc[] _scoreDocs;
@@ -599,6 +604,14 @@ public class LuceneServer implements IContentServer, ILuceneServer {
     public SearchResult(int totalHits, ScoreDoc[] scoreDocs) {
       _totalHits = totalHits;
       _scoreDocs = scoreDocs;
+    }
+
+    public int getTotalHits() {
+      return _totalHits;
+    }
+
+    public ScoreDoc[] getScoreDocs() {
+      return _scoreDocs;
     }
 
   }
@@ -610,7 +623,7 @@ public class LuceneServer implements IContentServer, ILuceneServer {
    * fully-fledged Searcher, but only supports the methods necessary to
    * initialize Weights.
    */
-  private static class CachedDfSource extends Searcher {
+  protected static class CachedDfSource extends Searcher {
 
     private final Map<TermWritable, Integer> dfMap; // Map from Terms to
     // corresponding doc freqs.
@@ -717,23 +730,27 @@ public class LuceneServer implements IContentServer, ILuceneServer {
     @Override
     protected final boolean lessThan(final Hit hitA, final Hit hitB) {
       if (hitA.getScore() == hitB.getScore()) {
-        // todo this of cource do not work since we have same shardKeys
+        // todo this of source do not work since we have same shardKeys
         // (should we increment docIds?)
         return hitA.getDocId() < hitB.getDocId();
       }
       return hitA.getScore() < hitB.getScore();
     }
 
+    @Override
     public Iterator<Hit> iterator() {
       return new Iterator<Hit>() {
+        @Override
         public boolean hasNext() {
           return KattaHitQueue.this.size() > 0;
         }
 
+        @Override
         public Hit next() {
           return KattaHitQueue.this.pop();
         }
 
+        @Override
         public void remove() {
           throw new UnsupportedOperationException("Can't remove using this iterator");
         }
