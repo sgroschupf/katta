@@ -1,5 +1,7 @@
 Katta Change Log
 
+katta 0.6.5
+
 katta 0.6.4
  fix KATTA-186, make message about document and term statistics more readable
  fix KATTA-189, improve multithreaded shard search by using ExecutorCompletionService 
