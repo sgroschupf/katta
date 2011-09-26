@@ -70,6 +70,38 @@ public interface ILuceneServer extends VersionedProtocol {
       SortWritable sort) throws IOException;
 
   /**
+   * Sorts the returned hits based on the sort parameter.
+   *
+   * @param query         The query to run.
+   * @param freqs         Term frequency information for term weighting.
+   * @param shardNames    A array of shard names to search in.
+   * @param timeout       How long the query is allowed to run before getting interrupted
+   * @param count         The top n high score hits.
+   * @param filter        A query filter.
+   * @return A list of hits from the search.
+   * @throws IOException     If the search had a problem reading files.
+   */
+  public HitsMapWritable search(QueryWritable query, DocumentFrequencyWritable freqs, String[] shardNames, long timeout, int count,
+      FilterWritable filter) throws IOException;
+
+  /**
+   * Sorts the returned hits based on the sort parameter.
+   *
+   * @param query         The query to run.
+   * @param freqs         Term frequency information for term weighting.
+   * @param shardNames    A array of shard names to search in.
+   * @param timeout       How long the query is allowed to run before getting interrupted
+   * @param count         The top n high score hits.
+   * @param sort          sort criteria for returned hits
+   * @param filter        A query filter.
+   * @return A list of hits from the search.
+   * @throws IOException     If the search had a problem reading files.
+   */
+  public HitsMapWritable search(QueryWritable query, DocumentFrequencyWritable freqs, String[] shardNames, long timeout, int count,
+      SortWritable sort, FilterWritable filter) throws IOException;
+
+
+  /**
    * Returns the number of documents a term occurs in. In a distributed search
    * environment, we need to get this first and then query all nodes again with
    * this information to ensure we compute TF IDF correctly. See
@@ -114,9 +146,23 @@ public interface ILuceneServer extends VersionedProtocol {
    *
    * @param query
    * @param shards
-   * @param timout How long the query is allowed to run before getting interrupted
+   * @param timeout How long the query is allowed to run before getting interrupted
    * @return number of documents
    * @throws IOException
    */
-  public int getResultCount(QueryWritable query, String[] shards, long timout) throws IOException;
+  public int getResultCount(QueryWritable query, String[] shards, long timeout) throws IOException;
+
+  /**
+   * Returns the number of documents that match the given query. This the
+   * fastest way in case you just need the number of documents. Note that the
+   * number of matching documents is also included in HitsMapWritable.
+   *
+   * @param query
+   * @param shards
+   * @param filter
+   * @param timeout How long the query is allowed to run before getting interrupted
+   * @return number of documents
+   * @throws IOException
+   */
+  public int getResultCount(QueryWritable query, FilterWritable filter, String[] shards, long timeout) throws IOException;
 }

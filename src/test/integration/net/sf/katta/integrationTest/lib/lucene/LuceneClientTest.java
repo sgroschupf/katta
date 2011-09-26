@@ -42,16 +42,19 @@ import org.apache.lucene.analysis.KeywordAnalyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
-import org.apache.lucene.document.NumericField;
 import org.apache.lucene.document.Field.Index;
 import org.apache.lucene.document.Field.Store;
+import org.apache.lucene.document.NumericField;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriter.MaxFieldLength;
+import org.apache.lucene.index.Term;
 import org.apache.lucene.queryParser.ParseException;
 import org.apache.lucene.queryParser.QueryParser;
 import org.apache.lucene.search.Query;
+import org.apache.lucene.search.QueryWrapperFilter;
 import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.SortField;
+import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.Version;
 import org.junit.Test;
@@ -448,6 +451,57 @@ public class LuceneClientTest extends AbstractIntegrationTest {
     client.search(query, new String[] { INDEX_NAME }, 10, null);
     // client.search(query, new String[] { INDEX_NAME }, 10, new Sort(new
     // SortField("foo", SortField.STRING)));
+    client.close();
+  }
+
+  @Test
+  public void testFilteredSearch() throws Exception {
+    // write and deploy test index
+    File filterIndex = _temporaryFolder.newFolder("filterIndex1");
+    String textFieldName = "textField";
+    String filterFieldName = "filterField";
+    IndexWriter indexWriter = new IndexWriter(FSDirectory.open(filterIndex), new StandardAnalyzer(Version.LUCENE_30),
+            true, MaxFieldLength.UNLIMITED);
+    for (int i = 0; i < 100; i++) {
+      Document document = new Document();
+      document.add(new Field(textFieldName, "sample " + i, Store.YES, Index.NOT_ANALYZED));
+      document.add(new Field(filterFieldName, "" + (i % 10), Store.YES, Index.NOT_ANALYZED));
+      indexWriter.addDocument(document);
+    }
+    indexWriter.optimize();
+    indexWriter.close();
+    DeployClient deployClient = new DeployClient(_miniCluster.getProtocol());
+    IndexState indexState = deployClient.addIndex(filterIndex.getName(), filterIndex.getParentFile().getAbsolutePath(),
+            1).joinDeployment();
+    assertEquals(IndexState.DEPLOYED, indexState);
+
+    // build filter for terms in set {i | (i % 10) == 3}.
+    ILuceneClient client = new LuceneClient(_miniCluster.getZkConfiguration());
+    TermQuery filterQuery = new TermQuery(new Term(filterFieldName, "3"));
+    QueryWrapperFilter filter = new QueryWrapperFilter(filterQuery);
+    final Query query = new QueryParser(Version.LUCENE_30, "", new KeywordAnalyzer()).parse(textFieldName + ":"
+            + "sample*3");
+
+    final Hits hits = client.search(query, new String[] { filterIndex.getName() }, 100, null, filter);
+    assertNotNull(hits);
+    List<Hit> hitsList = hits.getHits();
+    for (final Hit hit : hitsList) {
+      writeToLog(hit);
+    }
+    assertEquals(10, hits.size());
+    assertEquals(10, hitsList.size());
+
+    // check that returned results conform to the filter
+    for (final Hit hit : hitsList) {
+      MapWritable mw = client.getDetails(hit);
+      Text text = (Text) mw.get(new Text("textField"));
+      assertNotNull(text);
+      String[] parts = text.toString().split(" ");
+      assertTrue(parts.length == 2);
+      int num = Integer.valueOf(parts[1]).intValue();
+      assertTrue((num % 10) == 3);
+    }
+
     client.close();
   }
 

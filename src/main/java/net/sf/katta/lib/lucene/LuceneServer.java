@@ -59,6 +59,7 @@ import org.apache.lucene.search.DefaultSimilarity;
 import org.apache.lucene.search.Explanation;
 import org.apache.lucene.search.FieldDoc;
 import org.apache.lucene.search.Filter;
+import org.apache.lucene.search.CachingWrapperFilter;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
@@ -93,6 +94,7 @@ public class LuceneServer implements IContentServer, ILuceneServer {
   public final static String CONF_KEY_SEARCHER_THREADPOOL_MAXSIZE = "lucene.searcher.threadpool.max-size";
 
   protected final Map<String, IndexSearcher> _searcherByShard = new ConcurrentHashMap<String, IndexSearcher>();
+  protected final Map<Filter, CachingWrapperFilter> _filterCache = new ConcurrentHashMap<Filter, CachingWrapperFilter>();
   protected ExecutorService _threadPool;
 
   protected String _nodeName;
@@ -264,12 +266,24 @@ public class LuceneServer implements IContentServer, ILuceneServer {
   @Override
   public HitsMapWritable search(final QueryWritable query, final DocumentFrequencyWritable freqs,
           final String[] shards, final long timeout, final int count) throws IOException {
-    return search(query, freqs, shards, timeout, count, null);
+    return search(query, freqs, shards, timeout, count, null, null);
   }
 
   @Override
   public HitsMapWritable search(QueryWritable query, DocumentFrequencyWritable freqs, String[] shards,
           final long timeout, int count, SortWritable sortWritable) throws IOException {
+      return search(query, freqs, shards, timeout, count, sortWritable, null);
+  }
+
+  @Override
+  public HitsMapWritable search(QueryWritable query, DocumentFrequencyWritable freqs, String[] shards,
+          final long timeout, int count, FilterWritable filterWritable) throws IOException {
+      return search(query, freqs, shards, timeout, count, null, filterWritable);
+  }
+
+  @Override
+  public HitsMapWritable search(QueryWritable query, DocumentFrequencyWritable freqs, String[] shards,
+          final long timeout, int count, SortWritable sortWritable, FilterWritable filterWritable) throws IOException {
     if (LOG.isDebugEnabled()) {
       LOG.debug("You are searching with the query: '" + query.getQuery() + "'");
     }
@@ -290,7 +304,16 @@ public class LuceneServer implements IContentServer, ILuceneServer {
     if (sortWritable != null) {
       sort = sortWritable.getSort();
     }
-    search(luceneQuery, freqs, shards, result, count, sort, timeout);
+    Filter filter = null;
+    if ((filterWritable != null) && ((filter = filterWritable.getFilter()) != null)) {
+      CachingWrapperFilter cwf = _filterCache.get(filter);
+      if (cwf == null) {
+          cwf = new CachingWrapperFilter(filter);
+          _filterCache.put(filter, cwf);
+      }
+      filter = cwf;
+    }
+    search(luceneQuery, freqs, shards, result, count, sort, timeout, filter);
     if (LOG.isDebugEnabled()) {
       final long end = System.currentTimeMillis();
       LOG.debug("Search took " + (end - start) / 1000.0 + "sec.");
@@ -355,6 +378,13 @@ public class LuceneServer implements IContentServer, ILuceneServer {
     return search(query, docFreqs, shards, timeout, 1).getTotalHits();
   }
 
+  @Override
+  public int getResultCount(final QueryWritable query, FilterWritable filter, final String[] shards, long timeout) 
+    throws IOException {
+    final DocumentFrequencyWritable docFreqs = getDocFreqs(query, shards);
+    return search(query, docFreqs, shards, timeout, 1, null, filter).getTotalHits();
+  }
+
   /**
    * Search in the given shards and return max hits for given query
    * 
@@ -366,7 +396,7 @@ public class LuceneServer implements IContentServer, ILuceneServer {
    * @throws IOException
    */
   protected final void search(final Query query, final DocumentFrequencyWritable freqs, final String[] shards,
-          final HitsMapWritable result, final int max, Sort sort, long timeout) throws IOException {
+          final HitsMapWritable result, final int max, Sort sort, long timeout, Filter filter) throws IOException {
     timeout = getCollectorTiemout(timeout);
     final Query rewrittenQuery = rewrite(query, shards);
     final int numDocs = freqs.getNumDocsAsInteger();
@@ -378,7 +408,7 @@ public class LuceneServer implements IContentServer, ILuceneServer {
     CompletionService<SearchResult> csSearch = new ExecutorCompletionService<SearchResult>(_threadPool);
 
     for (int i = 0; i < shardsCount; i++) {
-      SearchCall call = new SearchCall(shards[i], weight, max, sort, timeout, i);
+      SearchCall call = new SearchCall(shards[i], weight, max, sort, timeout, i, filter);
       csSearch.submit(call);
     }
 
@@ -555,14 +585,17 @@ public class LuceneServer implements IContentServer, ILuceneServer {
     protected final Sort _sort;
     protected final long _timeout;
     protected final int _callIndex;
+    protected final Filter _filter;
 
-    public SearchCall(String shardName, Weight weight, int limit, Sort sort, long timeout, int callIndex) {
+    public SearchCall(String shardName, Weight weight, int limit, Sort sort, long timeout, int callIndex,
+            Filter filter) {
       _shardName = shardName;
       _weight = weight;
       _limit = limit;
       _sort = sort;
       _timeout = timeout;
       _callIndex = callIndex;
+      _filter = filter;
     }
 
     @Override
@@ -582,7 +615,7 @@ public class LuceneServer implements IContentServer, ILuceneServer {
         resultCollector = TopScoreDocCollector.create(nDocs, !_weight.scoresDocsOutOfOrder());
       }
       try {
-        indexSearcher.search(_weight, null, wrapInTimeoutCollector(resultCollector));
+        indexSearcher.search(_weight, _filter, wrapInTimeoutCollector(resultCollector));
       } catch (TimeExceededException e) {
         LOG.warn("encountered exceeded timout for query '" + _weight.getQuery() + " on shard '" + _shardName
                 + "' with timeout set to '" + _timeout + "'");

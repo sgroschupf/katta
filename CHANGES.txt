@@ -1,6 +1,7 @@
 Katta Change Log
 
 katta 0.6.5
+ fix KATTA-193, implement query filters 
 
 katta 0.6.4
  fix KATTA-186, make message about document and term statistics more readable

@@ -22,6 +22,7 @@ import net.sf.katta.util.KattaException;
 import org.apache.hadoop.io.MapWritable;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.Sort;
+import org.apache.lucene.search.Filter;
 
 /**
  * Client for searching document indices deployed on a katta cluster.
@@ -90,6 +91,25 @@ public interface ILuceneClient {
    * @throws KattaException
    */
   public Hits search(Query query, String[] indexNames, int count, Sort sort) throws KattaException;
+
+  /**
+   * Searches with a given query in the supplied indexes for a limited amount of
+   * results and sorts the results based upon the sort parameter.
+   * 
+   * @param query
+   *          The query to search with.
+   * @param indexNames
+   *          A list of index names to search in.
+   * @param count
+   *          The count of results that should be returned.
+   * @param sort
+   *          Sort criteria for returned hits
+   * @param filter
+   *          A query filter
+   * @return A object that capsulates all results.
+   * @throws KattaException
+   */
+  public Hits search(Query query, String[] indexNames, int count, Sort sort, Filter filter) throws KattaException;
 
   /**
    * Gets all the details to a hit.
@@ -167,6 +187,20 @@ public interface ILuceneClient {
    * @throws KattaException
    */
   public int count(Query query, String[] indexNames) throws KattaException;
+
+  /**
+   * Gets only the result count to a query.
+   * 
+   * @param query
+   *          The query to search with.
+   * @param filter
+   *          A filter for restricting query results.
+   * @param indexNames
+   *          A list of index names to search in.
+   * @return A number that represents the overall result count to a query.
+   * @throws KattaException
+   */
+  public int count(Query query, Filter filter, String[] indexNames) throws KattaException;
 
   /**
    * Closes down the client.
