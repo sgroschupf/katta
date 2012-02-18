@@ -4,9 +4,6 @@ zookeeper-log-data/
 .classpath
 .settings
 build
-extras/katta.gui/bin
-extras/katta.gui/test
-extras/katta.gui/web-app
 prodDb*
 .DS_Store
 stacktrace.log
@@ -15,3 +12,5 @@ results
 junit*
 extras/ec2/bin/katta-ec2-env.sh
 extras/katta.gui/katta.gui-0.1.war
+modules/katta-ec2/bin/katta-ec2-env.sh
+modules/katta-gui

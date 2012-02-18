@@ -1,0 +1,46 @@
+<project name="katta-indexing-sample" >
+	
+	<property file="build.properties" />
+	<import file="${root.dir}/src/build/ant/common-build.xml" />
+
+	<addModuleToClasspath module="katta-core" />
+	<addModuleToClasspath module="katta-indexing-sample"/>
+	<target name="setupModuleArtifactClassPath" >
+		<addModuleArtifact module="katta-core"/>
+	</target>
+	<!-- Eclipse setting: All dependend projects are names here -->
+    <path id="dependend-projects">
+        <pathelement path="/katta-core" />
+    </path>
+	
+	<!-- ================================================================== -->
+	<!-- Build job jar                                                      -->
+	<!-- ================================================================== -->
+
+	<target name="job-jar" depends="compile" description="--> creates a hadop job jar">
+		<property name="job.name" value="${ant.project.name}-job-${version}.jar"/>
+		<property name="job.dir" value="${build.dir}/${artifact.basename}" />
+		<mkdir dir="${job.dir}" />
+		<mkdir dir="${job.dir}/lib" />
+
+		<!-- copy ivy cache to lib -->
+		<copy todir="${job.dir}/lib">
+			<fileset dir="${root.dir}/modules/katta-core/lib/compile">
+				<include name="lucene-*.jar"/>
+				<exclude name="*-sources.jar"/>
+			</fileset>
+		</copy>
+		<!-- copy  classes  -->
+		<copy todir="${job.dir}">
+			<fileset dir="${build.dir.main-classes}" />
+		</copy>
+
+		<jar jarfile="${build.dir}/${job.name}">
+			<zipfileset dir="${build.dir}/${ant.project.name}-${version}" />
+			<manifest>
+				<attribute name="Main-Class" value="${job.main.class}" />
+			</manifest>
+		</jar>
+	</target>
+
+</project>

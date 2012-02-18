@@ -1,0 +1,104 @@
+<project name="katta-core">
+
+	<property file="build.properties" />
+	<import file="${root.dir}/src/build/ant/common-build.xml" />
+
+	<addModuleToClasspath module="katta-core"/>
+
+	<target name="setupModuleArtifactClassPath" />
+
+    <!-- Eclipse setting: All dependend projects are names here -->
+    <path id="dependend-projects">
+    </path>
+	
+	<target name="dist" depends="jar, jar-sources, doc, checkstyle" description="--> builds the Katta Core distribution">
+			<property name="build.dir.dist" value="${build.dir}/${artifact.basename}"/>
+			<property name="build.release.file" value="${build.dir}/${artifact.basename}.tar.gz"/>
+			<echo>====== Make sure you run 'ant coverage dist' for real distributions ====== </echo>
+			<defaultexcludes add="**/.git/**,**/.gitignore"/>
+			<delete dir="${build.dir.dist}" />
+
+			<!-- create target directory -->
+			<mkdir dir="${build.dir.dist}" />
+			<mkdir dir="${build.dir.dist}/bin" />
+			<mkdir dir="${build.dir.dist}/conf" />
+			<mkdir dir="${build.dir.dist}/docs" />
+			<mkdir dir="${build.dir.dist}/docs/javadoc" />
+			<mkdir dir="${build.dir.dist}/docs/reports" />
+			<mkdir dir="${build.dir.dist}/lib" />
+			<mkdir dir="${build.dir.dist}/extras" />
+			<mkdir dir="${build.dir.dist}/logs" />
+
+			<!-- copy launch script to target -->
+			<copy todir="${build.dir.dist}/bin">
+				<fileset dir="${basedir}/bin"/>
+			</copy>
+			<!-- copy  conf to target dir  -->
+			<copy todir="${build.dir.dist}/conf">
+				<fileset dir="${basedir}/conf" />
+			</copy>
+			<!-- copy  javadoc to target dir  -->
+			<copy todir="${build.dir.dist}/docs/javadoc">
+				<fileset dir="${build.javadoc}" />
+			</copy>
+			<!-- copy reports to target dir  -->
+			<copy todir="${build.dir.dist}/docs/reports" failonerror="no">
+				<fileset dir="${coverage.html.dir}" />
+			</copy>
+			<!-- copy libs -->
+			<collectLibraries module="katta-core" target-dir="${build.dir.dist}/lib" />
+		
+			<!-- copy project jar to dist dir -->
+			<copy todir="${basedir}/${build.dir.dist}">
+				<fileset file="${basedir}/${artifact.dir}/${jar.name}" />
+				<fileset file="${basedir}/${artifact.dir}/${jar.sources.name}" />
+			</copy>
+			<!-- copy extras-->
+			<copyModuleToExtras module="katta-ec2"/>
+			<copy todir="${build.dir.dist}/extras/katta-indexing-sample" >
+				<fileset dir="${root.dir}/modules/katta-indexing-sample" >
+					<include name="src/main/**"/>
+				</fileset>
+			</copy>
+
+			<!-- copy project jar to dist dir -->
+			<copy todir="${build.dir.dist}">
+				<fileset file="${root.dir}/CHANGES.txt" />
+				<fileset file="${root.dir}/LICENSE.txt" />
+				<fileset file="${root.dir}/README.txt" />
+			</copy>
+			<!-- clean up all .git folders -->
+
+			<chmod perm="u+x">
+			  <fileset dir="${build.dir.dist}/bin">
+			  </fileset>
+			</chmod>
+
+			<tar longfile="gnu" compression="gzip" destfile="${build.release.file}" >
+				<tarfileset dir="${build.dir.dist}" prefix="${artifact.basename}" filemode="755" >
+			         <include name="bin/**"/>
+					 <include name="extras/ec2/bin/**"/>
+					 <exclude name="bin/katta.ec2.properties"/>
+					 <exclude name="extras/ec2/bin/katta-ec2-env.sh"/>
+			    </tarfileset>
+			    <tarfileset dir="${build.dir.dist}" prefix="${artifact.basename}">
+			         <exclude name="bin/**"/>
+			     	 <exclude name="extras/ec2/bin/**"/>
+			    </tarfileset>
+			</tar>
+		</target>
+	
+		<macrodef name="copyModuleToExtras">
+		        <attribute name="module" />
+		        <sequential>
+		        	<copy todir="${build.dir.dist}/extras/@{module}" >
+    					<fileset dir="${root.dir}/modules/@{module}" >
+    						<exclude name="build/**"/>
+    					</fileset>
+    				</copy>
+				</sequential>
+		</macrodef>
+
+		
+
+</project>

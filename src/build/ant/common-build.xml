@@ -1,152 +1,246 @@
-<project name="katta-common-build" xmlns:ivy="antlib:org.apache.ivy.ant">
+<project name="common-build" >
 
 	<property file="${root.dir}/src/build/ant/build.properties" />
+	<import file="build-all.xml" />
+	<property name="modules-classes.dir" value="${root.dir}/${build.dir}/modules-classes"/>
+	
+    <path id="compile.classpath" />
+    <path id="test.classpath" />
+    <path id="build.classpath" />
+    <path id="artifact.classpath" />
+    <path id="artifact.test.classpath" />
+    <path id="artifact.it.classpath" />
+    <mkdir dir="${lib.dir}/build" />
+    <mkdir dir="${lib.dir}/test" />
+    <mkdir dir="${lib.dir}/compile" />
+    <mkdir dir="${main.src.dir}" />
+    <mkdir dir="${test.src.dir}" />
+    <mkdir dir="${it.src.dir}" />
+    <mkdir dir="${main.res.dir}" />
+    <mkdir dir="${test.res.dir}" />
+    <mkdir dir="${it.res.dir}" />
+    <mkdir dir="${modules-classes.dir}" />
 
-	<target name="hello">
-		<echo>hello world</echo>
-	</target>
+    <!-- ================================================================== -->
+    <!-- Classpath 				                                           -->
+    <!-- ================================================================== -->
+    <macrodef name="addModuleToClasspath">
+        <attribute name="module" />
+        <sequential>
+        	<echo>building classpathes for module @{module}...</echo>
+            <pathconvert property="compile.classpath.prop-@{module}" refid="compile.classpath" />
+            <path id="compile.classpath">
+                <pathelement path="${compile.classpath.prop-@{module}}" />
+                <fileset dir="${root.dir}/modules/@{module}/${lib.dir}/compile" followsymlinks="true">
+                    <include name="**/*.jar" />
+                    <exclude name="**/*-sources.jar" />
+                </fileset>
+            </path>
+            
+            <pathconvert property="test.classpath.prop-@{module}" refid="test.classpath" />
+            <path id="test.classpath">
+                <pathelement path="${test.classpath.prop-@{module}}" />
+                <fileset dir="${root.dir}/modules/@{module}/${lib.dir}/test">
+                    <include name="**/*.jar" />
+                    <exclude name="**/*-sources.jar" />
+                </fileset>
+            </path>
 
-	<!-- ================================================================== -->
-	<!-- General cleaning sources                                           -->
-	<!-- ================================================================== -->
+            <pathconvert property="build.classpath.prop-@{module}" refid="build.classpath" />
+            <path id="build.classpath">
+                <pathelement path="${build.classpath.prop-@{module}}" />
+                <fileset dir="${root.dir}/modules/@{module}/${lib.dir}/build">
+                    <include name="**/*.jar" />
+                    <exclude name="**/*-sources.jar" />
+                </fileset>
+            	<fileset dir="${root.dir}/${lib.dir}/build">
+    	            <include name="**/*.jar" />
+    	            <exclude name="**/*-sources.jar" />
+    	        </fileset>
+            </path>
+        	<!--<echo-classpath classpathId="build.classpath"/>-->
+        </sequential>
+    </macrodef>
 
-	<target name="clean" description="--> clean the project">
-		<echo>cleaning ${ant.project.name}</echo>
-		<delete dir="${build.dir}" />
-		<delete file="log.log" />
-	</target>
+    <macrodef name="addScopedModuleArtifact">
+        <attribute name="module" />
+        <attribute name="scope" />
+        <sequential>
+            <pathconvert property="artifact.@{scope}.classpath.prop-@{module}" refid="artifact.@{scope}.classpath" />
+            <path id="artifact.@{scope}.classpath">
+                <pathelement path="${artifact.@{scope}.classpath.prop-@{module}}" />
+                <fileset dir="${root.dir}/modules/@{module}/${artifact.dir}">
+                    <include name="@{module}-${version}-@{scope}.jar" />
+                </fileset>
+            </path>
+        </sequential>
+    </macrodef>
 
+    <macrodef name="addModuleArtifact">
+        <attribute name="module" />
+        <sequential>
+            <pathconvert property="artifact.classpath.prop-@{module}" refid="artifact.classpath" />
+            <path id="artifact.classpath">
+                <pathelement path="${artifact.classpath.prop-@{module}}" />
+                <fileset dir="${root.dir}/modules/@{module}/${artifact.dir}">
+                    <include name="@{module}-${version}.jar" />
+                </fileset>
+            </path>
 
-	<!-- ================================================================== -->
-	<!-- Ivy                                                                -->
-	<!-- ================================================================== -->
-
-	<target name="download-ivy" unless="ivyIsAvailable" description="--> downloads ivy from a maven repo">
-		<mkdir dir="${ivy.jar.dir}" />
-		<echo message="installing ivy..." />
-		<get src="http://repo1.maven.org/maven2/org/apache/ivy/ivy/${ivy.install.version}/ivy-${ivy.install.version}.jar" dest="${ivy.jar.file}" usetimestamp="true" />
-		<get src="http://repo1.maven.org/maven2/com/jcraft/jsch/${jcraft.install.version}/jsch-${jcraft.install.version}.jar" dest="${jcraft.jar.file}" usetimestamp="true" />
-	</target>
-
-	<target name="check-ivy-available">
-		<available file="${ivy.jar.file}" property="ivyIsAvailable" />
-		<antcall target="download-ivy" />
-	</target>
-
-	<target name="install-ivy" depends="check-ivy-available" description="--> install ivy">
-		<echo>Ivy path </echo>
-		<property environment="env" />
-		<path id="ivy.lib.path">
-			<fileset dir="${ivy.jar.dir}" includes="*.jar" />
-		</path>
-		<taskdef resource="org/apache/ivy/ant/antlib.xml" uri="antlib:org.apache.ivy.ant" classpathref="ivy.lib.path" />
-		<ivy:settings file="${root.dir}/ivysettings.xml" />
-	</target>
-
-	<target name="resolve" depends="install-ivy" description="--> retrieve dependencies with ivy">
-		<ivy:resolve useOrigin="true" />
-	</target>
-
-	<target name="clean-ivy" description="--> clean the ivy installation">
-		<delete dir="${ivy.jar.dir}" />
-	</target>
-
-	<target name="clean-cache" depends="install-ivy" description="--> clean the ivy cache">
-		<ivy:cleancache />
-	</target>
-
-	<!-- ================================================================== -->
-	<!-- Build sources                                                      -->
-	<!-- ================================================================== -->
-
-	<target name="compile-katta" depends="resolve" description="--> compile main classes">
-		<mkdir dir="${build.dir.main-classes}" />
-		<ivy:cachepath pathid="build.path.id" conf="compile" />
-		<javac encoding="${build.encoding}" srcdir="${main.src.dir}" includes="**/*.java" destdir="${build.dir.main-classes}" debug="${javac.debug}" optimize="${javac.optimize}" target="${javac.version}" source="${javac.version}" deprecation="${javac.deprecation}">
-			<compilerarg line="${javac.args} ${javac.args.warnings}" />
-			<classpath refid="build.path.id" />
-		</javac>
-	</target>
-
-
-	<!-- ================================================================== -->
-	<!-- Tests                                                              -->
-	<!-- ================================================================== -->
-
-	<target name="compile-test" depends="compile-katta" description="--> compile test classes">
-		<echo>*** Building Tests Sources ***</echo>
-		<mkdir dir="${build.dir.test-classes}" />
-		<ivy:cachepath pathid="test.path.id" conf="test" />
-		<path id="test.path">
-			<path refid="test.path.id" />
-			<pathelement location="${build.dir.main-classes}" />
-		</path>
-
-		<javac encoding="${build.encoding}" srcdir="${test.src.dir}" includes="**/*.java" destdir="${build.dir.test-classes}" debug="${javac.debug}" optimize="${javac.optimize}" target="${javac.version}" source="${javac.version}" deprecation="${javac.deprecation}">
-			<compilerarg line="${javac.args} ${javac.args.warnings}" />
-			<classpath refid="test.path" />
-		</javac>
-	</target>
-
-	<target name="test" depends="compile-test, checkstyle" description="--> run tests">
-		<delete dir="${build.dir.test-reports}" />
-		<delete file="log.log"/>
-		<mkdir dir="${build.dir.test-reports}" />
-		<delete dir="${build.dir.test-data}" />
-		<mkdir dir="${build.dir.test-data}" />
-
-		<ivy:cachepath pathid="test.path.id" conf="test" />
-		<ivy:cachepath pathid="instrument.path.id" conf="instrument" />
-		<junit showoutput="false" printsummary="yes" haltonfailure="yes" fork="true" forkmode="perBatch" maxmemory="256m" dir="${basedir}" errorProperty="tests.failed" failureProperty="tests.failed">
-			<sysproperty key="net.sourceforge.cobertura.datafile" file="${reports.dir}/katta_coverage.ser" />
-			<classpath>
-				<pathelement location="${instrumented.dir}" />
-				<pathelement location="${build.dir.main-classes}" />
-				<pathelement location="${build.dir.test-classes}" />
-				<pathelement location="${test.res.dir}" />
-				<path refid="test.path.id" />
-				<path refid="instrument.path.id" />
-			</classpath>
-			<formatter type="plain" />
-			<batchtest fork="yes" todir="${build.dir.test-reports}" unless="testcase">
-				<fileset dir="${test.src.dir}">
-					<include name="**/*Test.java" unless="testcase" />
-					<exclude name="**/Abstract*.java" unless="testcase" />
-					<exclude name="**/ExtendedTestCase.java" unless="testcase" />
-				</fileset>
-			</batchtest>
-			<batchtest fork="yes" todir="${build.dir.test-reports}" if="testcase">
-				<fileset dir="${test.src.dir}" includes="**/${testcase}.java" />
-			</batchtest>
-		</junit>
-		<fail if="tests.failed">Tests failed!</fail>
-	</target>
+            <addScopedModuleArtifact scope="test" module="@{module}"/>
+            <addScopedModuleArtifact scope="it" module="@{module}"/>
+        </sequential>
+    </macrodef>
+	
+	<macrodef name="collectLibraries">
+        <attribute name="module" />
+        <attribute name="target-dir" />
+        <sequential>
+            <delete dir="@{target-dir}" />
+            <copy flatten="true" todir="@{target-dir}">
+                <!-- OWN CLASSPATH -->
+                <path refid="compile.classpath" />
+                <path refid="artifact.classpath" />
+            </copy>
+        </sequential>
+    </macrodef>
 
 
-	<target name="checkstyle" depends="resolve">
-		<ivy:cachepath pathid="checkstyle.path.id" conf="checkstyle" />
-		<taskdef resource="checkstyletask.properties" classpathref="checkstyle.path.id" />
+    <macrodef name="compileTests">
+        <attribute name="testClasses" />
+        <attribute name="srcDir" />
+        <attribute name="resDir" />
+        <attribute name="artifactClasspath" />
+        <sequential>
+            <echo>*** Building Test Sources for ${ant.project.name} ***</echo>
+            <mkdir dir="@{testClasses}" />
 
-		<checkstyle config="${root.dir}/src/build/checkstyle/checkstyle.xml">
-			<fileset dir="${main.src.dir}" includes="**/*.java" />
-			<fileset dir="${test.src.dir}" includes="**/*.java" />
-			<formatter type="plain" />
-			<formatter type="xml" toFile="${build.dir}/checkstyle_errors.xml" />
-		</checkstyle>
+            <javac encoding="${build.encoding}" srcdir="@{srcDir}" includes="**/*.java" destdir="@{testClasses}" debug="${javac.debug}" optimize="${javac.optimize}" target="${javac.version}" source="${javac.version}" deprecation="${javac.deprecation}" includeantruntime="false">
+                <compilerarg line="${javac.args} ${javac.args.warnings}" />
+                <classpath refid="@{artifactClasspath}" />
+                <classpath refid="artifact.classpath" />
+                <classpath refid="compile.classpath" />
+                <classpath refid="test.classpath" />
+                <classpath location="${build.dir.main-classes}" />
+            </javac>
+            <copy todir="@{testClasses}">
+                <fileset dir="@{resDir}"/>
+            </copy>
+	    </sequential>
+    </macrodef>
 
-	</target>
+    <!-- ================================================================== -->
+    <!-- Build sources                                                      -->
+    <!-- ================================================================== -->
+    <target name="compile" depends="setupModuleArtifactClassPath">
+    	<echo>*** ${ant.project.name} ***</echo>
+        <mkdir dir="${build.dir.main-classes}" />
+        <javac encoding="${build.encoding}" includes="**/*.java" destdir="${build.dir.main-classes}" debug="${javac.debug}" optimize="${javac.optimize}" target="${javac.version}" source="${javac.version}" deprecation="${javac.deprecation}" includeantruntime="false">
+            <src path="${main.src.dir}" />
+            <compilerarg line="${javac.args} ${javac.args.warnings}" />
+            <classpath refid="compile.classpath" />
+            <classpath refid="artifact.classpath" />
+        </javac>
+        <copy todir="${build.dir.main-classes}">
+            <fileset dir="${main.res.dir}"/>
+        </copy>
+    </target>
+	
+    <!-- ================================================================== -->
+    <!-- Unit Tests                                                         -->
+    <!-- ================================================================== -->
 
+    <target name="compile-unit" depends="setupModuleArtifactClassPath">
+        <compileTests artifactclasspath="artifact.test.classpath" srcdir="${test.src.dir}" resdir="${test.res.dir}" testclasses="${build.dir.test-classes}" />
+    </target>
 
+    <target name="compile-it" depends="setupModuleArtifactClassPath">
+        <path id="artifact.it.classpath.complete">
+            <path refid="artifact.test.classpath" />
+            <path refid="artifact.it.classpath" />
+            <fileset dir="${root.dir}/modules/${ant.project.name}/${artifact.dir}">
+                <include name="${ant.project.name}-${version}-test.jar" />
+            </fileset>
+        </path>
+
+        <compileTests artifactclasspath="artifact.it.classpath.complete" srcdir="${it.src.dir}" resdir="${it.res.dir}" testclasses="${build.dir.it-classes}" />
+    </target>
+
+    <target name="it" depends="compile-it">
+    	<!--  forkmode="perTest/once"-->
+        <runTests srcdir="${it.src.dir}" forkmode="${test.it.forkmode}" testClasses="${build.dir.it-classes}" testReports="${build.dir.it-reports}" haltOnFailure="${halt.on.failure}">
+			<extraClasspaths>
+    			<path refId="artifact.it.classpath.complete" />
+    		</extraClasspaths>
+    	</runTests>
+    </target>
+
+    <!-- ================================================================== -->
+    <!-- Java Doc                                                           -->
+    <!-- ================================================================== -->
+
+    <target name="doc" depends="compile">
+        <echo>Build doc for ${ant.project.name}</echo>
+        <mkdir dir="${build.javadoc}" />
+        <javadoc failonerror="true" packagenames="${javadoc.package}" destdir="${build.javadoc}" author="true" version="true" use="true" windowtitle="${name} ${version} API" doctitle="${name} ${version} API" bottom="Copyright &amp;copy; ${javadoc.year} 101tec Inc.">
+            <fileset dir="${main.src.dir}">
+            	<include name="**/*.java" />
+            </fileset>
+            <link href="${javadoc.link.java}" />
+            <classpath>
+                <path refid="compile.classpath" />
+            	<path refid="artifact.classpath" />
+            	<path refid="artifact.it.classpath" />
+            	<path>
+            		<pathelement location="${artifact.dir}/${ant.project.name}-${version}.jar"/>
+            	</path>
+            </classpath>
+            <group title="${javadoc.title}" packages="${javadoc.package}*" />
+        </javadoc>
+    </target>
+	
+    <!-- ================================================================== -->
+    <!-- Build jar of sources                                               -->
+    <!-- ================================================================== -->
+
+	<target name="setupModuleArtifactClassPath" />
+    
+	<target name="jar" depends="compile">
+        <buildJar jarname="${jar.name}" mainclasses="${build.dir.main-classes}" />
+    </target>
+	
+	<target name="jar-sources" depends="compile">
+        <buildJar jarname="${jar.sources.name}" mainclasses="${main.src.dir}" />
+    </target>
+	
+    <target name="unit-jar" depends="compile-unit">
+        <buildJar jarname="${jar.test.name}" mainclasses="${build.dir.test-classes}" />
+    </target>
+
+    <target name="it-jar" depends="compile-it">
+        <buildJar jarname="${jar.it.name}" mainclasses="${build.dir.it-classes}" />
+    </target>
+
+    <target name="unit" depends="setupModuleArtifactClassPath">
+        <runTests srcdir="${test.src.dir}" forkmode="once" testClasses="${build.dir.test-classes}" testReports="${build.dir.test-reports}" haltOnFailure="${halt.on.failure}">
+			<extraClasspaths>
+    			<path refId="artifact.test.classpath" />
+    		</extraClasspaths>
+    	</runTests>
+    </target>
+
+	
 	<!-- ================================================================== -->
 	<!-- Cobertura Section                                                  -->
 	<!-- ================================================================== -->
 
-	<target name="instrument" depends="compile-katta">
-		<ivy:cachepath pathid="instrument.path.id" conf="instrument" />
-		<taskdef classpathref="instrument.path.id" resource="tasks.properties" />
-		<delete file="${reports.dir}/katta_coverage.ser" />
+	<target name="instrument" depends="compile,setupModuleArtifactClassPath">
+		<echo>*** ${ant.project.name} ***</echo>
+		<echo>${basedir}/${build.dir.main-classes}</echo>
+		<taskdef classpathref="build.classpath" resource="tasks.properties" />
+		<delete file="${reports.dir}/dap.ser" />
 		<delete dir="${instrumented.dir}" />
-		<cobertura-instrument datafile="${reports.dir}/katta_coverage.ser" todir="${instrumented.dir}">
+		<cobertura-instrument datafile="${reports.dir}/dap.ser" todir="${instrumented.dir}">
 			<!--
 						The following line causes instrument to ignore any
 						source line containing a reference to log4j, for the
@@ -160,81 +254,28 @@
 	</target>
 
 	<target name="coverage-report">
-		<cobertura-report datafile="${reports.dir}/katta_coverage.ser" srcdir="${main.src.dir}" destdir="${coverage.html.dir}" />
+		<cobertura-report datafile="${reports.dir}/dap.ser" srcdir="${main.src.dir}" destdir="${coverage.html.dir}" />
 	</target>
 
-	<target name="coverage" depends="compile-katta,instrument,test,coverage-report" description="--> create coverage reports" />
+	<target name="coverage" depends="compile,instrument,unit,it,coverage-report" />
 
-	<!-- ================================================================== -->
-	<!-- Build jar of sources                                               -->
-	<!-- ================================================================== -->
-
-
-	<target name="jar" depends="compile-katta" description="--> create jar classes">
-		<tstamp>
-			<format property="timestamp" pattern="MMM dd yyyy, HH:mm:ss" />
-		</tstamp>
-		<!-- git version -->
-		<exec outputproperty="build.current.revision" command="git">
-			<arg line=" log -1 --pretty=format:%h" />
-		</exec>
-		<echo>Reversion: ${build.current.revision}</echo>
-
-		<jar jarfile="${build.dir}/${jar.name}" >
-			<fileset dir="${build.dir.main-classes}"/>
-			<fileset dir="${main.src.dir}" includes="**/*.java"/>
-			<manifest>
-				<section name="net/sf/katta">
-					<attribute name="Implementation-Vendor" value="101tec inc" />
-					<attribute name="Implementation-Title" value="Katta" />
-					<attribute name="Implementation-Version" value="${version}" />
-					<attribute name="Compile-Time" value="${timestamp}" />
-					<attribute name="Compiled-By" value="${user.name}" />
-					<attribute name="Git-Revision" value="${build.current.revision}" />
-				</section>
-			</manifest>
-		</jar>
+	
+	<target name="checkstyle">
+		<mkdir dir="${reports.dir}"/>
+		<taskdef resource="checkstyletask.properties" classpathref="build.classpath" />
+		<checkstyle config="${root.dir}/${build.src.dir}/checkstyle/checkstyle.xml" failOnViolation="false">
+			<fileset dir="${main.src.dir}" includes="**/*.java" />
+			<fileset dir="${test.src.dir}" includes="**/*.java" />
+			<formatter type="plain" />
+			<formatter type="xml" toFile="${reports.dir}/checkstyle_report.xml" />
+		</checkstyle>
+		<mkdir dir="${checkstyle.html.dir}"/>
+		<xslt style="${root.dir}/${build.src.dir}/checkstyle/checkstyle-noframes.xsl"
+		        in="${reports.dir}/checkstyle_report.xml"
+		        out="${checkstyle.html.dir}/checkstyle_report.html"
+				basedir="${checkstyle.html.dir}" destdir="${checkstyle.html.dir}">
+		</xslt>
 	</target>
 
-	<target name="jar-test" depends="compile-test" description="--> create jar with test-classes">
-		<tstamp>
-			<format property="timestamp" pattern="MMM dd yyyy, HH:mm:ss" />
-		</tstamp>
-		<!-- git version -->
-		<exec outputproperty="build.current.revision" command="git">
-			<arg line=" log -1 --pretty=format:%h" />
-		</exec>
-		<echo>Reversion: ${build.current.revision}</echo>
 
-		<jar jarfile="${build.dir}/test-${jar.name}" basedir="${build.dir.test-classes}">
-			<manifest>
-				<section name="net/sf/katta">
-					<attribute name="Implementation-Vendor" value="101tec inc" />
-					<attribute name="Implementation-Title" value="Katta" />
-					<attribute name="Implementation-Version" value="${version}" />
-					<attribute name="Compile-Time" value="${timestamp}" />
-					<attribute name="Compiled-By" value="${user.name}" />
-					<attribute name="Git-Revision" value="${build.current.revision}" />
-				</section>
-			</manifest>
-		</jar>
-	</target>
-
-	<!-- ================================================================== -->
-	<!-- Java Doc                                                           -->
-	<!-- ================================================================== -->
-
-
-	<target name="doc" depends="compile-katta" description="--> create javadoc">
-		<mkdir dir="${build.javadoc}" />
-		<ivy:cachepath pathid="build.path.id" conf="compile" />
-		<javadoc packagenames="sf.net.katta" destdir="${build.javadoc}" author="true" version="true" use="true" windowtitle="${name} ${version} API" doctitle="${name} ${version} API" bottom="Copyright &amp;copy; ${year} 101tec Inc.">
-			<packageset dir="${main.src.dir}" />
-			<link href="${javadoc.link.java}" />
-			<classpath>
-				<path refid="build.path.id" />
-			</classpath>
-			<group title="katta" packages="sf.net.katta*" />
-		</javadoc>
-	</target>
 </project>
