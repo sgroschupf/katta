@@ -3,7 +3,8 @@ zookeeper-log-data/
 .project
 .classpath
 .settings
-build/
+/build/
+/modules/*/build/
 prodDb*
 .DS_Store
 stacktrace.log
