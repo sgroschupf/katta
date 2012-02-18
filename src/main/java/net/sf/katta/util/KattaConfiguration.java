@@ -81,6 +81,10 @@ public class KattaConfiguration implements Serializable {
     _properties.setProperty(key, Long.toString(value));
   }
 
+  public boolean getBoolean(String key, boolean defaultValue) {
+    return Boolean.parseBoolean(getProperty(key, Boolean.toString(defaultValue)));
+  }
+
   public int getInt(final String key) {
     return Integer.parseInt(getProperty(key));
   }
