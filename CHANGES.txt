@@ -1,6 +1,7 @@
 Katta Change Log
 
 katta 0.6.5
+ fix KATTA-196, LuceneServer leaks memory when using query filters
  fix KATTA-193, implement query filters 
 
 katta 0.6.4
