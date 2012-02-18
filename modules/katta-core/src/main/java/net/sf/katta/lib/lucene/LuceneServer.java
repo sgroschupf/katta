@@ -95,10 +95,10 @@ public class LuceneServer implements IContentServer, ILuceneServer {
   public final static String CONF_KEY_COLLECTOR_TIMOUT_PERCENTAGE = "lucene.collector.timeout-percentage";
   public final static String CONF_KEY_SEARCHER_THREADPOOL_CORESIZE = "lucene.searcher.threadpool.core-size";
   public final static String CONF_KEY_SEARCHER_THREADPOOL_MAXSIZE = "lucene.searcher.threadpool.max-size";
+  public final static String CONF_KEY_FILTER_CACHE_ENABLED = "lucene.filter.cache.enabled";
 
   protected final Map<String, IndexSearcher> _searcherByShard = new ConcurrentHashMap<String, IndexSearcher>();
-  protected final Cache<Filter, CachingWrapperFilter> _filterCache = CacheBuilder.newBuilder()
-          .expireAfterAccess(10, TimeUnit.MINUTES).maximumSize(1000).build();
+  protected Cache<Filter, CachingWrapperFilter> _filterCache;
   protected ExecutorService _threadPool;
 
   protected String _nodeName;
@@ -141,7 +141,11 @@ public class LuceneServer implements IContentServer, ILuceneServer {
     }
     int coreSize = nodeConfiguration.getInt(CONF_KEY_SEARCHER_THREADPOOL_CORESIZE, 25);
     int maxSize = nodeConfiguration.getInt(CONF_KEY_SEARCHER_THREADPOOL_MAXSIZE, 100);
+    boolean filterCacheEnabled = nodeConfiguration.getBoolean(CONF_KEY_FILTER_CACHE_ENABLED, true);
     _threadPool = new ThreadPoolExecutor(coreSize, maxSize, 100L, TimeUnit.MINUTES, new LinkedBlockingQueue<Runnable>());
+    if (filterCacheEnabled) {
+      _filterCache = CacheBuilder.newBuilder().expireAfterAccess(10, TimeUnit.MINUTES).maximumSize(1000).build();
+    }
   }
 
   public String getNodeName() {
@@ -308,8 +312,11 @@ public class LuceneServer implements IContentServer, ILuceneServer {
     if (sortWritable != null) {
       sort = sortWritable.getSort();
     }
-    Filter filter = null;
-    if ((filterWritable != null) && ((filter = filterWritable.getFilter()) != null)) {
+    Filter filter = filterWritable.getFilter();
+    if (filterWritable != null) {
+      filter = filterWritable.getFilter();
+    }
+    if (_filterCache != null && filter != null) {
       CachingWrapperFilter cachedFilter = _filterCache.getIfPresent(filter);
       if (cachedFilter == null) {
         cachedFilter = new CachingWrapperFilter(filter);
