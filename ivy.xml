@@ -21,7 +21,7 @@
 		<dependency org="org.apache.lucene" name="lucene-core" rev="3.0.3" conf="compile" />
 		<dependency org="commons-cli" name="commons-cli" rev="1.2" conf="compile" />
 		<dependency org="commons-math" name="commons-math" rev="1.2" conf="compile" />
-		<dependency org="google" name="guava" rev="r08" conf="compile" />
+		<dependency org="google" name="guava" rev="11.0.1" conf="compile" />
 
 		<!-- hadoop files system & rpc -->
 		<dependency org="org.apache.hadoop" name="hadoop" rev="0.20.2-core" conf="compile" />
@@ -74,7 +74,7 @@
 		<dependency org="oro" name="oro" rev="2.0.8" conf="instrument" />
 		<dependency org="net.sf.checkstyle" name="checkstyle" rev="5.2" conf="checkstyle" />
 		<dependency org="commons-beanutils" name="commons-beanutils-core" rev="1.8.3" conf="checkstyle" />
-		<dependency org="google" name="guava" rev="r08" conf="checkstyle" />
+		<dependency org="google" name="guava" rev="11.0.1" conf="checkstyle" />
 		<dependency org="commons-logging" name="commons-logging" rev="1.0.4" conf="checkstyle" />
 		<dependency org="antlr" name="antlr" rev="3.2" conf="checkstyle" />
 

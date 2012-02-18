@@ -54,12 +54,12 @@ import org.apache.lucene.document.Fieldable;
 import org.apache.lucene.document.MapFieldSelector;
 import org.apache.lucene.index.CorruptIndexException;
 import org.apache.lucene.index.Term;
+import org.apache.lucene.search.CachingWrapperFilter;
 import org.apache.lucene.search.Collector;
 import org.apache.lucene.search.DefaultSimilarity;
 import org.apache.lucene.search.Explanation;
 import org.apache.lucene.search.FieldDoc;
 import org.apache.lucene.search.Filter;
-import org.apache.lucene.search.CachingWrapperFilter;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
@@ -76,6 +76,9 @@ import org.apache.lucene.search.TopFieldDocs;
 import org.apache.lucene.search.TopScoreDocCollector;
 import org.apache.lucene.search.Weight;
 import org.apache.lucene.util.PriorityQueue;
+
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 
 /**
  * The back end server which searches a set of Lucene indices. Each shard is a
@@ -94,7 +97,8 @@ public class LuceneServer implements IContentServer, ILuceneServer {
   public final static String CONF_KEY_SEARCHER_THREADPOOL_MAXSIZE = "lucene.searcher.threadpool.max-size";
 
   protected final Map<String, IndexSearcher> _searcherByShard = new ConcurrentHashMap<String, IndexSearcher>();
-  protected final Map<Filter, CachingWrapperFilter> _filterCache = new ConcurrentHashMap<Filter, CachingWrapperFilter>();
+  protected final Cache<Filter, CachingWrapperFilter> _filterCache = CacheBuilder.newBuilder()
+          .expireAfterAccess(10, TimeUnit.MINUTES).maximumSize(1000).build();
   protected ExecutorService _threadPool;
 
   protected String _nodeName;
@@ -272,13 +276,13 @@ public class LuceneServer implements IContentServer, ILuceneServer {
   @Override
   public HitsMapWritable search(QueryWritable query, DocumentFrequencyWritable freqs, String[] shards,
           final long timeout, int count, SortWritable sortWritable) throws IOException {
-      return search(query, freqs, shards, timeout, count, sortWritable, null);
+    return search(query, freqs, shards, timeout, count, sortWritable, null);
   }
 
   @Override
   public HitsMapWritable search(QueryWritable query, DocumentFrequencyWritable freqs, String[] shards,
           final long timeout, int count, FilterWritable filterWritable) throws IOException {
-      return search(query, freqs, shards, timeout, count, null, filterWritable);
+    return search(query, freqs, shards, timeout, count, null, filterWritable);
   }
 
   @Override
@@ -306,10 +310,10 @@ public class LuceneServer implements IContentServer, ILuceneServer {
     }
     Filter filter = null;
     if ((filterWritable != null) && ((filter = filterWritable.getFilter()) != null)) {
-      CachingWrapperFilter cwf = _filterCache.get(filter);
+      CachingWrapperFilter cwf = _filterCache.getIfPresent(filter);
       if (cwf == null) {
-          cwf = new CachingWrapperFilter(filter);
-          _filterCache.put(filter, cwf);
+        cwf = new CachingWrapperFilter(filter);
+        _filterCache.put(filter, cwf);
       }
       filter = cwf;
     }
@@ -379,8 +383,8 @@ public class LuceneServer implements IContentServer, ILuceneServer {
   }
 
   @Override
-  public int getResultCount(final QueryWritable query, FilterWritable filter, final String[] shards, long timeout) 
-    throws IOException {
+  public int getResultCount(final QueryWritable query, FilterWritable filter, final String[] shards, long timeout)
+          throws IOException {
     final DocumentFrequencyWritable docFreqs = getDocFreqs(query, shards);
     return search(query, docFreqs, shards, timeout, 1, null, filter).getTotalHits();
   }
@@ -587,8 +591,7 @@ public class LuceneServer implements IContentServer, ILuceneServer {
     protected final int _callIndex;
     protected final Filter _filter;
 
-    public SearchCall(String shardName, Weight weight, int limit, Sort sort, long timeout, int callIndex,
-            Filter filter) {
+    public SearchCall(String shardName, Weight weight, int limit, Sort sort, long timeout, int callIndex, Filter filter) {
       _shardName = shardName;
       _weight = weight;
       _limit = limit;
