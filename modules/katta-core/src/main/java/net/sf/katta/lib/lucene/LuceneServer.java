@@ -312,7 +312,7 @@ public class LuceneServer implements IContentServer, ILuceneServer {
     if (sortWritable != null) {
       sort = sortWritable.getSort();
     }
-    Filter filter = filterWritable.getFilter();
+    Filter filter = null;
     if (filterWritable != null) {
       filter = filterWritable.getFilter();
     }
