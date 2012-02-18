@@ -1,0 +1,8 @@
+#Tue Jul 12 13:02:06 CEST 2011
+eclipse.preferences.version=1
+formatter_profile=Katta
+formatter_settings_version=11
+org.eclipse.jdt.ui.ignorelowercasenames=true
+org.eclipse.jdt.ui.importorder=\#org.junit.Assert;\#org.mockito.Mockito;\#org.fest.assertions.Assertions;\#org.fest.assertions.MapAssert;java;javax;org;com;
+org.eclipse.jdt.ui.ondemandthreshold=99
+org.eclipse.jdt.ui.staticondemandthreshold=1

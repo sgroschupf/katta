@@ -1,0 +1,7 @@
+#Fri Sep 03 12:44:49 CEST 2010
+eclipse.preferences.version=1
+org.moreunit.prefixes=
+org.moreunit.test_superclass=net.sf.AbstractTest
+org.moreunit.test_type=junit4
+org.moreunit.unitsourcefolder=${module}\:src/main/java\:${module}\:src/test/java\#${module}\:src/main/java\:${module}\:src/it/java
+org.moreunit.useprojectsettings=true

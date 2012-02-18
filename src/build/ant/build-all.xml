@@ -1,0 +1,211 @@
+<project>
+    <property file="${root.dir}/src/build/ant/build.properties" />
+	
+	<taskdef resource="net/sf/antcontrib/antcontrib.properties">
+	  <classpath>
+	    <pathelement location="${root.dir}/lib/build/ant-contrib-1.0b3.jar"/>
+	  </classpath>
+	</taskdef>
+
+    <macrodef name="buildJar">
+        <attribute name="jarName" />
+        <attribute name="mainClasses" />
+        <sequential>
+            <tstamp>
+                <format property="timestamp" timezone="UTC" locale="en" pattern="MMM dd yyyy, HH:mm:ss" />
+            </tstamp>
+
+            <!-- git version -->
+            <exec outputproperty="build.current.revision" executable="git">
+                <arg line=" log -1 --pretty=format:%H" />
+            </exec>
+            <echo>Git Revision: ${build.current.revision}</echo>
+
+            <mkdir dir="${artifact.dir}" />
+            <echo>Building jar ${artifact.dir}/${jar.name}</echo>
+            <jar jarfile="${artifact.dir}/@{jarName}" basedir="@{mainClasses}">
+                <manifest>
+                    <section name="net/sf/katta">
+                        <attribute name="Implementation-Vendor" value="101tec inc" />
+                        <attribute name="Implementation-Title" value="${ant.project.name}" />
+                        <attribute name="Implementation-Version" value="${version}" />
+                        <attribute name="Compile-Time" value="${timestamp}" />
+                        <attribute name="Compiled-By" value="${user.name}" />
+                        <attribute name="Git-Revision" value="${build.current.revision}" />
+                    </section>
+                </manifest>
+            </jar>
+        </sequential>
+    </macrodef>
+
+	<path id="aws.junit.classpath">
+		<fileset dir="${root.dir}/lib/test" >
+			<include name="aws*.jar"/>
+		</fileset>
+	</path>
+	
+    <macrodef name="runTests">
+        <attribute name="srcDir" />
+        <attribute name="testReports" />
+        <attribute name="testClasses" />
+        <attribute name="forkmode" />
+        <attribute name="haltOnFailure" />
+    	<element name="extraClasspaths" optional="true"/>
+        <sequential>
+        	<echo>*** ${ant.project.name} ***</echo>
+        	<condition property="file.encoding" value="UTF-8">
+        		<not><isset property="file.encoding"/></not>
+        	</condition>
+        	<condition property="showOutput" value="false">
+    			<not><isset property="showOutput"/></not>
+    		</condition>
+        	<property name="showCurrentTest" value="true"/>
+            <echo>forkmode=@{forkmode}</echo>
+        	<echo>haltOnFailure=@{haltOnFailure}</echo>
+        	<echo>showOutput=${showOutput}</echo>
+            <delete dir="@{testReports}" />
+            <mkdir dir="@{testReports}" />
+            <echo>Using test classes @{testClasses}</echo>
+        	<!--<junit logfailedtests="false" / since ant-1.8 only -->
+        	<trycatch>
+		        <try>
+		            <junit showoutput="${showOutput}" printsummary="true" haltonfailure="@{haltOnFailure}" haltonerror="@{haltOnFailure}" forkmode="@{forkmode}" fork="yes" maxmemory="512m" dir="${basedir}" errorProperty="tests.failed" failureProperty="tests.failed" >
+		                <jvmarg line="-XX:-UsePerfData -Dlog4j.debug"/>
+		                <sysproperty key="net.sourceforge.cobertura.datafile" file="${reports.dir}/dap.ser" />
+		            	<sysproperty key="java.awt.headless" value="true" />
+		            	<sysproperty key="DISPLAY" value=":0.0" />
+		            	<sysproperty key="test.starter" value="ant" />
+		            	<sysproperty key="showCurrentTest" value="${showCurrentTest}"/>
+						<sysproperty key="showOutput" value="${showOutput}"/>
+		            	<sysproperty key="log4j.configuration" value="file:${root.dir}/modules/katta-core/src/test/resources/log4j.properties"/>
+		            	<sysproperty key="plugin.loadEclipseClasses" value="false"/>
+		            	<classpath>
+		                    <pathelement location="${instrumented.dir}" />
+		                    <pathelement location="@{testClasses}" />
+		                    <pathelement location="${build.dir.main-classes}" />
+		                    <path refid="compile.classpath" />
+		                    <path refid="test.classpath" />
+		                    <path refid="artifact.classpath" />
+		                    <!-- for cobertura -->
+		                    <path refid="build.classpath" />
+		            		<path refid="aws.junit.classpath" />
+		            		<extraClasspaths />
+		                </classpath>
+		            	<formatter type="xml" />
+		            	<!--<formatter classname="datameer.awstasks.ant.junit.EnhancedJunitFormatter" usefile="false" />-->
+		                <batchtest fork="yes" todir="@{testReports}" unless="testcase">
+		                    <fileset dir="@{srcDir}">
+		                        <include name="**/*Test.java" />
+		                        <exclude name="**/Abstract*.java" />
+		                    </fileset>
+		                </batchtest>
+		                <batchtest fork="yes" todir="@{testReports}" if="testcase">
+		                    <fileset dir="@{srcDir}">
+		                        <include name="**/${testcase}.java"  />
+		                    </fileset>
+		                </batchtest>
+		            	<jvmarg value="-XX:MaxPermSize=128m" />
+		            </junit>
+	        	</try>
+	        	<finally>
+	        		<delete dir="${temp.dir}" quiet="true"/>
+	        	</finally>
+        	</trycatch>
+            <fail if="tests.failed">Tests failed!</fail>
+		</sequential>
+    </macrodef>
+
+    <!-- ================================================================== -->
+    <!-- Generating eclipse file                                            -->
+    <!-- ================================================================== -->
+
+    <target name="clean-eclipse">
+        <delete file=".classpath" />
+        <delete file=".eclipse" />
+        <delete file=".project" />
+        <delete dir=".settings" />
+    </target>
+
+    <target name="eclipse" depends="clean-eclipse">
+        <echo>Generating project files for ${ant.project.name}</echo>
+        <taskdef name="eclipse" classname="prantl.ant.eclipse.EclipseTask" classpathref="build.classpath" />
+        <mkdir dir="${build.dir.main-classes-eclipse}" />
+        <mkdir dir="${build.dir.test-classes-eclipse}" />
+        <mkdir dir="${build.dir.it-classes-eclipse}" />
+        <eclipse>
+            <settings>
+                <jdtcore compilercompliance="6.0" />
+                <resources encoding="UTF-8" />
+            </settings>
+            <project name="${ant.project.name}" />
+            <classpath>
+                <container path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.6" />
+
+                <source path="${basedir}/src/main/java" output="${build.dir.main-classes-eclipse}" />
+                <source path="${basedir}/src/main/resources" output="${build.dir.main-classes-eclipse}" />
+                <!--<source path="${basedir}/src/main/generated" output="${build.dir.main-classes-eclipse}" />-->
+                <source path="${basedir}/src/test/java" output="${build.dir.test-classes-eclipse}" />
+                <source path="${basedir}/src/test/resources" output="${build.dir.test-classes-eclipse}" />
+                <source path="${basedir}/src/it/java" output="${build.dir.it-classes-eclipse}" />
+                <source path="${basedir}/src/it/resources" output="${build.dir.it-classes-eclipse}" />
+
+                <source pathref="dependend-projects" />
+
+                <output path="${build.dir.main-classes-eclipse}" />
+                <library pathref="test.classpath" exported="true" />
+                <library pathref="compile.classpath" exported="true"/>
+            </classpath>
+        </eclipse>
+
+    	<!--jdt.ui -->
+        <copy file="${root.dir}/src/build/eclipse/org.eclipse.jdt.ui.prefs" todir=".settings" />
+
+    	<!--jdt.core -->
+    	<copy overwrite="true" file="${root.dir}/src/build/eclipse/org.eclipse.jdt.core.prefs" todir=".settings" />
+        <replace file=".settings/org.eclipse.jdt.core.prefs" token="org.eclipse.jdt.core.compiler.compliance=6.0" value="org.eclipse.jdt.core.compiler.compliance=1.6" />
+        <replaceregexp file=".classpath" match="path=&quot;(.*).jar&quot;" replace="path=&quot;\1.jar&quot; sourcepath=&quot;\1-sources.jar&quot;" flags="g" />
+
+        <!--moreunit -->
+    	<copy file="${root.dir}/src/build/eclipse/org.moreunit.prefs" todir=".settings" />
+    	<replace file=".settings/org.moreunit.prefs" token="${module}" value="${ant.project.name}" />
+
+    	<!-- .classpath -->
+    	<!-- export projects in eclipse, so that refactoring works across multiple project modules -->
+        <replaceregexp file=".classpath" match="(kind=&quot;src&quot; path=&quot;/)" replace="exported=&quot;true&quot; \1" flags="g" />
+        
+    </target>
+
+    <!-- ================================================================== -->
+    <!-- General cleaning sources                                           -->
+    <!-- ================================================================== -->
+    <target name="clean">
+        <echo>cleaning ${ant.project.name}</echo>
+        <delete includeemptydirs="true" failonerror="false">
+            <fileset dir="${build.dir}" excludes="classes-*-eclipse/"/>
+        </delete>
+    </target>
+
+    <target name="clean-classes">
+        <echo>Cleaning classes of ${ant.project.name} in ${build.dir}</echo>
+        <delete includeemptydirs="true" failonerror="false">
+            <fileset dir="${build.dir}">
+                <include name="classes-main/" />
+                <include name="classes-test/" />
+                <include name="classes-it/" />
+                <include name="artifacts/" />
+            </fileset>
+        </delete>
+    </target>
+
+    <target name="clean-all">
+        <delete dir="${build.dir}" />
+    </target>
+	
+	<macrodef name="echo-classpath">
+		<attribute name="classpathId"/>
+		<sequential>
+			<property name="classpathToEcho" refid="@{classpathId}"/>
+			<echo message="Classpath[@{classpathId}] = ${classpathToEcho}"/>
+		</sequential>
+	</macrodef>
+</project>
