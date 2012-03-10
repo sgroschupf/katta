@@ -29,6 +29,9 @@ import java.util.Map;
  * make the smartest possible choice of nodes the client has to query. The node
  * selection policy is also the place where an load balancing schema need to be
  * implemented.
+ *
+ * When there are no nodes serving a shard, implementations may behave differently depending on if a shard was
+ * undeployed from the cluster or simply has no nodes serving it at this time.
  */
 public interface INodeSelectionPolicy {
 
@@ -46,16 +49,18 @@ public interface INodeSelectionPolicy {
    * 
    * @param shard
    * @return all nodes which serves the given shard
+   * @throws ShardAccessException if the shard is not deployed
    */
-  Collection<String> getShardNodes(String shard);
+  Collection<String> getShardNodes(String shard) throws ShardAccessException;
 
   /**
    * If an index is undeployed, this method is called for each of it shards.
    * 
    * @param shard
    * @return all nodes which served the shard
+   * @throws ShardAccessException if the shard is not deployed
    */
-  List<String> remove(String shard);
+  List<String> remove(String shard) throws ShardAccessException;
 
   /**
    * If a node becomes not reachable, this method is called.

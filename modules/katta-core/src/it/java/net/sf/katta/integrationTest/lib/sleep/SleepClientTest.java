@@ -129,7 +129,8 @@ public class SleepClientTest extends AbstractIntegrationTest {
       _client.sleepShards(0, 0, new String[] { "doesNotExist" });
       fail("Should have failed.");
     } catch (KattaException e) {
-      assertEquals("Shard 'doesNotExist' is currently not reachable", e.getMessage());
+      // changed as the default policy does not fail if a non-existent shard is requested, but broadcastToShards will fail when there are no nodes to connect to
+      assertEquals("Expected exception", e.getMessage(), "No shards selected: [doesNotExist]");
     }
   }
 

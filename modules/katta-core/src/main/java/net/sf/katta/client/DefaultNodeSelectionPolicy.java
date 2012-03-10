@@ -16,7 +16,6 @@
 package net.sf.katta.client;
 
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -34,18 +33,19 @@ public class DefaultNodeSelectionPolicy implements INodeSelectionPolicy {
   }
 
   @Override
-  public Collection<String> getShardNodes(String shard) {
+  public Collection<String> getShardNodes(String shard) throws ShardAccessException {
     CircularList<String> nodeList = _shardsToNodeMap.get(shard);
     if (nodeList == null) {
-      return Collections.EMPTY_LIST;
+      throw new ShardAccessException(shard);
     }
     return nodeList.asList();
   }
 
-  public List<String> remove(String shard) {
+  @Override
+  public List<String> remove(String shard) throws ShardAccessException {
     CircularList<String> nodes = _shardsToNodeMap.remove(shard);
     if (nodes == null) {
-      return Collections.emptyList();
+      throw new ShardAccessException(shard);
     }
     return nodes.asList();
   }
@@ -64,7 +64,12 @@ public class DefaultNodeSelectionPolicy implements INodeSelectionPolicy {
     One2ManyListMap<String, String> node2ShardsMap = new One2ManyListMap<String, String>();
     for (String shard : shards) {
       CircularList<String> nodeList = _shardsToNodeMap.get(shard);
-      if (nodeList == null || nodeList.isEmpty()) {
+      if (nodeList == null) {
+        // no entry in the map means the shard is undeployed/never was deployed
+        continue;
+      }
+      if(nodeList.isEmpty()) {
+        // vs. empty entry in the map means the shard was deployed, but now is inaccessible
         throw new ShardAccessException(shard);
       }
       String node;

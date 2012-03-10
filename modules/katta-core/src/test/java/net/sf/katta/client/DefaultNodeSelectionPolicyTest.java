@@ -49,7 +49,7 @@ public class DefaultNodeSelectionPolicyTest extends AbstractTest {
     assertTrue(nodeShardsMap.get("node1").contains("shardB1"));
     assertTrue(nodeShardsMap.get("node2").contains("shardB2"));
   }
-
+  
   @Test
   public void testQueryMultipleIndexes() throws Exception {
     final DefaultNodeSelectionPolicy policy = new DefaultNodeSelectionPolicy();
@@ -154,5 +154,16 @@ public class DefaultNodeSelectionPolicyTest extends AbstractTest {
     Map<String, List<String>> nodeShardsMap = policy.createNode2ShardsMap(shards);
     assertEquals(10, extractFoundShards(nodeShardsMap).size());
   }
-
+  
+  @Test(expected = ShardAccessException.class)
+  public void testRemoveNotExistingShard() throws ShardAccessException {
+	  final DefaultNodeSelectionPolicy policy = new DefaultNodeSelectionPolicy();
+	  policy.remove("shardDoesNotExist");
+  }
+  
+  @Test(expected = ShardAccessException.class)
+  public void testGetNotExistingShardNodes() throws ShardAccessException {
+	  final DefaultNodeSelectionPolicy policy = new DefaultNodeSelectionPolicy();
+	  policy.getShardNodes("shardDoesNotExist");
+  }
 }

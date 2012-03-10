@@ -147,7 +147,11 @@ public class Client implements ConnectedComponent {
     List<String> shards = _indexToShards.remove(index);
     if (shards != null) {
       for (String shard : shards) {
-        _selectionPolicy.remove(shard);
+        try {
+          _selectionPolicy.remove(shard);
+        } catch (ShardAccessException e) {
+          LOG.warn("Could not remove shard", e);
+        }
         _protocol.unregisterChildListener(this, PathDef.SHARD_TO_NODES, shard);
       }
     } else {
@@ -202,20 +206,29 @@ public class Client implements ConnectedComponent {
               new IAddRemoveListener() {
                 @Override
                 public void removed(String nodeName) {
-                  LOG.info("shard '" + shardName + "' removed from node " + nodeName + "'");
-                  Collection<String> shardNodes = new ArrayList<String>(_selectionPolicy.getShardNodes(shardName));
-                  shardNodes.remove(nodeName);
-                  _selectionPolicy.update(shardName, shardNodes);
+                  Collection<String> shardNodes = null;
+                  try {
+                     shardNodes = new ArrayList<String>(_selectionPolicy.getShardNodes(shardName));
+                     shardNodes.remove(nodeName);
+                     _selectionPolicy.update(shardName, shardNodes);
+                     LOG.info("shard '" + shardName + "' removed from node " + nodeName + "'");
+                  } catch (ShardAccessException e) {
+                    // no-op - the selection policy is already unaware of this shard, so nothing to remove
+                  }
                 }
 
                 @Override
                 public void added(String nodeName) {
-                  LOG.info("shard '" + shardName + "' added to node '" + nodeName + "'");
                   VersionedProtocol proxy = _proxyManager.getProxy(nodeName, true);
                   if (proxy != null) {
-                    Collection<String> shardNodes = new ArrayList<String>(_selectionPolicy.getShardNodes(shardName));
-                    shardNodes.add(nodeName);
-                    _selectionPolicy.update(shardName, shardNodes);
+                    try {
+                      Collection<String> shardNodes = new ArrayList<String>(_selectionPolicy.getShardNodes(shardName));
+                      shardNodes.add(nodeName);
+                      _selectionPolicy.update(shardName, shardNodes);
+                        LOG.info("shard '" + shardName + "' added to node '" + nodeName + "'");
+                    } catch (ShardAccessException e) {
+                      LOG.warn("Could not add shard '" + shardName + "' to node '" + nodeName + "'", e);
+                    }
                   }
                 }
               });
@@ -241,7 +254,7 @@ public class Client implements ConnectedComponent {
 
   // --------------- Distributed calls to servers ----------------------
 
-  /**
+  /*
    * Broadcast a method call to all indices. Return all the results in a
    * Collection.
    * 
