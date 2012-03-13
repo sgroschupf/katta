@@ -175,6 +175,7 @@ public class LuceneClient implements ILuceneClient {
     if (!results.getMissingShards().isEmpty()) {
       LOG.warn("incomplete result - missing shard-results: " + results.getMissingShards() + ", "
               + results.getShardCoverage());
+      result.setMissingShards(results.getMissingShards());
     }
     for (HitsMapWritable hmw : results.getResults()) {
       List<Hit> hits = hmw.getHitList();

@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.Vector;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -39,6 +40,8 @@ public class Hits implements Writable {
   private List<Hit> _sortedList;
 
   private AtomicInteger _totalHits = new AtomicInteger();
+  
+  private Set<String> _missingShards = Collections.emptySet();
 
   public List<Hit> getHits() {
     if (_sortedList == null) {
@@ -207,5 +210,13 @@ public class Hits implements Writable {
     return "Hits: total=" + _totalHits + ", queue=" + (_hitsList != null ? _hitsList.toString() : "null") +
       ", sorted=" + (_sortedList != null ? _sortedList.toString() : "null");
   }
+
+public Set<String> getMissingShards() {
+	return _missingShards;
+}
+
+public void setMissingShards(Set<String> _missingShards) {
+	this._missingShards = _missingShards;
+}
   
 }

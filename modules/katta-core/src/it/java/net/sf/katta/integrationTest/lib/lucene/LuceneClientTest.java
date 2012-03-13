@@ -16,19 +16,27 @@
 package net.sf.katta.integrationTest.lib.lucene;
 
 import java.io.File;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
+import net.sf.katta.client.DefaultNodeSelectionPolicy;
 import net.sf.katta.client.DeployClient;
 import net.sf.katta.client.IDeployClient;
+import net.sf.katta.client.INodeSelectionPolicy;
 import net.sf.katta.client.IndexState;
+import net.sf.katta.client.ShardAccessException;
 import net.sf.katta.integrationTest.support.AbstractIntegrationTest;
 import net.sf.katta.lib.lucene.DocumentFrequencyWritable;
 import net.sf.katta.lib.lucene.Hit;
 import net.sf.katta.lib.lucene.Hits;
 import net.sf.katta.lib.lucene.ILuceneClient;
 import net.sf.katta.lib.lucene.LuceneClient;
+import net.sf.katta.node.IContentServer;
 import net.sf.katta.node.Node;
+import net.sf.katta.operation.master.IndexUndeployOperation;
 import net.sf.katta.testutil.TestResources;
 import net.sf.katta.testutil.TestUtil;
 import net.sf.katta.util.KattaException;
@@ -59,6 +67,10 @@ import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.Version;
 import org.junit.Test;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
+
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -69,6 +81,8 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.is;
 
 /**
  * Test for {@link LuceneClient}.
@@ -416,6 +430,61 @@ public class LuceneClientTest extends AbstractIntegrationTest {
       assertEquals("Index [pattern(s)] '[doesNotExist]' do not match to any deployed index: []", e.getMessage());
     }
     client.close();
+  }
+  
+  @Test
+  public void testSearchWithMissingShards() throws InterruptedException, ParseException, KattaException {
+    deployTestIndices(1, 1);
+    final IContentServer contentServer = _miniCluster.getNode(0).getContext().getContentServer();
+
+    // Get the shard names we will expect to be unavailable later
+    final Set<String> expectedMissingShards = ImmutableSet.copyOf(contentServer.getShards());
+
+    /* Create special distribution policy that simulates missing shards during
+     * a LuceneClient search:
+     *  * The first call comes during getDocFrequencies and returns the actual
+     *    node to shards map.
+     *  * The second call comes during the actual search request.  During this
+     *    call, the index will be undeployed, but the node to shards map
+     *    returned will still include all shards.  This causes the first attempt
+     *    to search to fail.
+     *  * The third call comes as the client attempts to retry the search.  The
+     *    node-to-shards map is empty, so the request will end without getting
+     *    any data. 
+     */
+    final INodeSelectionPolicy trickNodeSelectionPolicy = new DefaultNodeSelectionPolicy() {
+      private int callNumber = 0;
+
+      @Override
+      public Map<String, List<String>> createNode2ShardsMap(Collection<String> shards) throws ShardAccessException {
+    	callNumber++;
+    	if(callNumber == 1) {
+		  return super.createNode2ShardsMap(shards);
+    	} else if(callNumber == 2) {
+          IndexUndeployOperation undeployOperation = new IndexUndeployOperation(INDEX_NAME);
+          _miniCluster.getProtocol().addMasterOperation(undeployOperation);
+          while(contentServer.getShards().size() > 0) {
+            try {
+              Thread.sleep(100);
+            } catch (InterruptedException e) {
+              throw new RuntimeException(e);
+            }
+          }
+          
+          return ImmutableMap.of(_miniCluster.getNode(0).getName(), (List<String>)ImmutableList.copyOf(expectedMissingShards));
+        } else {
+          return Collections.emptyMap();
+        }
+      }
+    };
+
+    // Attempt a search operation
+    LuceneClient client = new LuceneClient(trickNodeSelectionPolicy, _miniCluster.getZkConfiguration());
+    Query query = new QueryParser(Version.LUCENE_30, "", new KeywordAnalyzer()).parse("foo: bar");
+    Hits hits = client.search(query, null);
+
+    // Verify all shards were missing.
+    assertThat("All the shards should be missing", hits.getMissingShards(), is(equalTo((Set<String>)expectedMissingShards)));
   }
 
   @Test
