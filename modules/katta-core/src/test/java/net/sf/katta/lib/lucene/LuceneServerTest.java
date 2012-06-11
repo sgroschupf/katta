@@ -40,8 +40,10 @@ import org.mockito.internal.stubbing.answers.CallsRealMethods;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import static org.mockito.Mockito.doAnswer;
@@ -197,6 +199,21 @@ public class LuceneServerTest extends AbstractTest {
         Assert.assertEquals(lastScore, currentScore);
       }
     }
+  }
+
+  @Test
+  public void testSearchCall_EmptyIndex() throws Exception {
+    IndexSearcher searcher = mock(IndexSearcher.class);
+    when(searcher.maxDoc()).thenReturn(0);
+
+    Weight weight = mock(Weight.class);
+
+    LuceneServer server = mock(LuceneServer.class);
+    when(server.getSearcherByShard("testShard")).thenReturn(searcher);
+
+    LuceneServer.SearchCall searchCall = server.new SearchCall("testShard", weight, 10, null, 1000, 1, null);
+    LuceneServer.SearchResult result = searchCall.call();
+    assertThat("No results", result._totalHits, is(0));
   }
 
   private static class QueryClient implements Callable<HitsMapWritable> {

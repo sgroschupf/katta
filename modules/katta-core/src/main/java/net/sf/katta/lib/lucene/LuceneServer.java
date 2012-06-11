@@ -614,6 +614,11 @@ public class LuceneServer implements IContentServer, ILuceneServer {
       final IndexSearcher indexSearcher = getSearcherByShard(_shardName);
       int nDocs = Math.min(_limit, indexSearcher.maxDoc());
 
+      // empty index (or result limit <= 0); return empty results (as the collectors will fail if nDocs <= 0)
+      if(nDocs <= 0) {
+        return new SearchResult(0, new ScoreDoc[0], _callIndex);
+      }
+
       TopDocsCollector resultCollector;
       if (_sort != null) {
         boolean fillFields = true;// see IndexSearcher#search(...)
