@@ -43,25 +43,25 @@ public class ShardManagerTest extends AbstractTest {
 
     // measure transfer rate with no throttle
     ShardManager shardManager = new ShardManager(managerFolder);
-    long startTime = System.currentTimeMillis();
+    long startTime = System.nanoTime();
     long fileLength = org.apache.hadoop.fs.FileUtil.getDU(_testFile);
     shardManager.installShard(shardName, _testFile.getAbsolutePath());
-    long durationInSec = (System.currentTimeMillis() - startTime) / 1000;
-    long bytesPerSec = fileLength / durationInSec;
+    double durationInSec = (System.nanoTime() - startTime) / 1e9;
+    double bytesPerSec = fileLength / durationInSec;
     printResults(fileLength, durationInSec, bytesPerSec);
 
     // now do the same throttled to half speed
     shardManager.uninstallShard(shardName);
-    shardManager = new ShardManager(managerFolder, new ThrottleSemaphore(bytesPerSec / 3));
-    startTime = System.currentTimeMillis();
+    shardManager = new ShardManager(managerFolder, new ThrottleSemaphore((long)(bytesPerSec / 3)));
+    startTime = System.nanoTime();
     shardManager.installShard(shardName, _testFile.getAbsolutePath());
-    durationInSec = (System.currentTimeMillis() - startTime) / 1000;
-    long bytesPerSec2 = fileLength / durationInSec;
+    durationInSec = (System.nanoTime() - startTime) / 1e9;
+    double bytesPerSec2 = fileLength / durationInSec;
     printResults(fileLength, durationInSec, bytesPerSec2);
-    assertThat(bytesPerSec2, almostEquals(bytesPerSec / 3, 1000));
+    assertThat((long)bytesPerSec2, almostEquals((long)(bytesPerSec / 3), (long) (.1 / 3.0 * bytesPerSec)));
   }
 
-  private void printResults(long fileLength, long durationInSec, long bytesPerSec) {
+  private void printResults(long fileLength, double durationInSec, double bytesPerSec) {
     System.out.println("took " + durationInSec + " sec to install ~" + fileLength / 1024 / 1024 + " MB");
     System.out.println("rate " + bytesPerSec + " bytes/sec");
   }
