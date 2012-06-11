@@ -16,6 +16,7 @@
 package net.sf.katta.util;
 
 import java.io.File;
+import java.util.Properties;
 
 @SuppressWarnings("serial")
 public class MasterConfiguration extends KattaConfiguration {
@@ -29,6 +30,10 @@ public class MasterConfiguration extends KattaConfiguration {
 
   public MasterConfiguration(File file) {
     super(file);
+  }
+
+  public MasterConfiguration(Properties properties) {
+    super(properties, null);
   }
 
   public String getDeployPolicy() {

@@ -29,6 +29,7 @@ import net.sf.katta.node.Node;
 import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.testutil.TestUtil;
 import net.sf.katta.util.KattaException;
+import net.sf.katta.util.MasterConfiguration;
 import net.sf.katta.util.NodeConfiguration;
 import net.sf.katta.util.ZkConfiguration;
 import net.sf.katta.util.ZkKattaUtil;
@@ -43,6 +44,8 @@ import org.I0Itec.zkclient.ZkServer;
  * - nodes<br>
  */
 public class KattaMiniCluster {
+  public static final Class<? extends IContentServer> DEFAULT_CONTENT_SERVER_CLASS = LuceneServer.class;
+  public static final int DEFAULT_NODE_PORT = 20000;
 
   private final Class<? extends IContentServer> _contentServerClass;
   private final ZkConfiguration _zkConfiguration;
@@ -54,17 +57,28 @@ public class KattaMiniCluster {
   private int _nodeCount;
   private final int _nodeStartPort;
   private int _startedNodes;
+  private MasterConfiguration _defaultMasterConfiguration;
+  private NodeConfiguration _defaultNodeConfiguration;
 
   public KattaMiniCluster(ZkConfiguration zkConfiguration, int nodeCount) {
-    this(LuceneServer.class, zkConfiguration, nodeCount, 20000);
+    this(DEFAULT_CONTENT_SERVER_CLASS, zkConfiguration, nodeCount, DEFAULT_NODE_PORT);
   }
 
   public KattaMiniCluster(Class<? extends IContentServer> nodeServerClass, ZkConfiguration zkConfiguration,
           int nodeCount, int nodeStartPort) {
+    this(nodeServerClass, zkConfiguration, nodeCount, nodeStartPort, new MasterConfiguration(),
+      new NodeConfiguration());
+  }
+
+  public KattaMiniCluster(Class<? extends IContentServer> nodeServerClass, ZkConfiguration zkConfiguration,
+          int nodeCount, int nodeStartPort, MasterConfiguration defaultMasterConfiguration,
+          NodeConfiguration defaultNodeConfiguration) {
     _contentServerClass = nodeServerClass;
     _zkConfiguration = zkConfiguration;
     _nodeCount = nodeCount;
     _nodeStartPort = nodeStartPort;
+    _defaultMasterConfiguration = defaultMasterConfiguration;
+    _defaultNodeConfiguration = defaultNodeConfiguration;
   }
 
   public void setZkServer(ZkServer zkServer) {
@@ -76,12 +90,12 @@ public class KattaMiniCluster {
       _zkServer = ZkKattaUtil.startZkServer(_zkConfiguration);
     }
     _protocol = new InteractionProtocol(_zkServer.getZkClient(), _zkConfiguration);
-    NodeConfiguration nodeConfiguration = new NodeConfiguration();
+    NodeConfiguration nodeConfiguration = new NodeConfiguration(_defaultNodeConfiguration.getPropertiesCopy());
     nodeConfiguration.setStartPort(_nodeStartPort);
     for (int i = 0; i < _nodeCount; i++) {
       _nodes.add(new Node(_protocol, nodeConfiguration, _contentServerClass.newInstance()));
     }
-    _master = new Master(_protocol, false);
+    _master = new Master(_protocol, false, new MasterConfiguration(_defaultMasterConfiguration.getPropertiesCopy()));
     _master.start();
     for (Node node : _nodes) {
       node.start();
@@ -93,7 +107,7 @@ public class KattaMiniCluster {
   }
 
   public Node startAdditionalNode() throws Exception {
-    NodeConfiguration nodeConfiguration = new NodeConfiguration();
+    NodeConfiguration nodeConfiguration = new NodeConfiguration(_defaultNodeConfiguration.getPropertiesCopy());
     nodeConfiguration.setStartPort(_nodeStartPort + _startedNodes);
     Node node = new Node(_protocol, nodeConfiguration, _contentServerClass.newInstance());
     _nodes.add(node);
@@ -103,14 +117,14 @@ public class KattaMiniCluster {
   }
 
   public Master startSecondaryMaster() throws KattaException {
-    _secondaryMaster = new Master(_protocol, false);
+    _secondaryMaster = new Master(_protocol, false, new MasterConfiguration(_defaultMasterConfiguration.getPropertiesCopy()));
     _secondaryMaster.start();
     return _secondaryMaster;
   }
 
   public void restartMaster() throws Exception {
     _master.shutdown();
-    _master = new Master(_protocol, false);
+    _master = new Master(_protocol, false, new MasterConfiguration(_defaultMasterConfiguration.getPropertiesCopy()));
     _master.start();
     TestUtil.waitUntilLeaveSafeMode(_master);
   }
@@ -163,7 +177,7 @@ public class KattaMiniCluster {
 
   public Node restartNode(int i) {
     Node shutdownNode = getNode(i);
-    NodeConfiguration nodeConfiguration = new NodeConfiguration();
+    NodeConfiguration nodeConfiguration = new NodeConfiguration(_defaultNodeConfiguration.getPropertiesCopy());
     nodeConfiguration.setStartPort(shutdownNode.getRPCServerPort());
     shutdownNode(i);
     Node node = new Node(_protocol, nodeConfiguration, shutdownNode.getContext().getContentServer());

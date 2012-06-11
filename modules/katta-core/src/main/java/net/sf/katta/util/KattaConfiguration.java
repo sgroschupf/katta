@@ -130,4 +130,8 @@ public class KattaConfiguration implements Serializable {
   public Set<String> getKeys() {
     return _properties.stringPropertyNames();
   }
+
+  public Properties getPropertiesCopy() {
+    return new Properties(_properties);
+  }
 }
