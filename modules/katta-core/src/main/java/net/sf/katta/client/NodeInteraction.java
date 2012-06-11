@@ -166,6 +166,9 @@ class NodeInteraction<T> implements Runnable {
                   : _method + " on " + _node), _tryCount, _maxTryCount, instanceId), t);
           _result.addError(e, _shards);
         }
+      } else {
+          LOG.error(String.format("Error after results closed for call to %s (try # %d of %d; giving up) (id=%d)",
+                  (methodDesc != null ? methodDesc: _method + " on " + _node), _tryCount, _maxTryCount, instanceId), t);
       }
       // We have no results to report. Submitted jobs will hopefully get results
       // instead.

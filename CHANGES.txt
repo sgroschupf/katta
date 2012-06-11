@@ -1,6 +1,7 @@
 Katta Change Log
 
 katta 0.7.0
+ fix KATTA-202, Client exceptions don't always get logged if they are caught after the result set is closed
  fix KATTA-200, fix ShardManagerTest on fast computers
  fix KATTA-199, drop katta gui groovy project
  fix KATTA-195, simplify Katta build
