@@ -15,6 +15,8 @@
  */
 package net.sf.katta.integrationTest.lib.lucene;
 
+import static org.junit.Assert.*;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -32,8 +34,6 @@ import org.apache.lucene.queryParser.QueryParser;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.util.Version;
 import org.junit.Test;
-
-import static org.junit.Assert.assertEquals;
 
 public class LuceneSearchIntegrationTest extends AbstractIntegrationTest {
 
@@ -131,14 +131,12 @@ public class LuceneSearchIntegrationTest extends AbstractIntegrationTest {
     long firedQueries = 0;
     long unexpectedResultCount = 0;
     List<Exception> exceptions = new ArrayList<Exception>();
-    int i = 0;
     for (SearchThread searchThread : searchThreads) {
       searchThread.interrupt();
       searchThread.join();
       firedQueries += searchThread.getFiredQueryCount();
       unexpectedResultCount += searchThread.getUnexpectedResultCount();
       exceptions.addAll(searchThread.getThrownExceptions());
-      i++;
     }
     searchClient.close();
 

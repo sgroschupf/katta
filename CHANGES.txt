@@ -1,6 +1,7 @@
 Katta Change Log
 
 katta 0.7.0
+ fix KATTA-205, close IndexSearcher only after all running searches completed
  fix KATTA-204, Allow KattaMiniCluster to be used without depending on config files on the classpath 
  fix KATTA-203, Lucene search fails if a deployed index has zero documents
  fix KATTA-202, Client exceptions don't always get logged if they are caught after the result set is closed

@@ -15,6 +15,14 @@
  */
 package net.sf.katta.lib.lucene;
 
+import static org.junit.Assert.*;
+
+import static org.mockito.Matchers.*;
+
+import static org.mockito.Mockito.*;
+
+import static org.fest.assertions.Assertions.*;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -27,32 +35,23 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import junit.framework.Assert;
 import net.sf.katta.AbstractTest;
+import net.sf.katta.lib.lucene.LuceneServer.SearcherHandle;
 import net.sf.katta.testutil.TestResources;
 import net.sf.katta.testutil.mockito.ChainedAnswer;
+import net.sf.katta.testutil.mockito.PauseAnswer;
 import net.sf.katta.testutil.mockito.SleepingAnswer;
 
+import org.apache.lucene.index.Term;
 import org.apache.lucene.search.Collector;
 import org.apache.lucene.search.Filter;
 import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.Weight;
+import org.apache.lucene.store.AlreadyClosedException;
 import org.junit.Test;
 import org.mockito.internal.stubbing.answers.CallsRealMethods;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.when;
-
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
 
 public class LuceneServerTest extends AbstractTest {
 
@@ -209,11 +208,111 @@ public class LuceneServerTest extends AbstractTest {
     Weight weight = mock(Weight.class);
 
     LuceneServer server = mock(LuceneServer.class);
-    when(server.getSearcherByShard("testShard")).thenReturn(searcher);
+    when(server.getSearcherHandleByShard("testShard")).thenReturn(new SearcherHandle(searcher));
 
     LuceneServer.SearchCall searchCall = server.new SearchCall("testShard", weight, 10, null, 1000, 1, null);
     LuceneServer.SearchResult result = searchCall.call();
-    assertThat("No results", result._totalHits, is(0));
+    assertThat(result._totalHits).as("results").isEqualTo(0);
+  }
+
+  @Test
+  public void testSearchDuringUndeploy() throws Exception {
+    final String[] shardToUndeploy = new String[1];
+
+    /*
+     * Create a special LuceneServer that pauses on a call to maxDoc(). Here,
+     * maxDoc() is called only from SearchCall within LuceneServer, right before
+     * performing the real search.
+     */
+    final PauseAnswer<Void> pauseAnswer = new PauseAnswer<Void>(null);
+    final LuceneServer server = new LuceneServer("ls", new DefaultSearcherFactory(), 0.75f) {
+      @Override
+      protected SearcherHandle getSearcherHandleByShard(String shardName) {
+        SearcherHandle handle;
+        if (shardName.equals(shardToUndeploy[0])) {
+          handle = spy(super.getSearcherHandleByShard(shardName));
+          Answer<IndexSearcher> answer = new Answer<IndexSearcher>() {
+            @Override
+            public IndexSearcher answer(InvocationOnMock invocation) throws Throwable {
+              IndexSearcher searcher = spy((IndexSearcher) invocation.callRealMethod());
+              doAnswer(new ChainedAnswer(pauseAnswer, new CallsRealMethods())).when(searcher).maxDoc();
+              return searcher;
+            }
+          };
+          doAnswer(answer).when(handle).getSearcher();
+        } else {
+          handle = super.getSearcherHandleByShard(shardName);
+        }
+
+        return handle;
+      }
+    };
+    final String[] shardNames = addIndexShards(server, TestResources.INDEX1);
+    shardToUndeploy[0] = shardNames[0];
+
+    final QueryWritable writable = new QueryWritable(new TermQuery(new Term("foo", "bar")));
+    final DocumentFrequencyWritable freqs = server.getDocFreqs(writable, shardNames);
+
+    // Storage for the result or exception from the search call
+    final HitsMapWritable[] result = new HitsMapWritable[1];
+    final Exception[] exception = new Exception[1];
+
+    // Run the query in another thread
+    Thread t = new Thread() {
+      @Override
+      public void run() {
+        try {
+          result[0] = server.search(writable, freqs, shardNames, 10000);
+        } catch (Exception e) {
+          exception[0] = e;
+        }
+      }
+    };
+    t.start();
+
+    // Wait until the search gets to the SearchCall, where it will remain paused
+    pauseAnswer.joinExecutionBegin();
+
+    // Get the searcher so it can be checked that it's really closed
+    LuceneServer.SearcherHandle handle = server.getSearcherHandleByShard(shardNames[0]);
+    IndexSearcher searcher = handle.getSearcher();
+    // ... decrement the ref count though
+    handle.finishSearcher();
+
+    // Undeploy the shard (in another thread)
+    Thread t2 = new Thread() {
+      @Override
+      public void run() {
+        server.removeShard(shardNames[0]);
+      }
+    };
+    t2.start();
+
+    // Resume the SearchCall thread, then wait for the search thread to finish
+    pauseAnswer.resumeExecution(true);
+    t.join();
+    t2.join();
+
+    // Fail the test if there was an exception
+    if (exception[0] != null) {
+      throw exception[0];
+    }
+
+    assertThat(result[0].getTotalHits()).as("Results returned from search").isEqualTo(4);
+    try {
+      // Expected: java.lang.IllegalStateException: no index-server for shard
+      // 'aIndex' found - probably undeployed
+      server.getSearcherHandleByShard(shardNames[0]);
+      fail("IllegalStateException not thrown when trying to get undeployed shard handle");
+    } catch (IllegalStateException e) {
+    }
+    try {
+      // Expected: org.apache.lucene.store.AlreadyClosedException: this
+      // IndexReader is closed
+      searcher.doc(0);
+      fail("AlreadyClosedException not thrown when trying to access closed index");
+    } catch (AlreadyClosedException e) {
+    }
   }
 
   private static class QueryClient implements Callable<HitsMapWritable> {

@@ -37,6 +37,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import net.sf.katta.node.IContentServer;
 import net.sf.katta.util.ClassUtil;
@@ -63,7 +64,6 @@ import org.apache.lucene.search.Filter;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
-import org.apache.lucene.search.Searchable;
 import org.apache.lucene.search.Searcher;
 import org.apache.lucene.search.Similarity;
 import org.apache.lucene.search.Sort;
@@ -97,7 +97,9 @@ public class LuceneServer implements IContentServer, ILuceneServer {
   public final static String CONF_KEY_SEARCHER_THREADPOOL_MAXSIZE = "lucene.searcher.threadpool.max-size";
   public final static String CONF_KEY_FILTER_CACHE_ENABLED = "lucene.filter.cache.enabled";
 
-  protected final Map<String, IndexSearcher> _searcherByShard = new ConcurrentHashMap<String, IndexSearcher>();
+  private static final int INDEX_HANDLE_CLOSE_SLEEP_TIME = 500;
+
+  protected final Map<String, SearcherHandle> _searcherHandlesByShard = new ConcurrentHashMap<String, SearcherHandle>();
   protected Cache<Filter, CachingWrapperFilter> _filterCache;
   protected ExecutorService _threadPool;
 
@@ -173,7 +175,7 @@ public class LuceneServer implements IContentServer, ILuceneServer {
     LOG.info("LuceneServer " + _nodeName + " got shard " + shardName);
     try {
       IndexSearcher indexSearcher = _seacherFactory.createSearcher(shardName, shardDir);
-      _searcherByShard.put(shardName, indexSearcher);
+      _searcherHandlesByShard.put(shardName, new SearcherHandle(indexSearcher));
     } catch (CorruptIndexException e) {
       LOG.error("Error building index for shard " + shardName, e);
       throw e;
@@ -186,12 +188,13 @@ public class LuceneServer implements IContentServer, ILuceneServer {
   @Override
   public void removeShard(final String shardName) {
     LOG.info("LuceneServer " + _nodeName + " removing shard " + shardName);
-    final IndexSearcher remove = _searcherByShard.remove(shardName);
-    if (remove == null) {
+    SearcherHandle handle = _searcherHandlesByShard.remove(shardName);
+
+    if (handle == null) {
       return; // nothing to do.
     }
     try {
-      remove.close();
+      handle.closeSearcher();
     } catch (Exception e) {
       LOG.error("LuceneServer " + _nodeName + " error removing shard " + shardName, e);
     }
@@ -199,7 +202,7 @@ public class LuceneServer implements IContentServer, ILuceneServer {
 
   @Override
   public Collection<String> getShards() {
-    return Collections.unmodifiableCollection(_searcherByShard.keySet());
+    return Collections.unmodifiableCollection(_searcherHandlesByShard.keySet());
   }
 
   /**
@@ -209,15 +212,20 @@ public class LuceneServer implements IContentServer, ILuceneServer {
    * @return the number of documents in the shard.
    */
   protected int shardSize(String shardName) {
-    final IndexSearcher indexSearcher = getSearcherByShard(shardName);
-    if (indexSearcher != null) {
-      int size = indexSearcher.getIndexReader().numDocs();
-      if (LOG.isDebugEnabled()) {
-        LOG.debug("Shard '" + shardName + "' has " + size + " docs.");
+    final SearcherHandle handle = getSearcherHandleByShard(shardName);
+    IndexSearcher searcher = handle.getSearcher();
+    try {
+      if (searcher != null) {
+        int size = searcher.getIndexReader().numDocs();
+        if (LOG.isDebugEnabled()) {
+          LOG.debug("Shard '" + shardName + "' has " + size + " docs.");
+        }
+        return size;
       }
-      return size;
+      throw new IllegalArgumentException("Shard '" + shardName + "' unknown");
+    } finally {
+      handle.finishSearcher();
     }
-    throw new IllegalArgumentException("Shard '" + shardName + "' unknown");
   }
 
   /**
@@ -244,25 +252,25 @@ public class LuceneServer implements IContentServer, ILuceneServer {
    */
   @Override
   public void shutdown() throws IOException {
-    for (final Searchable searchable : _searcherByShard.values()) {
-      searchable.close();
+    for (final SearcherHandle handle : _searcherHandlesByShard.values()) {
+      handle.closeSearcher();
     }
-    _searcherByShard.clear();
+    _searcherHandlesByShard.clear();
   }
 
   /**
-   * Returns the <code>IndexSearcher</code> of the given shardName.
+   * Returns the <code>IndexHandle</code> of the given shardName.
    * 
    * @param shardName
    *          the name of the shard
-   * @return the <code>IndexSearcher</code> of the given shardName
+   * @return the <code>IndexHandle</code> of the given shardName
    */
-  protected IndexSearcher getSearcherByShard(String shardName) {
-    IndexSearcher indexSearcher = _searcherByShard.get(shardName);
-    if (indexSearcher == null) {
+  protected SearcherHandle getSearcherHandleByShard(String shardName) {
+    SearcherHandle handle = _searcherHandlesByShard.get(shardName);
+    if (handle == null) {
       throw new IllegalStateException("no index-server for shard '" + shardName + "' found - probably undeployed");
     }
-    return indexSearcher;
+    return handle;
   }
 
   @Override
@@ -349,11 +357,18 @@ public class LuceneServer implements IContentServer, ILuceneServer {
     rewrittenQuery.extractTerms(termSet);
     for (final String shard : shards) {
       final java.util.Iterator<Term> termIterator = termSet.iterator();
-      IndexSearcher searcher = getSearcherByShard(shard);
-      while (termIterator.hasNext()) {
-        final Term term = termIterator.next();
-        final int docFreq = searcher.docFreq(term);
-        docFreqs.put(term.field(), term.text(), docFreq);
+      SearcherHandle handle = getSearcherHandleByShard(shard);
+      IndexSearcher searcher = handle.getSearcher();
+      if (searcher != null) {
+        try {
+          while (termIterator.hasNext()) {
+            final Term term = termIterator.next();
+            final int docFreq = searcher.docFreq(term);
+            docFreqs.put(term.field(), term.text(), docFreq);
+          }
+        } finally {
+          handle.finishSearcher();
+        }
       }
       docFreqs.addNumDocs(shardSize(shard));
     }
@@ -545,15 +560,22 @@ public class LuceneServer implements IContentServer, ILuceneServer {
    * @param docId
    * @param fieldNames
    * @return
-   * @throws CorruptIndexException
    * @throws IOException
    */
   protected Document doc(final String shardName, final int docId, final String[] fieldNames) throws IOException {
-    final Searchable searchable = getSearcherByShard(shardName);
-    if (fieldNames == null) {
-      return searchable.doc(docId);
-    } else {
-      return searchable.doc(docId, new MapFieldSelector(fieldNames));
+    final SearcherHandle handle = getSearcherHandleByShard(shardName);
+    IndexSearcher searcher = handle.getSearcher();
+    try {
+      if (searcher != null) {
+        if (fieldNames == null) {
+          return searcher.doc(docId);
+        } else {
+          return searcher.doc(docId, new MapFieldSelector(fieldNames));
+        }
+      }
+      return null;
+    } finally {
+      handle.finishSearcher();
     }
   }
 
@@ -569,11 +591,16 @@ public class LuceneServer implements IContentServer, ILuceneServer {
     final Query[] queries = new Query[shardNames.length];
     for (int i = 0; i < shardNames.length; i++) {
       final String shard = shardNames[i];
-      final IndexSearcher searcher = getSearcherByShard(shard);
-      if (searcher == null) {
-        throw new IllegalStateException("no index-server for shard '" + shard + "' found - probably undeployed");
-      } else {
-        queries[i] = searcher.rewrite(original);
+      final SearcherHandle handle = getSearcherHandleByShard(shard);
+      IndexSearcher searcher = handle.getSearcher();
+      try {
+        if (searcher == null) {
+          throw new IllegalStateException("no index-server for shard '" + shard + "' found - probably undeployed");
+        } else {
+          queries[i] = searcher.rewrite(original);
+        }
+      } finally {
+        handle.finishSearcher();
       }
     }
     if (queries.length > 0 && queries[0] != null) {
@@ -611,32 +638,46 @@ public class LuceneServer implements IContentServer, ILuceneServer {
     @Override
     @SuppressWarnings({ "rawtypes" })
     public SearchResult call() throws Exception {
-      final IndexSearcher indexSearcher = getSearcherByShard(_shardName);
-      int nDocs = Math.min(_limit, indexSearcher.maxDoc());
+      SearcherHandle handle = getSearcherHandleByShard(_shardName);
+      IndexSearcher searcher = handle.getSearcher();
 
-      // empty index (or result limit <= 0); return empty results (as the collectors will fail if nDocs <= 0)
-      if(nDocs <= 0) {
-        return new SearchResult(0, new ScoreDoc[0], _callIndex);
-      }
-
-      TopDocsCollector resultCollector;
-      if (_sort != null) {
-        boolean fillFields = true;// see IndexSearcher#search(...)
-        boolean fieldSortDoTrackScores = false;
-        boolean fieldSortDoMaxScore = false;
-        resultCollector = TopFieldCollector.create(_sort, nDocs, fillFields, fieldSortDoTrackScores,
-                fieldSortDoMaxScore, !_weight.scoresDocsOutOfOrder());
-      } else {
-        resultCollector = TopScoreDocCollector.create(nDocs, !_weight.scoresDocsOutOfOrder());
-      }
       try {
-        indexSearcher.search(_weight, _filter, wrapInTimeoutCollector(resultCollector));
-      } catch (TimeExceededException e) {
-        LOG.warn("encountered exceeded timout for query '" + _weight.getQuery() + " on shard '" + _shardName
-                + "' with timeout set to '" + _timeout + "'");
+        if (searcher == null) {
+          LOG.warn(String.format("Search attempt for shard %s skipped because shard was closed; empty result returned",
+                  _shardName));
+          // return empty result...
+          return new SearchResult(0, new ScoreDoc[0], _callIndex);
+        }
+
+        int nDocs = Math.min(_limit, searcher.maxDoc());
+
+        // empty index (or result limit <= 0); return empty results (as the
+        // collectors will fail if nDocs <= 0)
+        if (nDocs <= 0) {
+          return new SearchResult(0, new ScoreDoc[0], _callIndex);
+        }
+
+        TopDocsCollector resultCollector;
+        if (_sort != null) {
+          boolean fillFields = true;// see IndexSearcher#search(...)
+          boolean fieldSortDoTrackScores = false;
+          boolean fieldSortDoMaxScore = false;
+          resultCollector = TopFieldCollector.create(_sort, nDocs, fillFields, fieldSortDoTrackScores,
+                  fieldSortDoMaxScore, !_weight.scoresDocsOutOfOrder());
+        } else {
+          resultCollector = TopScoreDocCollector.create(nDocs, !_weight.scoresDocsOutOfOrder());
+        }
+        try {
+          searcher.search(_weight, _filter, wrapInTimeoutCollector(resultCollector));
+        } catch (TimeExceededException e) {
+          LOG.warn("encountered exceeded timout for query '" + _weight.getQuery() + " on shard '" + _shardName
+                  + "' with timeout set to '" + _timeout + "'");
+        }
+        TopDocs docs = resultCollector.topDocs();
+        return new SearchResult(docs.totalHits, docs.scoreDocs, _callIndex);
+      } finally {
+        handle.finishSearcher();
       }
-      TopDocs docs = resultCollector.topDocs();
-      return new SearchResult(docs.totalHits, docs.scoreDocs, _callIndex);
     }
 
     @SuppressWarnings({ "rawtypes" })
@@ -813,6 +854,71 @@ public class LuceneServer implements IContentServer, ILuceneServer {
           throw new UnsupportedOperationException("Can't remove using this iterator");
         }
       };
+    }
+  }
+
+  /**
+   * Holds an IndexSearcher and maintains the current number of threads using
+   * it. For every call to getSearcher(), finishSearcher() must be called
+   * exactly one time. finally blocks are a good idea.
+   */
+  static class SearcherHandle {
+    private volatile IndexSearcher _indexSearcher;
+    private final Object _lock = new Object();
+    private final AtomicInteger _refCount = new AtomicInteger(0);
+
+    public SearcherHandle(IndexSearcher indexSearcher) {
+      _indexSearcher = indexSearcher;
+    }
+
+    /**
+     * Returns the IndexSearcher and increments the usage count.
+     * finishSearcher() must be called once after each call to getSearcher().
+     * 
+     * @return the searcher
+     */
+    public IndexSearcher getSearcher() {
+      synchronized (_lock) {
+        if (_refCount.get() < 0) {
+          return null;
+        }
+        _refCount.incrementAndGet();
+      }
+      return _indexSearcher;
+    }
+
+    /**
+     * Decrements the searcher usage count.
+     */
+    public void finishSearcher() {
+      synchronized (_lock) {
+        _refCount.decrementAndGet();
+      }
+    }
+
+    /**
+     * Spins until the searcher is no longer in use, then closes it.
+     * 
+     * @throws IOException
+     *           on IndexSearcher close failure
+     */
+    public void closeSearcher() throws IOException {
+      while (true) {
+        synchronized (_lock) {
+          if (_refCount.get() == 0) {
+            IndexSearcher indexSearcher = _indexSearcher;
+            _indexSearcher = null;
+            _refCount.set(-1);
+
+            indexSearcher.close();
+            return;
+          }
+        }
+        try {
+          Thread.sleep(INDEX_HANDLE_CLOSE_SLEEP_TIME);
+        } catch (InterruptedException e) {
+        }
+      }
     }
   }
 
