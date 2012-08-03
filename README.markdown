@@ -2,13 +2,13 @@ Katta: Lucene in the cloud!
 =====
 **(Or Hadoop MapFiles... Or your own custom shardable content...!)**
 
-+ Website: http://katta.sourceforge.net/
-+ Downloads: http://sourceforge.net/project/showfiles.php?group_id=225750
-+ Documentation: http://katta.sourceforge.net/documentation
-+ Mailing List: https://lists.sourceforge.net/lists/listinfo/katta-developer
-+ Issue Tracking: http://oss.101tec.com/jira/browse/KATTA
-+ Sources: https://github.com/sgroschupf/katta
-+ Change-Log: http://oss.101tec.com/jira/browse/KATTA?report=com.atlassian.jira.plugin.system.project:changelog-panel
++ Website: 			http://katta.sourceforge.net/
++ Downloads: 		http://sourceforge.net/project/showfiles.php?group_id=225750
++ Documentation: 	http://katta.sourceforge.net/documentation
++ Mailing List: 	https://lists.sourceforge.net/lists/listinfo/katta-developer
++ Issue Tracking: 	http://oss.101tec.com/jira/browse/KATTA
++ Sources: 			https://github.com/sgroschupf/katta
++ Change-Log: 		http://oss.101tec.com/jira/browse/KATTA?report=com.atlassian.jira.plugin.system.project:changelog-panel
 + Apache 2.0 License
 
 
