@@ -31,8 +31,6 @@ import org.apache.hadoop.io.WritableComparable;
  */
 public class Hit implements Writable, Comparable<Hit> {
 
-  private static final long serialVersionUID = -4098882107088103222L;
-
   private Text _shard;
 
   private Text _node;
@@ -103,6 +101,7 @@ public class Hit implements Writable, Comparable<Hit> {
     return _sortFields;
   }
 
+  @Override
   public void readFields(final DataInput in) throws IOException {
     _score = in.readFloat();
     final boolean hasNode = in.readBoolean();
@@ -125,6 +124,7 @@ public class Hit implements Writable, Comparable<Hit> {
     }
   }
 
+  @Override
   public void write(final DataOutput out) throws IOException {
     out.writeFloat(_score);
     if (_node != null) {
@@ -145,13 +145,9 @@ public class Hit implements Writable, Comparable<Hit> {
     }
   }
 
+  @Override
   public int compareTo(final Hit o) {
-    int result = 1;
-    if (_score > o.getScore()) {
-      result = -1;
-    }
-
-    return result;
+    return Float.compare(_score, o.getScore());
   }
 
   @Override
