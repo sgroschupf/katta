@@ -43,7 +43,7 @@ public class DeployUndeploySearchInLoop {
     ZkConfiguration zkConfig = new ZkConfiguration();
     DeployClient deployClient = new DeployClient(ZkKattaUtil.startZkClient(zkConfig, 60000), zkConfig);
 
-    QueryParser parser = new QueryParser(Version.LUCENE_30, "field", new KeywordAnalyzer());
+    QueryParser parser = new QueryParser(Version.LUCENE_35, "field", new KeywordAnalyzer());
     Query query = parser.parse("foo: b*");
 
     int runThroughs = 2;

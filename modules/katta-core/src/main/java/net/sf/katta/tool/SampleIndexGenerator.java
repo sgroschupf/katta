@@ -61,7 +61,7 @@ public class SampleIndexGenerator {
     int count = wordList.length;
     Random random = new Random(System.currentTimeMillis());
     try {
-      IndexWriter indexWriter = new IndexWriter(FSDirectory.open(index), new StandardAnalyzer(Version.LUCENE_30), true,
+      IndexWriter indexWriter = new IndexWriter(FSDirectory.open(index), new StandardAnalyzer(Version.LUCENE_35), true,
               MaxFieldLength.UNLIMITED);
       for (int i = 0; i < indexSize; i++) {
         // generate text first

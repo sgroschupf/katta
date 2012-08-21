@@ -33,7 +33,7 @@ public enum WritableType {
 
   TEXT, BYTE, INT, LONG, FLOAT, DOUBLE;
 
-  public static WritableType detectWritableType(Comparable comparable) {
+  public static WritableType detectWritableType(Object comparable) {
     if (comparable instanceof Byte) {
       return WritableType.BYTE;
     } else if (comparable instanceof Integer) {
@@ -50,7 +50,7 @@ public enum WritableType {
     throw new IllegalArgumentException("no conversion rule for comparable of type " + comparable.getClass().getName());
   }
 
-  public static WritableType[] detectWritableTypes(Comparable[] comparables) {
+  public static WritableType[] detectWritableTypes(Object[] comparables) {
     WritableType[] writablTypes = new WritableType[comparables.length];
     for (int i = 0; i < comparables.length; i++) {
       writablTypes[i] = detectWritableType(comparables[i]);
@@ -80,7 +80,7 @@ public enum WritableType {
    * Convert a java primitive type wrapper (like String, Integer, Float, etc...)
    * to the corresponding hadoop {@link WritableComparable}.
    */
-  public WritableComparable convertComparable(Comparable comparable) {
+  public WritableComparable convertComparable(Object comparable) {
     switch (this) {
     case TEXT:
       return new Text((String) comparable);
@@ -98,7 +98,7 @@ public enum WritableType {
     throw getUnhandledTypeException();
   }
 
-  public static WritableComparable[] convertComparable(WritableType[] writableTypes, Comparable[] comparables) {
+  public static WritableComparable[] convertComparable(WritableType[] writableTypes, Object[] comparables) {
     WritableComparable[] writableComparables = new WritableComparable[comparables.length];
     for (int i = 0; i < writableComparables.length; i++) {
       writableComparables[i] = writableTypes[i].convertComparable(comparables[i]);

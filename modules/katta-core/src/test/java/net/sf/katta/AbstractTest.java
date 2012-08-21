@@ -60,7 +60,7 @@ public class AbstractTest {
   }
 
   protected Query parseQuery(String queryString) throws ParseException {
-    QueryParser parser = new QueryParser(Version.LUCENE_30, "field", new KeywordAnalyzer());
+    QueryParser parser = new QueryParser(Version.LUCENE_35, "field", new KeywordAnalyzer());
     return parser.parse(queryString);
   }
 

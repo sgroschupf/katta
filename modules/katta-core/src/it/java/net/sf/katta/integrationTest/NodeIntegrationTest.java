@@ -82,7 +82,7 @@ public class NodeIntegrationTest extends AbstractIntegrationTest {
     assertEquals(1, protocol.getIndices().size());
 
     LuceneClient luceneClient = new LuceneClient(_miniCluster.getZkConfiguration());
-    final Query query = new QueryParser(Version.LUCENE_30, "", new KeywordAnalyzer()).parse("content: the");
+    final Query query = new QueryParser(Version.LUCENE_35, "", new KeywordAnalyzer()).parse("content: the");
     luceneClient.count(query, new String[] { INDEX_NAME });
     luceneClient.close();
   }

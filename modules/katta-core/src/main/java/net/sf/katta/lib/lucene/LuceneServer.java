@@ -75,6 +75,7 @@ import org.apache.lucene.search.TopFieldCollector;
 import org.apache.lucene.search.TopFieldDocs;
 import org.apache.lucene.search.TopScoreDocCollector;
 import org.apache.lucene.search.Weight;
+import org.apache.lucene.util.Counter;
 import org.apache.lucene.util.PriorityQueue;
 
 import com.google.common.cache.Cache;
@@ -102,6 +103,8 @@ public class LuceneServer implements IContentServer, ILuceneServer {
   protected final Map<String, SearcherHandle> _searcherHandlesByShard = new ConcurrentHashMap<String, SearcherHandle>();
   protected Cache<Filter, CachingWrapperFilter> _filterCache;
   protected ExecutorService _threadPool;
+  private TimeLimitingCollector.TimerThread _searchTimerThread;
+  private Counter _searchTimerCounter;
 
   protected String _nodeName;
   private float _timeoutPercentage = 0.75f;
@@ -148,6 +151,10 @@ public class LuceneServer implements IContentServer, ILuceneServer {
     if (filterCacheEnabled) {
       _filterCache = CacheBuilder.newBuilder().expireAfterAccess(10, TimeUnit.MINUTES).maximumSize(1000).build();
     }
+
+    _searchTimerCounter = Counter.newCounter(true);
+    _searchTimerThread = new TimeLimitingCollector.TimerThread(_searchTimerCounter);
+    _searchTimerThread.start();
   }
 
   public String getNodeName() {
@@ -256,6 +263,7 @@ public class LuceneServer implements IContentServer, ILuceneServer {
       handle.closeSearcher();
     }
     _searcherHandlesByShard.clear();
+    _searchTimerThread.stopTimer();
   }
 
   /**
@@ -426,6 +434,7 @@ public class LuceneServer implements IContentServer, ILuceneServer {
     timeout = getCollectorTiemout(timeout);
     final Query rewrittenQuery = rewrite(query, shards);
     final int numDocs = freqs.getNumDocsAsInteger();
+
     final Weight weight = rewrittenQuery.weight(new CachedDfSource(freqs.getAll(), numDocs, new DefaultSimilarity()));
     int totalHits = 0;
     final int shardsCount = shards.length;
@@ -685,7 +694,10 @@ public class LuceneServer implements IContentServer, ILuceneServer {
       if (_timeout <= 0) {
         return resultCollector;
       }
-      return new TimeLimitingCollector(resultCollector, _timeout);
+
+      TimeLimitingCollector timeoutCollector = new TimeLimitingCollector(resultCollector, _searchTimerCounter, _timeout);
+      timeoutCollector.setBaseline();
+      return timeoutCollector;
     }
   }
 

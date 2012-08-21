@@ -822,7 +822,7 @@ public class Katta {
 
     void search(final String[] indexNames, final String queryString, final int count) throws Exception {
       final ILuceneClient client = new LuceneClient();
-      final Query query = new QueryParser(Version.LUCENE_30, "", new KeywordAnalyzer()).parse(queryString);
+      final Query query = new QueryParser(Version.LUCENE_35, "", new KeywordAnalyzer()).parse(queryString);
       final long start = System.currentTimeMillis();
       final Hits hits = client.search(query, indexNames, count);
       final long end = System.currentTimeMillis();
@@ -838,7 +838,7 @@ public class Katta {
 
     void search(final String[] indexNames, final String queryString) throws Exception {
       final ILuceneClient client = new LuceneClient();
-      final Query query = new QueryParser(Version.LUCENE_30, "", new KeywordAnalyzer()).parse(queryString);
+      final Query query = new QueryParser(Version.LUCENE_35, "", new KeywordAnalyzer()).parse(queryString);
       final long start = System.currentTimeMillis();
       final int hitsSize = client.count(query, indexNames);
       final long end = System.currentTimeMillis();

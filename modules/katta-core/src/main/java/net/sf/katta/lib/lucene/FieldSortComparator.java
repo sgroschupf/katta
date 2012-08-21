@@ -77,12 +77,12 @@ class FieldSortComparator implements Comparator<Hit> {
     return compare(hit1.getSortFields(), hit2.getSortFields());
   }
 
-  public int compare(Comparable[] fields1, Comparable[] fields2) {
+  public int compare(Object[] fields1, Object[] fields2) {
     int n = _sortFields.length;
     int c = 0;
     for (int i = 0; i < n && c == 0; ++i) {
-      Comparable fieldTerm1 = fields1[i];
-      Comparable fieldTerm2 = fields2[i];
+      Comparable fieldTerm1 = (Comparable) fields1[i];
+      Comparable fieldTerm2 = (Comparable) fields2[i];
       c = (_sortFields[i].getReverse()) ? _fieldComparators[i].compare(fieldTerm2, fieldTerm1) : _fieldComparators[i]
               .compare(fieldTerm1, fieldTerm2);
     }

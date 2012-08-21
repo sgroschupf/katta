@@ -1,6 +1,7 @@
 Katta Change Log
 
 katta 0.7.0
+ fix KATTA-194, Upgrade to lucene 3.5.0 (from 3.0.3)
  fix KATTA-180, better shard-removal handling in client
  fix KATTA-198, expose missed shards for query to Hits object
  fix KATTA-205, close IndexSearcher only after all running searches completed

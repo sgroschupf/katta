@@ -71,7 +71,7 @@ public class FailoverTest extends AbstractIntegrationTest {
   public void testNodeFailure() throws Exception {
     deployTestIndices(1, getNodeCount());
     final LuceneClient client = new LuceneClient(_miniCluster.getZkConfiguration());
-    Query query = new QueryParser(Version.LUCENE_30, "", new KeywordAnalyzer()).parse("foo:bar");
+    Query query = new QueryParser(Version.LUCENE_35, "", new KeywordAnalyzer()).parse("foo:bar");
     assertEquals(4, client.count(query, new String[] { INDEX_NAME }));
 
     // kill 1st of 3 nodes

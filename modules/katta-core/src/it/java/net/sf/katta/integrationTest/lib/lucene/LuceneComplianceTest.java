@@ -155,7 +155,7 @@ public class LuceneComplianceTest extends AbstractIntegrationTest {
 
     // final Query query = new QueryParser("", new
     // KeywordAnalyzer()).parse(fieldName + ": " + queryTerm);
-    final Query query = new QueryParser(Version.LUCENE_30, "", new KeywordAnalyzer()).parse(fieldName + ": "
+    final Query query = new QueryParser(Version.LUCENE_35, "", new KeywordAnalyzer()).parse(fieldName + ": "
             + queryTerm);
     final TopDocs searchResultsLucene;
     final Hits searchResultsKatta;
@@ -177,7 +177,7 @@ public class LuceneComplianceTest extends AbstractIntegrationTest {
       }
     } else {
       for (int i = 0; i < scoreDocs.length; i++) {
-        Comparable[] luceneFields = ((FieldDoc) scoreDocs[i]).fields;
+        Object[] luceneFields = ((FieldDoc) scoreDocs[i]).fields;
         WritableComparable[] kattaFields = hits.get(i).getSortFields();
         assertEquals(luceneFields.length, kattaFields.length);
         for (int j = 0; j < luceneFields.length; j++) {
@@ -217,7 +217,7 @@ public class LuceneComplianceTest extends AbstractIntegrationTest {
   private static void writeIndex(File file, List<Document> documents) throws IOException {
     file.mkdirs();
     assertTrue(file.exists());
-    IndexWriter indexWriter = new IndexWriter(FSDirectory.open(file), new StandardAnalyzer(Version.LUCENE_30), true,
+    IndexWriter indexWriter = new IndexWriter(FSDirectory.open(file), new StandardAnalyzer(Version.LUCENE_35), true,
             MaxFieldLength.UNLIMITED);
     for (Document document : documents) {
       indexWriter.addDocument(document);

@@ -40,7 +40,7 @@ public class LuceneSearchPerformanceTest extends AbstractIntegrationTest {
     deployClient.addIndex("index2", TestResources.INDEX2.getAbsolutePath(), 1).joinDeployment();
 
     final ILuceneClient client = new LuceneClient(_miniCluster.getZkConfiguration());
-    final Query query = new QueryParser(Version.LUCENE_30, "", new KeywordAnalyzer()).parse("foo: bar");
+    final Query query = new QueryParser(Version.LUCENE_35, "", new KeywordAnalyzer()).parse("foo: bar");
     long start = System.currentTimeMillis();
     for (int i = 0; i < 10000; i++) {
       client.search(query, new String[] { "index2", "index1" });
