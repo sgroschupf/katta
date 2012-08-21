@@ -15,6 +15,10 @@
  */
 package net.sf.katta.integrationTest.lib.lucene;
 
+import static org.hamcrest.CoreMatchers.*;
+
+import static org.junit.Assert.*;
+
 import java.io.File;
 import java.util.Collection;
 import java.util.Collections;
@@ -70,19 +74,6 @@ import org.junit.Test;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
-import static org.hamcrest.CoreMatchers.instanceOf;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
 
 /**
  * Test for {@link LuceneClient}.
@@ -250,7 +241,7 @@ public class LuceneClientTest extends AbstractIntegrationTest {
     final Hits hits = client.search(query, new String[] { INDEX3, INDEX2 });
     assertNotNull(hits);
     for (final Hit hit : hits.getHits()) {
-      writeToLog(hit);
+      writeToLog("hit", hit);
     }
     assertEquals(8, hits.size());
     assertEquals(8, hits.getHits().size());
@@ -345,7 +336,7 @@ public class LuceneClientTest extends AbstractIntegrationTest {
     assertNotNull(hits);
     List<Hit> hitsList = hits.getHits();
     for (final Hit hit : hitsList) {
-      writeToLog(hit);
+      writeToLog("hit", hit);
     }
     assertEquals(9, hits.size());
     assertEquals(9, hitsList.size());
@@ -365,7 +356,7 @@ public class LuceneClientTest extends AbstractIntegrationTest {
     final Hits hits = client.search(query, new String[] { INDEX3, INDEX2 }, 1);
     assertNotNull(hits);
     for (final Hit hit : hits.getHits()) {
-      writeToLog(hit);
+      writeToLog("hit", hit);
     }
     assertEquals(8, hits.size());
     assertEquals(1, hits.getHits().size());
@@ -384,7 +375,7 @@ public class LuceneClientTest extends AbstractIntegrationTest {
     assertNotNull(expectedHits);
     LOG.info("Expected hits:");
     for (final Hit hit : expectedHits.getHits()) {
-      writeToLog(hit);
+      writeToLog("expected", hit);
     }
     assertEquals(4, expectedHits.getHits().size());
 
@@ -396,8 +387,8 @@ public class LuceneClientTest extends AbstractIntegrationTest {
         assertNotNull(hits);
         assertEquals(maxHits, hits.getHits().size());
         for (int j = 0; j < hits.getHits().size(); j++) {
-          // writeToLog("expected: ", expectedHits.getHits().get(j));
-          // writeToLog("actual : ", hits.getHits().get(j));
+          // writeToLog("expected", expectedHits.getHits().get(j));
+          // writeToLog("actual", hits.getHits().get(j));
           assertEquals(expectedHits.getHits().get(j).getScore(), hits.getHits().get(j).getScore(), 0.0);
         }
       }
@@ -431,7 +422,7 @@ public class LuceneClientTest extends AbstractIntegrationTest {
     }
     client.close();
   }
-  
+
   @Test
   public void testSearchWithMissingShards() throws InterruptedException, ParseException, KattaException {
     deployTestIndices(1, 1);
@@ -440,38 +431,37 @@ public class LuceneClientTest extends AbstractIntegrationTest {
     // Get the shard names we will expect to be unavailable later
     final Set<String> expectedMissingShards = ImmutableSet.copyOf(contentServer.getShards());
 
-    /* Create special distribution policy that simulates missing shards during
-     * a LuceneClient search:
-     *  * The first call comes during getDocFrequencies and returns the actual
-     *    node to shards map.
-     *  * The second call comes during the actual search request.  During this
-     *    call, the index will be undeployed, but the node to shards map
-     *    returned will still include all shards.  This causes the first attempt
-     *    to search to fail.
-     *  * The third call comes as the client attempts to retry the search.  The
-     *    node-to-shards map is empty, so the request will end without getting
-     *    any data. 
+    /*
+     * Create special distribution policy that simulates missing shards during a
+     * LuceneClient search: * The first call comes during getDocFrequencies and
+     * returns the actual node to shards map. * The second call comes during the
+     * actual search request. During this call, the index will be undeployed,
+     * but the node to shards map returned will still include all shards. This
+     * causes the first attempt to search to fail. * The third call comes as the
+     * client attempts to retry the search. The node-to-shards map is empty, so
+     * the request will end without getting any data.
      */
     final INodeSelectionPolicy trickNodeSelectionPolicy = new DefaultNodeSelectionPolicy() {
       private int callNumber = 0;
 
       @Override
       public Map<String, List<String>> createNode2ShardsMap(Collection<String> shards) throws ShardAccessException {
-    	callNumber++;
-    	if(callNumber == 1) {
-		  return super.createNode2ShardsMap(shards);
-    	} else if(callNumber == 2) {
+        callNumber++;
+        if (callNumber == 1) {
+          return super.createNode2ShardsMap(shards);
+        } else if (callNumber == 2) {
           IndexUndeployOperation undeployOperation = new IndexUndeployOperation(INDEX_NAME);
           _miniCluster.getProtocol().addMasterOperation(undeployOperation);
-          while(contentServer.getShards().size() > 0) {
+          while (contentServer.getShards().size() > 0) {
             try {
               Thread.sleep(100);
             } catch (InterruptedException e) {
               throw new RuntimeException(e);
             }
           }
-          
-          return ImmutableMap.of(_miniCluster.getNode(0).getName(), (List<String>)ImmutableList.copyOf(expectedMissingShards));
+
+          return ImmutableMap.of(_miniCluster.getNode(0).getName(),
+                  (List<String>) ImmutableList.copyOf(expectedMissingShards));
         } else {
           return Collections.emptyMap();
         }
@@ -484,7 +474,8 @@ public class LuceneClientTest extends AbstractIntegrationTest {
     Hits hits = client.search(query, null);
 
     // Verify all shards were missing.
-    assertThat("All the shards should be missing", hits.getMissingShards(), is(equalTo((Set<String>)expectedMissingShards)));
+    assertThat("All the shards should be missing", hits.getMissingShards(),
+            is(equalTo((Set<String>) expectedMissingShards)));
   }
 
   @Test
@@ -495,7 +486,7 @@ public class LuceneClientTest extends AbstractIntegrationTest {
     final Hits hits = client.search(query, new String[] { "index[2-3]+" });
     assertNotNull(hits);
     for (final Hit hit : hits.getHits()) {
-      writeToLog(hit);
+      writeToLog("hit", hit);
     }
     assertEquals(8, hits.size());
     assertEquals(8, hits.getHits().size());
@@ -555,7 +546,7 @@ public class LuceneClientTest extends AbstractIntegrationTest {
     assertNotNull(hits);
     List<Hit> hitsList = hits.getHits();
     for (final Hit hit : hitsList) {
-      writeToLog(hit);
+      writeToLog("hit", hit);
     }
     assertEquals(10, hits.size());
     assertEquals(10, hitsList.size());
@@ -574,8 +565,8 @@ public class LuceneClientTest extends AbstractIntegrationTest {
     client.close();
   }
 
-  private void writeToLog(Hit hit) {
-    LOG.info(hit.getNode() + " -- " + hit.getShard() + " -- " + hit.getScore() + " -- " + hit.getDocId());
+  private void writeToLog(String info, Hit hit) {
+    LOG.info(info + ": " + hit.getNode() + " -- " + hit.getShard() + " -- " + hit.getScore() + " -- " + hit.getDocId());
   }
 
   private void deploy3Indices() throws Exception {

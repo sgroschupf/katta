@@ -147,7 +147,7 @@ public class Hit implements Writable, Comparable<Hit> {
 
   @Override
   public int compareTo(final Hit o) {
-    return Float.compare(_score, o.getScore());
+    return Float.compare(o.getScore(), _score);
   }
 
   @Override
