@@ -25,6 +25,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 
 import net.sf.katta.protocol.ConnectedComponent;
@@ -49,7 +50,7 @@ public class Client implements ConnectedComponent {
   private static final String[] ALL_INDICES = new String[] { "*" };
 
   protected final Set<String> _indicesToWatch = new HashSet<String>();
-  protected final Map<String, List<String>> _indexToShards = new HashMap<String, List<String>>();
+  protected final Map<String, List<String>> _indexToShards = new ConcurrentHashMap<String, List<String>>();
 
   protected final INodeSelectionPolicy _selectionPolicy;
   private long _queryCount = 0;
