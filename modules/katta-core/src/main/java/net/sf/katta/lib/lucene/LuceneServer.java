@@ -840,12 +840,7 @@ public class LuceneServer implements IContentServer, ILuceneServer {
 
     @Override
     protected final boolean lessThan(final Hit hitA, final Hit hitB) {
-      if (hitA.getScore() == hitB.getScore()) {
-        // todo this of source do not work since we have same shardKeys
-        // (should we increment docIds?)
-        return hitA.getDocId() < hitB.getDocId();
-      }
-      return hitA.getScore() < hitB.getScore();
+      return hitA.compareTo(hitB) > 0;
     }
 
     @Override

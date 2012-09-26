@@ -27,7 +27,8 @@ import org.apache.hadoop.io.WritableComparable;
 
 /**
  * Note: this class has a natural ordering that is inconsistent with equals.
- * 
+ * <p/>
+ * Sort order: score descending, doc ID ascending, 
  */
 public class Hit implements Writable, Comparable<Hit> {
 
@@ -147,7 +148,17 @@ public class Hit implements Writable, Comparable<Hit> {
 
   @Override
   public int compareTo(final Hit o) {
-    return Float.compare(o.getScore(), _score);
+    int result = Float.compare(o._score, _score);
+    if (result == 0) {
+      if (_docId < o._docId) {
+        result = -1;
+      } else if (_docId > o._docId){
+        result = 1;
+      } else {
+        result = o._shard.compareTo(_shard);
+      }
+    }
+    return result;
   }
 
   @Override
