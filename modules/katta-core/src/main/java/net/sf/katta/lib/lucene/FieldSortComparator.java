@@ -74,7 +74,11 @@ class FieldSortComparator implements Comparator<Hit> {
 
   @Override
   public int compare(Hit hit1, Hit hit2) {
-    return compare(hit1.getSortFields(), hit2.getSortFields());
+    int c = compare(hit1.getSortFields(), hit2.getSortFields());
+    if (c == 0) {
+      c = hit1.compareTo(hit2);
+    }
+    return c;
   }
 
   public int compare(Object[] fields1, Object[] fields2) {

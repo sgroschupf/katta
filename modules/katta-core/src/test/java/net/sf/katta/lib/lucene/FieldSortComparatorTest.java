@@ -99,4 +99,23 @@ public class FieldSortComparatorTest extends AbstractTest {
     assertEquals(-1, fieldSortComparator.compare(hit1, hit2));
   }
 
+  @Test
+  public void testSameFieldValuesSecondaryCompare() {
+    SortField[] sortFields = new SortField[] { new SortField("intField", SortField.INT) };
+    WritableType[] sortFieldTypes = new WritableType[] { WritableType.INT };
+    FieldSortComparator fieldSortComparator = new FieldSortComparator(sortFields, sortFieldTypes);
+
+    Hit hit1 = new Hit("shard", "node", 0.0f, 1, sortFieldTypes);
+    Hit hit2 = new Hit("shard", "node", 0.0f, 1, sortFieldTypes);
+
+    hit1.setSortFields(new WritableComparable[] { new IntWritable(1) });
+    hit2.setSortFields(new WritableComparable[] { new IntWritable(1) });
+    
+    assertEquals(0, fieldSortComparator.compare(hit2, hit1));
+    assertEquals(0, fieldSortComparator.compare(hit1, hit2));
+    
+    hit2.setDocId(2);
+    assertEquals(-1, fieldSortComparator.compare(hit1, hit2));
+    assertEquals( 1, fieldSortComparator.compare(hit2, hit1));
+  }
 }
