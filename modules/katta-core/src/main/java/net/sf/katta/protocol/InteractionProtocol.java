@@ -38,8 +38,8 @@ import net.sf.katta.protocol.metadata.MasterMetaData;
 import net.sf.katta.protocol.metadata.NodeMetaData;
 import net.sf.katta.protocol.metadata.Version;
 import net.sf.katta.util.CollectionUtil;
+import net.sf.katta.util.ConcurrentOne2ManyListMap;
 import net.sf.katta.util.KattaException;
-import net.sf.katta.util.One2ManyListMap;
 import net.sf.katta.util.StringUtil;
 import net.sf.katta.util.ZkConfiguration;
 import net.sf.katta.util.ZkConfiguration.PathDef;
@@ -76,7 +76,7 @@ public class InteractionProtocol {
 
   // we govern the various listener and ephemerals to remove burden from
   // listener-users to unregister/delete them
-  protected One2ManyListMap<ConnectedComponent, ListenerAdapter> _zkListenerByComponent = new One2ManyListMap<ConnectedComponent, ListenerAdapter>();
+  protected ConcurrentOne2ManyListMap<ConnectedComponent, ListenerAdapter> _zkListenerByComponent = new ConcurrentOne2ManyListMap<ConnectedComponent, ListenerAdapter>();
   private SetMultimap<ConnectedComponent, String> _zkEphemeralPublishesByComponent = HashMultimap.create();
 
   private IZkStateListener _stateListener = new IZkStateListener() {

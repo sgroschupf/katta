@@ -9,6 +9,12 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+/**
+ * Version of {@link One2ManyListMap} using concurrent access-safe collections.
+ *
+ * @param <K>
+ * @param <V>
+ */
 public class ConcurrentOne2ManyListMap<K, V> implements Serializable {
   private static final long serialVersionUID = 1L;
   protected final ConcurrentHashMap<K, List<V>> _map;

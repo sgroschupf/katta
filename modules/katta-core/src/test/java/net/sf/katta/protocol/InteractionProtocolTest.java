@@ -21,6 +21,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.doAnswer;
@@ -36,6 +37,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import net.sf.katta.AbstractZkTest;
@@ -371,5 +375,126 @@ public class InteractionProtocolTest extends AbstractZkTest {
     _protocol.unregisterComponent(component2);
     waitingAnswer.release();
     _protocol.disconnect();
+  }
+  
+  @Test
+  /**see KATTA-206*/
+  public void testConcurrentModificationToString() throws Exception {
+    final ConnectedComponent component1 = mock(ConnectedComponent.class);
+    _protocol = _zk.createInteractionProtocol();
+    _protocol.registerComponent(component1);
+    
+    final ConnectedComponent component2 = mock(ConnectedComponent.class, "2ndComp");
+    _protocol.registerComponent(component2);
+    
+    for (int i = 0; i < 100; i++) {
+      IAddRemoveListener childListener = new IAddRemoveListener() {
+        @Override
+        public void added(String name) {
+        }
+
+        @Override
+        public void removed(String name) {
+        }
+      };
+      _protocol.registerChildListener(component1, PathDef.NODES_LIVE, childListener);
+    }
+    Thread t = new Thread() {
+      @Override
+      public void run() {
+        for (int i = 0; i < 100; i++) {
+          IAddRemoveListener childListener = new IAddRemoveListener() {
+            @Override
+            public void added(String name) {
+            }
+
+            @Override
+            public void removed(String name) {
+            }
+          };
+          _protocol.registerChildListener(component1, PathDef.NODES_LIVE, childListener);
+        }
+        System.out.println("Finished");
+      }
+    };
+    t.start();
+    
+    _protocol.unregisterComponent(component2);
+    
+    t.join();
+    _protocol.disconnect();
+  }
+
+  public static class TestConnectedComponent implements ConnectedComponent {
+    @Override
+    public void reconnect() {
+    }
+
+    @Override
+    public void disconnect() { 
+    }
+  }
+  
+  @Test
+  public void testConcurrentAddRemoveComponent() throws InterruptedException {
+    final InteractionProtocol protocol = _zk.createInteractionProtocol();
+    
+    int numThreads = 4;
+    final int numPerThread = 1000;
+    Thread[] threads = new Thread[numThreads];
+    
+    final CountDownLatch cdl = new CountDownLatch(numThreads);
+    
+    final LinkedBlockingQueue<ConnectedComponent> queue = new LinkedBlockingQueue<ConnectedComponent>(50);
+    
+    for (int i = 0; i < numThreads; i++) {
+      if (i % 2 == 1) {
+        threads[i] = new Thread() {
+          @Override
+          public void run() {
+            for (int i = 0; i < numPerThread && !Thread.interrupted(); i++) {
+              ConnectedComponent component = new TestConnectedComponent();
+              protocol.registerComponent(component);
+              try {
+                queue.put(component);
+              } catch (InterruptedException e) {
+                break;
+              }
+            }
+            cdl.countDown();
+          }
+        };
+      } else {
+        threads[i] = new Thread() {
+          @Override
+          public void run() {
+            for (int i = 0; i < numPerThread && !Thread.interrupted(); i++) {
+              try {
+                protocol.unregisterComponent(queue.poll(3, TimeUnit.SECONDS));
+              } catch (InterruptedException e) {
+                break;
+              }
+            }
+            cdl.countDown();
+          }
+        };
+      }
+      threads[i].start();
+    }
+    while (!cdl.await(2, TimeUnit.SECONDS)) {
+      int numThreadsRunning = 0;
+      for (int i = 0; i < numThreads; i++) {
+        if (threads[i].isAlive()) {
+          numThreadsRunning++;
+        }
+      }
+      if (numThreadsRunning < cdl.getCount()) {
+        fail("A thread died!");
+        for (int i = 0; i < numThreads; i++) {
+          threads[i].interrupt();
+        }
+      }
+    }
+    protocol.disconnect();
   }
 }
