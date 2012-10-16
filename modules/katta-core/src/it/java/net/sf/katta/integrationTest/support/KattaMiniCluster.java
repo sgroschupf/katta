@@ -228,5 +228,8 @@ public class KattaMiniCluster {
   public ZkClient getZkClient() {
     return _zkServer.getZkClient();
   }
-
+  
+  public NodeConfiguration getDefaultNodeConfiguration() {
+    return _defaultNodeConfiguration;
+  }
 }

@@ -122,6 +122,10 @@ public class Node implements ConnectedComponent {
 
   @Override
   public synchronized void disconnect() {
+    if (_nodeOperatorThread == null) {
+      LOG.warn(_nodeName + " disconnected before initialization complete");
+      return;
+    }
     LOG.info(_nodeName + " disconnected");
     try {
       do {
