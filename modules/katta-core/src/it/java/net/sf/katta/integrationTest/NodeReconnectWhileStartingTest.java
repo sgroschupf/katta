@@ -107,19 +107,20 @@ public class NodeReconnectWhileStartingTest extends AbstractIntegrationTest {
      */
     while (addCalls < 5) Thread.sleep(50);
     
-    // Before KATTA-216 fix in Node.disconnect(): NPE thrown on _nodeOperatorThread.interrupt()
-    // After KATTA-216 fix: Child thread fails to restart the node due to already exists exception..
+    /* Before KATTA-216 fix in Node.disconnect(): NPE thrown on
+     *     _nodeOperatorThread.interrupt()
+     * After KATTA-216 fix: Child thread restarts successfully, although logging
+     *      exceptions for already existing ZK nodes for the redeployed shards. 
+     */
     newNode[0].disconnect();
     newNode[0].reconnect();
     
     addCalls++;
     
     t.join();
-    /* Child thread should fail something like this:
-     * org.I0Itec.zkclient.exception.ZkNodeExistsException: org.apache.zookeeper.KeeperException$NodeExistsException: KeeperErrorCode = NodeExists for /katta/shard-to-nodes/testIndexA0#bIndex/localhost:20000
+    
     if (childException[0] != null) {
       throw childException[0];
     }
-    */
   }
 }
