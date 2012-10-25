@@ -100,7 +100,7 @@ public class Node implements ConnectedComponent {
     LOG.info("started node '" + _nodeName + "'");
   }
 
-  private void init() {
+  private synchronized void init() {
     redeployInstalledShards();
     NodeMetaData nodeMetaData = new NodeMetaData(_nodeName);
     NodeQueue nodeOperationQueue = _protocol.publishNode(this, nodeMetaData);

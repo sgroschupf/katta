@@ -67,11 +67,17 @@ public class NodeReconnectWhileStartingTest extends AbstractIntegrationTest {
   }
   
   public static void addCallBlock() throws InterruptedException {
+    if (currentlyRunningAddCalls == 1) {
+      throw new RuntimeException("Simultaneous addShard calls detected");
+    }
+    currentlyRunningAddCalls++;
     addCalls++;
     while (addCalls == 5) Thread.sleep(50);
+    --currentlyRunningAddCalls;
   }
   
   private static volatile int addCalls = 0;
+  private static volatile int currentlyRunningAddCalls = 0;
   
   @Test
   public void testReconnectNodeDuringInit() throws Exception {
@@ -107,16 +113,23 @@ public class NodeReconnectWhileStartingTest extends AbstractIntegrationTest {
      */
     while (addCalls < 5) Thread.sleep(50);
     
+    Thread t2 = new Thread() {
+      @Override
+      public void run() {
+        newNode[0].disconnect();
+        newNode[0].reconnect();    
+      }
+    };
+    t2.start();
     /* Before KATTA-216 fix in Node.disconnect(): NPE thrown on
      *     _nodeOperatorThread.interrupt()
      * After KATTA-216 fix: Child thread restarts successfully, although logging
      *      exceptions for already existing ZK nodes for the redeployed shards. 
      */
-    newNode[0].disconnect();
-    newNode[0].reconnect();
     
     addCalls++;
     
+    t2.join();
     t.join();
     
     if (childException[0] != null) {
