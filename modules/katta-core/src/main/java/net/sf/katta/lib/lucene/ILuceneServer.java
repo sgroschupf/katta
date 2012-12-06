@@ -16,6 +16,8 @@
 package net.sf.katta.lib.lucene;
 
 import java.io.IOException;
+import java.util.List;
+import java.util.Map;
 
 
 import org.apache.hadoop.io.MapWritable;
@@ -115,29 +117,29 @@ public interface ILuceneServer extends VersionedProtocol {
   public DocumentFrequencyWritable getDocFreqs(QueryWritable input, String[] shards) throws IOException;
 
   /**
-   * Returns only the requested fields of a lucene document.  The fields are returned
-   * as a map.
+   * Returns only the requested fields of Lucene documents.  The fields are
+   * returned as a map.
    *
    * @param shards       The shards to ask for the document.
-   * @param docId        The document that is desired.
+   * @param docIdsByShard The documents that are desired, by shard name.
    * @param fields       The fields to return.
    * @return             details of the document
    * @throws IOException
    */
-  public MapWritable getDetails(String[] shards, int docId, String[] fields) throws IOException;
+  public MapWritable getDetails(String[] shards, MapWritable docIdsByShard, String[] fields) throws IOException;
 
   /**
-   * Returns the lucene document. Each field:value tuple of the lucene document
+   * Returns the lucene documents. Each field:value tuple of the lucene document
    * is inserted into the returned map. In most cases
-   * {@link #getDetails(String[], int, String[])} would be a better choice for
-   * performance reasons.
+   * {@link #getDetails(String[], int[][], String[])} would be a better choice
+   * for performance reasons.
    *
-   * @param shards       The shards to ask for the document.
-   * @param docId        The document that is desired.
+   * @param shards        The shards to ask for the document.
+   * @param docIdsByShard The documents that are desired, by shard name.
    * @return details of the document
    * @throws IOException
    */
-  public MapWritable getDetails(String[] shards, int docId) throws IOException;
+  public MapWritable getDetails(String[] shards, MapWritable docIdsByShard) throws IOException;
 
   /**
    * Returns the number of documents that match the given query. This the

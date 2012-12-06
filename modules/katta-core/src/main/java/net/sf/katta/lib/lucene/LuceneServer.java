@@ -44,10 +44,13 @@ import net.sf.katta.util.ClassUtil;
 import net.sf.katta.util.NodeConfiguration;
 import net.sf.katta.util.WritableType;
 
+import org.apache.hadoop.io.ArrayWritable;
 import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.DataOutputBuffer;
+import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.MapWritable;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.Writable;
 import org.apache.log4j.Logger;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.FieldSelector;
@@ -384,25 +387,48 @@ public class LuceneServer implements IContentServer, ILuceneServer {
   }
 
   @Override
-  public MapWritable getDetails(final String[] shards, final int docId) throws IOException {
-    return getDetails(shards, docId, null);
+  public MapWritable getDetails(final String[] shards, final MapWritable docIdsByShard) throws IOException {
+    return getDetails(shards, docIdsByShard, null);
   }
 
   @Override
-  public MapWritable getDetails(final String[] shards, final int docId, final String[] fieldNames) throws IOException {
+  public MapWritable getDetails(final String[] shards, final MapWritable docIdsByShard, final String[] fieldNames) throws IOException {
     final MapWritable result = new MapWritable();
-    final Document doc = doc(shards[0], docId, fieldNames);
-    final List<Fieldable> fields = doc.getFields();
-    for (final Fieldable field : fields) {
-      final String name = field.name();
-      if (field.isBinary()) {
-        final byte[] binaryValue = field.getBinaryValue();
-        result.put(new Text(name), new BytesWritable(binaryValue));
-      } else {
-        final String stringValue = field.stringValue();
-        result.put(new Text(name), new Text(stringValue));
+    
+    for (String shard : shards) {
+      Writable[] docIdsWritable = ((ArrayWritable)docIdsByShard.get(new Text(shard))).get();
+      int docIds[] = new int[docIdsWritable.length];
+      for (int i = 0; i < docIdsWritable.length; i++) {
+        docIds[i] = ((IntWritable) docIdsWritable[i]).get();
       }
+      
+      final Document[] docs = docs(shard, docIds, fieldNames);
+      
+      final MapWritable[] shardDocsWritables = new MapWritable[docIdsWritable.length];
+      
+      int i = 0;
+      for (Document doc : docs) {
+        final MapWritable docWritable = new MapWritable();
+        shardDocsWritables[i++] = docWritable;
+        
+        if (doc != null) {
+          final List<Fieldable> fields = doc.getFields();
+          for (final Fieldable field : fields) {
+            final String name = field.name();
+            if (field.isBinary()) {
+              final byte[] binaryValue = field.getBinaryValue();
+              docWritable.put(new Text(name), new BytesWritable(binaryValue));
+            } else {
+              final String stringValue = field.stringValue();
+              docWritable.put(new Text(name), new Text(stringValue));
+            }
+          }
+        }
+      }
+      
+      result.put(new Text(shard), new MapArrayWritable(shardDocsWritables));
     }
+    
     return result;
   }
 
@@ -572,20 +598,40 @@ public class LuceneServer implements IContentServer, ILuceneServer {
    * @throws IOException
    */
   protected Document doc(final String shardName, final int docId, final String[] fieldNames) throws IOException {
+    return docs(shardName, new int[]{docId}, fieldNames)[0];
+  }
+  
+  /**
+   * Returns specifed Lucene documents from a givne shard where all or only the
+   * given fields are loaded from the index.
+   * 
+   * @param shardName shard to access
+   * @param docIds doc IDs to read
+   * @param fieldNames array of fields to get, or null to get all fields
+   * @return array of Documents in the same order as the provided docId array
+   * @throws IOException
+   */
+  protected Document[] docs(final String shardName, final int[] docIds, final String[] fieldNames) throws IOException {
+    final Document[] result = new Document[docIds.length];
+    
     final SearcherHandle handle = getSearcherHandleByShard(shardName);
     IndexSearcher searcher = handle.getSearcher();
     try {
       if (searcher != null) {
-        if (fieldNames == null) {
-          return searcher.doc(docId);
-        } else {
-          return searcher.doc(docId, new MapFieldSelector(fieldNames));
+        int i = 0;
+        for (int docId : docIds) {
+          if (fieldNames == null) {
+            result[i++] = searcher.doc(docId);
+          } else {
+            result[i++] = searcher.doc(docId, new MapFieldSelector(fieldNames));
+          }
         }
       }
-      return null;
     } finally {
       handle.finishSearcher();
     }
+    
+    return result;
   }
 
   /**

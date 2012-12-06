@@ -18,7 +18,12 @@ package net.sf.katta.lib.lucene;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -33,11 +38,17 @@ import net.sf.katta.util.ClientConfiguration;
 import net.sf.katta.util.KattaException;
 import net.sf.katta.util.ZkConfiguration;
 
+import org.apache.hadoop.io.ArrayWritable;
+import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.MapWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.Writable;
 import org.apache.log4j.Logger;
 import org.apache.lucene.search.Filter;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.Sort;
+
+import com.google.common.collect.ImmutableList;
 
 /**
  * Default implementation of {@link ILuceneClient}.
@@ -296,9 +307,9 @@ public class LuceneClient implements ILuceneClient {
   private static final int GET_DETAILS_FIELDS_METHOD_SHARD_ARG_IDX = 0;
   static {
     try {
-      GET_DETAILS_METHOD = ILuceneServer.class.getMethod("getDetails", new Class[] { String[].class, Integer.TYPE });
+      GET_DETAILS_METHOD = ILuceneServer.class.getMethod("getDetails", new Class[] { String[].class, MapWritable.class });
       GET_DETAILS_FIELDS_METHOD = ILuceneServer.class.getMethod("getDetails", new Class[] { String[].class,
-              Integer.TYPE, String[].class });
+          MapWritable.class, String[].class });
     } catch (NoSuchMethodException e) {
       throw new RuntimeException("Could not find method getDetails() in ILuceneSearch!");
     }
@@ -311,28 +322,62 @@ public class LuceneClient implements ILuceneClient {
 
   @Override
   public MapWritable getDetails(final Hit hit, final String[] fields) throws KattaException {
+    String shardName = hit.getShard();
+    Map<String, List<MapWritable>> rpcResult = getDetails(Collections.singletonMap(shardName, Collections.singletonList(hit.getDocId())), fields);
+    
+    MapWritable result = null;
+    if (rpcResult.size() != 0) {
+      List<MapWritable> shardResult = rpcResult.get(shardName);
+      if (shardResult.size() != 0) {
+        result = shardResult.get(0);
+      }
+    }
+    return result;
+  }
+  
+  private Map<String, List<MapWritable>> getDetails(Map<String, List<Integer>> docIdsByShard, String[] fields) throws KattaException {
+    MapWritable docsArg = new MapWritable();
     List<String> shards = new ArrayList<String>();
-    shards.add(hit.getShard());
-    int docId = hit.getDocId();
-    //
+    
+    for (Map.Entry<String, List<Integer>> entry : docIdsByShard.entrySet()) {
+      List<Integer> docIds = entry.getValue();
+      IntWritable[] docIdsWritable = new IntWritable[docIds.size()];
+      int i = 0;
+      for (Integer docId : docIds) {
+        docIdsWritable[i++] = new IntWritable(docId);
+      }
+      String shardName = entry.getKey();
+      docsArg.put(new Text(shardName), new IntArrayWritable(docIdsWritable));
+      shards.add(shardName);
+    }
+    
     Object[] args;
     Method method;
     int shardArgIdx;
     if (fields == null) {
-      args = new Object[] { null, Integer.valueOf(docId) };
+      args = new Object[] { null, docsArg };
       method = GET_DETAILS_METHOD;
       shardArgIdx = GET_DETAILS_METHOD_SHARD_ARG_IDX;
     } else {
-      args = new Object[] { null, Integer.valueOf(docId), fields };
+      args = new Object[] { null, docsArg, fields};
       method = GET_DETAILS_FIELDS_METHOD;
       shardArgIdx = GET_DETAILS_FIELDS_METHOD_SHARD_ARG_IDX;
     }
-    ClientResult<MapWritable> results = _kattaClient.broadcastToShards(_timeout, true, method, shardArgIdx, shards,
-            args);
-    if (results.isError()) {
-      throw results.getKattaException();
+    ClientResult<MapWritable> rpcResult = _kattaClient.broadcastToShards(_timeout, true, method, shardArgIdx, shards,
+        args);
+    
+    Map<String, List<MapWritable>> resultMap = new HashMap<String, List<MapWritable>>();
+    
+    for (MapWritable mapWritable : rpcResult.getResultsOrThrowKattaException()) {
+      for (Entry<Writable, Writable> entry : mapWritable.entrySet()) {
+        String shardName = ((Text)entry.getKey()).toString();
+        Writable[] docs = (Writable[]) ((ArrayWritable) entry.getValue()).get();
+        
+        resultMap.put(shardName, (List)Arrays.asList(docs));
+      }
     }
-    return results.getResults().isEmpty() ? null : results.getResults().iterator().next();
+    
+    return resultMap;
   }
 
   @Override
@@ -343,29 +388,52 @@ public class LuceneClient implements ILuceneClient {
   @Override
   public List<MapWritable> getDetails(List<Hit> hits, final String[] fields) throws KattaException,
           InterruptedException {
-    ExecutorService executorService = Executors.newFixedThreadPool(Math.min(10, hits.size() + 1));
-    List<MapWritable> results = new ArrayList<MapWritable>();
-    List<Future<MapWritable>> futures = new ArrayList<Future<MapWritable>>();
-    for (final Hit hit : hits) {
-      futures.add(executorService.submit(new Callable<MapWritable>() {
-        @Override
-        public MapWritable call() throws Exception {
-          return getDetails(hit, fields);
-        }
-      }));
+    Map<String, List<Integer>> docIdsByShard = new HashMap<String, List<Integer>>();
+    Map<String, List<Integer>> resultPosByShard = new HashMap<String, List<Integer>>();
+    
+    int nextPos = 0;
+    for (Hit hit : hits) {
+      String shardName = hit.getShard();
+      List<Integer> shardDocIds = docIdsByShard.get(shardName);
+      List<Integer> shardResultPositions;
+      if (shardDocIds == null) {
+        shardDocIds = new ArrayList<Integer>();
+        docIdsByShard.put(shardName, shardDocIds);
+        
+        shardResultPositions = new ArrayList<Integer>();
+        resultPosByShard.put(shardName, shardResultPositions);
+      } else {
+        shardResultPositions = resultPosByShard.get(shardName);
+      }
+      
+      shardDocIds.add(hit.getDocId());
+      shardResultPositions.add(nextPos++);
     }
-
-    for (Future<MapWritable> future : futures) {
-      try {
-        results.add(future.get());
-      } catch (ExecutionException e) {
-        throw new KattaException("Could not get hit details.", e.getCause());
+    
+    Map<String, List<MapWritable>> resultsByShard = getDetails(docIdsByShard, fields);
+    MapWritable[] result = new MapWritable[hits.size()];
+    for (Entry<String, List<MapWritable>> entry : resultsByShard.entrySet()) {
+      String shardName = entry.getKey();
+      
+      List<Integer> shardResultPos = resultPosByShard.get(shardName);
+      Iterator<Integer> shardResultPosIter = shardResultPos.iterator();
+      
+      List<MapWritable> shardResults = entry.getValue();
+      Iterator<MapWritable> shardResultsIter = shardResults.iterator();
+      
+      while (shardResultPosIter.hasNext() && shardResultsIter.hasNext()) {
+        Integer pos = shardResultPosIter.next();
+        MapWritable doc = shardResultsIter.next();
+        
+        result[pos] = doc;
+      }
+      
+      if (shardResultPosIter.hasNext() != shardResultsIter.hasNext()) {
+        throw new KattaException(String.format("mismatched results returned from shard %s: expected %d, got %d", shardName, shardResultPos.size(), shardResults.size()));
       }
     }
-
-    executorService.shutdown();
-
-    return results;
+    
+    return Arrays.asList(result);
   }
 
   @Override
