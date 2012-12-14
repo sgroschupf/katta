@@ -388,6 +388,10 @@ public class LuceneClient implements ILuceneClient {
   @Override
   public List<MapWritable> getDetails(List<Hit> hits, final String[] fields) throws KattaException,
           InterruptedException {
+    if (hits.isEmpty()) {
+      return Collections.emptyList();
+    }
+    
     Map<String, List<Integer>> docIdsByShard = new HashMap<String, List<Integer>>();
     Map<String, List<Integer>> resultPosByShard = new HashMap<String, List<Integer>>();
     
