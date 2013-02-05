@@ -26,7 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import net.sf.katta.client.DefaultNodeSelectionPolicy;
+import net.sf.katta.client.BasicNodeSelectionPolicy;
 import net.sf.katta.client.DeployClient;
 import net.sf.katta.client.IDeployClient;
 import net.sf.katta.client.INodeSelectionPolicy;
@@ -441,7 +441,7 @@ public class LuceneClientTest extends AbstractIntegrationTest {
      * client attempts to retry the search. The node-to-shards map is empty, so
      * the request will end without getting any data.
      */
-    final INodeSelectionPolicy trickNodeSelectionPolicy = new DefaultNodeSelectionPolicy() {
+    final INodeSelectionPolicy trickNodeSelectionPolicy = new BasicNodeSelectionPolicy() {
       private int callNumber = 0;
 
       @Override

@@ -30,11 +30,11 @@ import net.sf.katta.AbstractTest;
 
 import org.junit.Test;
 
-public class DefaultNodeSelectionPolicyTest extends AbstractTest {
+public class BasicNodeSelectionPolicyTest extends AbstractTest {
 
   @Test
   public void testIndexSpawnsMultipleNodes() throws Exception {
-    final DefaultNodeSelectionPolicy policy = new DefaultNodeSelectionPolicy();
+    final BasicNodeSelectionPolicy policy = new BasicNodeSelectionPolicy();
     final Map<String, List<String>> indexToShards = new HashMap<String, List<String>>();
     addIndex(indexToShards, "indexB", "shardB1", "shardB2");
 
@@ -52,7 +52,7 @@ public class DefaultNodeSelectionPolicyTest extends AbstractTest {
   
   @Test
   public void testQueryMultipleIndexes() throws Exception {
-    final DefaultNodeSelectionPolicy policy = new DefaultNodeSelectionPolicy();
+    final BasicNodeSelectionPolicy policy = new BasicNodeSelectionPolicy();
     final Map<String, List<String>> indexToShards = new HashMap<String, List<String>>();
     addIndex(indexToShards, "indexA", "shardA1");
     addIndex(indexToShards, "indexB", "shardB1", "shardB2");
@@ -72,7 +72,7 @@ public class DefaultNodeSelectionPolicyTest extends AbstractTest {
 
   @Test
   public void testSelection() throws Exception {
-    final DefaultNodeSelectionPolicy policy = new DefaultNodeSelectionPolicy();
+    final BasicNodeSelectionPolicy policy = new BasicNodeSelectionPolicy();
     final Map<String, List<String>> indexToShards = new HashMap<String, List<String>>();
     addIndex(indexToShards, "indexA", "shardA", "shardB");
 
@@ -88,7 +88,7 @@ public class DefaultNodeSelectionPolicyTest extends AbstractTest {
 
   @Test
   public void testSetShardsAndNodes() throws Exception {
-    final DefaultNodeSelectionPolicy policy = new DefaultNodeSelectionPolicy();
+    final BasicNodeSelectionPolicy policy = new BasicNodeSelectionPolicy();
     final Map<String, List<String>> indexToShards = new HashMap<String, List<String>>();
     addIndex(indexToShards, "indexA", "shardA", "shardB");
 
@@ -130,7 +130,7 @@ public class DefaultNodeSelectionPolicyTest extends AbstractTest {
 
   @Test
   public void testManyShards() throws Exception {
-    final DefaultNodeSelectionPolicy policy = new DefaultNodeSelectionPolicy();
+    final BasicNodeSelectionPolicy policy = new BasicNodeSelectionPolicy();
     final Map<String, List<String>> indexToShards = new HashMap<String, List<String>>();
     addIndex(indexToShards, "indexA", "shardA1", "shardA2", "shardA3");
     addIndex(indexToShards, "indexB", "shardB1", "shardB2", "shardB3");
@@ -157,13 +157,13 @@ public class DefaultNodeSelectionPolicyTest extends AbstractTest {
   
   @Test(expected = ShardAccessException.class)
   public void testRemoveNotExistingShard() throws ShardAccessException {
-	  final DefaultNodeSelectionPolicy policy = new DefaultNodeSelectionPolicy();
+	  final BasicNodeSelectionPolicy policy = new BasicNodeSelectionPolicy();
 	  policy.remove("shardDoesNotExist");
   }
   
   @Test(expected = ShardAccessException.class)
   public void testGetNotExistingShardNodes() throws ShardAccessException {
-	  final DefaultNodeSelectionPolicy policy = new DefaultNodeSelectionPolicy();
+	  final BasicNodeSelectionPolicy policy = new BasicNodeSelectionPolicy();
 	  policy.getShardNodes("shardDoesNotExist");
   }
 }

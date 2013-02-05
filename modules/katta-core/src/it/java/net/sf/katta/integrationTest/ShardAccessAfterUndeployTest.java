@@ -49,7 +49,7 @@ public class ShardAccessAfterUndeployTest extends AbstractIntegrationTest {
      * This reliably simulates the error condition (index undeployed after the client determines which nodes to
      * connect to, but before the client gets results from the nodes.)
      */
-    final INodeSelectionPolicy trickNodeSelectionPolicy = new DefaultNodeSelectionPolicy() {
+    final INodeSelectionPolicy trickNodeSelectionPolicy = new BasicNodeSelectionPolicy() {
       private boolean firstCall = true;
 
       @Override

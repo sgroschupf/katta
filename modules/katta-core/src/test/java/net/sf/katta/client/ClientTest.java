@@ -40,7 +40,7 @@ public class ClientTest extends AbstractTest {
   @Test
   public void testAddRemoveIndexForSearching() throws Exception {
     InteractionProtocol protocol = mock(InteractionProtocol.class);
-    Client client = new Client(ISleepServer.class, new DefaultNodeSelectionPolicy(), protocol,
+    Client client = new Client(ISleepServer.class, new BasicNodeSelectionPolicy(), protocol,
             new ClientConfiguration());
     IndexMetaData indexMD = new IndexMetaData("index1", "path", 1);
     indexMD.getShards().add(new Shard("shard1", "path"));
@@ -56,7 +56,7 @@ public class ClientTest extends AbstractTest {
   @Test
   public void testAddRemoveIndexForWatching() throws Exception {
     InteractionProtocol protocol = mock(InteractionProtocol.class);
-    Client client = new Client(ISleepServer.class, new DefaultNodeSelectionPolicy(), protocol,
+    Client client = new Client(ISleepServer.class, new BasicNodeSelectionPolicy(), protocol,
             new ClientConfiguration());
     IndexMetaData indexMD = new IndexMetaData("index1", "path", 1);
     indexMD.getShards().add(new Shard("shard1", "path"));
@@ -72,7 +72,7 @@ public class ClientTest extends AbstractTest {
   @Test
   public void testClose() throws Exception {
     InteractionProtocol protocol = mock(InteractionProtocol.class);
-    Client client = new Client(ISleepServer.class, new DefaultNodeSelectionPolicy(), protocol,
+    Client client = new Client(ISleepServer.class, new BasicNodeSelectionPolicy(), protocol,
             new ClientConfiguration());
     client.close();
 

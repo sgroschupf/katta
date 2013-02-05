@@ -22,7 +22,7 @@ import java.util.Random;
 import java.util.Set;
 
 import net.sf.katta.client.Client;
-import net.sf.katta.client.DefaultNodeSelectionPolicy;
+import net.sf.katta.client.BasicNodeSelectionPolicy;
 import net.sf.katta.client.DeployClient;
 import net.sf.katta.client.IDeployClient;
 import net.sf.katta.integrationTest.support.AbstractIntegrationTest;
@@ -67,7 +67,7 @@ public class SleepClientTest extends AbstractIntegrationTest {
   protected void afterClusterStart() throws Exception {
     IDeployClient deployClient = new DeployClient(_miniCluster.getProtocol());
     deployClient.addIndex(INDEX1, TestResources.MAP_FILE_A.getAbsolutePath(), 1).joinDeployment();
-    _client = new SleepClient(new DefaultNodeSelectionPolicy(), _miniCluster.getZkConfiguration(),
+    _client = new SleepClient(new BasicNodeSelectionPolicy(), _miniCluster.getZkConfiguration(),
             new ClientConfiguration());
   }
 

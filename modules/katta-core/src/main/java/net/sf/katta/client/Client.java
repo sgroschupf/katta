@@ -62,15 +62,15 @@ public class Client implements ConnectedComponent {
   private INodeProxyManager _proxyManager;
 
   public Client(Class<? extends VersionedProtocol> serverClass) {
-    this(serverClass, new DefaultNodeSelectionPolicy(), new ZkConfiguration());
+    this(serverClass, new ShuffleNodeSelectionPolicy(), new ZkConfiguration());
   }
 
   public Client(Class<? extends VersionedProtocol> serverClass, final ZkConfiguration config) {
-    this(serverClass, new DefaultNodeSelectionPolicy(), config);
+    this(serverClass, new ShuffleNodeSelectionPolicy(), config);
   }
 
   public Client(Class<? extends VersionedProtocol> serverClass, InteractionProtocol protocol) {
-    this(serverClass, new DefaultNodeSelectionPolicy(), protocol, new ClientConfiguration());
+    this(serverClass, new ShuffleNodeSelectionPolicy(), protocol, new ClientConfiguration());
   }
 
   public Client(Class<? extends VersionedProtocol> serverClass, final INodeSelectionPolicy nodeSelectionPolicy) {

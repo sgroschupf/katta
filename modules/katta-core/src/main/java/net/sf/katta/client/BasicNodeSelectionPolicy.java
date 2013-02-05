@@ -24,7 +24,14 @@ import java.util.concurrent.ConcurrentHashMap;
 import net.sf.katta.util.CircularList;
 import net.sf.katta.util.One2ManyListMap;
 
-public class DefaultNodeSelectionPolicy implements INodeSelectionPolicy {
+/**
+ * Basic node selection policy.  The nodes to search will always be returned in
+ * the same order, which is ideal for tests, but may cause an uneven
+ * distribution of load in a multi-node cluster.  This implementation should
+ * only be used for testing.  Real clusters should use
+ * ShuffleNodeSelectionPolicy.
+ */
+public class BasicNodeSelectionPolicy implements INodeSelectionPolicy {
 
   private Map<String, CircularList<String>> _shardsToNodeMap = new ConcurrentHashMap<String, CircularList<String>>();
 

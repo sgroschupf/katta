@@ -330,7 +330,7 @@ public class WorkQueueTest extends AbstractTest {
         shardMap.put(nodes[i], shardList);
       }
       // Compute reverse map.
-      _selectionPolicy = new DefaultNodeSelectionPolicy();
+      _selectionPolicy = new BasicNodeSelectionPolicy();
       for (int i = 0; i < numNodes; i++) {
         String thisShard = shards[i];
         List<String> nodeList = new ArrayList<String>();
