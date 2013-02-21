@@ -56,43 +56,6 @@ import org.mockito.stubbing.Answer;
 public class LuceneServerTest extends AbstractTest {
 
   @Test
-  public void testPriorityQueue() throws Exception {
-    // tests some simple PriorityQueue behavior
-    LuceneServer.KattaHitQueue queue = new LuceneServer.KattaHitQueue(2);
-    Hit hit1 = new Hit("shard", "node", 1f, 1);
-    Hit hit2 = new Hit("shard", "node", 2f, 1);
-    Hit hit3 = new Hit("shard", "node", 3f, 1);
-    Hit hit4 = new Hit("shard", "node", 4f, 1);
-
-    assertTrue(queue.insert(hit1));
-    assertTrue(queue.insert(hit2));
-    assertTrue(queue.insert(hit3));
-    assertTrue(queue.insert(hit4));
-
-    assertEquals(2, queue.size());
-    assertSame(hit3, queue.pop());
-    assertSame(hit4, queue.pop());
-  }
-
-  @Test
-  public void testPriorityQueue_sameScore() throws Exception {
-    LuceneServer.KattaHitQueue queue = new LuceneServer.KattaHitQueue(2);
-    Hit hit1 = new Hit("shard", "node", 1f, 1);
-    Hit hit2 = new Hit("shard", "node", 1f, 2);
-    Hit hit3 = new Hit("shard", "node", 1f, 3);
-
-    assertTrue(queue.insert(hit1));
-    assertTrue(queue.insert(hit2));
-    assertTrue(queue.insert(hit3));
-    assertEquals(2, queue.size());
-
-    // Queue should return documents with the smaller document ids first if
-    // documents have the same score.
-    assertSame(hit2, queue.pop());
-    assertSame(hit3, queue.pop());
-  }
-
-  @Test
   public void testConfiguration() throws Exception {
     // no property in configuration
     LuceneServer server = new LuceneServer();
