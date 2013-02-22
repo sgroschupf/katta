@@ -1,6 +1,10 @@
 Katta Change Log
 
 katta 0.7.0
+ fix KATTA-201, Added new HostAwareDistributionPolicy for use when running multiple nodes on the same host
+ fix KATTA-209, ConcurrentModificationException in Client _indexToShards HashMap
+ fix KATTA-215, Field sort is not deterministic if two Hits have the same field values
+ fix KATTA-214, Relevance ordering inconsistent with Lucene doc ordering
  fix KATTA-211, Hits sort not deterministic
  fix KATTA-194, Upgrade to lucene 3.5.0 (from 3.0.3)
  fix KATTA-180, better shard-removal handling in client
