@@ -22,7 +22,7 @@ import java.util.List;
 import net.sf.katta.client.DeployClient;
 import net.sf.katta.client.IDeployClient;
 import net.sf.katta.client.IIndexDeployFuture;
-import net.sf.katta.lib.lucene.LuceneServer;
+import net.sf.katta.lib.mapfile.MapFileServer;
 import net.sf.katta.master.Master;
 import net.sf.katta.node.IContentServer;
 import net.sf.katta.node.Node;
@@ -44,7 +44,7 @@ import org.I0Itec.zkclient.ZkServer;
  * - nodes<br>
  */
 public class KattaMiniCluster {
-  public static final Class<? extends IContentServer> DEFAULT_CONTENT_SERVER_CLASS = LuceneServer.class;
+  public static final Class<? extends IContentServer> DEFAULT_CONTENT_SERVER_CLASS = MapFileServer.class;
   public static final int DEFAULT_NODE_PORT = 20000;
 
   private final Class<? extends IContentServer> _contentServerClass;

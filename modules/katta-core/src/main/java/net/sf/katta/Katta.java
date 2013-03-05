@@ -15,6 +15,37 @@
  */
 package net.sf.katta;
 
+import net.sf.katta.client.DeployClient;
+import net.sf.katta.client.IDeployClient;
+import net.sf.katta.client.IIndexDeployFuture;
+import net.sf.katta.client.IndexState;
+import net.sf.katta.master.Master;
+import net.sf.katta.node.IContentServer;
+import net.sf.katta.node.Node;
+import net.sf.katta.node.monitor.MetricLogger;
+import net.sf.katta.node.monitor.MetricLogger.OutputType;
+import net.sf.katta.protocol.InteractionProtocol;
+import net.sf.katta.protocol.ReplicationReport;
+import net.sf.katta.protocol.metadata.IndexDeployError;
+import net.sf.katta.protocol.metadata.IndexMetaData;
+import net.sf.katta.protocol.metadata.IndexMetaData.Shard;
+import net.sf.katta.protocol.metadata.NodeMetaData;
+import net.sf.katta.tool.loadtest.LoadTestMasterOperation;
+import net.sf.katta.tool.loadtest.query.AbstractQueryExecutor;
+import net.sf.katta.tool.loadtest.query.MapfileAccessExecutor;
+import net.sf.katta.util.ClassUtil;
+import net.sf.katta.util.NodeConfiguration;
+import net.sf.katta.util.StringUtil;
+import net.sf.katta.util.WebApp;
+import net.sf.katta.util.ZkConfiguration;
+import net.sf.katta.util.ZkKattaUtil;
+import org.I0Itec.zkclient.ZkClient;
+import org.I0Itec.zkclient.ZkServer;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.log4j.Logger;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
@@ -31,48 +62,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import net.sf.katta.client.DeployClient;
-import net.sf.katta.client.IDeployClient;
-import net.sf.katta.client.IIndexDeployFuture;
-import net.sf.katta.client.IndexState;
-import net.sf.katta.lib.lucene.Hit;
-import net.sf.katta.lib.lucene.Hits;
-import net.sf.katta.lib.lucene.ILuceneClient;
-import net.sf.katta.lib.lucene.LuceneClient;
-import net.sf.katta.master.Master;
-import net.sf.katta.node.IContentServer;
-import net.sf.katta.node.Node;
-import net.sf.katta.node.monitor.MetricLogger;
-import net.sf.katta.node.monitor.MetricLogger.OutputType;
-import net.sf.katta.protocol.InteractionProtocol;
-import net.sf.katta.protocol.ReplicationReport;
-import net.sf.katta.protocol.metadata.IndexDeployError;
-import net.sf.katta.protocol.metadata.IndexMetaData;
-import net.sf.katta.protocol.metadata.IndexMetaData.Shard;
-import net.sf.katta.protocol.metadata.NodeMetaData;
-import net.sf.katta.tool.SampleIndexGenerator;
-import net.sf.katta.tool.loadtest.LoadTestMasterOperation;
-import net.sf.katta.tool.loadtest.query.AbstractQueryExecutor;
-import net.sf.katta.tool.loadtest.query.LuceneSearchExecutor;
-import net.sf.katta.tool.loadtest.query.MapfileAccessExecutor;
-import net.sf.katta.util.ClassUtil;
-import net.sf.katta.util.NodeConfiguration;
-import net.sf.katta.util.StringUtil;
-import net.sf.katta.util.WebApp;
-import net.sf.katta.util.ZkConfiguration;
-import net.sf.katta.util.ZkKattaUtil;
-
-import org.I0Itec.zkclient.ZkClient;
-import org.I0Itec.zkclient.ZkServer;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import org.apache.log4j.Logger;
-import org.apache.lucene.analysis.KeywordAnalyzer;
-import org.apache.lucene.queryParser.QueryParser;
-import org.apache.lucene.search.Query;
-import org.apache.lucene.util.Version;
 
 /**
  * Provides command line access to a Katta cluster.
@@ -792,7 +781,7 @@ public class Katta {
 
   };
 
-  protected static Command SEARCH_COMMAND = new ProtocolCommand(
+  /*protected static Command SEARCH_COMMAND = new ProtocolCommand(
           "search",
           "<index name>[,<index name>,...] \"<query>\" [count]",
           "Search in supplied indices. The query should be in \". If you supply a result count hit details will be printed. To search in all indices write \"*\". This uses the client type LuceneClient.") {
@@ -845,9 +834,9 @@ public class Katta {
       System.out.println(hitsSize + " Hits found in " + ((end - start) / 1000.0) + "sec.");
     }
 
-  };
+  };*/
 
-  protected static Command GENERATE_INDEX_COMMAND = new Command(
+  /*protected static Command GENERATE_INDEX_COMMAND = new Command(
           "generateIndex",
           "<inputTextFile> <outputPath>  <numOfWordsPerDoc> <numOfDocuments>",
           "The inputTextFile is used as dictionary. The field name is 'text', so search with queries like 'text:aWord' in the index.") {
@@ -873,7 +862,7 @@ public class Katta {
 
     }
 
-  };
+  };*/
 
   protected static Command LOADTEST_COMMAND = new ProtocolCommand(
           "loadtest",
@@ -903,13 +892,13 @@ public class Katta {
       AbstractQueryExecutor queryExecutor;
       String[] indices = new String[] { indexName };
       String[] queries = readQueries(queryFile);
-      if (type.equalsIgnoreCase("lucene")) {
+      /* if (type.equalsIgnoreCase("lucene")) {
         int maxHits = Integer.parseInt(args[11]);
         ZkConfiguration searchClusterZkConf = new ZkConfiguration();
         searchClusterZkConf.setZKServers(zkConf.getZKServers());
         searchClusterZkConf.setZKRootPath(zkRootPath);
         queryExecutor = new LuceneSearchExecutor(indices, queries, searchClusterZkConf, maxHits);
-      } else if (type.equalsIgnoreCase("mapfile")) {
+      } else */ if (type.equalsIgnoreCase("mapfile")) {
         queryExecutor = new MapfileAccessExecutor(indices, queries, zkConf);
       } else {
         throw new IllegalStateException("type '" + type + "' unknown");
@@ -990,8 +979,8 @@ public class Katta {
     COMMANDS.add(SHOW_STRUCTURE_COMMAND);
     COMMANDS.add(START_GUI_COMMAND);
     COMMANDS.add(LOG_METRICS_COMMAND);
-    COMMANDS.add(GENERATE_INDEX_COMMAND);
-    COMMANDS.add(SEARCH_COMMAND);
+    //COMMANDS.add(GENERATE_INDEX_COMMAND);
+    //COMMANDS.add(SEARCH_COMMAND);
     COMMANDS.add(LOADTEST_COMMAND);
     COMMANDS.add(RUN_CLASS_COMMAND);
 

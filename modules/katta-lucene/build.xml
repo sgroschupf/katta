@@ -1,0 +1,16 @@
+<project name="katta-lucene" >
+
+    <property file="build.properties" />
+    <import file="${root.dir}/src/build/ant/common-build.xml" />
+
+    <addModuleToClasspath module="katta-core" />
+    <addModuleToClasspath module="katta-lucene" />
+    <target name="setupModuleArtifactClassPath" >
+        <addModuleArtifact module="katta-core"/>
+    </target>
+    <!-- Eclipse setting: All dependend projects are names here -->
+    <path id="dependend-projects">
+        <pathelement path="/katta-core" />
+    </path>
+
+</project>

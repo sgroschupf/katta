@@ -110,15 +110,15 @@ public class LoadTestNodeOperation implements NodeOperation {
           long maxSleepTime = Math.max(1, 1000 / 2 - (System.currentTimeMillis() - _startTime));
           Thread.sleep(_random.nextInt((int) maxSleepTime));
         }
-        String queryString = _queryExecutor.getQueries()[_queryIndex];
+        Object query = _queryExecutor.getQueries()[_queryIndex];
         _queryIndex = (_queryIndex + 1) % _queryExecutor.getQueries().length;
         long queryStartTime = System.currentTimeMillis();
         try {
-          _queryExecutor.execute(_context, queryString);
-          _statistics.add(new LoadTestQueryResult(queryStartTime, System.currentTimeMillis(), queryString, _context
+          _queryExecutor.execute(_context, query);
+          _statistics.add(new LoadTestQueryResult(queryStartTime, System.currentTimeMillis(), query.toString(), _context
                   .getNode().getName()));
         } catch (Exception e) {
-          _statistics.add(new LoadTestQueryResult(queryStartTime, -1, queryString, _context.getNode().getName()));
+          _statistics.add(new LoadTestQueryResult(queryStartTime, -1, query.toString(), _context.getNode().getName()));
           LOG.error("Search failed.", e);
         }
         _requestCounter++;

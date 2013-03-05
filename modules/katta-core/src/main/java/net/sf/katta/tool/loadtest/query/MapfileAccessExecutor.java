@@ -21,7 +21,7 @@ import net.sf.katta.node.NodeContext;
 import net.sf.katta.util.ZkConfiguration;
 
 @SuppressWarnings("serial")
-public class MapfileAccessExecutor extends AbstractQueryExecutor {
+public class MapfileAccessExecutor extends AbstractQueryExecutor<String> {
 
   private IMapFileClient _client;
   private final ZkConfiguration _zkConfOfTargetCluster;

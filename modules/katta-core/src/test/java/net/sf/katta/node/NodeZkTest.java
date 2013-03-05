@@ -16,12 +16,14 @@
 package net.sf.katta.node;
 
 import net.sf.katta.AbstractZkTest;
-import net.sf.katta.lib.lucene.LuceneServer;
+import net.sf.katta.lib.mapfile.MapFileServer;
 import net.sf.katta.operation.node.NodeOperation;
 import net.sf.katta.operation.node.OperationResult;
 import net.sf.katta.testutil.mockito.SerializableCountDownLatchAnswer;
 
 import org.junit.Test;
+
+import java.io.IOException;
 
 import static org.junit.Assert.assertEquals;
 
@@ -34,9 +36,9 @@ import static org.mockito.Matchers.notNull;
 public class NodeZkTest extends AbstractZkTest {
 
   @Test
-  public void testShutdown_shouldCleanupZkClientSubscriptions() {
+  public void testShutdown_shouldCleanupZkClientSubscriptions() throws IOException {
     int numberOfListeners = _zk.getZkClient().numberOfListeners();
-    Node node = new Node(_zk.getInteractionProtocol(), new LuceneServer());
+    Node node = new Node(_zk.getInteractionProtocol(), new MapFileServer());
     node.start();
     node.shutdown();
     assertEquals(numberOfListeners, _zk.getZkClient().numberOfListeners());
@@ -44,7 +46,7 @@ public class NodeZkTest extends AbstractZkTest {
 
   @Test(timeout = 10000)
   public void testNodeOperationPickup() throws Exception {
-    Node node = new Node(_zk.getInteractionProtocol(), new LuceneServer());
+    Node node = new Node(_zk.getInteractionProtocol(), new MapFileServer());
     node.start();
 
     NodeOperation operation1 = mock(NodeOperation.class, withSettings().serializable());
@@ -62,7 +64,7 @@ public class NodeZkTest extends AbstractZkTest {
 
   @Test(timeout = 20000)
   public void testNodeOperationPickup_AfterReconnect() throws Exception {
-    Node node = new Node(_zk.getInteractionProtocol(), new LuceneServer());
+    Node node = new Node(_zk.getInteractionProtocol(), new MapFileServer());
     node.start();
 
     node.disconnect();
@@ -82,7 +84,7 @@ public class NodeZkTest extends AbstractZkTest {
 
   @Test(timeout = 2000000)
   public void testNodeReconnectWithInterruptSwallowingOperation() throws Exception {
-    Node node = new Node(_zk.getInteractionProtocol(), new LuceneServer());
+    Node node = new Node(_zk.getInteractionProtocol(), new MapFileServer());
     node.start();
     _protocol.addNodeOperation(node.getName(), new InterruptSwallowingOperation());
     Thread.sleep(200);
@@ -111,7 +113,7 @@ public class NodeZkTest extends AbstractZkTest {
 
   @Test(timeout = 10000)
   public void testNodeOperationException() throws Exception {
-    Node node = new Node(_zk.getInteractionProtocol(), new LuceneServer());
+    Node node = new Node(_zk.getInteractionProtocol(), new MapFileServer());
     node.start();
 
     NodeOperation operation1 = mock(NodeOperation.class, withSettings().serializable());

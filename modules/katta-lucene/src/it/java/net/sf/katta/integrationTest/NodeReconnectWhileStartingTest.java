@@ -81,23 +81,24 @@ public class NodeReconnectWhileStartingTest extends AbstractIntegrationTest {
   
   @Test
   public void testReconnectNodeDuringInit() throws Exception {
-    final InteractionProtocol protocol = _miniCluster.getProtocol();
+    final InteractionProtocol protocol = AbstractIntegrationTest._miniCluster.getProtocol();
 
-    IndexDeployOperation deployOperation = new IndexDeployOperation(INDEX_NAME, "file://"
-            + INDEX_FILE.getAbsolutePath(), getNodeCount());
+    IndexDeployOperation deployOperation = new IndexDeployOperation(AbstractIntegrationTest.INDEX_NAME, "file://"
+            + AbstractIntegrationTest.INDEX_FILE.getAbsolutePath(), getNodeCount());
     protocol.addMasterOperation(deployOperation);
-    TestUtil.waitUntilIndexDeployed(protocol, INDEX_NAME);
+    TestUtil.waitUntilIndexDeployed(protocol, AbstractIntegrationTest.INDEX_NAME);
     
     final Node[] newNode = new Node[1];
     final Exception[] childException = new Exception[1];
     Thread t = new Thread() {
       @Override
       public void run() {
-        Node shutdownNode = _miniCluster.getNode(0);
-        NodeConfiguration nodeConfiguration = new NodeConfiguration(_miniCluster.getDefaultNodeConfiguration().getPropertiesCopy());
+        Node shutdownNode = AbstractIntegrationTest._miniCluster.getNode(0);
+        NodeConfiguration nodeConfiguration = new NodeConfiguration(
+            AbstractIntegrationTest._miniCluster.getDefaultNodeConfiguration().getPropertiesCopy());
         nodeConfiguration.setStartPort(shutdownNode.getRPCServerPort());
-        _miniCluster.shutdownNode(0);
-        newNode[0] = new Node(_protocol, nodeConfiguration, shutdownNode.getContext().getContentServer());
+        AbstractIntegrationTest._miniCluster.shutdownNode(0);
+        newNode[0] = new Node(AbstractIntegrationTest._protocol, nodeConfiguration, shutdownNode.getContext().getContentServer());
         try {
           newNode[0].start();
         } catch (Exception e) {

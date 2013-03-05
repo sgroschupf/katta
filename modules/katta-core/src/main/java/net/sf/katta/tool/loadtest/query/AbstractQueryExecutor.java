@@ -20,17 +20,17 @@ import java.io.Serializable;
 import net.sf.katta.node.NodeContext;
 
 @SuppressWarnings("serial")
-public abstract class AbstractQueryExecutor implements Serializable {
+public abstract class AbstractQueryExecutor<Q> implements Serializable {
 
   protected final String[] _indices;
-  protected final String[] _queries;
+  protected final Q[] _queries;
 
-  public AbstractQueryExecutor(String[] indices, String[] queries) {
+  public AbstractQueryExecutor(String[] indices, Q[] queries) {
     _indices = indices;
     _queries = queries;
   }
 
-  public String[] getQueries() {
+  public Q[] getQueries() {
     return _queries;
   }
 
@@ -40,18 +40,16 @@ public abstract class AbstractQueryExecutor implements Serializable {
 
   /**
    * Called from the loadtest node before calling
-   * {@link #execute(NodeContext, String)} method.
+   * {@link #execute(NodeContext, Q)} method.
    * 
    * @param nodeContext
-   * @param zkConf
-   *          the configuration of the target cluster
    * @throws Exception
    */
   public abstract void init(NodeContext nodeContext) throws Exception;
 
   /**
    * Called from the loadtest node after calling
-   * {@link #execute(NodeContext, String)} method the last time.
+   * {@link #execute(NodeContext, Q)} method the last time.
    * 
    * @param nodeContext
    * @throws Exception
@@ -66,6 +64,6 @@ public abstract class AbstractQueryExecutor implements Serializable {
    * @param query
    * @throws Exception
    */
-  public abstract void execute(NodeContext nodeContext, String query) throws Exception;
+  public abstract void execute(NodeContext nodeContext, Q query) throws Exception;
 
 }

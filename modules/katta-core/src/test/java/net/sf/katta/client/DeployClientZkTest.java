@@ -33,7 +33,7 @@ public class DeployClientZkTest extends AbstractZkTest {
   @Test
   public void testAddIndex() throws Exception {
     DeployClient deployClient = new DeployClient(_protocol);
-    deployClient.addIndex(TestResources.INDEX1.getName(), TestResources.INDEX1.getAbsolutePath(), 1);
+    deployClient.addIndex(TestResources.MAP_FILE_A.getName(), TestResources.MAP_FILE_A.getAbsolutePath(), 1);
   }
 
   @Test

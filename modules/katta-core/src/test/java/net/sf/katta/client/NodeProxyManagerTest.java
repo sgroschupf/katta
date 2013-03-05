@@ -15,30 +15,27 @@
  */
 package net.sf.katta.client;
 
-import java.lang.reflect.InvocationTargetException;
-import java.net.ConnectException;
-
 import net.sf.katta.AbstractTest;
-import net.sf.katta.lib.lucene.ILuceneServer;
+import net.sf.katta.lib.mapfile.IMapFileServer;
 import net.sf.katta.node.IContentServer;
-
 import org.apache.hadoop.conf.Configuration;
 import org.junit.Test;
 
+import java.lang.reflect.InvocationTargetException;
+import java.net.ConnectException;
+
+import static org.fest.assertions.Assertions.assertThat;
+import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
-import static org.mockito.Matchers.anyString;
-
-import static org.fest.assertions.Assertions.assertThat;
-
 public class NodeProxyManagerTest extends AbstractTest {
 
   private INodeSelectionPolicy _nodeSelectionPolicy = mock(INodeSelectionPolicy.class);
-  private NodeProxyManager _proxyManager = new NodeProxyManager(ILuceneServer.class, new Configuration(),
+  private NodeProxyManager _proxyManager = new NodeProxyManager(IMapFileServer.class, new Configuration(),
           _nodeSelectionPolicy);
 
   @Test

@@ -29,6 +29,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import net.sf.katta.client.DeployClient;
 import net.sf.katta.client.IDeployClient;
 import net.sf.katta.integrationTest.support.AbstractIntegrationTest;
+import net.sf.katta.integrationTest.support.AbstractMapFileIntegrationTest;
 import net.sf.katta.lib.mapfile.IMapFileClient;
 import net.sf.katta.lib.mapfile.MapFileClient;
 import net.sf.katta.lib.mapfile.MapFileServer;
@@ -42,7 +43,7 @@ import org.junit.Test;
 /**
  * Test for {@link MapFileClient}.
  */
-public class MapFileClientTest extends AbstractIntegrationTest {
+public class MapFileClientTest extends AbstractMapFileIntegrationTest {
 
   @SuppressWarnings("unused")
   private static Logger LOG = Logger.getLogger(MapFileClientTest.class);
@@ -57,7 +58,7 @@ public class MapFileClientTest extends AbstractIntegrationTest {
   private static IMapFileClient _client;
 
   public MapFileClientTest() {
-    super(MapFileServer.class, 2, false, false);
+    super(2, false, false);
   }
 
   @Override

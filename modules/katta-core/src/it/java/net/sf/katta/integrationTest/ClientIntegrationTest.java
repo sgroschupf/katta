@@ -3,8 +3,8 @@ package net.sf.katta.integrationTest;
 import net.sf.katta.client.Client;
 import net.sf.katta.client.INodeProxyManager;
 import net.sf.katta.client.ShardAccessException;
-import net.sf.katta.integrationTest.support.AbstractIntegrationTest;
-import net.sf.katta.lib.lucene.ILuceneServer;
+import net.sf.katta.integrationTest.support.AbstractMapFileIntegrationTest;
+import net.sf.katta.lib.mapfile.IMapFileServer;
 import net.sf.katta.protocol.metadata.IndexMetaData;
 import net.sf.katta.testutil.mockito.ChainedAnswer;
 import net.sf.katta.testutil.mockito.PauseAnswer;
@@ -21,7 +21,7 @@ import static org.mockito.Matchers.eq;
 
 import static org.fest.assertions.Assertions.assertThat;
 
-public class ClientIntegrationTest extends AbstractIntegrationTest {
+public class ClientIntegrationTest extends AbstractMapFileIntegrationTest {
 
   public ClientIntegrationTest() {
     super(2);
@@ -29,7 +29,7 @@ public class ClientIntegrationTest extends AbstractIntegrationTest {
 
   @Test(timeout = 20000)
   public void testAddIndex_WithSlowProxyEstablishment() throws Exception {
-    Client client = new Client(ILuceneServer.class, _protocol);
+    Client client = new Client(IMapFileServer.class, _protocol);
     INodeProxyManager proxyCreator = client.getProxyManager();
     INodeProxyManager proxyCreatorSpy = spy(proxyCreator);
     PauseAnswer<Void> pauseAnswer = new PauseAnswer<Void>(null);

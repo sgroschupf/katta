@@ -18,7 +18,7 @@ package net.sf.katta.master;
 import java.util.List;
 
 import net.sf.katta.AbstractZkTest;
-import net.sf.katta.lib.lucene.LuceneServer;
+import net.sf.katta.lib.mapfile.MapFileServer;
 import net.sf.katta.node.Node;
 import net.sf.katta.operation.master.IndexDeployOperation;
 import net.sf.katta.operation.master.MasterOperation;
@@ -111,7 +111,7 @@ public class MasterZkTest extends AbstractZkTest {
     TestUtil.waitUntilLeaveSafeMode(master);
 
     // phase I - until watchdog is running and its node turn
-    IndexDeployOperation deployOperation = new IndexDeployOperation("index1", TestResources.INDEX1.getAbsolutePath(), 1);
+    IndexDeployOperation deployOperation = new IndexDeployOperation("index1", TestResources.MAP_FILE_A.getAbsolutePath(), 1);
     _protocol.addMasterOperation(deployOperation);
     while (!master.getContext().getMasterQueue().isEmpty()) {
       // wait until deploy is in watch phase
@@ -147,7 +147,7 @@ public class MasterZkTest extends AbstractZkTest {
     final ZkClient zkGatewayClient = ZkKattaUtil.startZkClient(gatewayConf, 30000);
     InteractionProtocol gatewayProtocol = new InteractionProtocol(zkGatewayClient, gatewayConf);
     FileUtil.deleteFolder(new NodeConfiguration().getShardFolder());
-    final Node node = new Node(gatewayProtocol, new LuceneServer());
+    final Node node = new Node(gatewayProtocol, new MapFileServer());
     node.start();
 
     // check node-master link

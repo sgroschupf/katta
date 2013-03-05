@@ -41,7 +41,7 @@ import org.apache.lucene.document.Field;
 import org.apache.lucene.document.Field.Index;
 import org.apache.lucene.document.Field.Store;
 import org.apache.lucene.index.IndexWriter;
-import org.apache.lucene.index.IndexWriter.MaxFieldLength;
+import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.Version;
 
@@ -127,8 +127,11 @@ public class IndexerJob {
       report.progress();
       // TODO sg this should be configurable
       Analyzer analyzer = new StandardAnalyzer(Version.LUCENE_CURRENT);
-      IndexWriter indexWriter = new IndexWriter(FSDirectory.open(file), analyzer, MaxFieldLength.UNLIMITED);
-      indexWriter.setMergeFactor(100000);
+      IndexWriterConfig config = new IndexWriterConfig(Version.LUCENE_41, new StandardAnalyzer(Version.LUCENE_41));
+      config.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
+      IndexWriter indexWriter = new IndexWriter(FSDirectory.open(file), config);
+      // TODO lucene 4 equivalent?
+      //indexWriter.setMergeFactor(100000);
       report.setStatus("Adding documents...");
       while (reader.next(key, value)) {
         report.progress();
@@ -161,7 +164,8 @@ public class IndexerJob {
       };
       t.start();
       report.setStatus("Optimizing index...");
-      indexWriter.optimize();
+      // TODO is 1 what we want?
+      indexWriter.forceMerge(1);
       report.setStatus("Done optimizing!");
       report.setStatus("Closing index...");
       indexWriter.close();

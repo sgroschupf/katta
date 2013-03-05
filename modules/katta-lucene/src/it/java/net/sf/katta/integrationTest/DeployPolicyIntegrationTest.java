@@ -47,15 +47,15 @@ public class DeployPolicyIntegrationTest extends AbstractIntegrationTest {
   @Test
   public void testEqualDistributionWhenMoreNodesThenShards() throws Exception {
     int replicationCount = 1;
-    _miniCluster.deployTestIndexes(_indexWithOneShard, getNodeCount(), replicationCount);
+    AbstractIntegrationTest._miniCluster.deployTestIndexes(_indexWithOneShard, getNodeCount(), replicationCount);
 
-    final InteractionProtocol protocol = _miniCluster.getProtocol();
-    assertEquals(getNodeCount(), protocol.getIndices().size());
+    final InteractionProtocol protocol = AbstractIntegrationTest._miniCluster.getProtocol();
+    Assert.assertEquals(getNodeCount(), protocol.getIndices().size());
 
     protocol.showStructure(false);
-    List<Node> nodes = _miniCluster.getNodes();
+    List<Node> nodes = AbstractIntegrationTest._miniCluster.getNodes();
     for (Node node : nodes) {
-      assertEquals(1, node.getContext().getContentServer().getShards().size());
+      Assert.assertEquals(1, node.getContext().getContentServer().getShards().size());
     }
 
   }

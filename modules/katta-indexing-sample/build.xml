@@ -4,13 +4,16 @@
 	<import file="${root.dir}/src/build/ant/common-build.xml" />
 
 	<addModuleToClasspath module="katta-core" />
+    <addModuleToClasspath module="katta-lucene" />
 	<addModuleToClasspath module="katta-indexing-sample"/>
 	<target name="setupModuleArtifactClassPath" >
 		<addModuleArtifact module="katta-core"/>
+        <addModuleArtifact module="katta-lucene"/>
 	</target>
 	<!-- Eclipse setting: All dependend projects are names here -->
     <path id="dependend-projects">
         <pathelement path="/katta-core" />
+        <pathelement path="/katta-lucene" />
     </path>
 	
 	<!-- ================================================================== -->
@@ -25,7 +28,7 @@
 
 		<!-- copy ivy cache to lib -->
 		<copy todir="${job.dir}/lib">
-			<fileset dir="${root.dir}/modules/katta-core/lib/compile">
+			<fileset dir="${root.dir}/modules/katta-lucene/lib/compile">
 				<include name="lucene-*.jar"/>
 				<exclude name="*-sources.jar"/>
 			</fileset>

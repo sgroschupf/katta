@@ -3,7 +3,7 @@ package net.sf.katta.integrationTest;
 import java.io.File;
 import java.util.Set;
 
-import net.sf.katta.integrationTest.support.AbstractIntegrationTest;
+import net.sf.katta.integrationTest.support.AbstractMapFileIntegrationTest;
 import net.sf.katta.node.Node;
 import net.sf.katta.operation.master.IndexDeployOperation;
 import net.sf.katta.operation.master.IndexUndeployOperation;
@@ -21,7 +21,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-public class MasterIntegrationTest extends AbstractIntegrationTest {
+public class MasterIntegrationTest extends AbstractMapFileIntegrationTest {
 
   public MasterIntegrationTest() {
     super(2);

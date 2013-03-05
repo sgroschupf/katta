@@ -20,6 +20,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import net.sf.katta.client.*;
 import net.sf.katta.integrationTest.support.AbstractIntegrationTest;
+import net.sf.katta.integrationTest.support.AbstractMapFileIntegrationTest;
 import net.sf.katta.node.IContentServer;
 import net.sf.katta.operation.master.IndexUndeployOperation;
 import org.junit.Test;
@@ -29,7 +30,7 @@ import java.util.*;
 import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.assertThat;
 
-public class ShardAccessAfterUndeployTest extends AbstractIntegrationTest {
+public class ShardAccessAfterUndeployTest extends AbstractMapFileIntegrationTest {
   public ShardAccessAfterUndeployTest() {
     super(1);
   }

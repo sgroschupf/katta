@@ -10,6 +10,7 @@
 
 	<path id="core-modules">
         <pathelement path="modules/katta-core" />
+        <pathelement path="modules/katta-lucene" />
 		<pathelement path="modules/katta-indexing-sample" />
     </path>
 	

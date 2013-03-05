@@ -41,7 +41,7 @@ public abstract class AbstractMasterNodeZkTest extends AbstractZkTest {
   protected MasterContext _context = new MasterContext(_protocol, _master, new DefaultDistributionPolicy(), _protocol
           .publishMaster(_master));
 
-  protected File _indexFile = TestResources.INDEX1;
+  protected File _indexFile = TestResources.MAP_FILE_A;
   protected String _indexName = _indexFile.getName();
   protected String _indexPath = _indexFile.getAbsolutePath();
   protected int _shardCount = _indexFile.listFiles().length;

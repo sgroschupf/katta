@@ -5,14 +5,13 @@ import java.util.List;
 
 import net.sf.katta.AbstractTest;
 import net.sf.katta.client.DeployClient;
-import net.sf.katta.lib.lucene.LuceneServer;
+import net.sf.katta.lib.mapfile.MapFileServer;
 import net.sf.katta.node.IContentServer;
 import net.sf.katta.node.Node;
 import net.sf.katta.operation.master.IndexDeployOperation;
 import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.protocol.metadata.IndexMetaData;
 import net.sf.katta.protocol.metadata.IndexMetaData.Shard;
-import net.sf.katta.testutil.TestResources;
 import net.sf.katta.testutil.TestUtil;
 import net.sf.katta.util.FileUtil;
 import net.sf.katta.util.NodeConfiguration;
@@ -33,13 +32,12 @@ public abstract class AbstractIntegrationTest extends AbstractTest {
 
   final static Logger LOG = Logger.getLogger(AbstractIntegrationTest.class);
 
-  protected final static File INDEX_FILE = TestResources.INDEX1;
-  protected final static String INDEX_NAME = TestResources.INDEX1.getName() + 0;
-  protected final static int SHARD_COUNT = INDEX_FILE.list(FileUtil.VISIBLE_FILES_FILTER).length;
-
   protected static KattaMiniCluster _miniCluster;
   protected static InteractionProtocol _protocol;
   private static int _lastNodeStartPort = 20000;
+
+  private final String _indexName;
+  private final File _indexFile;
 
   private final int _nodeCount;
   private final boolean _shutdownAfterEachTest;
@@ -47,20 +45,18 @@ public abstract class AbstractIntegrationTest extends AbstractTest {
 
   private final Class<? extends IContentServer> _contentServerClass;
 
-  public AbstractIntegrationTest(int nodeCount) {
-    this(LuceneServer.class, nodeCount);
+  public AbstractIntegrationTest(String indexName, File indexFile, Class<? extends IContentServer> nodeServerClass, int nodeCount) {
+    this(indexName, indexFile, nodeServerClass, nodeCount, false, true);
   }
 
-  public AbstractIntegrationTest(Class<? extends IContentServer> nodeServerClass, int nodeCount) {
-    this(nodeServerClass, nodeCount, false, true);
+  public AbstractIntegrationTest(String indexName, File indexFile, int nodeCount, boolean shutdownAfterEachTest, boolean undeployIndicesAfterEachTest) {
+    this(indexName, indexFile, MapFileServer.class, nodeCount, shutdownAfterEachTest, undeployIndicesAfterEachTest);
   }
 
-  public AbstractIntegrationTest(int nodeCount, boolean shutdownAfterEachTest, boolean undeployIndicesAfterEachTest) {
-    this(LuceneServer.class, nodeCount, shutdownAfterEachTest, undeployIndicesAfterEachTest);
-  }
-
-  public AbstractIntegrationTest(Class<? extends IContentServer> nodeServerClass, int nodeCount,
-          boolean shutdownAfterEachTest, boolean undeployIndicesAfterEachTest) {
+  public AbstractIntegrationTest(String indexName, File indexFile, Class<? extends IContentServer> nodeServerClass, int nodeCount,
+                                 boolean shutdownAfterEachTest, boolean undeployIndicesAfterEachTest) {
+    _indexName = indexName;
+    _indexFile = indexFile;
     _contentServerClass = nodeServerClass;
     _nodeCount = nodeCount;
     _shutdownAfterEachTest = shutdownAfterEachTest;
@@ -177,7 +173,7 @@ public abstract class AbstractIntegrationTest extends AbstractTest {
   }
 
   protected List<String> deployTestIndices(int indexCount, int replicationCount) throws InterruptedException {
-    return _miniCluster.deployTestIndexes(INDEX_FILE, indexCount, replicationCount);
+    return _miniCluster.deployTestIndexes(_indexFile, indexCount, replicationCount);
   }
 
   protected final int countShardDeployments(InteractionProtocol protocol, String indexName) {
@@ -193,7 +189,7 @@ public abstract class AbstractIntegrationTest extends AbstractTest {
     IndexDeployOperation deployOperation = new IndexDeployOperation(indexName, "file://" + indexFile.getAbsolutePath(),
             replication);
     _protocol.addMasterOperation(deployOperation);
-    TestUtil.waitUntilIndexDeployed(_protocol, INDEX_NAME);
+    TestUtil.waitUntilIndexDeployed(_protocol, indexName);
     return _protocol.getIndexMD(indexName);
   }
 }

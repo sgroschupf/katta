@@ -60,7 +60,8 @@ public class SleepClientTest extends AbstractIntegrationTest {
   protected static SleepClient _client;
 
   public SleepClientTest() {
-    super(SleepServer.class, 1, false, false);
+    // TODO: this test will need to use a different index once the Lucene 3 indices are deleted
+    super(TestResources.INDEX1.getName() + 0, TestResources.INDEX1, SleepServer.class, 1, false, false);
   }
 
   @Override
