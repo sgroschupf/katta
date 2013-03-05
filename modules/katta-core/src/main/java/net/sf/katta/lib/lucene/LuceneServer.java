@@ -869,7 +869,7 @@ public class LuceneServer implements IContentServer, ILuceneServer {
    * it. For every call to getSearcher(), finishSearcher() must be called
    * exactly one time. finally blocks are a good idea.
    */
-  static class SearcherHandle {
+  protected static class SearcherHandle {
     private volatile IndexSearcher _indexSearcher;
     private final Object _lock = new Object();
     private final AtomicInteger _refCount = new AtomicInteger(0);
