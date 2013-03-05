@@ -1,6 +1,10 @@
 Katta Change Log
 
 katta 0.7.0
+ fix KATTA-221, make LuceneServer.SearcherHandle protected
+ fix KATTA-216, fixed issues that could occur when a Node is disconnected/reconnected during initialization
+ fix KATTA-206, fix ConcurrentModificationException in One2ManyListMap
+ fix KATTA-197, switch to node selection policy that shuffles the order before connecting to nodes
  fix KATTA-201, Added new HostAwareDistributionPolicy for use when running multiple nodes on the same host
  fix KATTA-209, ConcurrentModificationException in Client _indexToShards HashMap
  fix KATTA-215, Field sort is not deterministic if two Hits have the same field values
