@@ -37,6 +37,7 @@ import net.sf.katta.lib.lucene.query.WildcardQueryAndTermFilterWritable;
 import net.sf.katta.node.IContentServer;
 import net.sf.katta.node.Node;
 import net.sf.katta.operation.master.IndexUndeployOperation;
+import net.sf.katta.testutil.LuceneTestResources;
 import net.sf.katta.testutil.TestResources;
 import net.sf.katta.testutil.TestUtil;
 import net.sf.katta.util.KattaException;
@@ -576,9 +577,9 @@ public class LuceneClientTest extends AbstractLuceneIntegrationTest {
 
   private void deploy3Indices() throws Exception {
     DeployClient deployClient = new DeployClient(_miniCluster.getProtocol());
-    deployClient.addIndex(INDEX1, TestResources.INDEX1.getAbsolutePath(), 1).joinDeployment();
-    deployClient.addIndex(INDEX2, TestResources.INDEX1.getAbsolutePath(), 1).joinDeployment();
-    deployClient.addIndex(INDEX3, TestResources.INDEX1.getAbsolutePath(), 1).joinDeployment();
+    deployClient.addIndex(INDEX1, LuceneTestResources.INDEX1.getAbsolutePath(), 1).joinDeployment();
+    deployClient.addIndex(INDEX2, LuceneTestResources.INDEX1.getAbsolutePath(), 1).joinDeployment();
+    deployClient.addIndex(INDEX3, LuceneTestResources.INDEX1.getAbsolutePath(), 1).joinDeployment();
   }
 
 }

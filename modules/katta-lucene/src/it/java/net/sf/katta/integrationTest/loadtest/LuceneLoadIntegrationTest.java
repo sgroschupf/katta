@@ -28,6 +28,7 @@ import net.sf.katta.lib.lucene.LuceneServer;
 import net.sf.katta.lib.lucene.query.ILuceneQueryAndFilterWritable;
 import net.sf.katta.lib.lucene.query.TermQueryWritable;
 import net.sf.katta.protocol.InteractionProtocol;
+import net.sf.katta.testutil.LuceneTestResources;
 import net.sf.katta.testutil.TestIoUtil;
 import net.sf.katta.testutil.TestResources;
 import net.sf.katta.testutil.TestUtil;
@@ -81,7 +82,7 @@ public class LuceneLoadIntegrationTest extends AbstractTest {
     TestUtil.waitUntilNumberOfLiveNode(_loadtestCluster.getProtocol(), NODE_COUNT_LOADTEST);
 
     LOG.info("Deploying indices");
-    deployIndex(_luceneCluster.getProtocol(), "index1", TestResources.INDEX1);
+    deployIndex(_luceneCluster.getProtocol(), "index1", LuceneTestResources.INDEX1);
 
     // Verify setup.
     // LOG.info("\n\nLUCENE CLUSTER STRUCTURE:\n");

@@ -39,6 +39,7 @@ import net.sf.katta.AbstractTest;
 import net.sf.katta.lib.lucene.query.ILuceneQueryAndFilterWritable;
 import net.sf.katta.lib.lucene.query.PrefixQueryWritable;
 import net.sf.katta.lib.lucene.query.TermQueryWritable;
+import net.sf.katta.testutil.LuceneTestResources;
 import net.sf.katta.testutil.TestResources;
 import net.sf.katta.testutil.mockito.ChainedAnswer;
 import net.sf.katta.testutil.mockito.PauseAnswer;
@@ -78,7 +79,7 @@ public class LuceneServerTest extends AbstractTest {
     int clientTiemout = 10000;
     // disabled timeout
     LuceneServer server = new LuceneServer("server", new DefaultSearcherFactory(), 0.0f);
-    String[] shardNames = addIndexShards(server, TestResources.INDEX1);
+    String[] shardNames = addIndexShards(server, LuceneTestResources.INDEX1);
 
     ILuceneQueryAndFilterWritable queryWritable = new PrefixQueryWritable("foo", "b");
     DocumentFrequencyWritable freqs = server.getDocFreqs(queryWritable, shardNames);
@@ -88,7 +89,7 @@ public class LuceneServerTest extends AbstractTest {
 
     // timeout - success
     server = new LuceneServer("server", new DefaultSearcherFactory(), 0.5f);
-    addIndexShards(server, TestResources.INDEX1);
+    addIndexShards(server, LuceneTestResources.INDEX1);
     freqs = server.getDocFreqs(queryWritable, shardNames);
     result = server.search(queryWritable, freqs, shardNames, clientTiemout, 1000);
     assertEquals(4, result.getHitList().size());
@@ -98,37 +99,48 @@ public class LuceneServerTest extends AbstractTest {
     final long serverTimeout = 100;
     final DefaultSearcherFactory seacherFactory = new DefaultSearcherFactory();
     ISeacherFactory mockSeacherFactory = mock(ISeacherFactory.class);
-    final AtomicInteger shardsWithTiemoutCount = new AtomicInteger();
+    final AtomicInteger shardsWithTimeoutCount = new AtomicInteger();
     Answer<IndexHandle> answer = new Answer<IndexHandle>() {
       @Override
       public IndexHandle answer(InvocationOnMock invocation) throws Throwable {
         final IndexHandle indexHandle = seacherFactory.createSearcher((String) invocation.getArguments()[0],
                 (File) invocation.getArguments()[1]);
-        synchronized (shardsWithTiemoutCount) {
-          if (shardsWithTiemoutCount.intValue() >= 2) {
-            // 2 from 4 shards will get tiemout
+        synchronized (shardsWithTimeoutCount) {
+          if (shardsWithTimeoutCount.intValue() >= 1) {
+            // 2 from 3 shards will get tiemout
             return indexHandle;
           }
-          shardsWithTiemoutCount.incrementAndGet();
+          shardsWithTimeoutCount.incrementAndGet();
         }
         IndexHandle indexHandleSpy = spy(indexHandle);
-        //IndexSearcher searcherSpy = spy(indexHandleSpy.getSearcher());
+        final IndexSearcher searcherSpy = spy(indexHandleSpy.getSearcher());
         try {
           doAnswer(new ChainedAnswer(new SleepingAnswer(serverTimeout * 2), new CallsRealMethods())).
-              when(indexHandleSpy).getSearcher();
-          //doAnswer(new ChainedAnswer(new SleepingAnswer(serverTimeout * 2), new CallsRealMethods())).
-          //    when(searcherSpy).search(any(Query.class), any(Filter.class), any(Collector.class));
-          //when(indexHandleSpy.getSearcher()).thenAnswer(new ChainedAnswer(new SleepingAnswer(serverTimeout * 2), new CallsRealMethods()));
-          return indexHandleSpy;
+              when(searcherSpy).search(any(Query.class), any(Filter.class), any(Collector.class));
         } finally {
-          //indexHandleSpy.finishSearcher();
-      }
+          indexHandleSpy.finishSearcher();
+        }
+        doAnswer(new Answer<IndexSearcher>() {
+          public IndexSearcher answer(InvocationOnMock invocation) throws Throwable {
+            indexHandle.getSearcher();
+            return searcherSpy;
+          }
+        }).when(indexHandleSpy).getSearcher();
+
+        return indexHandleSpy;
       }
     };
     when(mockSeacherFactory.createSearcher(anyString(), any(File.class))).thenAnswer(answer);
+    doAnswer(new Answer<Void>() {
+      public Void answer(InvocationOnMock invocation) throws Throwable {
+        IndexHandle indexHandle = (IndexHandle) invocation.getArguments()[0];
+        indexHandle.closeSearcher();
+        return null;
+      }
+    }).when(mockSeacherFactory).closeSearcher(any(IndexHandle.class));
     server = new LuceneServer("server", mockSeacherFactory, 0.01f);
     assertEquals(serverTimeout, server.getCollectorTiemout(clientTiemout));
-    addIndexShards(server, TestResources.INDEX1);
+    addIndexShards(server, LuceneTestResources.INDEX1);
     freqs = server.getDocFreqs(queryWritable, shardNames);
     result = server.search(queryWritable, freqs, shardNames, clientTiemout, 1000);
     assertTrue(result.getHitList().size() < 4);
@@ -148,7 +160,7 @@ public class LuceneServerTest extends AbstractTest {
   @Test
   public void testSearch_MultiThread() throws Exception {
     LuceneServer server = new LuceneServer("ls", new DefaultSearcherFactory(), 0.75f);
-    String[] shardNames = addIndexShards(server, TestResources.INDEX1);
+    String[] shardNames = addIndexShards(server, LuceneTestResources.INDEX1);
 
     ILuceneQueryAndFilterWritable queryAndFilter = new TermQueryWritable("foo", "bar");
     DocumentFrequencyWritable freqs = server.getDocFreqs(queryAndFilter, shardNames);
@@ -188,7 +200,7 @@ public class LuceneServerTest extends AbstractTest {
     when(server.getSearcherHandleByShard("testShard")).thenReturn(new IndexHandle(reader, searcher));
 
     LuceneServer.SearchCall searchCall = server.new SearchCall("testShard", query, Collections
-        .<TermWritable, Integer>emptyMap(), 10, null, 1000, 1, null);
+        .<TermWritable, Integer>emptyMap(), 1, 10, null, 1000, 1, null);
     LuceneServer.SearchResult result = searchCall.call();
     assertThat(result._totalHits).as("results").isEqualTo(0);
   }
@@ -231,7 +243,7 @@ public class LuceneServerTest extends AbstractTest {
         return handle;
       }
     };
-    final String[] shardNames = addIndexShards(server, TestResources.INDEX1);
+    final String[] shardNames = addIndexShards(server, LuceneTestResources.INDEX1);
     shardToUndeploy[0] = shardNames[0];
 
     final ILuceneQueryAndFilterWritable writable = new TermQueryWritable("foo", "bar");

@@ -19,7 +19,7 @@ import java.io.File;
 
 public class TestResources {
 
-  public final static File INDEX1 = new File("./src/test/testIndexA");
+
   public final static File INDEX2 = new File("./src/test/testIndexB");
 
   public final static File UNZIPPED_INDEX = new File("./src/test/testIndexC");

@@ -258,7 +258,7 @@ public class LuceneServer implements IContentServer, ILuceneServer {
   @Override
   public void shutdown() throws IOException {
     for (final IndexHandle handle : _indexHandlesByShard.values()) {
-      handle.closeSearcher();
+      _seacherFactory.closeSearcher(handle);
     }
     _indexHandlesByShard.clear();
     _searchTimerThread.stopTimer();
@@ -454,7 +454,7 @@ public class LuceneServer implements IContentServer, ILuceneServer {
     CompletionService<SearchResult> csSearch = new ExecutorCompletionService<SearchResult>(_threadPool);
 
     for (int i = 0; i < shardsCount; i++) {
-      SearchCall call = new SearchCall(shards[i], rewrittenQuery, freqs.getAll(), max, sort, timeout, i, filter);
+      SearchCall call = new SearchCall(shards[i], rewrittenQuery, freqs.getAll(), freqs.getNumDocsAsInteger(), max, sort, timeout, i, filter);
       csSearch.submit(call);
     }
 
@@ -696,16 +696,18 @@ public class LuceneServer implements IContentServer, ILuceneServer {
     protected final String _shardName;
     protected final Query _query;
     protected final Map<TermWritable, Integer> _dfMap;
+    protected final int _maxDoc;
     protected final int _limit;
     protected final Sort _sort;
     protected final long _timeout;
     protected final int _callIndex;
     protected final Filter _filter;
 
-    public SearchCall(String shardName, Query query, Map<TermWritable, Integer> dfMap, int limit, Sort sort, long timeout, int callIndex, Filter filter) {
+    public SearchCall(String shardName, Query query, Map<TermWritable, Integer> dfMap, int maxDoc, int limit, Sort sort, long timeout, int callIndex, Filter filter) {
       _shardName = shardName;
       _query = query;
       _dfMap = dfMap;
+      _maxDoc = maxDoc;
       _limit = limit;
       _sort = sort;
       _timeout = timeout;
@@ -736,7 +738,8 @@ public class LuceneServer implements IContentServer, ILuceneServer {
           return new SearchResult(0, new ScoreDoc[0], _callIndex);
         }
 
-        Weight weight = _query.createWeight(new WrappingGlobalDfSearcher(searcher, _dfMap));
+        //Weight weight = _query.createWeight(new WrappingGlobalDfSearcher(searcher, _dfMap));
+        Weight weight = _query.createWeight(new GlobalDfSearcher2(_dfMap, _maxDoc));
         final Query query = new WeightWrapperQuery(_query, weight);
 
         TopDocsCollector resultCollector;

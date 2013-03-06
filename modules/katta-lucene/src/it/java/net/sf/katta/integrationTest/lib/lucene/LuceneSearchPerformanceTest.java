@@ -20,6 +20,7 @@ import net.sf.katta.integrationTest.support.AbstractLuceneIntegrationTest;
 import net.sf.katta.lib.lucene.ILuceneClient;
 import net.sf.katta.lib.lucene.LuceneClient;
 import net.sf.katta.lib.lucene.query.TermQueryWritable;
+import net.sf.katta.testutil.LuceneTestResources;
 import net.sf.katta.testutil.TestResources;
 import org.junit.Test;
 
@@ -32,7 +33,7 @@ public class LuceneSearchPerformanceTest extends AbstractLuceneIntegrationTest {
   @Test
   public void measureSearchPerformance() throws Exception {
     DeployClient deployClient = new DeployClient(_miniCluster.getProtocol());
-    deployClient.addIndex("index1", TestResources.INDEX1.getAbsolutePath(), 1).joinDeployment();
+    deployClient.addIndex("index1", LuceneTestResources.INDEX1.getAbsolutePath(), 1).joinDeployment();
     deployClient.addIndex("index2", TestResources.INDEX2.getAbsolutePath(), 1).joinDeployment();
 
     final ILuceneClient client = new LuceneClient(_miniCluster.getZkConfiguration());

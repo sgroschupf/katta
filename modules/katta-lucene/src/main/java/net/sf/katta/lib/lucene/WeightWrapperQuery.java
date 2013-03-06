@@ -42,7 +42,8 @@ public class WeightWrapperQuery extends Query {
   public Query rewrite(IndexReader reader) throws IOException {
     Query rewrittenQuery = _query.rewrite(reader);
     if (rewrittenQuery != _query) {
-      return new WeightWrapperQuery(rewrittenQuery, _weight);
+      throw new IllegalStateException("Query must already be rewritten");
+      //return new WeightWrapperQuery(rewrittenQuery, _weight);
     } else {
       return this;
     }
