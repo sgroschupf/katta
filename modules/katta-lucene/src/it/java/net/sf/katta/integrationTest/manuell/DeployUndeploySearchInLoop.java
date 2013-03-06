@@ -18,14 +18,12 @@ package net.sf.katta.integrationTest.manuell;
 import net.sf.katta.client.DeployClient;
 import net.sf.katta.lib.lucene.Hits;
 import net.sf.katta.lib.lucene.LuceneClient;
+import net.sf.katta.lib.lucene.query.ILuceneQueryAndFilterWritable;
+import net.sf.katta.lib.lucene.query.PrefixQueryWritable;
 import net.sf.katta.util.ZkConfiguration;
 import net.sf.katta.util.ZkKattaUtil;
 
 import org.apache.log4j.Logger;
-import org.apache.lucene.analysis.KeywordAnalyzer;
-import org.apache.lucene.queryParser.QueryParser;
-import org.apache.lucene.search.Query;
-import org.apache.lucene.util.Version;
 import org.junit.Ignore;
 
 /**
@@ -43,8 +41,7 @@ public class DeployUndeploySearchInLoop {
     ZkConfiguration zkConfig = new ZkConfiguration();
     DeployClient deployClient = new DeployClient(ZkKattaUtil.startZkClient(zkConfig, 60000), zkConfig);
 
-    QueryParser parser = new QueryParser(Version.LUCENE_35, "field", new KeywordAnalyzer());
-    Query query = parser.parse("foo: b*");
+    ILuceneQueryAndFilterWritable query = new PrefixQueryWritable("foo", "b");
 
     int runThroughs = 2;
     while (true) {

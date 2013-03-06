@@ -26,7 +26,8 @@ import org.apache.lucene.search.SortField;
  * based on a given {@link Sort} specification. This comparator helps sorting a
  * result list by field terms rather then by sore.
  * 
- * This code leans on the lucene code from {@link FieldSortedHitQueue}
+ * This code leans on the lucene code from FieldSortedHitQueue
+ * TODO FieldSortedHitQueue is not in Lucene 4... look into it
  * 
  */
 @SuppressWarnings("unchecked")
@@ -48,15 +49,16 @@ class FieldSortComparator implements Comparator<Hit> {
     // we use the user provided SortField[] and the WritableType[] which are
     // auto-detected on the node side.
     for (int i = 0; i < sortFields.length; i++) {
-      if (_fieldTypes[i] == WritableType.TEXT && sortFields[i].getLocale() != null) {
+      // TODO do we need further work here?
+      /*if (_fieldTypes[i] == WritableType.TEXT && sortFields[i].getLocale() != null) {
         throw new UnsupportedOperationException("locale-sensitive field sort currently not supported");
         // jz: therefore we could use java.text.Collator class (see lucenes
         // FieldSortedHitQueue)
-      } else if (sortFields[i].getType() == SortField.CUSTOM) {
+      } else */if (sortFields[i].getType() == SortField.Type.CUSTOM) {
         throw new UnsupportedOperationException("custom field sort currently not supported");
       }
 
-      if (_sortFields[i].getType() == SortField.SCORE) {
+      if (_sortFields[i].getType() == SortField.Type.SCORE) {
         _fieldComparators[i] = REVERSED_COMPARABLE_COMPARATOR;
       } else {
         _fieldComparators[i] = COMPARABLE_COMPARATOR;

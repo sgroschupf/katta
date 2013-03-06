@@ -25,6 +25,7 @@ import java.io.ObjectOutputStream;
 
 import org.apache.hadoop.io.Writable;
 import org.apache.lucene.search.Sort;
+import org.apache.lucene.search.SortField;
 
 public class SortWritable implements Writable {
 
@@ -41,27 +42,28 @@ public class SortWritable implements Writable {
 
   @Override
   public void readFields(DataInput input) throws IOException {
-    int readInt = input.readInt();
-    byte[] bs = new byte[readInt];
-    input.readFully(bs);
-    ObjectInputStream objectStream = new ObjectInputStream(new ByteArrayInputStream(bs));
-    try {
-      _sort = (Sort) objectStream.readObject();
-    } catch (ClassNotFoundException e) {
-      throw new IOException("Unable to deseriaize lucene query", e);
+    // TODO verify that this doesn't miss anything important & document limitations
+    int numRecords = input.readInt();
+    SortField[] sortFields = new SortField[numRecords];
+    for (int i = 0; i < numRecords; i++) {
+      String field = input.readUTF();
+      SortField.Type type = SortField.Type.valueOf(input.readUTF());
+      boolean reverse = input.readBoolean();
+      sortFields[i] = new SortField(field, type, reverse);
     }
 
+    _sort = new Sort(sortFields);
   }
 
   @Override
   public void write(DataOutput output) throws IOException {
-    ByteArrayOutputStream byteArrayStream = new ByteArrayOutputStream();
-    ObjectOutputStream objectStream = new ObjectOutputStream(byteArrayStream);
-    objectStream.writeObject(_sort);
-    objectStream.close();
-    byte[] byteArray = byteArrayStream.toByteArray();
-    output.writeInt(byteArray.length);
-    output.write(byteArray);
+    SortField[] sortFields = _sort.getSort();
+    output.writeInt(sortFields.length);
+    for (SortField sortField : sortFields) {
+      output.writeUTF(sortField.getField());
+      output.writeUTF(sortField.getType().name());
+      output.writeBoolean(sortField.getReverse());
+    }
   }
 
   public Sort getSort() {

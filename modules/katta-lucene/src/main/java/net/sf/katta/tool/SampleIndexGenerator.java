@@ -33,7 +33,7 @@ import org.apache.lucene.document.Field;
 import org.apache.lucene.document.Field.Index;
 import org.apache.lucene.document.Field.Store;
 import org.apache.lucene.index.IndexWriter;
-import org.apache.lucene.index.IndexWriter.MaxFieldLength;
+import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.Version;
 
@@ -61,8 +61,9 @@ public class SampleIndexGenerator {
     int count = wordList.length;
     Random random = new Random(System.currentTimeMillis());
     try {
-      IndexWriter indexWriter = new IndexWriter(FSDirectory.open(index), new StandardAnalyzer(Version.LUCENE_35), true,
-              MaxFieldLength.UNLIMITED);
+      IndexWriterConfig config = new IndexWriterConfig(Version.LUCENE_41, new StandardAnalyzer(Version.LUCENE_41));
+      config.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
+      IndexWriter indexWriter = new IndexWriter(FSDirectory.open(index), config);
       for (int i = 0; i < indexSize; i++) {
         // generate text first
         StringBuffer text = new StringBuffer();
@@ -77,7 +78,7 @@ public class SampleIndexGenerator {
         indexWriter.addDocument(document);
 
       }
-      indexWriter.optimize();
+      indexWriter.forceMerge(1);
       indexWriter.close();
       System.out.println("Index created with : " + indexSize + " documents in "
               + (System.currentTimeMillis() - startTime) + " ms");

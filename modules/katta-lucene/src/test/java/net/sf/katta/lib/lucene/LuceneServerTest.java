@@ -26,6 +26,7 @@ import static org.fest.assertions.Assertions.*;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
@@ -35,20 +36,21 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import junit.framework.Assert;
 import net.sf.katta.AbstractTest;
-import net.sf.katta.lib.lucene.LuceneServer.SearcherHandle;
+import net.sf.katta.lib.lucene.query.ILuceneQueryAndFilterWritable;
+import net.sf.katta.lib.lucene.query.PrefixQueryWritable;
+import net.sf.katta.lib.lucene.query.TermQueryWritable;
 import net.sf.katta.testutil.TestResources;
 import net.sf.katta.testutil.mockito.ChainedAnswer;
 import net.sf.katta.testutil.mockito.PauseAnswer;
 import net.sf.katta.testutil.mockito.SleepingAnswer;
-
-import org.apache.lucene.index.Term;
+import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.search.Collector;
 import org.apache.lucene.search.Filter;
 import org.apache.lucene.search.IndexSearcher;
-import org.apache.lucene.search.TermQuery;
-import org.apache.lucene.search.Weight;
+import org.apache.lucene.search.Query;
 import org.apache.lucene.store.AlreadyClosedException;
 import org.junit.Test;
+import org.mockito.Matchers;
 import org.mockito.internal.stubbing.answers.CallsRealMethods;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -78,7 +80,7 @@ public class LuceneServerTest extends AbstractTest {
     LuceneServer server = new LuceneServer("server", new DefaultSearcherFactory(), 0.0f);
     String[] shardNames = addIndexShards(server, TestResources.INDEX1);
 
-    QueryWritable queryWritable = new QueryWritable(parseQuery("foo: b*"));
+    ILuceneQueryAndFilterWritable queryWritable = new PrefixQueryWritable("foo", "b");
     DocumentFrequencyWritable freqs = server.getDocFreqs(queryWritable, shardNames);
     HitsMapWritable result = server.search(queryWritable, freqs, shardNames, clientTiemout, 1000);
     assertEquals(4, result.getHitList().size());
@@ -97,24 +99,33 @@ public class LuceneServerTest extends AbstractTest {
     final DefaultSearcherFactory seacherFactory = new DefaultSearcherFactory();
     ISeacherFactory mockSeacherFactory = mock(ISeacherFactory.class);
     final AtomicInteger shardsWithTiemoutCount = new AtomicInteger();
-    when(mockSeacherFactory.createSearcher(anyString(), any(File.class))).thenAnswer(new Answer<IndexSearcher>() {
+    Answer<IndexHandle> answer = new Answer<IndexHandle>() {
       @Override
-      public IndexSearcher answer(InvocationOnMock invocation) throws Throwable {
-        final IndexSearcher indexSearcher = seacherFactory.createSearcher((String) invocation.getArguments()[0],
+      public IndexHandle answer(InvocationOnMock invocation) throws Throwable {
+        final IndexHandle indexHandle = seacherFactory.createSearcher((String) invocation.getArguments()[0],
                 (File) invocation.getArguments()[1]);
         synchronized (shardsWithTiemoutCount) {
           if (shardsWithTiemoutCount.intValue() >= 2) {
             // 2 from 4 shards will get tiemout
-            return indexSearcher;
+            return indexHandle;
           }
           shardsWithTiemoutCount.incrementAndGet();
         }
-        IndexSearcher indexSearcherSpy = spy(indexSearcher);
-        doAnswer(new ChainedAnswer(new SleepingAnswer(serverTimeout * 2), new CallsRealMethods())).when(
-                indexSearcherSpy).search(any(Weight.class), any(Filter.class), any(Collector.class));
-        return indexSearcherSpy;
+        IndexHandle indexHandleSpy = spy(indexHandle);
+        //IndexSearcher searcherSpy = spy(indexHandleSpy.getSearcher());
+        try {
+          doAnswer(new ChainedAnswer(new SleepingAnswer(serverTimeout * 2), new CallsRealMethods())).
+              when(indexHandleSpy).getSearcher();
+          //doAnswer(new ChainedAnswer(new SleepingAnswer(serverTimeout * 2), new CallsRealMethods())).
+          //    when(searcherSpy).search(any(Query.class), any(Filter.class), any(Collector.class));
+          //when(indexHandleSpy.getSearcher()).thenAnswer(new ChainedAnswer(new SleepingAnswer(serverTimeout * 2), new CallsRealMethods()));
+          return indexHandleSpy;
+        } finally {
+          //indexHandleSpy.finishSearcher();
       }
-    });
+      }
+    };
+    when(mockSeacherFactory.createSearcher(anyString(), any(File.class))).thenAnswer(answer);
     server = new LuceneServer("server", mockSeacherFactory, 0.01f);
     assertEquals(serverTimeout, server.getCollectorTiemout(clientTiemout));
     addIndexShards(server, TestResources.INDEX1);
@@ -139,13 +150,13 @@ public class LuceneServerTest extends AbstractTest {
     LuceneServer server = new LuceneServer("ls", new DefaultSearcherFactory(), 0.75f);
     String[] shardNames = addIndexShards(server, TestResources.INDEX1);
 
-    QueryWritable writable = new QueryWritable(parseQuery("foo: bar"));
-    DocumentFrequencyWritable freqs = server.getDocFreqs(writable, shardNames);
+    ILuceneQueryAndFilterWritable queryAndFilter = new TermQueryWritable("foo", "bar");
+    DocumentFrequencyWritable freqs = server.getDocFreqs(queryAndFilter, shardNames);
 
     ExecutorService es = Executors.newFixedThreadPool(100);
     List<Future<HitsMapWritable>> tasks = new ArrayList<Future<HitsMapWritable>>();
     for (int i = 0; i < 10000; i++) {
-      QueryClient client = new QueryClient(server, freqs, writable, shardNames);
+      QueryClient client = new QueryClient(server, freqs, queryAndFilter, shardNames);
       Future<HitsMapWritable> future = es.submit(client);
       tasks.add(future);
     }
@@ -165,15 +176,19 @@ public class LuceneServerTest extends AbstractTest {
 
   @Test
   public void testSearchCall_EmptyIndex() throws Exception {
-    IndexSearcher searcher = mock(IndexSearcher.class);
-    when(searcher.maxDoc()).thenReturn(0);
+    IndexReader reader = mock(IndexReader.class);
+    when(reader.maxDoc()).thenReturn(0);
 
-    Weight weight = mock(Weight.class);
+    IndexSearcher searcher = mock(IndexSearcher.class);
+    when(searcher.getIndexReader()).thenReturn(reader);
+
+    Query query = mock(Query.class);
 
     LuceneServer server = mock(LuceneServer.class);
-    when(server.getSearcherHandleByShard("testShard")).thenReturn(new SearcherHandle(searcher));
+    when(server.getSearcherHandleByShard("testShard")).thenReturn(new IndexHandle(reader, searcher));
 
-    LuceneServer.SearchCall searchCall = server.new SearchCall("testShard", weight, 10, null, 1000, 1, null);
+    LuceneServer.SearchCall searchCall = server.new SearchCall("testShard", query, Collections
+        .<TermWritable, Integer>emptyMap(), 10, null, 1000, 1, null);
     LuceneServer.SearchResult result = searchCall.call();
     assertThat(result._totalHits).as("results").isEqualTo(0);
   }
@@ -190,19 +205,25 @@ public class LuceneServerTest extends AbstractTest {
     final PauseAnswer<Void> pauseAnswer = new PauseAnswer<Void>(null);
     final LuceneServer server = new LuceneServer("ls", new DefaultSearcherFactory(), 0.75f) {
       @Override
-      protected SearcherHandle getSearcherHandleByShard(String shardName) {
-        SearcherHandle handle;
+      protected IndexHandle getSearcherHandleByShard(String shardName) {
+        IndexHandle handle;
         if (shardName.equals(shardToUndeploy[0])) {
           handle = spy(super.getSearcherHandleByShard(shardName));
+
           Answer<IndexSearcher> answer = new Answer<IndexSearcher>() {
             @Override
             public IndexSearcher answer(InvocationOnMock invocation) throws Throwable {
               IndexSearcher searcher = spy((IndexSearcher) invocation.callRealMethod());
-              doAnswer(new ChainedAnswer(pauseAnswer, new CallsRealMethods())).when(searcher).maxDoc();
+
+              //when(reader.maxDoc()).thenAnswer(new ChainedAnswer(pauseAnswer, new CallsRealMethods()));
+              doAnswer(new ChainedAnswer(pauseAnswer, new CallsRealMethods())).when(searcher).search(
+                  Matchers.<Query>any(), Matchers.<Filter>any(), Matchers.<Collector>any());
+
               return searcher;
             }
           };
           doAnswer(answer).when(handle).getSearcher();
+
         } else {
           handle = super.getSearcherHandleByShard(shardName);
         }
@@ -213,18 +234,23 @@ public class LuceneServerTest extends AbstractTest {
     final String[] shardNames = addIndexShards(server, TestResources.INDEX1);
     shardToUndeploy[0] = shardNames[0];
 
-    final QueryWritable writable = new QueryWritable(new TermQuery(new Term("foo", "bar")));
-    final DocumentFrequencyWritable freqs = server.getDocFreqs(writable, shardNames);
+    final ILuceneQueryAndFilterWritable writable = new TermQueryWritable("foo", "bar");
+
 
     // Storage for the result or exception from the search call
     final HitsMapWritable[] result = new HitsMapWritable[1];
     final Exception[] exception = new Exception[1];
 
+    final Object lock1 = new Object();
+    final Object lock2 = new Object();
     // Run the query in another thread
     Thread t = new Thread() {
       @Override
       public void run() {
         try {
+          DocumentFrequencyWritable freqs;
+          freqs = server.getDocFreqs(writable, shardNames);
+
           result[0] = server.search(writable, freqs, shardNames, 10000);
         } catch (Exception e) {
           exception[0] = e;
@@ -237,7 +263,7 @@ public class LuceneServerTest extends AbstractTest {
     pauseAnswer.joinExecutionBegin();
 
     // Get the searcher so it can be checked that it's really closed
-    LuceneServer.SearcherHandle handle = server.getSearcherHandleByShard(shardNames[0]);
+    IndexHandle handle = server.getSearcherHandleByShard(shardNames[0]);
     IndexSearcher searcher = handle.getSearcher();
     // ... decrement the ref count though
     handle.finishSearcher();
@@ -281,20 +307,20 @@ public class LuceneServerTest extends AbstractTest {
   private static class QueryClient implements Callable<HitsMapWritable> {
 
     private LuceneServer _server;
-    private QueryWritable _query;
+    private ILuceneQueryAndFilterWritable _queryAndFilter;
     private DocumentFrequencyWritable _freqs;
     private String[] _shards;
 
-    public QueryClient(LuceneServer server, DocumentFrequencyWritable freqs, QueryWritable query, String[] shards) {
+    public QueryClient(LuceneServer server, DocumentFrequencyWritable freqs, ILuceneQueryAndFilterWritable queryAndFilter, String[] shards) {
       _server = server;
       _freqs = freqs;
-      _query = query;
+      _queryAndFilter = queryAndFilter;
       _shards = shards;
     }
 
     @Override
     public HitsMapWritable call() throws Exception {
-      return _server.search(_query, _freqs, _shards, 10000, 2);
+      return _server.search(_queryAndFilter, _freqs, _shards, 10000, 2);
     }
 
   }

@@ -25,6 +25,8 @@ import net.sf.katta.client.DeployClient;
 import net.sf.katta.client.IIndexDeployFuture;
 import net.sf.katta.integrationTest.support.KattaMiniCluster;
 import net.sf.katta.lib.lucene.LuceneServer;
+import net.sf.katta.lib.lucene.query.ILuceneQueryAndFilterWritable;
+import net.sf.katta.lib.lucene.query.TermQueryWritable;
 import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.testutil.TestIoUtil;
 import net.sf.katta.testutil.TestResources;
@@ -116,8 +118,9 @@ public class LuceneLoadIntegrationTest extends AbstractTest {
     int endRate = 50;
     int step = 10;
     int runTime = 2000;
-    LuceneSearchExecutor queryExecutor = new LuceneSearchExecutor(new String[] { "*" }, new String[] { "foo:bar",
-            "notExists" }, _luceneCluster.getZkConfiguration(), 200);
+    LuceneSearchExecutor queryExecutor = new LuceneSearchExecutor(new String[] { "*" },
+        new ILuceneQueryAndFilterWritable[]{new TermQueryWritable("foo", "bar"),
+            new TermQueryWritable("notExists", "notExists") }, _luceneCluster.getZkConfiguration(), 200);
     LoadTestMasterOperation loadTestOperation = new LoadTestMasterOperation(NODE_COUNT_LOADTEST, startRate, endRate,
             step, runTime, queryExecutor, resultDir);
     loadTestOperation.registerCompletion(_loadtestCluster.getProtocol());

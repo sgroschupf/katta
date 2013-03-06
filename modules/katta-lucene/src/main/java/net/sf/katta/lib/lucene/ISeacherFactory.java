@@ -15,20 +15,20 @@
  */
 package net.sf.katta.lib.lucene;
 
+import net.sf.katta.util.NodeConfiguration;
+
 import java.io.File;
 import java.io.IOException;
 
-import net.sf.katta.util.NodeConfiguration;
-
-import org.apache.lucene.search.IndexSearcher;
-
 /**
- * A factory for creating {@link IndexSearcher} on a given shard.
+ * A factory for creating {@link org.apache.lucene.search.IndexSearcher} on a given shard.
  * Implementations need to have a default constructor.
  */
 public interface ISeacherFactory {
 
   void init(NodeConfiguration config);
 
-  IndexSearcher createSearcher(String shardName, File shardDir) throws IOException;
+  IndexHandle createSearcher(String shardName, File shardDir) throws IOException;
+
+  void closeSearcher(IndexHandle indexHandle) throws IOException;
 }

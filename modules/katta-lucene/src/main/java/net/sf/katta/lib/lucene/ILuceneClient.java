@@ -17,21 +17,21 @@ package net.sf.katta.lib.lucene;
 
 import java.util.List;
 
+import net.sf.katta.lib.lucene.query.ILuceneQueryAndFilterWritable;
 import net.sf.katta.util.KattaException;
 
 import org.apache.hadoop.io.MapWritable;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.Sort;
-import org.apache.lucene.search.Filter;
 
 /**
  * Client for searching document indices deployed on a katta cluster.
  * <p>
  * 
- * You provide a {@link Query} and the name of the deployed indices, and get
+ * You provide a {@link ILuceneQueryAndFilterWritable} and the name of the deployed indices, and get
  * back {@link Hits} which contains multiple {@link Hit} objects as the results.
  * <br>
- * See {@link #search(Query, String[], int)}.
+ * See {@link #search(net.sf.katta.lib.lucene.query.ILuceneQueryAndFilterWritable, String[], int)}.
  * <p>
  * 
  * The details of a hit-document can be retrieved through the
@@ -49,22 +49,22 @@ public interface ILuceneClient {
    * ({@link Integer#MAX_VALUE}) amount of results.
    * 
    * If this method might has poor performance try to limit results with
-   * {@link #search(IQuery, String[], int)}.
+   * {@link #search(net.sf.katta.lib.lucene.query.ILuceneQueryAndFilterWritable, String[], int)}.
    * 
-   * @param query
+   * @param queryAndFilter
    *          The query to search with.
    * @param indexNames
    *          A list of index names to search in.
    * @return A object that capsulates all results.
    * @throws KattaException
    */
-  public Hits search(Query query, String[] indexNames) throws KattaException;
+  public Hits search(ILuceneQueryAndFilterWritable queryAndFilter, String[] indexNames) throws KattaException;
 
   /**
    * Searches with a given query in the supplied indexes for a limited amount of
    * results.
    * 
-   * @param query
+   * @param queryAndFilter
    *          The query to search with.
    * @param indexNames
    *          A list of index names to search in.
@@ -73,14 +73,14 @@ public interface ILuceneClient {
    * @return A object that capsulates all results.
    * @throws KattaException
    */
-  public Hits search(Query query, String[] indexNames, int count) throws KattaException;
+  public Hits search(ILuceneQueryAndFilterWritable queryAndFilter, String[] indexNames, int count) throws KattaException;
 
   /**
    * Searches with a given query in the supplied indexes for a limited amount of
    * results and sorts the results based upon the sort parameter.
    * 
-   * @param query
-   *          The query to search with.
+   * @param queryAndFilter
+   *          The getQuery to search with.
    * @param indexNames
    *          A list of index names to search in.
    * @param count
@@ -90,26 +90,7 @@ public interface ILuceneClient {
    * @return A object that capsulates all results.
    * @throws KattaException
    */
-  public Hits search(Query query, String[] indexNames, int count, Sort sort) throws KattaException;
-
-  /**
-   * Searches with a given query in the supplied indexes for a limited amount of
-   * results and sorts the results based upon the sort parameter.
-   * 
-   * @param query
-   *          The query to search with.
-   * @param indexNames
-   *          A list of index names to search in.
-   * @param count
-   *          The count of results that should be returned.
-   * @param sort
-   *          Sort criteria for returned hits
-   * @param filter
-   *          A query filter
-   * @return A object that capsulates all results.
-   * @throws KattaException
-   */
-  public Hits search(Query query, String[] indexNames, int count, Sort sort, Filter filter) throws KattaException;
+  public Hits search(ILuceneQueryAndFilterWritable queryAndFilter, String[] indexNames, int count, Sort sort) throws KattaException;
 
   /**
    * Gets all the details to a hit.
@@ -186,21 +167,7 @@ public interface ILuceneClient {
    * @return A number that represents the overall result count to a query.
    * @throws KattaException
    */
-  public int count(Query query, String[] indexNames) throws KattaException;
-
-  /**
-   * Gets only the result count to a query.
-   * 
-   * @param query
-   *          The query to search with.
-   * @param filter
-   *          A filter for restricting query results.
-   * @param indexNames
-   *          A list of index names to search in.
-   * @return A number that represents the overall result count to a query.
-   * @throws KattaException
-   */
-  public int count(Query query, Filter filter, String[] indexNames) throws KattaException;
+  public int count(ILuceneQueryAndFilterWritable query, String[] indexNames) throws KattaException;
 
   /**
    * Closes down the client.

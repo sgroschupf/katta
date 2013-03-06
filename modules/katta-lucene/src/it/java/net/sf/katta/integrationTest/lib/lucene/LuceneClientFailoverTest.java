@@ -2,14 +2,11 @@ package net.sf.katta.integrationTest.lib.lucene;
 
 import net.sf.katta.client.NodeProxyManager;
 import net.sf.katta.client.ShardAccessException;
-import net.sf.katta.integrationTest.support.AbstractIntegrationTest;
+import net.sf.katta.integrationTest.support.AbstractLuceneIntegrationTest;
 import net.sf.katta.lib.lucene.Hits;
 import net.sf.katta.lib.lucene.LuceneClient;
-
-import org.apache.lucene.analysis.KeywordAnalyzer;
-import org.apache.lucene.queryParser.QueryParser;
-import org.apache.lucene.search.Query;
-import org.apache.lucene.util.Version;
+import net.sf.katta.lib.lucene.query.ILuceneQueryAndFilterWritable;
+import net.sf.katta.lib.lucene.query.TermQueryWritable;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -17,7 +14,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 
-public class LuceneClientFailoverTest extends AbstractIntegrationTest {
+public class LuceneClientFailoverTest extends AbstractLuceneIntegrationTest {
 
   public LuceneClientFailoverTest() {
     super(2);
@@ -32,7 +29,7 @@ public class LuceneClientFailoverTest extends AbstractIntegrationTest {
     // shutdown proxy of node1
     _miniCluster.getNode(0).getRpcServer().stop();
 
-    final Query query = new QueryParser(Version.LUCENE_35, "", new KeywordAnalyzer()).parse("content: the");
+    final ILuceneQueryAndFilterWritable query = new TermQueryWritable("content", "the");
     System.out.println("=========================");
     assertSearchResults(10, luceneClient.search(query, new String[] { INDEX_NAME }, 10));
     assertEquals(937, luceneClient.count(query, new String[] { INDEX_NAME }));
@@ -49,7 +46,7 @@ public class LuceneClientFailoverTest extends AbstractIntegrationTest {
     deployTestIndices(1, getNodeCount());
     LuceneClient luceneClient = new LuceneClient(_miniCluster.getZkConfiguration());
     ((NodeProxyManager) luceneClient.getClient().getProxyManager()).setSuccessiveProxyFailuresBeforeReestablishing(1);
-    final Query query = new QueryParser(Version.LUCENE_35, "", new KeywordAnalyzer()).parse("content: the");
+    final ILuceneQueryAndFilterWritable query = new TermQueryWritable("content", "the");
     Hits hits = luceneClient.search(query, new String[] { INDEX_NAME }, 10);
 
     // shutdown proxy of node1
@@ -71,7 +68,7 @@ public class LuceneClientFailoverTest extends AbstractIntegrationTest {
   public void testAllNodeProxyDownAfterClientInitialization() throws Exception {
     deployTestIndices(1, getNodeCount());
     LuceneClient luceneClient = new LuceneClient(_miniCluster.getZkConfiguration());
-    final Query query = new QueryParser(Version.LUCENE_35, "", new KeywordAnalyzer()).parse("content: the");
+    final ILuceneQueryAndFilterWritable query = new TermQueryWritable("content", "the");
     for (int i = 0; i < _miniCluster.getRunningNodeCount(); i++) {
       _miniCluster.shutdownNodeRpc(i);
     }

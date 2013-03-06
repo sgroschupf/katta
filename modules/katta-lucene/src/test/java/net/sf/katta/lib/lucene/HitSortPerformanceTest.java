@@ -20,9 +20,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 
-import net.sf.katta.lib.lucene.Hit;
-import net.sf.katta.lib.lucene.Hits;
-
 import org.junit.Test;
 
 public class HitSortPerformanceTest {

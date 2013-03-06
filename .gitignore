@@ -17,3 +17,4 @@ modules/katta-ec2/bin/katta-ec2-env.sh
 modules/katta-gui
 .idea
 *.iml
+out/

@@ -30,7 +30,7 @@ public class FieldSortComparatorTest extends AbstractTest {
 
   @Test
   public void testSingleIntFieldCompare() {
-    SortField[] sortFields = new SortField[] { new SortField("intField", SortField.INT) };
+    SortField[] sortFields = new SortField[] { new SortField("intField", SortField.Type.INT) };
     WritableType[] sortFieldTypes = new WritableType[] { WritableType.INT };
     FieldSortComparator fieldSortComparator = new FieldSortComparator(sortFields, sortFieldTypes);
 
@@ -47,8 +47,8 @@ public class FieldSortComparatorTest extends AbstractTest {
 
   @Test
   public void testTwoIntFieldCompare() {
-    SortField[] sortFields = new SortField[] { new SortField("intField1", SortField.INT),
-            new SortField("intField2", SortField.INT) };
+    SortField[] sortFields = new SortField[] { new SortField("intField1", SortField.Type.INT),
+            new SortField("intField2", SortField.Type.INT) };
     WritableType[] sortFieldTypes = new WritableType[] { WritableType.INT, WritableType.INT };
     FieldSortComparator fieldSortComparator = new FieldSortComparator(sortFields, sortFieldTypes);
 
@@ -65,8 +65,8 @@ public class FieldSortComparatorTest extends AbstractTest {
 
   @Test
   public void testStringFieldDocIdCompare() {
-    SortField[] sortFields = new SortField[] { new SortField("stringField", SortField.STRING),
-            new SortField("docIdField", SortField.DOC) };
+    SortField[] sortFields = new SortField[] { new SortField("stringField", SortField.Type.STRING),
+            new SortField("docIdField", SortField.Type.DOC) };
     WritableType[] sortFieldTypes = new WritableType[] { WritableType.TEXT, WritableType.INT };
     FieldSortComparator fieldSortComparator = new FieldSortComparator(sortFields, sortFieldTypes);
 
@@ -83,8 +83,8 @@ public class FieldSortComparatorTest extends AbstractTest {
 
   @Test
   public void testStringFieldScoreCompare() {
-    SortField[] sortFields = new SortField[] { new SortField("stringField", SortField.STRING),
-            new SortField("scoreField", SortField.SCORE) };
+    SortField[] sortFields = new SortField[] { new SortField("stringField", SortField.Type.STRING),
+            new SortField("scoreField", SortField.Type.SCORE) };
     WritableType[] sortFieldTypes = new WritableType[] { WritableType.TEXT, WritableType.FLOAT };
     FieldSortComparator fieldSortComparator = new FieldSortComparator(sortFields, sortFieldTypes);
 
@@ -101,7 +101,7 @@ public class FieldSortComparatorTest extends AbstractTest {
 
   @Test
   public void testSameFieldValuesSecondaryCompare() {
-    SortField[] sortFields = new SortField[] { new SortField("intField", SortField.INT) };
+    SortField[] sortFields = new SortField[] { new SortField("intField", SortField.Type.INT) };
     WritableType[] sortFieldTypes = new WritableType[] { WritableType.INT };
     FieldSortComparator fieldSortComparator = new FieldSortComparator(sortFields, sortFieldTypes);
 

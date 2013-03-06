@@ -17,22 +17,18 @@ package net.sf.katta.tool.loadtest.query;
 
 import net.sf.katta.lib.lucene.ILuceneClient;
 import net.sf.katta.lib.lucene.LuceneClient;
+import net.sf.katta.lib.lucene.query.ILuceneQueryAndFilterWritable;
 import net.sf.katta.node.NodeContext;
 import net.sf.katta.util.ZkConfiguration;
 
-import org.apache.lucene.analysis.KeywordAnalyzer;
-import org.apache.lucene.queryParser.QueryParser;
-import org.apache.lucene.search.Query;
-import org.apache.lucene.util.Version;
-
 @SuppressWarnings("serial")
-public class LuceneSearchExecutor extends AbstractQueryExecutor {
+public class LuceneSearchExecutor extends AbstractQueryExecutor<ILuceneQueryAndFilterWritable> {
 
   private final int _count;
   private ILuceneClient _client;
   private final ZkConfiguration _zkConfOfTargetCluster;
 
-  public LuceneSearchExecutor(String[] indices, String[] queries, ZkConfiguration zkConfOfTargetCluster, int count) {
+  public LuceneSearchExecutor(String[] indices, ILuceneQueryAndFilterWritable[] queries, ZkConfiguration zkConfOfTargetCluster, int count) {
     super(indices, queries);
     _zkConfOfTargetCluster = zkConfOfTargetCluster;
     _count = count;
@@ -50,8 +46,7 @@ public class LuceneSearchExecutor extends AbstractQueryExecutor {
   }
 
   @Override
-  public void execute(NodeContext nodeContext, String queryString) throws Exception {
-    final Query query = new QueryParser(Version.LUCENE_35, "", new KeywordAnalyzer()).parse(queryString);
+  public void execute(NodeContext nodeContext, ILuceneQueryAndFilterWritable query) throws Exception {
     _client.search(query, _indices, _count);
   }
 

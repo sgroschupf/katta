@@ -15,20 +15,19 @@
  */
 package net.sf.katta.integrationTest;
 
-import static org.junit.Assert.assertEquals;
-
-import java.io.File;
-import java.util.List;
-
-import net.sf.katta.integrationTest.support.AbstractIntegrationTest;
+import net.sf.katta.integrationTest.support.AbstractLuceneIntegrationTest;
 import net.sf.katta.node.Node;
 import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.tool.SampleIndexGenerator;
 import net.sf.katta.util.FileUtil;
-
 import org.junit.Test;
 
-public class DeployPolicyIntegrationTest extends AbstractIntegrationTest {
+import java.io.File;
+import java.util.List;
+
+import static org.junit.Assert.assertEquals;
+
+public class DeployPolicyIntegrationTest extends AbstractLuceneIntegrationTest {
 
   File _indexWithOneShard;
 
@@ -47,15 +46,15 @@ public class DeployPolicyIntegrationTest extends AbstractIntegrationTest {
   @Test
   public void testEqualDistributionWhenMoreNodesThenShards() throws Exception {
     int replicationCount = 1;
-    AbstractIntegrationTest._miniCluster.deployTestIndexes(_indexWithOneShard, getNodeCount(), replicationCount);
+    _miniCluster.deployTestIndexes(_indexWithOneShard, getNodeCount(), replicationCount);
 
-    final InteractionProtocol protocol = AbstractIntegrationTest._miniCluster.getProtocol();
-    Assert.assertEquals(getNodeCount(), protocol.getIndices().size());
+    final InteractionProtocol protocol = _miniCluster.getProtocol();
+    assertEquals(getNodeCount(), protocol.getIndices().size());
 
     protocol.showStructure(false);
-    List<Node> nodes = AbstractIntegrationTest._miniCluster.getNodes();
+    List<Node> nodes = _miniCluster.getNodes();
     for (Node node : nodes) {
-      Assert.assertEquals(1, node.getContext().getContentServer().getShards().size());
+      assertEquals(1, node.getContext().getContentServer().getShards().size());
     }
 
   }

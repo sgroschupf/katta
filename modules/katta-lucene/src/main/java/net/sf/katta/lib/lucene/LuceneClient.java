@@ -33,6 +33,7 @@ import java.util.concurrent.Future;
 import net.sf.katta.client.Client;
 import net.sf.katta.client.ClientResult;
 import net.sf.katta.client.INodeSelectionPolicy;
+import net.sf.katta.lib.lucene.query.ILuceneQueryAndFilterWritable;
 import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.util.ClientConfiguration;
 import net.sf.katta.util.KattaException;
@@ -108,75 +109,46 @@ public class LuceneClient implements ILuceneClient {
   }
 
   @Override
-  public Hits search(final Query query, final String[] indexNames) throws KattaException {
+  public Hits search(final ILuceneQueryAndFilterWritable query, final String[] indexNames) throws KattaException {
     return search(query, indexNames, Integer.MAX_VALUE);
   }
 
   private static final Method SEARCH_METHOD;
   private static final Method SORTED_SEARCH_METHOD;
-  private static final Method FILTERED_SEARCH_METHOD;
-  private static final Method FILTERED_SORTED_SEARCH_METHOD;
   private static final int SEARCH_METHOD_SHARD_ARG_IDX = 2;
   static {
     try {
-      SEARCH_METHOD = ILuceneServer.class.getMethod("search", new Class[] { QueryWritable.class,
+      SEARCH_METHOD = ILuceneServer.class.getMethod("search", new Class[] { ILuceneQueryAndFilterWritable.class,
               DocumentFrequencyWritable.class, String[].class, Long.TYPE, Integer.TYPE });
     } catch (NoSuchMethodException e) {
       throw new RuntimeException("Could not find method search() in ILuceneSearch!");
     }
     try {
-      SORTED_SEARCH_METHOD = ILuceneServer.class.getMethod("search", new Class[] { QueryWritable.class,
+      SORTED_SEARCH_METHOD = ILuceneServer.class.getMethod("search", new Class[] { ILuceneQueryAndFilterWritable.class,
               DocumentFrequencyWritable.class, String[].class, Long.TYPE, Integer.TYPE, SortWritable.class });
     } catch (NoSuchMethodException e) {
       throw new RuntimeException("Could not find method search() in ILuceneSearch!");
     }
-    try {
-      FILTERED_SEARCH_METHOD = ILuceneServer.class.getMethod("search", new Class[] { QueryWritable.class,
-              DocumentFrequencyWritable.class, String[].class, Long.TYPE, Integer.TYPE, FilterWritable.class });
-    } catch (NoSuchMethodException e) {
-      throw new RuntimeException("Could not find method search() in ILuceneSearch!");
     }
-    try {
-      FILTERED_SORTED_SEARCH_METHOD = ILuceneServer.class.getMethod("search", new Class[] { QueryWritable.class,
-              DocumentFrequencyWritable.class, String[].class, Long.TYPE, Integer.TYPE, SortWritable.class,
-              FilterWritable.class });
-    } catch (NoSuchMethodException e) {
-      throw new RuntimeException("Could not find method search() in ILuceneSearch!");
-    }
+
+  @Override
+  public Hits search(final ILuceneQueryAndFilterWritable query, final String[] indexNames, final int count) throws KattaException {
+    return search(query, indexNames, count, null);
   }
 
   @Override
-  public Hits search(final Query query, final String[] indexNames, final int count) throws KattaException {
-    return search(query, indexNames, count, null, null);
-  }
-
-  @Override
-  public Hits search(final Query query, final String[] indexNames, final int count, final Sort sort)
-          throws KattaException {
-    return search(query, indexNames, count, sort, null);
-  }
-
-  @Override
-  public Hits search(final Query query, final String[] indexNames, final int count, final Sort sort, final Filter filter)
+  public Hits search(final ILuceneQueryAndFilterWritable query, final String[] indexNames, final int count, final Sort sort)
           throws KattaException {
     final DocumentFrequencyWritable docFreqs = getDocFrequencies(query, indexNames);
     ClientResult<HitsMapWritable> results;
 
-    if (sort == null && filter == null) {
+    if (sort == null) {
       results = _kattaClient.broadcastToIndices(_timeout, true, SEARCH_METHOD, SEARCH_METHOD_SHARD_ARG_IDX, indexNames,
-              new QueryWritable(query), docFreqs, null, _timeout, Integer.valueOf(count));
-    } else if (sort != null && filter == null) {
-      results = _kattaClient.broadcastToIndices(_timeout, true, SORTED_SEARCH_METHOD, SEARCH_METHOD_SHARD_ARG_IDX,
-              indexNames, new QueryWritable(query), docFreqs, null, _timeout, Integer.valueOf(count), new SortWritable(
-                      sort));
-    } else if (sort == null && filter != null) {
-      results = _kattaClient.broadcastToIndices(_timeout, true, FILTERED_SEARCH_METHOD, SEARCH_METHOD_SHARD_ARG_IDX,
-              indexNames, new QueryWritable(query), docFreqs, null, _timeout, Integer.valueOf(count),
-              new FilterWritable(filter));
+          query, docFreqs, null, _timeout, count);
     } else {
-      results = _kattaClient.broadcastToIndices(_timeout, true, FILTERED_SORTED_SEARCH_METHOD,
-              SEARCH_METHOD_SHARD_ARG_IDX, indexNames, new QueryWritable(query), docFreqs, null, _timeout,
-              Integer.valueOf(count), new SortWritable(sort), new FilterWritable(filter));
+      results = _kattaClient.broadcastToIndices(_timeout, true, SORTED_SEARCH_METHOD, SEARCH_METHOD_SHARD_ARG_IDX,
+          indexNames, query, docFreqs, null, _timeout, count, new SortWritable(
+                      sort));
     }
     if (results.isError()) {
       throw results.getKattaException();
@@ -214,43 +186,20 @@ public class LuceneClient implements ILuceneClient {
   }
 
   private static final Method COUNT_METHOD;
-  private static final Method FILTER_COUNT_METHOD;
   private static final int COUNT_METHOD_SHARD_ARG_IDX = 1;
-  private static final int FILTER_COUNT_METHOD_SHARD_ARG_IDX = 2;
   static {
     try {
-      COUNT_METHOD = ILuceneServer.class.getMethod("getResultCount", new Class[] { QueryWritable.class, String[].class,
+      COUNT_METHOD = ILuceneServer.class.getMethod("getResultCount", new Class[] { ILuceneQueryAndFilterWritable.class, String[].class,
               Long.TYPE });
     } catch (NoSuchMethodException e) {
       throw new RuntimeException("Could not find method getResultCount() in ILuceneSearch!");
     }
-    try {
-      FILTER_COUNT_METHOD = ILuceneServer.class.getMethod("getResultCount", new Class[] { QueryWritable.class,
-              FilterWritable.class, String[].class, Long.TYPE });
-    } catch (NoSuchMethodException e) {
-      throw new RuntimeException("Could not find method getResultCount() in ILuceneSearch!");
     }
-  }
 
   @Override
-  public int count(final Query query, final String[] indexNames) throws KattaException {
+  public int count(final ILuceneQueryAndFilterWritable query, final String[] indexNames) throws KattaException {
     ClientResult<Integer> results = _kattaClient.broadcastToIndices(_timeout, true, COUNT_METHOD,
-            COUNT_METHOD_SHARD_ARG_IDX, indexNames, new QueryWritable(query), null, _timeout);
-    if (results.isError()) {
-      throw results.getKattaException();
-    }
-    int count = 0;
-    for (Integer n : results.getResults()) {
-      count += n.intValue();
-    }
-    return count;
-  }
-
-  @Override
-  public int count(final Query query, Filter filter, final String[] indexNames) throws KattaException {
-    ClientResult<Integer> results = _kattaClient.broadcastToIndices(_timeout, true, FILTER_COUNT_METHOD,
-            FILTER_COUNT_METHOD_SHARD_ARG_IDX, indexNames, new QueryWritable(query), new FilterWritable(filter), null,
-            _timeout);
+        COUNT_METHOD_SHARD_ARG_IDX, indexNames, query, null, _timeout);
     if (results.isError()) {
       throw results.getKattaException();
     }
@@ -266,16 +215,16 @@ public class LuceneClient implements ILuceneClient {
   static {
     try {
       DOC_FREQ_METHOD = ILuceneServer.class.getMethod("getDocFreqs",
-              new Class[] { QueryWritable.class, String[].class });
+          new Class[] { ILuceneQueryAndFilterWritable.class, String[].class });
     } catch (NoSuchMethodException e) {
       throw new RuntimeException("Could not find method getDocFreqs() in ILuceneSearch!");
     }
   }
 
-  protected DocumentFrequencyWritable getDocFrequencies(final Query query, final String[] indexNames)
+  protected DocumentFrequencyWritable getDocFrequencies(final ILuceneQueryAndFilterWritable query, final String[] indexNames)
           throws KattaException {
     ClientResult<DocumentFrequencyWritable> results = _kattaClient.broadcastToIndices(_timeout, true, DOC_FREQ_METHOD,
-            DOC_FREQ_METHOD_SHARD_ARG_IDX, indexNames, new QueryWritable(query), null);
+        DOC_FREQ_METHOD_SHARD_ARG_IDX, indexNames, query, null);
     if (results.isError()) {
       throw results.getKattaException();
     }

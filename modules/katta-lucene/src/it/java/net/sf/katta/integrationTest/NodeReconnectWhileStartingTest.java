@@ -8,6 +8,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import net.sf.katta.integrationTest.support.AbstractLuceneIntegrationTest;
 import org.junit.Test;
 
 import net.sf.katta.integrationTest.support.AbstractIntegrationTest;
@@ -63,7 +64,7 @@ public class NodeReconnectWhileStartingTest extends AbstractIntegrationTest {
   }
   
   public NodeReconnectWhileStartingTest() {
-    super(TestContentServer.class, 1);
+    super(AbstractLuceneIntegrationTest.INDEX_NAME, AbstractLuceneIntegrationTest.INDEX_FILE, TestContentServer.class, 1);
   }
   
   public static void addCallBlock() throws InterruptedException {
@@ -83,10 +84,10 @@ public class NodeReconnectWhileStartingTest extends AbstractIntegrationTest {
   public void testReconnectNodeDuringInit() throws Exception {
     final InteractionProtocol protocol = AbstractIntegrationTest._miniCluster.getProtocol();
 
-    IndexDeployOperation deployOperation = new IndexDeployOperation(AbstractIntegrationTest.INDEX_NAME, "file://"
-            + AbstractIntegrationTest.INDEX_FILE.getAbsolutePath(), getNodeCount());
+    IndexDeployOperation deployOperation = new IndexDeployOperation(AbstractLuceneIntegrationTest.INDEX_NAME, "file://"
+            + AbstractLuceneIntegrationTest.INDEX_FILE.getAbsolutePath(), getNodeCount());
     protocol.addMasterOperation(deployOperation);
-    TestUtil.waitUntilIndexDeployed(protocol, AbstractIntegrationTest.INDEX_NAME);
+    TestUtil.waitUntilIndexDeployed(protocol, AbstractLuceneIntegrationTest.INDEX_NAME);
     
     final Node[] newNode = new Node[1];
     final Exception[] childException = new Exception[1];

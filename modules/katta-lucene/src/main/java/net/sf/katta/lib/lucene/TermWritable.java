@@ -15,13 +15,15 @@
  */
 package net.sf.katta.lib.lucene;
 
+import org.apache.hadoop.io.Writable;
+import org.apache.lucene.util.BytesRef;
+
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.io.Serializable;
 
-import org.apache.hadoop.io.Writable;
-
-public class TermWritable implements Writable {
+public class TermWritable implements Writable, Serializable {
 
   private String _term;
 
@@ -36,8 +38,8 @@ public class TermWritable implements Writable {
     _term = text;
   }
 
-  public String getTerm() {
-    return _term;
+  public BytesRef getTerm() {
+    return new BytesRef(_term);
   }
 
   public String getField() {

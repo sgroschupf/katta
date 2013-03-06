@@ -23,26 +23,26 @@ import java.util.List;
 import net.sf.katta.client.DeployClient;
 import net.sf.katta.client.IDeployClient;
 import net.sf.katta.client.IndexState;
-import net.sf.katta.integrationTest.support.AbstractIntegrationTest;
+import net.sf.katta.integrationTest.support.AbstractLuceneIntegrationTest;
 import net.sf.katta.lib.lucene.Hit;
 import net.sf.katta.lib.lucene.Hits;
 import net.sf.katta.lib.lucene.ILuceneClient;
 import net.sf.katta.lib.lucene.LuceneClient;
+import net.sf.katta.lib.lucene.query.ILuceneQueryAndFilterWritable;
+import net.sf.katta.lib.lucene.query.TermQueryWritable;
 import net.sf.katta.util.FileUtil;
 
 import org.apache.hadoop.io.WritableComparable;
-import org.apache.lucene.analysis.KeywordAnalyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.Field.Index;
 import org.apache.lucene.document.Field.Store;
+import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexWriter;
-import org.apache.lucene.index.IndexWriter.MaxFieldLength;
-import org.apache.lucene.queryParser.QueryParser;
+import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.search.FieldDoc;
 import org.apache.lucene.search.IndexSearcher;
-import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.SortField;
@@ -60,7 +60,7 @@ import static org.junit.Assert.assertTrue;
  * versus pure lucene interface one big index.
  * 
  */
-public class LuceneComplianceTest extends AbstractIntegrationTest {
+public class LuceneComplianceTest extends AbstractLuceneIntegrationTest {
 
   private static ILuceneClient _client;
 
@@ -107,7 +107,8 @@ public class LuceneComplianceTest extends AbstractIntegrationTest {
   @Test
   public void testScoreSort() throws Exception {
     // query and compare
-    IndexSearcher indexSearcher = new IndexSearcher(FSDirectory.open(_luceneIndex.getAbsoluteFile()));
+    IndexSearcher indexSearcher = new IndexSearcher(DirectoryReader.open(FSDirectory.open(
+        _luceneIndex.getAbsoluteFile())));
     checkQueryResults(indexSearcher, _kattaIndex.getName(), FIELD_NAME, "0", null);
     checkQueryResults(indexSearcher, _kattaIndex.getName(), FIELD_NAME, "1", null);
     checkQueryResults(indexSearcher, _kattaIndex.getName(), FIELD_NAME, "2", null);
@@ -120,8 +121,9 @@ public class LuceneComplianceTest extends AbstractIntegrationTest {
   @Test
   public void testFieldSort() throws Exception {
     // query and compare (auto types)
-    IndexSearcher indexSearcher = new IndexSearcher(FSDirectory.open(_luceneIndex.getAbsoluteFile()));
-    Sort sort = new Sort(new SortField[] { new SortField(FIELD_NAME, SortField.LONG) });
+    IndexSearcher indexSearcher = new IndexSearcher(DirectoryReader.open(FSDirectory.open(
+        _luceneIndex.getAbsoluteFile())));
+    Sort sort = new Sort(new SortField[] { new SortField(FIELD_NAME, SortField.Type.LONG) });
     checkQueryResults(indexSearcher, _kattaIndex.getName(), FIELD_NAME, "0", sort);
     checkQueryResults(indexSearcher, _kattaIndex.getName(), FIELD_NAME, "1", sort);
     checkQueryResults(indexSearcher, _kattaIndex.getName(), FIELD_NAME, "2", sort);
@@ -131,11 +133,11 @@ public class LuceneComplianceTest extends AbstractIntegrationTest {
     checkQueryResults(indexSearcher, _kattaIndex.getName(), FIELD_NAME, "nothing", sort);
 
     // check for explicit types
-    sort = new Sort(new SortField[] { new SortField(FIELD_NAME, SortField.BYTE) });
+    sort = new Sort(new SortField[] { new SortField(FIELD_NAME, SortField.Type.BYTE) });
     checkQueryResults(indexSearcher, _kattaIndex.getName(), FIELD_NAME, "1", sort);
-    sort = new Sort(new SortField[] { new SortField(FIELD_NAME, SortField.INT) });
+    sort = new Sort(new SortField[] { new SortField(FIELD_NAME, SortField.Type.INT) });
     checkQueryResults(indexSearcher, _kattaIndex.getName(), FIELD_NAME, "1", sort);
-    sort = new Sort(new SortField[] { new SortField(FIELD_NAME, SortField.LONG) });
+    sort = new Sort(new SortField[] { new SortField(FIELD_NAME, SortField.Type.LONG) });
     checkQueryResults(indexSearcher, _kattaIndex.getName(), FIELD_NAME, "1", sort);
   }
 
@@ -155,15 +157,14 @@ public class LuceneComplianceTest extends AbstractIntegrationTest {
 
     // final Query query = new QueryParser("", new
     // KeywordAnalyzer()).parse(fieldName + ": " + queryTerm);
-    final Query query = new QueryParser(Version.LUCENE_35, "", new KeywordAnalyzer()).parse(fieldName + ": "
-            + queryTerm);
+    final ILuceneQueryAndFilterWritable query = new TermQueryWritable(fieldName, queryTerm);
     final TopDocs searchResultsLucene;
     final Hits searchResultsKatta;
     if (sort == null) {
-      searchResultsLucene = indexSearcher.search(query, resultCount);
+      searchResultsLucene = indexSearcher.search(query.getQuery(), resultCount);
       searchResultsKatta = _client.search(query, new String[] { kattaIndexName }, resultCount);
     } else {
-      searchResultsLucene = indexSearcher.search(query, null, resultCount, sort);
+      searchResultsLucene = indexSearcher.search(query.getQuery(), null, resultCount, sort);
       searchResultsKatta = _client.search(query, new String[] { kattaIndexName }, resultCount, sort);
     }
 
@@ -217,12 +218,13 @@ public class LuceneComplianceTest extends AbstractIntegrationTest {
   private static void writeIndex(File file, List<Document> documents) throws IOException {
     file.mkdirs();
     assertTrue(file.exists());
-    IndexWriter indexWriter = new IndexWriter(FSDirectory.open(file), new StandardAnalyzer(Version.LUCENE_35), true,
-            MaxFieldLength.UNLIMITED);
+    IndexWriterConfig config = new IndexWriterConfig(Version.LUCENE_41, new StandardAnalyzer(Version.LUCENE_41));
+    config.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
+    IndexWriter indexWriter = new IndexWriter(FSDirectory.open(file), config);
     for (Document document : documents) {
       indexWriter.addDocument(document);
     }
-    indexWriter.optimize();
+    indexWriter.forceMerge(1);
     indexWriter.close();
 
   }

@@ -15,27 +15,25 @@
  */
 package net.sf.katta.integrationTest.lib.lucene;
 
-import static org.junit.Assert.*;
-
-import java.util.ArrayList;
-import java.util.List;
-
 import net.sf.katta.client.Client;
-import net.sf.katta.integrationTest.support.AbstractIntegrationTest;
+import net.sf.katta.integrationTest.support.AbstractLuceneIntegrationTest;
 import net.sf.katta.lib.lucene.Hits;
 import net.sf.katta.lib.lucene.ILuceneClient;
 import net.sf.katta.lib.lucene.ILuceneServer;
 import net.sf.katta.lib.lucene.LuceneClient;
+import net.sf.katta.lib.lucene.query.ILuceneQueryAndFilterWritable;
+import net.sf.katta.lib.lucene.query.TermQueryWritable;
 import net.sf.katta.util.StringUtil;
 
 import org.apache.log4j.Logger;
-import org.apache.lucene.analysis.KeywordAnalyzer;
-import org.apache.lucene.queryParser.QueryParser;
-import org.apache.lucene.search.Query;
-import org.apache.lucene.util.Version;
 import org.junit.Test;
 
-public class LuceneSearchIntegrationTest extends AbstractIntegrationTest {
+import java.util.ArrayList;
+import java.util.List;
+
+import static org.junit.Assert.assertEquals;
+
+public class LuceneSearchIntegrationTest extends AbstractLuceneIntegrationTest {
 
   private static final int SEARCH_THREAD_COUNT = 9;
   private static final int QUERY_TIME = 5000;
@@ -221,7 +219,7 @@ public class LuceneSearchIntegrationTest extends AbstractIntegrationTest {
           client = _client;
         }
         while (!_stopped) {
-          final Query query = new QueryParser(Version.LUCENE_35, "", new KeywordAnalyzer()).parse("foo:bar");
+          final ILuceneQueryAndFilterWritable query = new TermQueryWritable("body", "text");
           Hits hits = client.search(query, new String[] { "*" });
           _firedQueryCount++;
           if (hits.size() != _expectedTotalHitCount) {

@@ -15,13 +15,14 @@
  */
 package net.sf.katta.lib.lucene;
 
-import java.io.File;
-import java.io.IOException;
-
 import net.sf.katta.util.NodeConfiguration;
-
+import org.apache.lucene.index.DirectoryReader;
+import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.store.FSDirectory;
+
+import java.io.File;
+import java.io.IOException;
 
 public class DefaultSearcherFactory implements ISeacherFactory {
 
@@ -31,8 +32,15 @@ public class DefaultSearcherFactory implements ISeacherFactory {
   }
 
   @Override
-  public IndexSearcher createSearcher(String shardName, File shardDir) throws IOException {
-    return new IndexSearcher(FSDirectory.open(shardDir.getAbsoluteFile()));
+  public IndexHandle createSearcher(String shardName, File shardDir) throws IOException {
+    IndexReader indexReader = DirectoryReader.open(FSDirectory.open(shardDir.getAbsoluteFile()));
+    IndexSearcher indexSearcher = new IndexSearcher(indexReader);
+    return new IndexHandle(indexReader, indexSearcher);
+  }
+
+  @Override
+  public void closeSearcher(IndexHandle indexHandle) throws IOException {
+    indexHandle.closeSearcher();
   }
 
 }

@@ -16,18 +16,14 @@
 package net.sf.katta.integrationTest.lib.lucene;
 
 import net.sf.katta.client.DeployClient;
-import net.sf.katta.integrationTest.support.AbstractIntegrationTest;
+import net.sf.katta.integrationTest.support.AbstractLuceneIntegrationTest;
 import net.sf.katta.lib.lucene.ILuceneClient;
 import net.sf.katta.lib.lucene.LuceneClient;
+import net.sf.katta.lib.lucene.query.TermQueryWritable;
 import net.sf.katta.testutil.TestResources;
-
-import org.apache.lucene.analysis.KeywordAnalyzer;
-import org.apache.lucene.queryParser.QueryParser;
-import org.apache.lucene.search.Query;
-import org.apache.lucene.util.Version;
 import org.junit.Test;
 
-public class LuceneSearchPerformanceTest extends AbstractIntegrationTest {
+public class LuceneSearchPerformanceTest extends AbstractLuceneIntegrationTest {
 
   public LuceneSearchPerformanceTest() {
     super(2);
@@ -40,7 +36,7 @@ public class LuceneSearchPerformanceTest extends AbstractIntegrationTest {
     deployClient.addIndex("index2", TestResources.INDEX2.getAbsolutePath(), 1).joinDeployment();
 
     final ILuceneClient client = new LuceneClient(_miniCluster.getZkConfiguration());
-    final Query query = new QueryParser(Version.LUCENE_35, "", new KeywordAnalyzer()).parse("foo: bar");
+    final TermQueryWritable query = new TermQueryWritable("foo", "bar");
     long start = System.currentTimeMillis();
     for (int i = 0; i < 10000; i++) {
       client.search(query, new String[] { "index2", "index1" });

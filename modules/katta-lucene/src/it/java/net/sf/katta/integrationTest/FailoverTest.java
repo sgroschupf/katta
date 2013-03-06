@@ -15,38 +15,33 @@
  */
 package net.sf.katta.integrationTest;
 
-import java.util.List;
-import java.util.Set;
-
 import net.sf.katta.client.DeployClient;
 import net.sf.katta.client.IDeployClient;
 import net.sf.katta.client.IIndexDeployFuture;
 import net.sf.katta.client.IndexState;
-import net.sf.katta.integrationTest.support.AbstractIntegrationTest;
+import net.sf.katta.integrationTest.support.AbstractLuceneIntegrationTest;
 import net.sf.katta.lib.lucene.LuceneClient;
+import net.sf.katta.lib.lucene.query.ILuceneQueryAndFilterWritable;
+import net.sf.katta.lib.lucene.query.TermQueryWritable;
 import net.sf.katta.master.Master;
 import net.sf.katta.node.Node;
 import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.protocol.metadata.IndexDeployError;
 import net.sf.katta.protocol.metadata.IndexMetaData.Shard;
 import net.sf.katta.testutil.TestUtil;
-
 import org.I0Itec.zkclient.ZkClient;
-import org.apache.lucene.analysis.KeywordAnalyzer;
-import org.apache.lucene.queryParser.QueryParser;
-import org.apache.lucene.search.Query;
-import org.apache.lucene.util.Version;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher.Event.EventType;
 import org.apache.zookeeper.Watcher.Event.KeeperState;
 import org.apache.zookeeper.proto.WatcherEvent;
 import org.junit.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import java.util.List;
+import java.util.Set;
 
-public class FailoverTest extends AbstractIntegrationTest {
+import static org.junit.Assert.*;
+
+public class FailoverTest extends AbstractLuceneIntegrationTest {
 
   public FailoverTest() {
     super(3, true, true);
@@ -55,12 +50,12 @@ public class FailoverTest extends AbstractIntegrationTest {
   @Test(timeout = 20000)
   public void testMasterFail() throws Exception {
     // start secondary master..
-    Master secondaryMaster = AbstractIntegrationTest._miniCluster.startSecondaryMaster();
-    Assert.assertTrue(AbstractIntegrationTest._miniCluster.getMaster().isMaster());
-    Assert.assertFalse(secondaryMaster.isMaster());
+    Master secondaryMaster = _miniCluster.startSecondaryMaster();
+    assertTrue(_miniCluster.getMaster().isMaster());
+    assertFalse(secondaryMaster.isMaster());
 
     // kill master
-    AbstractIntegrationTest._miniCluster.getMaster().shutdown();
+    _miniCluster.getMaster().shutdown();
 
     // just make sure we can read the file
     TestUtil.waitUntilBecomeMaster(secondaryMaster);
@@ -70,53 +65,51 @@ public class FailoverTest extends AbstractIntegrationTest {
   @Test(timeout = 50000)
   public void testNodeFailure() throws Exception {
     deployTestIndices(1, getNodeCount());
-    final LuceneClient client = new LuceneClient(AbstractIntegrationTest._miniCluster.getZkConfiguration());
-    Query query = new QueryParser(Version.LUCENE_35, "", new KeywordAnalyzer()).parse("foo:bar");
-    assertEquals(4, client.count(query, new String[] { AbstractIntegrationTest.INDEX_NAME }));
+    final LuceneClient client = new LuceneClient(_miniCluster.getZkConfiguration());
+    ILuceneQueryAndFilterWritable query = new TermQueryWritable("foo", "bar");
+    assertEquals(4, client.count(query, new String[] { INDEX_NAME }));
 
     // kill 1st of 3 nodes
-    AbstractIntegrationTest._miniCluster.shutdownNode(0);
-    assertEquals(4, client.count(query, new String[] { AbstractIntegrationTest.INDEX_NAME }));
+    _miniCluster.shutdownNode(0);
+    assertEquals(4, client.count(query, new String[] { INDEX_NAME }));
 
     // kill 2nd of 3 nodes
-    AbstractIntegrationTest._miniCluster.shutdownNode(0);
-    assertEquals(4, client.count(query, new String[] { AbstractIntegrationTest.INDEX_NAME }));
+    _miniCluster.shutdownNode(0);
+    assertEquals(4, client.count(query, new String[] { INDEX_NAME }));
 
     // add a 4th node
-    Node node4 = AbstractIntegrationTest._miniCluster.startAdditionalNode();
-    TestUtil.waitUntilNodeServesShards(
-        AbstractIntegrationTest._protocol, node4.getName(), AbstractIntegrationTest.SHARD_COUNT);
-    assertEquals(4, client.count(query, new String[] { AbstractIntegrationTest.INDEX_NAME }));
+    Node node4 = _miniCluster.startAdditionalNode();
+    TestUtil.waitUntilNodeServesShards(_protocol, node4.getName(), SHARD_COUNT);
+    assertEquals(4, client.count(query, new String[] { INDEX_NAME }));
 
     // kill 3rd node
     Thread.sleep(5000);
-    AbstractIntegrationTest._miniCluster.shutdownNode(0);
-    assertEquals(4, client.count(query, new String[] { AbstractIntegrationTest.INDEX_NAME }));
+    _miniCluster.shutdownNode(0);
+    assertEquals(4, client.count(query, new String[] { INDEX_NAME }));
   }
 
   @Test(timeout = 100000)
   public void testZkMasterReconnectDuringDeployment() throws Exception {
     deployTestIndices(1, getNodeCount());
-    AbstractIntegrationTest._miniCluster.getMaster().shutdown();
+    _miniCluster.getMaster().shutdown();
 
-    ZkClient zkClient = new ZkClient(AbstractIntegrationTest._miniCluster.getZkConfiguration().getZKServers());
-    InteractionProtocol protocol = new InteractionProtocol(zkClient, AbstractIntegrationTest._miniCluster.getZkConfiguration());
+    ZkClient zkClient = new ZkClient(_miniCluster.getZkConfiguration().getZKServers());
+    InteractionProtocol protocol = new InteractionProtocol(zkClient, _miniCluster.getZkConfiguration());
     Master master = new Master(protocol, false);
     master.start();
     TestUtil.waitUntilBecomeMaster(master);
 
-    final IDeployClient deployClient = new DeployClient(AbstractIntegrationTest._protocol);
+    final IDeployClient deployClient = new DeployClient(_protocol);
     WatchedEvent event = new WatchedEvent(new WatcherEvent(EventType.None.getIntValue(), KeeperState.Expired
             .getIntValue(), null));
     for (int i = 0; i < 25; i++) {
       final String indexName = "index" + i;
-      IIndexDeployFuture deployFuture = deployClient.addIndex(indexName, AbstractIntegrationTest.INDEX_FILE.getAbsolutePath(), 1);
+      IIndexDeployFuture deployFuture = deployClient.addIndex(indexName, INDEX_FILE.getAbsolutePath(), 1);
       zkClient.getEventLock().lock();
       zkClient.process(event);
       zkClient.getEventLock().unlock();
       IndexState indexState = deployFuture.joinDeployment();
-      Assert
-          .assertEquals("" + deployClient.getIndexMetaData(indexName).getDeployError(), IndexState.DEPLOYED, indexState);
+      assertEquals("" + deployClient.getIndexMetaData(indexName).getDeployError(), IndexState.DEPLOYED, indexState);
 
       if (indexState == IndexState.ERROR) {
         IndexDeployError deployError = protocol.getIndexMD(indexName).getDeployError();

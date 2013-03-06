@@ -23,6 +23,7 @@ import java.io.File;
 import net.sf.katta.AbstractTest;
 import net.sf.katta.testutil.TestIoUtil;
 
+import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.store.FSDirectory;
 import org.junit.Test;
@@ -38,6 +39,6 @@ public class SampleIndexGeneratorTest extends AbstractTest {
     File file = _temporaryFolder.newFolder("sampleIndex");
     file.mkdirs();
     sampleIndexGenerator.createIndex(inputFile.getAbsolutePath(), file.getAbsolutePath(), 10, 10);
-    assertTrue(IndexReader.indexExists(FSDirectory.open(file.listFiles()[0])));
+    assertTrue(DirectoryReader.indexExists(FSDirectory.open(file.listFiles()[0])));
   }
 }
