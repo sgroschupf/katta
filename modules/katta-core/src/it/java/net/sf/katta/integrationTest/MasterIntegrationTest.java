@@ -80,6 +80,7 @@ public class MasterIntegrationTest extends AbstractMapFileIntegrationTest {
     int replicationCount = getNodeCount() - 1;
     deployTestIndices(1, replicationCount);
     final InteractionProtocol protocol = _miniCluster.getProtocol();
+    Thread.sleep(500);
     assertEquals(1, protocol.getIndices().size());
 
     int optimumShardDeployCount = SHARD_COUNT * replicationCount;
