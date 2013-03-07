@@ -29,46 +29,33 @@ import org.apache.hadoop.ipc.VersionedProtocol;
 public interface ILuceneServer extends VersionedProtocol {
 
   /**
-   * Returns all Hits that match the query. This might be significant slower as
-   * {@link #search(net.sf.katta.lib.lucene.query.ILuceneQueryAndFilterWritable, DocumentFrequencyWritable , String[], long, int)} since we
-   * replace count with Integer.MAX_VALUE.
-   *
    * @param queryAndFilter         The query to run.
    * @param freqs         Term frequency information for term weighting.
    * @param shardNames    A array of shard names to search in.
    * @param timeout       How long the query is allowed to run before getting interrupted
-   * @return A list of hits from the search.
-   * @throws IOException     If the search had a problem reading files.
-   */
-  public HitsMapWritable search(ILuceneQueryAndFilterWritable queryAndFilter, DocumentFrequencyWritable freqs, String[] shardNames, long timeout) throws IOException;
-
-
-  /**
-   * @param query         The query to run.
-   * @param freqs         Term frequency information for term weighting.
-   * @param shardNames    A array of shard names to search in.
-   * @param timeout       How long the query is allowed to run before getting interrupted
    * @param count         The top n high score hits.
+   * @param explainResults true to call Lucene explain method for each hit
    * @return A list of hits from the search.
    * @throws IOException     If the search had a problem reading files.
    */
-  public HitsMapWritable search(ILuceneQueryAndFilterWritable queryAndFilter, DocumentFrequencyWritable freqs, String[] shardNames, long timeout, int count)
+  public HitsMapWritable search(ILuceneQueryAndFilterWritable queryAndFilter, DocumentFrequencyWritable freqs, String[] shardNames, long timeout, int count, boolean explainResults)
       throws IOException;
 
   /**
    * Sorts the returned hits based on the sort parameter.
    *
-   * @param query         The query to run.
+   * @param queryAndFilter         The query to run.
    * @param freqs         Term frequency information for term weighting.
    * @param shardNames    A array of shard names to search in.
    * @param timeout       How long the query is allowed to run before getting interrupted
    * @param count         The top n high score hits.
    * @param sort          sort criteria for returned hits
+   * @param explainResults true to call Lucene explain method for each hit
    * @return A list of hits from the search.
    * @throws IOException     If the search had a problem reading files.
    */
   public HitsMapWritable search(ILuceneQueryAndFilterWritable queryAndFilter, DocumentFrequencyWritable freqs, String[] shardNames, long timeout, int count,
-      SortWritable sort) throws IOException;
+      SortWritable sort, boolean explainResults) throws IOException;
 
   /**
    * Returns the number of documents a term occurs in. In a distributed search

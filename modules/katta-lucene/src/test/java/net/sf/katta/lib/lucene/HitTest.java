@@ -22,13 +22,13 @@ public class HitTest {
   }
   
   public static List<HitPair> HIT_PAIRS = ImmutableList.<HitTest.HitPair>of(
-      new HitPair(new Hit("shard1", "node1", 1.0f, 1), new Hit("shard1", "node1", 0.8f, 1), -1),
-      new HitPair(new Hit("shard1", "node1", 0.8f, 1), new Hit("shard1", "node1", 1.0f, 1),  1),
-      new HitPair(new Hit("shard1", "node1", 1.0f, 1), new Hit("shard1", "node1", 1.0f, 2), -1),
-      new HitPair(new Hit("shard1", "node1", 1.0f, 2), new Hit("shard1", "node1", 1.0f, 1),  1),
-      new HitPair(new Hit("shard2", "node1", 1.0f, 1), new Hit("shard1", "node1", 1.0f, 1), -1),
-      new HitPair(new Hit("shard1", "node1", 1.0f, 1), new Hit("shard1", "node1", 1.0f, 1),  0),
-      new HitPair(new Hit("shard1", "node1", 1.0f, 1), new Hit("shard2", "node1", 1.0f, 1),  1)
+      new HitPair(new Hit("shard1", "node1", 1.0f, 1, null), new Hit("shard1", "node1", 0.8f, 1, null), -1),
+      new HitPair(new Hit("shard1", "node1", 0.8f, 1, null), new Hit("shard1", "node1", 1.0f, 1, null),  1),
+      new HitPair(new Hit("shard1", "node1", 1.0f, 1, null), new Hit("shard1", "node1", 1.0f, 2, null), -1),
+      new HitPair(new Hit("shard1", "node1", 1.0f, 2, null), new Hit("shard1", "node1", 1.0f, 1, null),  1),
+      new HitPair(new Hit("shard2", "node1", 1.0f, 1, null), new Hit("shard1", "node1", 1.0f, 1, null), -1),
+      new HitPair(new Hit("shard1", "node1", 1.0f, 1, null), new Hit("shard1", "node1", 1.0f, 1, null),  0),
+      new HitPair(new Hit("shard1", "node1", 1.0f, 1, null), new Hit("shard2", "node1", 1.0f, 1, null),  1)
   );
   
   @Test

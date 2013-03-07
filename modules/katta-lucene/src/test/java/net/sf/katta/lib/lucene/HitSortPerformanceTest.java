@@ -76,7 +76,7 @@ public class HitSortPerformanceTest {
     random.setSeed(64567547657L);
     final List<Hit> hitList = new ArrayList<Hit>();
     for (int i = 0; i < _hitCount; i++) {
-      final Hit hit = new Hit("shard", "node", random.nextFloat(), random.nextInt());
+      final Hit hit = new Hit("shard", "node", random.nextFloat(), random.nextInt(), null);
       hitList.add(hit);
     }
 
@@ -95,7 +95,7 @@ public class HitSortPerformanceTest {
     }
 
     for (int i = 0; i < _hitCount; i++) {
-      final Hit hit = new Hit("shard", "node", random.nextFloat(), random.nextInt());
+      final Hit hit = new Hit("shard", "node", random.nextFloat(), random.nextInt(), null);
       hitListsArray[random.nextInt(hitListsArray.length)].add(hit);
     }
 

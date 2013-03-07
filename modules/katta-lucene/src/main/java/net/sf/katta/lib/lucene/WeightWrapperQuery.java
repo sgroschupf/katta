@@ -11,11 +11,11 @@ import java.util.Set;
 
 public class WeightWrapperQuery extends Query {
   private final Query _query;
-  private final Weight _weight;
+  private final IndexSearcher _wrappedSearcher;
 
-  public WeightWrapperQuery(Query query, Weight weight) {
+  public WeightWrapperQuery(Query query, IndexSearcher wrappedSearcher) {
     _query = query;
-    _weight = weight;
+    _wrappedSearcher = wrappedSearcher;
   }
 
 
@@ -28,7 +28,7 @@ public class WeightWrapperQuery extends Query {
   }
 
   public Weight createWeight(IndexSearcher searcher) throws IOException {
-    return _weight;
+    return _query.createWeight(_wrappedSearcher);
   }
 
   public String toString(String field) {
@@ -42,8 +42,7 @@ public class WeightWrapperQuery extends Query {
   public Query rewrite(IndexReader reader) throws IOException {
     Query rewrittenQuery = _query.rewrite(reader);
     if (rewrittenQuery != _query) {
-      throw new IllegalStateException("Query must already be rewritten");
-      //return new WeightWrapperQuery(rewrittenQuery, _weight);
+      return new WeightWrapperQuery(rewrittenQuery, _wrappedSearcher);
     } else {
       return this;
     }
@@ -51,35 +50,5 @@ public class WeightWrapperQuery extends Query {
 
   public void extractTerms(Set<Term> terms) {
     _query.extractTerms(terms);
-  }
-
-  public boolean equals(Object o) {
-    if (this == o) {
-      return true;
-    }
-    if (o == null || getClass() != o.getClass()) {
-      return false;
-    }
-    if (!super.equals(o)) {
-      return false;
-    }
-
-    WeightWrapperQuery that = (WeightWrapperQuery) o;
-
-    if (!_query.equals(that._query)) {
-      return false;
-    }
-    if (!_weight.equals(that._weight)) {
-      return false;
-    }
-
-    return true;
-  }
-
-  public int hashCode() {
-    int result = super.hashCode();
-    result = 31 * result + _query.hashCode();
-    result = 31 * result + _weight.hashCode();
-    return result;
   }
 }

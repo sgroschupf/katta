@@ -44,18 +44,20 @@ public class Hit implements Writable, Comparable<Hit> {
 
   private WritableType[] _sortFieldTypes;
 
+  private Text _explanation;
+
   public Hit() {
     // needed for serialization
   }
 
-  public Hit(final String shard, final String node, final float score, final int id) {
-    this(shard, node, score, id, null);
+  public Hit(final String shard, final String node, final float score, final int id, String explanation) {
+    this(shard, node, score, id, null, explanation);
   }
 
   /**
    * Construct a hit object with information about the types of the sort fields.
    */
-  public Hit(final String shard, final String node, final float score, final int id, WritableType[] sortFieldTypes) {
+  public Hit(final String shard, final String node, final float score, final int id, WritableType[] sortFieldTypes, String explanation) {
     _shard = new Text(shard);
     if (node != null) {
       _node = new Text(node);
@@ -65,6 +67,16 @@ public class Hit implements Writable, Comparable<Hit> {
     _score = score;
     _docId = id;
     _sortFieldTypes = sortFieldTypes;
+    if (explanation != null) {
+      if (explanation.length() > 65535) {
+        // 64k limit for Text.
+        _explanation = new Text(explanation.substring(0, 65535));
+      } else {
+        _explanation = new Text(explanation);
+      }
+    } else {
+      _explanation = null;
+    }
   }
 
   // public Hit(Text shardName, Text serverName, float score, int docId) {
@@ -102,6 +114,10 @@ public class Hit implements Writable, Comparable<Hit> {
     return _sortFields;
   }
 
+  public String getExplanation() {
+    return _explanation != null ? _explanation.toString() : "";
+  }
+
   @Override
   public void readFields(final DataInput in) throws IOException {
     _score = in.readFloat();
@@ -123,6 +139,13 @@ public class Hit implements Writable, Comparable<Hit> {
         _sortFields[i].readFields(in);
       }
     }
+    final boolean hasExplanation = in.readBoolean();
+    if (hasExplanation) {
+      _explanation = new Text();
+      _explanation.readFields(in);
+    } else {
+      _explanation = null;
+    }
   }
 
   @Override
@@ -143,6 +166,12 @@ public class Hit implements Writable, Comparable<Hit> {
       for (Writable writable : _sortFields) {
         writable.write(out);
       }
+    }
+    if (_explanation != null) {
+      out.writeBoolean(true);
+      _explanation.write(out);
+    } else {
+      out.writeBoolean(false);
     }
   }
 

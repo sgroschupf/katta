@@ -119,13 +119,13 @@ public class LuceneClient implements ILuceneClient {
   static {
     try {
       SEARCH_METHOD = ILuceneServer.class.getMethod("search", new Class[] { ILuceneQueryAndFilterWritable.class,
-              DocumentFrequencyWritable.class, String[].class, Long.TYPE, Integer.TYPE });
+              DocumentFrequencyWritable.class, String[].class, Long.TYPE, Integer.TYPE, Boolean.TYPE });
     } catch (NoSuchMethodException e) {
       throw new RuntimeException("Could not find method search() in ILuceneSearch!");
     }
     try {
       SORTED_SEARCH_METHOD = ILuceneServer.class.getMethod("search", new Class[] { ILuceneQueryAndFilterWritable.class,
-              DocumentFrequencyWritable.class, String[].class, Long.TYPE, Integer.TYPE, SortWritable.class });
+              DocumentFrequencyWritable.class, String[].class, Long.TYPE, Integer.TYPE, SortWritable.class, Boolean.TYPE });
     } catch (NoSuchMethodException e) {
       throw new RuntimeException("Could not find method search() in ILuceneSearch!");
     }
@@ -138,17 +138,23 @@ public class LuceneClient implements ILuceneClient {
 
   @Override
   public Hits search(final ILuceneQueryAndFilterWritable query, final String[] indexNames, final int count, final Sort sort)
+      throws KattaException {
+    return search(query, indexNames, count, sort, false);
+  }
+
+  @Override
+  public Hits search(final ILuceneQueryAndFilterWritable query, final String[] indexNames, final int count, final Sort sort, boolean explainQuery)
           throws KattaException {
     final DocumentFrequencyWritable docFreqs = getDocFrequencies(query, indexNames);
     ClientResult<HitsMapWritable> results;
 
     if (sort == null) {
       results = _kattaClient.broadcastToIndices(_timeout, true, SEARCH_METHOD, SEARCH_METHOD_SHARD_ARG_IDX, indexNames,
-          query, docFreqs, null, _timeout, count);
+          query, docFreqs, null, _timeout, count, explainQuery);
     } else {
       results = _kattaClient.broadcastToIndices(_timeout, true, SORTED_SEARCH_METHOD, SEARCH_METHOD_SHARD_ARG_IDX,
           indexNames, query, docFreqs, null, _timeout, count, new SortWritable(
-                      sort));
+                      sort), explainQuery);
     }
     if (results.isError()) {
       throw results.getKattaException();

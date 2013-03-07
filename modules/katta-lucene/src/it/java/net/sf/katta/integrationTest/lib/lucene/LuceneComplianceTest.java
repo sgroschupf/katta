@@ -162,10 +162,13 @@ public class LuceneComplianceTest extends AbstractLuceneIntegrationTest {
     final Hits searchResultsKatta;
     if (sort == null) {
       searchResultsLucene = indexSearcher.search(query.getQuery(), resultCount);
-      searchResultsKatta = _client.search(query, new String[] { kattaIndexName }, resultCount);
+      for (ScoreDoc scoreDoc : searchResultsLucene.scoreDocs) {
+        System.out.println(indexSearcher.explain(query.getQuery(), scoreDoc.doc));
+      }
+      searchResultsKatta = _client.search(query, new String[] { kattaIndexName }, resultCount, null, true);
     } else {
       searchResultsLucene = indexSearcher.search(query.getQuery(), null, resultCount, sort);
-      searchResultsKatta = _client.search(query, new String[] { kattaIndexName }, resultCount, sort);
+      searchResultsKatta = _client.search(query, new String[] { kattaIndexName }, resultCount, sort, true);
     }
 
     assertEquals(searchResultsLucene.totalHits, searchResultsKatta.size());

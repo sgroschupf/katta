@@ -39,6 +39,7 @@ import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.CachingWrapperFilter;
 import org.apache.lucene.search.Collector;
+import org.apache.lucene.search.Explanation;
 import org.apache.lucene.search.FieldDoc;
 import org.apache.lucene.search.Filter;
 import org.apache.lucene.search.IndexSearcher;
@@ -280,20 +281,14 @@ public class LuceneServer implements IContentServer, ILuceneServer {
   }
 
   @Override
-  public HitsMapWritable search(ILuceneQueryAndFilterWritable queryAndFilter, DocumentFrequencyWritable freqs, String[] shardNames, long timeout)
-          throws IOException {
-    return search(queryAndFilter, freqs, shardNames, timeout, Integer.MAX_VALUE);
-  }
-
-  @Override
   public HitsMapWritable search(final ILuceneQueryAndFilterWritable queryAndFilter, final DocumentFrequencyWritable freqs,
-          final String[] shards, final long timeout, final int count) throws IOException {
-    return search(queryAndFilter, freqs, shards, timeout, count, null);
+          final String[] shards, final long timeout, final int count, boolean explainResults) throws IOException {
+    return search(queryAndFilter, freqs, shards, timeout, count, null, explainResults);
   }
 
   @Override
   public HitsMapWritable search(ILuceneQueryAndFilterWritable query, DocumentFrequencyWritable freqs, String[] shards,
-          final long timeout, int count, SortWritable sortWritable) throws IOException {
+          final long timeout, int count, SortWritable sortWritable, boolean explainResults) throws IOException {
     if (LOG.isDebugEnabled()) {
       LOG.debug("You are searching with the getQuery: '" + query.getQuery() + "'");
     }
@@ -323,7 +318,7 @@ public class LuceneServer implements IContentServer, ILuceneServer {
       }
       filter = cachedFilter;
     }
-    search(luceneQuery, freqs, shards, result, count, sort, timeout, filter);
+    search(luceneQuery, freqs, shards, result, count, sort, timeout, filter, explainResults);
     if (LOG.isDebugEnabled()) {
       final long end = System.currentTimeMillis();
       LOG.debug("Search took " + (end - start) / 1000.0 + "sec.");
@@ -424,7 +419,7 @@ public class LuceneServer implements IContentServer, ILuceneServer {
   @Override
   public int getResultCount(final ILuceneQueryAndFilterWritable queryAndFilter, final String[] shards, long timeout) throws IOException {
     final DocumentFrequencyWritable docFreqs = getDocFreqs(queryAndFilter, shards);
-    return search(queryAndFilter, docFreqs, shards, timeout, 1).getTotalHits();
+    return search(queryAndFilter, docFreqs, shards, timeout, 1, false).getTotalHits();
   }
 
 
@@ -439,7 +434,7 @@ public class LuceneServer implements IContentServer, ILuceneServer {
    * @throws IOException
    */
   protected final void search(final Query query, final DocumentFrequencyWritable freqs, final String[] shards,
-          final HitsMapWritable result, final int max, Sort sort, long timeout, Filter filter) throws IOException {
+          final HitsMapWritable result, final int max, Sort sort, long timeout, Filter filter, boolean explainResults) throws IOException {
     timeout = getCollectorTiemout(timeout);
     final Query rewrittenQuery = rewrite(query, shards);
     final int numDocs = freqs.getNumDocsAsInteger();
@@ -454,11 +449,12 @@ public class LuceneServer implements IContentServer, ILuceneServer {
     CompletionService<SearchResult> csSearch = new ExecutorCompletionService<SearchResult>(_threadPool);
 
     for (int i = 0; i < shardsCount; i++) {
-      SearchCall call = new SearchCall(shards[i], rewrittenQuery, freqs.getAll(), freqs.getNumDocsAsInteger(), max, sort, timeout, i, filter);
+      SearchCall call = new SearchCall(shards[i], rewrittenQuery, freqs.getAll(), freqs.getNumDocsAsInteger(), max, sort, timeout, i, filter, explainResults);
       csSearch.submit(call);
     }
 
     final ScoreDoc[][] scoreDocs = new ScoreDoc[shardsCount][];
+    final String[][] allExplanations = explainResults ? new String[shardsCount][] : null;
     ScoreDoc scoreDocExample = null;
     for (int i = 0; i < shardsCount; i++) {
       try {
@@ -469,6 +465,9 @@ public class LuceneServer implements IContentServer, ILuceneServer {
         scoreDocs[callIndex] = searchResult._scoreDocs;
         if (scoreDocExample == null && scoreDocs[callIndex].length > 0) {
           scoreDocExample = scoreDocs[callIndex][0];
+        }
+        if (explainResults) {
+          allExplanations[callIndex] = searchResult._explanations;
         }
       } catch (InterruptedException e) {
         throw new IOException("Multithread shard search interrupted:", e);
@@ -493,9 +492,15 @@ public class LuceneServer implements IContentServer, ILuceneServer {
           // only process this shard if it is not yet done.
           if (!done.get(i)) {
             final ScoreDoc[] docs = scoreDocs[i];
+            final String[] explanations = explainResults ? allExplanations[i] : null;
             if (pos < docs.length) {
               scoreDoc = docs[pos];
-              final Hit hit = new Hit(shards[i], getNodeName(), scoreDoc.score, scoreDoc.doc);
+              String explanation = null;
+              if (explainResults) {
+                explanation = explanations[pos];
+              }
+              final Hit hit = new Hit(shards[i], getNodeName(), scoreDoc.score, scoreDoc.doc, explanation);
+
               if (!hq.insert(hit)) {
                 // no doc left that has a higher score than the lowest score in
                 // the queue
@@ -522,8 +527,8 @@ public class LuceneServer implements IContentServer, ILuceneServer {
       FieldDoc fieldDoc = (FieldDoc) scoreDocExample;
       sortFieldsTypes = WritableType.detectWritableTypes(fieldDoc.fields);
       result.setSortFieldTypes(sortFieldsTypes);
-      finalHitList = mergeFieldSort(new FieldSortComparator(sort.getSort(), sortFieldsTypes), limit, scoreDocs, shards,
-              getNodeName());
+      finalHitList = mergeFieldSort(new FieldSortComparator(sort.getSort(), sortFieldsTypes), limit, scoreDocs,
+          allExplanations, shards, getNodeName());
     }
 
     for (Hit hit : finalHitList) {
@@ -537,7 +542,7 @@ public class LuceneServer implements IContentServer, ILuceneServer {
    * Merges the already sorted sub-lists to one big sorted list.
    */
   private final static List<Hit> mergeFieldSort(FieldSortComparator comparator, int count,
-          ScoreDoc[][] sortedFieldDocs, String[] shards, String nodeName) {
+          ScoreDoc[][] sortedFieldDocs, String[][] allExplanations, String[] shards, String nodeName) {
     int[] arrayPositions = new int[sortedFieldDocs.length];
     final List<Hit> sortedResult = new ArrayList<Hit>(count);
 
@@ -560,9 +565,11 @@ public class LuceneServer implements IContentServer, ILuceneServer {
         }
       }
       ScoreDoc[] smallestElementList = sortedFieldDocs[fieldDocArrayWithSmallestFieldDoc];
+      String[] explanations = allExplanations != null ? allExplanations[fieldDocArrayWithSmallestFieldDoc] : null;
       FieldDoc fieldDoc = (FieldDoc) smallestElementList[arrayPositions[fieldDocArrayWithSmallestFieldDoc]];
+      String explanation = explanations != null ? explanations[arrayPositions[fieldDocArrayWithSmallestFieldDoc]] : null;
       arrayPositions[fieldDocArrayWithSmallestFieldDoc]++;
-      final Hit hit = new Hit(shards[fieldDocArrayWithSmallestFieldDoc], nodeName, fieldDoc.score, fieldDoc.doc);
+      final Hit hit = new Hit(shards[fieldDocArrayWithSmallestFieldDoc], nodeName, fieldDoc.score, fieldDoc.doc, explanation);
       hit.setSortFields(WritableType.convertComparable(comparator.getFieldTypes(), fieldDoc.fields));
       sortedResult.add(hit);
       if (arrayPositions[fieldDocArrayWithSmallestFieldDoc] >= smallestElementList.length) {
@@ -696,23 +703,25 @@ public class LuceneServer implements IContentServer, ILuceneServer {
     protected final String _shardName;
     protected final Query _query;
     protected final Map<TermWritable, Integer> _dfMap;
-    protected final int _maxDoc;
+    protected final int _numDoc;
     protected final int _limit;
     protected final Sort _sort;
     protected final long _timeout;
     protected final int _callIndex;
     protected final Filter _filter;
+    protected final boolean _explainResults;
 
-    public SearchCall(String shardName, Query query, Map<TermWritable, Integer> dfMap, int maxDoc, int limit, Sort sort, long timeout, int callIndex, Filter filter) {
+    public SearchCall(String shardName, Query query, Map<TermWritable, Integer> dfMap, int numDoc, int limit, Sort sort, long timeout, int callIndex, Filter filter, boolean explainResults) {
       _shardName = shardName;
       _query = query;
       _dfMap = dfMap;
-      _maxDoc = maxDoc;
+      _numDoc = numDoc;
       _limit = limit;
       _sort = sort;
       _timeout = timeout;
       _callIndex = callIndex;
       _filter = filter;
+      _explainResults = explainResults;
     }
 
     @Override
@@ -727,7 +736,7 @@ public class LuceneServer implements IContentServer, ILuceneServer {
           LOG.warn(String.format("Search attempt for shard %s skipped because shard was closed; empty result returned",
                   _shardName));
           // return empty result...
-          return new SearchResult(0, new ScoreDoc[0], _callIndex);
+          return new SearchResult(0, new ScoreDoc[0], _callIndex, new String[0]);
         }
 
         int nDocs = Math.min(_limit, reader.maxDoc());
@@ -735,12 +744,11 @@ public class LuceneServer implements IContentServer, ILuceneServer {
         // empty index (or result limit <= 0); return empty results (as the
         // collectors will fail if nDocs <= 0)
         if (nDocs <= 0) {
-          return new SearchResult(0, new ScoreDoc[0], _callIndex);
+          return new SearchResult(0, new ScoreDoc[0], _callIndex, new String[0]);
         }
 
-        //Weight weight = _query.createWeight(new WrappingGlobalDfSearcher(searcher, _dfMap));
-        Weight weight = _query.createWeight(new GlobalDfSearcher2(_dfMap, _maxDoc));
-        final Query query = new WeightWrapperQuery(_query, weight);
+        WrappingGlobalDfSearcher wrappedSearcher = new WrappingGlobalDfSearcher(searcher, _dfMap, _numDoc);
+        final Query query = new WeightWrapperQuery(_query, wrappedSearcher);
 
         TopDocsCollector resultCollector;
         if (_sort != null) {
@@ -749,19 +757,28 @@ public class LuceneServer implements IContentServer, ILuceneServer {
           boolean fieldSortDoMaxScore = false;
           // createWeight(null) works because this weight doesn't delegate anything
           resultCollector = TopFieldCollector.create(_sort, nDocs, fillFields, fieldSortDoTrackScores,
-              fieldSortDoMaxScore, !query.createWeight(null).scoresDocsOutOfOrder());
+              fieldSortDoMaxScore, !query.createWeight(searcher).scoresDocsOutOfOrder());
         } else {
           // createWeight(null) works because this weight doesn't delegate anything
-          resultCollector = TopScoreDocCollector.create(nDocs, !query.createWeight(null).scoresDocsOutOfOrder());
+          resultCollector = TopScoreDocCollector.create(nDocs, !query.createWeight(searcher).scoresDocsOutOfOrder());
         }
         try {
-          searcher.search(_query, _filter, wrapInTimeoutCollector(resultCollector));
+          searcher.search(query, _filter, wrapInTimeoutCollector(resultCollector));
         } catch (TimeExceededException e) {
           LOG.warn("encountered exceeded timout for getQuery '" + _query + " on shard '" + _shardName
                   + "' with timeout set to '" + _timeout + "'");
         }
         TopDocs docs = resultCollector.topDocs();
-        return new SearchResult(docs.totalHits, docs.scoreDocs, _callIndex);
+
+        String[] explanations = null;
+        if (_explainResults) {
+          explanations = new String[docs.scoreDocs.length];
+          for (int i = 0; i < docs.scoreDocs.length; i++) {
+            Explanation explanation = searcher.explain(query, docs.scoreDocs[i].doc);
+            explanations[i] = explanation.toString();
+          }
+        }
+        return new SearchResult(docs.totalHits, docs.scoreDocs, _callIndex, explanations);
       } finally {
         handle.finishSearcher();
       }
@@ -784,11 +801,13 @@ public class LuceneServer implements IContentServer, ILuceneServer {
     protected final int _totalHits;
     protected final ScoreDoc[] _scoreDocs;
     protected int _searchCallIndex;
+    protected final String[] _explanations;
 
-    public SearchResult(int totalHits, ScoreDoc[] scoreDocs, int searchCallIndex) {
+    public SearchResult(int totalHits, ScoreDoc[] scoreDocs, int searchCallIndex, String[] explanations) {
       _totalHits = totalHits;
       _scoreDocs = scoreDocs;
       _searchCallIndex = searchCallIndex;
+      _explanations = explanations;
     }
 
     public int getTotalHits() {
@@ -801,6 +820,10 @@ public class LuceneServer implements IContentServer, ILuceneServer {
 
     public int getSearchCallIndex() {
       return _searchCallIndex;
+    }
+
+    public String[] getExplanations() {
+      return _explanations;
     }
 
   }

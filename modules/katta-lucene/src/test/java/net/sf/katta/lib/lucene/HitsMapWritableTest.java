@@ -34,9 +34,9 @@ public class HitsMapWritableTest extends AbstractWritableTest {
     String shard2 = "shard2";
     String shard3 = "shard3";
     for (int i = 0; i < 200; i++) {
-      hitsMapWritable.addHit(new Hit(shard1, nodeName, i, 10000 + i));
-      hitsMapWritable.addHit(new Hit(shard2, nodeName, i, 20000 + i));
-      hitsMapWritable.addHit(new Hit(shard3, nodeName, i, 30000 + i));
+      hitsMapWritable.addHit(new Hit(shard1, nodeName, i, 10000 + i, null));
+      hitsMapWritable.addHit(new Hit(shard2, nodeName, i, 20000 + i, null));
+      hitsMapWritable.addHit(new Hit(shard3, nodeName, i, 30000 + i, null));
     }
 
     DataOutputBuffer out = writeWritable(hitsMapWritable);

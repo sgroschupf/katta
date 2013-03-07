@@ -93,6 +93,23 @@ public interface ILuceneClient {
   public Hits search(ILuceneQueryAndFilterWritable queryAndFilter, String[] indexNames, int count, Sort sort) throws KattaException;
 
   /**
+   * Searches with a given query in the supplied indexes for a limited amount of
+   * results and sorts the results based upon the sort parameter.
+   *
+   * @param queryAndFilter
+   *          The getQuery to search with.
+   * @param indexNames
+   *          A list of index names to search in.
+   * @param count
+   *          The count of results that should be returned, or Integer.MAX_VALUE for all results.
+   * @param sort
+   *          Sort criteria for returned hits, or null if no sort desired.
+   * @return A object that capsulates all results.
+   * @throws KattaException
+   */
+  public Hits search(ILuceneQueryAndFilterWritable queryAndFilter, String[] indexNames, int count, Sort sort, boolean explainResults) throws KattaException;
+
+  /**
    * Gets all the details to a hit.
    * 
    * @param hit

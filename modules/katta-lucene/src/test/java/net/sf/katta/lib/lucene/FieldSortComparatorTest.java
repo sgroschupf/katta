@@ -34,8 +34,8 @@ public class FieldSortComparatorTest extends AbstractTest {
     WritableType[] sortFieldTypes = new WritableType[] { WritableType.INT };
     FieldSortComparator fieldSortComparator = new FieldSortComparator(sortFields, sortFieldTypes);
 
-    Hit hit1 = new Hit("shard", "node", 0.0f, 1, sortFieldTypes);
-    Hit hit2 = new Hit("shard", "node", 0.0f, 2, sortFieldTypes);
+    Hit hit1 = new Hit("shard", "node", 0.0f, 1, sortFieldTypes, null);
+    Hit hit2 = new Hit("shard", "node", 0.0f, 2, sortFieldTypes, null);
 
     hit1.setSortFields(new WritableComparable[] { new IntWritable(1) });
     hit2.setSortFields(new WritableComparable[] { new IntWritable(2) });
@@ -52,8 +52,8 @@ public class FieldSortComparatorTest extends AbstractTest {
     WritableType[] sortFieldTypes = new WritableType[] { WritableType.INT, WritableType.INT };
     FieldSortComparator fieldSortComparator = new FieldSortComparator(sortFields, sortFieldTypes);
 
-    Hit hit1 = new Hit("shard", "node", 0.0f, 1, sortFieldTypes);
-    Hit hit2 = new Hit("shard", "node", 0.0f, 2, sortFieldTypes);
+    Hit hit1 = new Hit("shard", "node", 0.0f, 1, sortFieldTypes, null);
+    Hit hit2 = new Hit("shard", "node", 0.0f, 2, sortFieldTypes, null);
 
     hit1.setSortFields(new WritableComparable[] { new IntWritable(1), new IntWritable(1) });
     hit2.setSortFields(new WritableComparable[] { new IntWritable(1), new IntWritable(2) });
@@ -70,8 +70,8 @@ public class FieldSortComparatorTest extends AbstractTest {
     WritableType[] sortFieldTypes = new WritableType[] { WritableType.TEXT, WritableType.INT };
     FieldSortComparator fieldSortComparator = new FieldSortComparator(sortFields, sortFieldTypes);
 
-    Hit hit1 = new Hit("shard", "node", 0.0f, 1, sortFieldTypes);
-    Hit hit2 = new Hit("shard", "node", 0.0f, 2, sortFieldTypes);
+    Hit hit1 = new Hit("shard", "node", 0.0f, 1, sortFieldTypes, null);
+    Hit hit2 = new Hit("shard", "node", 0.0f, 2, sortFieldTypes, null);
 
     hit1.setSortFields(new WritableComparable[] { new Text("a"), new IntWritable(1) });
     hit2.setSortFields(new WritableComparable[] { new Text("a"), new IntWritable(2) });
@@ -88,8 +88,8 @@ public class FieldSortComparatorTest extends AbstractTest {
     WritableType[] sortFieldTypes = new WritableType[] { WritableType.TEXT, WritableType.FLOAT };
     FieldSortComparator fieldSortComparator = new FieldSortComparator(sortFields, sortFieldTypes);
 
-    Hit hit1 = new Hit("shard", "node", 0.5f, 1, sortFieldTypes);
-    Hit hit2 = new Hit("shard", "node", 0.2f, 2, sortFieldTypes);
+    Hit hit1 = new Hit("shard", "node", 0.5f, 1, sortFieldTypes, null);
+    Hit hit2 = new Hit("shard", "node", 0.2f, 2, sortFieldTypes, null);
 
     hit1.setSortFields(new WritableComparable[] { new Text("a"), new FloatWritable(hit1.getScore()) });
     hit2.setSortFields(new WritableComparable[] { new Text("a"), new FloatWritable(hit2.getScore()) });
@@ -105,8 +105,8 @@ public class FieldSortComparatorTest extends AbstractTest {
     WritableType[] sortFieldTypes = new WritableType[] { WritableType.INT };
     FieldSortComparator fieldSortComparator = new FieldSortComparator(sortFields, sortFieldTypes);
 
-    Hit hit1 = new Hit("shard", "node", 0.0f, 1, sortFieldTypes);
-    Hit hit2 = new Hit("shard", "node", 0.0f, 1, sortFieldTypes);
+    Hit hit1 = new Hit("shard", "node", 0.0f, 1, sortFieldTypes, null);
+    Hit hit2 = new Hit("shard", "node", 0.0f, 1, sortFieldTypes, null);
 
     hit1.setSortFields(new WritableComparable[] { new IntWritable(1) });
     hit2.setSortFields(new WritableComparable[] { new IntWritable(1) });

@@ -85,11 +85,18 @@ public class HitsMapWritable implements Writable {
       final float score = in.readFloat();
       final int docId = in.readInt();
       final String shard = shardByShardIndex.get(shardIndex);
+      final boolean hasExplanation = in.readBoolean();
+      final String explanation;
+      if (hasExplanation) {
+        explanation = in.readUTF();
+      } else {
+        explanation = null;
+      }
       final Hit hit;
       if (sortFieldTypesLen > 0) {
-        hit = new Hit(shard, _nodeName, score, docId, _sortFieldTypes);
+        hit = new Hit(shard, _nodeName, score, docId, _sortFieldTypes, explanation);
       } else {
-        hit = new Hit(shard, _nodeName, score, docId);
+        hit = new Hit(shard, _nodeName, score, docId, explanation);
       }
       addHit(hit);
       byte sortFieldsLen = in.readByte();
@@ -138,6 +145,13 @@ public class HitsMapWritable implements Writable {
       out.writeByte(shardIndexByShard.get(hit.getShard()));
       out.writeFloat(hit.getScore());
       out.writeInt(hit.getDocId());
+      String explanation = hit.getExplanation();
+      if (explanation != null) {
+        out.writeBoolean(true);
+        out.writeUTF(explanation);
+      } else {
+        out.writeBoolean(false);
+      }
       WritableComparable[] sortFields = hit.getSortFields();
       if (sortFields == null) {
         out.writeByte(0);

@@ -83,7 +83,7 @@ public class LuceneServerTest extends AbstractTest {
 
     ILuceneQueryAndFilterWritable queryWritable = new PrefixQueryWritable("foo", "b");
     DocumentFrequencyWritable freqs = server.getDocFreqs(queryWritable, shardNames);
-    HitsMapWritable result = server.search(queryWritable, freqs, shardNames, clientTiemout, 1000);
+    HitsMapWritable result = server.search(queryWritable, freqs, shardNames, clientTiemout, 1000, false);
     assertEquals(4, result.getHitList().size());
     server.shutdown();
 
@@ -91,7 +91,7 @@ public class LuceneServerTest extends AbstractTest {
     server = new LuceneServer("server", new DefaultSearcherFactory(), 0.5f);
     addIndexShards(server, LuceneTestResources.INDEX1);
     freqs = server.getDocFreqs(queryWritable, shardNames);
-    result = server.search(queryWritable, freqs, shardNames, clientTiemout, 1000);
+    result = server.search(queryWritable, freqs, shardNames, clientTiemout, 1000, false);
     assertEquals(4, result.getHitList().size());
     server.shutdown();
 
@@ -142,7 +142,7 @@ public class LuceneServerTest extends AbstractTest {
     assertEquals(serverTimeout, server.getCollectorTiemout(clientTiemout));
     addIndexShards(server, LuceneTestResources.INDEX1);
     freqs = server.getDocFreqs(queryWritable, shardNames);
-    result = server.search(queryWritable, freqs, shardNames, clientTiemout, 1000);
+    result = server.search(queryWritable, freqs, shardNames, clientTiemout, 1000, false);
     assertTrue(result.getHitList().size() < 4);
     assertTrue(result.getHitList().size() >= 1);
     server.shutdown();
@@ -200,7 +200,7 @@ public class LuceneServerTest extends AbstractTest {
     when(server.getSearcherHandleByShard("testShard")).thenReturn(new IndexHandle(reader, searcher));
 
     LuceneServer.SearchCall searchCall = server.new SearchCall("testShard", query, Collections
-        .<TermWritable, Integer>emptyMap(), 1, 10, null, 1000, 1, null);
+        .<TermWritable, Integer>emptyMap(), 1, 10, null, 1000, 1, null, false);
     LuceneServer.SearchResult result = searchCall.call();
     assertThat(result._totalHits).as("results").isEqualTo(0);
   }
@@ -263,7 +263,7 @@ public class LuceneServerTest extends AbstractTest {
           DocumentFrequencyWritable freqs;
           freqs = server.getDocFreqs(writable, shardNames);
 
-          result[0] = server.search(writable, freqs, shardNames, 10000);
+          result[0] = server.search(writable, freqs, shardNames, 10000, Integer.MAX_VALUE, false);
         } catch (Exception e) {
           exception[0] = e;
         }
@@ -332,7 +332,7 @@ public class LuceneServerTest extends AbstractTest {
 
     @Override
     public HitsMapWritable call() throws Exception {
-      return _server.search(_queryAndFilter, _freqs, _shards, 10000, 2);
+      return _server.search(_queryAndFilter, _freqs, _shards, 10000, 2, false);
     }
 
   }
