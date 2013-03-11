@@ -53,6 +53,7 @@ import org.apache.lucene.document.Field.Index;
 import org.apache.lucene.document.Field.Store;
 import org.apache.lucene.document.FieldType;
 import org.apache.lucene.document.LongField;
+import org.apache.lucene.document.StringField;
 import org.apache.lucene.document.TextField;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
@@ -490,7 +491,7 @@ public class LuceneClientTest extends AbstractLuceneIntegrationTest {
   public void testIndexPattern() throws Exception {
     deploy3Indices();
     ILuceneClient client = new LuceneClient(_miniCluster.getZkConfiguration());
-    final ILuceneQueryAndFilterWritable query = new TermQueryWritable("body", "text");
+    final ILuceneQueryAndFilterWritable query = new TermQueryWritable("foo", "bar");
     final Hits hits = client.search(query, new String[] { "index[2-3]+" });
     assertNotNull(hits);
     for (final Hit hit : hits.getHits()) {
@@ -533,8 +534,8 @@ public class LuceneClientTest extends AbstractLuceneIntegrationTest {
     IndexWriter indexWriter = new IndexWriter(FSDirectory.open(filterIndex), config);
     for (int i = 0; i < 100; i++) {
       Document document = new Document();
-      document.add(new Field(textFieldName, "sample " + i, Store.YES, Index.NOT_ANALYZED));
-      document.add(new Field(filterFieldName, "" + (i % 10), Store.YES, Index.NOT_ANALYZED));
+      document.add(new StringField(textFieldName, "sample " + i, Store.YES));
+      document.add(new StringField(filterFieldName, "" + (i % 10), Store.YES));
       indexWriter.addDocument(document);
     }
     indexWriter.forceMerge(1);

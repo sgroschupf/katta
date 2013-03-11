@@ -25,7 +25,7 @@ public class WildcardQueryAndTermFilterWritable implements ILuceneQueryAndFilter
 
   public WildcardQueryAndTermFilterWritable(String field, String term, String filterField, String filterTerm) {
     this._termWritable = new TermWritable(field, term);
-    this._filterTermWritable = new TermWritable(filterField, term);
+    this._filterTermWritable = new TermWritable(filterField, filterTerm);
   }
 
   public Query getQuery() {

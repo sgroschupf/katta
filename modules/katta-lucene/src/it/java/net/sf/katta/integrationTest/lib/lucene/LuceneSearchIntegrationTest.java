@@ -219,7 +219,7 @@ public class LuceneSearchIntegrationTest extends AbstractLuceneIntegrationTest {
           client = _client;
         }
         while (!_stopped) {
-          final ILuceneQueryAndFilterWritable query = new TermQueryWritable("body", "text");
+          final ILuceneQueryAndFilterWritable query = new TermQueryWritable("foo", "bar");
           Hits hits = client.search(query, new String[] { "*" });
           _firedQueryCount++;
           if (hits.size() != _expectedTotalHitCount) {
