@@ -198,8 +198,13 @@ public class WrappingGlobalDfSearcher extends IndexSearcher {
       return docFreq(term);
     }
 
+    /* TODO This method is flawed.
+     * Lucene will determine the DF for a term by adding up the DF from each subreader.
+     * But this method will wrap each subreader with the global DF, so the DF ends up being (global DF * number of segments)
+     */
     protected List<? extends IndexReader> getSequentialSubReaders() {
       try {
+        // TODO this is a bad thing to do
         List<? extends IndexReader> indexReaders = (List<? extends IndexReader>) GET_SEQUENTIAL_SUB_READERS_METHOD.invoke(_indexReader);
         List<IndexReader> wrappedIndexReaders = new ArrayList<IndexReader>();
         for (IndexReader indexReader : indexReaders) {
