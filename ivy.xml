@@ -58,7 +58,7 @@
 
 		<!-- TEST Dependencies -->
 		<dependency org="org.apache.hadoop.test" name="hadoop" rev="0.20.2-test" conf="test" />
-		<dependency org="junit" name="junit" rev="4.8.1" conf="test" />
+		<dependency org="junit" name="junit" rev="4.10" conf="test" />
         <dependency org="org.mockito" name="mockito-core" rev="1.8.1" conf="test" />
 		<dependency org="org.hamcrest" name="hamcrest-library" rev="1.1" conf="test" />
 		<dependency org="org.hamcrest" name="hamcrest-core" rev="1.1" conf="test" />

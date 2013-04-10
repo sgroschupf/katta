@@ -1,6 +1,7 @@
 Katta Change Log
 
 katta 0.6.5
+ fix KATTA-226, configurable "track-doc-scores-on-search-with-field-sort" 
  fix KATTA-196, LuceneServer leaks memory when using query filters
  fix KATTA-193, implement query filters 
 

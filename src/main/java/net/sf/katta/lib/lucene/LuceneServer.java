@@ -93,6 +93,7 @@ public class LuceneServer implements IContentServer, ILuceneServer {
   private final static Logger LOG = Logger.getLogger(LuceneServer.class);
   public final static String CONF_KEY_SEARCHER_FACTORY_CLASS = "lucene.searcher.factory-class";
   public final static String CONF_KEY_COLLECTOR_TIMOUT_PERCENTAGE = "lucene.collector.timeout-percentage";
+  public final static String CONF_KEY_COLLECTOR_TRACK_DOC_SCORES_ON_FIELD_SORT = "lucene.collector.track-doc-scores-on-field-sort";
   public final static String CONF_KEY_SEARCHER_THREADPOOL_CORESIZE = "lucene.searcher.threadpool.core-size";
   public final static String CONF_KEY_SEARCHER_THREADPOOL_MAXSIZE = "lucene.searcher.threadpool.max-size";
   public final static String CONF_KEY_FILTER_CACHE_ENABLED = "lucene.filter.cache.enabled";
@@ -103,6 +104,7 @@ public class LuceneServer implements IContentServer, ILuceneServer {
 
   protected String _nodeName;
   private float _timeoutPercentage = 0.75f;
+  private boolean _trackDocScoresOnSort;
   private ISeacherFactory _seacherFactory;
 
   public LuceneServer() {
@@ -135,6 +137,7 @@ public class LuceneServer implements IContentServer, ILuceneServer {
     _seacherFactory = (ISeacherFactory) ClassUtil.newInstance(nodeConfiguration.getClass(
             CONF_KEY_SEARCHER_FACTORY_CLASS, DefaultSearcherFactory.class));
     _timeoutPercentage = nodeConfiguration.getFloat(CONF_KEY_COLLECTOR_TIMOUT_PERCENTAGE, _timeoutPercentage);
+    _trackDocScoresOnSort = nodeConfiguration.getBoolean(CONF_KEY_COLLECTOR_TRACK_DOC_SCORES_ON_FIELD_SORT, false);
     if (_timeoutPercentage < 0 || _timeoutPercentage > 1) {
       throw new IllegalArgumentException("illegal value '" + _timeoutPercentage + "' for "
               + CONF_KEY_COLLECTOR_TIMOUT_PERCENTAGE + ". Only values between 0 and 1 are allowed.");
@@ -617,9 +620,8 @@ public class LuceneServer implements IContentServer, ILuceneServer {
       TopDocsCollector resultCollector;
       if (_sort != null) {
         boolean fillFields = true;// see IndexSearcher#search(...)
-        boolean fieldSortDoTrackScores = false;
         boolean fieldSortDoMaxScore = false;
-        resultCollector = TopFieldCollector.create(_sort, nDocs, fillFields, fieldSortDoTrackScores,
+        resultCollector = TopFieldCollector.create(_sort, nDocs, fillFields, _trackDocScoresOnSort,
                 fieldSortDoMaxScore, !_weight.scoresDocsOutOfOrder());
       } else {
         resultCollector = TopScoreDocCollector.create(nDocs, !_weight.scoresDocsOutOfOrder());

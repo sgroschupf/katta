@@ -29,6 +29,7 @@ import net.sf.katta.node.Node;
 import net.sf.katta.protocol.InteractionProtocol;
 import net.sf.katta.testutil.TestUtil;
 import net.sf.katta.util.KattaException;
+import net.sf.katta.util.MasterConfiguration;
 import net.sf.katta.util.NodeConfiguration;
 import net.sf.katta.util.ZkConfiguration;
 import net.sf.katta.util.ZkKattaUtil;
@@ -44,175 +45,181 @@ import org.I0Itec.zkclient.ZkServer;
  */
 public class KattaMiniCluster {
 
-  private final Class<? extends IContentServer> _contentServerClass;
-  private final ZkConfiguration _zkConfiguration;
-  private Master _master;
-  private Master _secondaryMaster;
-  private List<Node> _nodes = new ArrayList<Node>();
-  private ZkServer _zkServer;
-  private InteractionProtocol _protocol;
-  private int _nodeCount;
-  private final int _nodeStartPort;
-  private int _startedNodes;
+    private final Class<? extends IContentServer> _contentServerClass;
+    private final ZkConfiguration _zkConfiguration;
+    private Master _master;
+    private Master _secondaryMaster;
+    private List<Node> _nodes = new ArrayList<Node>();
+    private ZkServer _zkServer;
+    private InteractionProtocol _protocol;
+    private int _nodeCount;
+    private final int _nodeStartPort;
+    private int _startedNodes;
+    private MasterConfiguration _masterConfiguration;
+    private NodeConfiguration _nodeConfiguration;
 
-  public KattaMiniCluster(ZkConfiguration zkConfiguration, int nodeCount) {
-    this(LuceneServer.class, zkConfiguration, nodeCount, 20000);
-  }
-
-  public KattaMiniCluster(Class<? extends IContentServer> nodeServerClass, ZkConfiguration zkConfiguration,
-          int nodeCount, int nodeStartPort) {
-    _contentServerClass = nodeServerClass;
-    _zkConfiguration = zkConfiguration;
-    _nodeCount = nodeCount;
-    _nodeStartPort = nodeStartPort;
-  }
-
-  public void setZkServer(ZkServer zkServer) {
-    _zkServer = zkServer;
-  }
-
-  public void start() throws Exception {
-    if (_zkServer == null) {
-      _zkServer = ZkKattaUtil.startZkServer(_zkConfiguration);
+    public KattaMiniCluster(ZkConfiguration zkConfiguration, int nodeCount) {
+        this(LuceneServer.class, zkConfiguration, nodeCount, 20000);
     }
-    _protocol = new InteractionProtocol(_zkServer.getZkClient(), _zkConfiguration);
-    NodeConfiguration nodeConfiguration = new NodeConfiguration();
-    nodeConfiguration.setStartPort(_nodeStartPort);
-    for (int i = 0; i < _nodeCount; i++) {
-      _nodes.add(new Node(_protocol, nodeConfiguration, _contentServerClass.newInstance()));
+
+    public KattaMiniCluster(Class<? extends IContentServer> nodeServerClass, ZkConfiguration zkConfiguration, int nodeCount, int nodeStartPort) {
+        this(nodeServerClass, zkConfiguration, nodeCount, nodeStartPort, new MasterConfiguration(), new NodeConfiguration());
     }
-    _master = new Master(_protocol, false);
-    _master.start();
-    for (Node node : _nodes) {
-      node.start();
-      _startedNodes++;
+
+    public KattaMiniCluster(Class<? extends IContentServer> contentServerClass, ZkConfiguration zkConfiguration, int nodeCount, int nodeStartPort, MasterConfiguration masterConfiguration,
+            NodeConfiguration nodeConfiguration) {
+        _contentServerClass = contentServerClass;
+        _zkConfiguration = zkConfiguration;
+        _nodeCount = nodeCount;
+        _nodeStartPort = nodeStartPort;
+        _masterConfiguration = masterConfiguration;
+        _nodeConfiguration = nodeConfiguration;
     }
-    TestUtil.waitUntilLeaveSafeMode(_master);
-    TestUtil.waitUntilNumberOfLiveNode(_protocol, _nodes.size());
-    TestUtil.waitUntilEmptyOperationQueues(_protocol, _master, _nodes);
-  }
 
-  public Node startAdditionalNode() throws Exception {
-    NodeConfiguration nodeConfiguration = new NodeConfiguration();
-    nodeConfiguration.setStartPort(_nodeStartPort + _startedNodes);
-    Node node = new Node(_protocol, nodeConfiguration, _contentServerClass.newInstance());
-    _nodes.add(node);
-    node.start();
-    _startedNodes++;
-    return node;
-  }
+    public void setZkServer(ZkServer zkServer) {
+        _zkServer = zkServer;
+    }
 
-  public Master startSecondaryMaster() throws KattaException {
-    _secondaryMaster = new Master(_protocol, false);
-    _secondaryMaster.start();
-    return _secondaryMaster;
-  }
+    public void start() throws Exception {
+        if (_zkServer == null) {
+            _zkServer = ZkKattaUtil.startZkServer(_zkConfiguration);
+        }
+        _protocol = new InteractionProtocol(_zkServer.getZkClient(), _zkConfiguration);
+        _nodeConfiguration.setStartPort(_nodeStartPort);
+        for (int i = 0; i < _nodeCount; i++) {
+            _nodes.add(new Node(_protocol, _nodeConfiguration, _contentServerClass.newInstance()));
+        }
+        _master = new Master(_protocol, false, _masterConfiguration);
+        _master.start();
+        for (Node node : _nodes) {
+            node.start();
+            _startedNodes++;
+        }
+        TestUtil.waitUntilLeaveSafeMode(_master);
+        TestUtil.waitUntilNumberOfLiveNode(_protocol, _nodes.size());
+        TestUtil.waitUntilEmptyOperationQueues(_protocol, _master, _nodes);
+    }
 
-  public void restartMaster() throws Exception {
-    _master.shutdown();
-    _master = new Master(_protocol, false);
-    _master.start();
-    TestUtil.waitUntilLeaveSafeMode(_master);
-  }
+    public Node startAdditionalNode() throws Exception {
+        NodeConfiguration nodeConfiguration = new NodeConfiguration();
+        nodeConfiguration.setStartPort(_nodeStartPort + _startedNodes);
+        Node node = new Node(_protocol, nodeConfiguration, _contentServerClass.newInstance());
+        _nodes.add(node);
+        node.start();
+        _startedNodes++;
+        return node;
+    }
 
-  public void stop() {
-    stop(true);
-  }
+    public Master startSecondaryMaster() throws KattaException {
+        _secondaryMaster = new Master(_protocol, false);
+        _secondaryMaster.start();
+        return _secondaryMaster;
+    }
 
-  public void stop(boolean stopZookeeper) {
-    for (Node node : _nodes) {
-      if (node.isRunning()) {
+    public void restartMaster() throws Exception {
+        _master.shutdown();
+        _master = new Master(_protocol, false);
+        _master.start();
+        TestUtil.waitUntilLeaveSafeMode(_master);
+    }
+
+    public void stop() {
+        stop(true);
+    }
+
+    public void stop(boolean stopZookeeper) {
+        for (Node node : _nodes) {
+            if (node.isRunning()) {
+                node.shutdown();
+            }
+        }
+        try {
+            Thread.sleep(100);
+        } catch (InterruptedException e) {
+            Thread.interrupted();
+        }
+        if (_secondaryMaster != null) {
+            _secondaryMaster.shutdown();
+        }
+        _master.shutdown();
+        if (stopZookeeper) {
+            _zkServer.shutdown();
+        }
+    }
+
+    public Node getNode(int i) {
+        return _nodes.get(i);
+    }
+
+    public List<Node> getNodes() {
+        return _nodes;
+    }
+
+    public int getRunningNodeCount() {
+        return _nodes.size();
+    }
+
+    public int getStartedNodeCount() {
+        return _startedNodes;
+    }
+
+    public Node shutdownNode(int i) {
+        Node node = _nodes.remove(i);
         node.shutdown();
-      }
+        return node;
     }
-    try {
-      Thread.sleep(100);
-    } catch (InterruptedException e) {
-      Thread.interrupted();
+
+    public Node restartNode(int i) {
+        Node shutdownNode = getNode(i);
+        NodeConfiguration nodeConfiguration = new NodeConfiguration();
+        nodeConfiguration.setStartPort(shutdownNode.getRPCServerPort());
+        shutdownNode(i);
+        Node node = new Node(_protocol, nodeConfiguration, shutdownNode.getContext().getContentServer());
+        node.start();
+        _nodes.add(i, node);
+        return node;
     }
-    if (_secondaryMaster != null) {
-      _secondaryMaster.shutdown();
+
+    public Node shutdownNodeRpc(int i) {
+        Node node = _nodes.get(i);
+        node.getRpcServer().stop();
+        return node;
     }
-    _master.shutdown();
-    if (stopZookeeper) {
-      _zkServer.shutdown();
+
+    public Master getMaster() {
+        return _master;
     }
-  }
 
-  public Node getNode(int i) {
-    return _nodes.get(i);
-  }
-
-  public List<Node> getNodes() {
-    return _nodes;
-  }
-
-  public int getRunningNodeCount() {
-    return _nodes.size();
-  }
-
-  public int getStartedNodeCount() {
-    return _startedNodes;
-  }
-
-  public Node shutdownNode(int i) {
-    Node node = _nodes.remove(i);
-    node.shutdown();
-    return node;
-  }
-
-  public Node restartNode(int i) {
-    Node shutdownNode = getNode(i);
-    NodeConfiguration nodeConfiguration = new NodeConfiguration();
-    nodeConfiguration.setStartPort(shutdownNode.getRPCServerPort());
-    shutdownNode(i);
-    Node node = new Node(_protocol, nodeConfiguration, shutdownNode.getContext().getContentServer());
-    node.start();
-    _nodes.add(i, node);
-    return node;
-  }
-
-  public Node shutdownNodeRpc(int i) {
-    Node node = _nodes.get(i);
-    node.getRpcServer().stop();
-    return node;
-  }
-
-  public Master getMaster() {
-    return _master;
-  }
-
-  public List<String> deployTestIndexes(File indexFile, int deployCount, int replicationCount)
-          throws InterruptedException {
-    List<String> indices = new ArrayList<String>();
-    ArrayList<IIndexDeployFuture> deployFutures = new ArrayList<IIndexDeployFuture>();
-    IDeployClient deployClient = new DeployClient(_protocol);
-    for (int i = 0; i < deployCount; i++) {
-      String indexName = indexFile.getName() + i;
-      IIndexDeployFuture deployFuture = deployClient.addIndex(indexName, indexFile.getAbsolutePath(), replicationCount);
-      indices.add(indexName);
-      deployFutures.add(deployFuture);
+    public List<String> deployTestIndexes(File indexFile, int deployCount, int replicationCount) throws InterruptedException {
+        List<String> indices = new ArrayList<String>();
+        ArrayList<IIndexDeployFuture> deployFutures = new ArrayList<IIndexDeployFuture>();
+        IDeployClient deployClient = new DeployClient(_protocol);
+        for (int i = 0; i < deployCount; i++) {
+            String indexName = indexFile.getName() + i;
+            IIndexDeployFuture deployFuture = deployClient.addIndex(indexName, indexFile.getAbsolutePath(), replicationCount);
+            indices.add(indexName);
+            deployFutures.add(deployFuture);
+        }
+        for (IIndexDeployFuture deployFuture : deployFutures) {
+            deployFuture.joinDeployment();
+        }
+        return indices;
     }
-    for (IIndexDeployFuture deployFuture : deployFutures) {
-      deployFuture.joinDeployment();
+
+    public ZkConfiguration getZkConfiguration() {
+        return _zkConfiguration;
     }
-    return indices;
-  }
 
-  public ZkConfiguration getZkConfiguration() {
-    return _zkConfiguration;
-  }
+    public InteractionProtocol getProtocol() {
+        return _protocol;
+    }
 
-  public InteractionProtocol getProtocol() {
-    return _protocol;
-  }
+    public ZkServer getZkServer() {
+        return _zkServer;
+    }
 
-  public ZkServer getZkServer() {
-    return _zkServer;
-  }
-
-  public ZkClient getZkClient() {
-    return _zkServer.getZkClient();
-  }
+    public ZkClient getZkClient() {
+        return _zkServer.getZkClient();
+    }
 
 }
