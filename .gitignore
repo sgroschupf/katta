@@ -10,7 +10,6 @@ prodDb*
 stacktrace.log
 log.log
 results
-junit*
 extras/ec2/bin/katta-ec2-env.sh
 extras/katta.gui/katta.gui-0.1.war
 modules/katta-ec2/bin/katta-ec2-env.sh

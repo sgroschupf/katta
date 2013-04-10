@@ -73,7 +73,7 @@ public class KattaConfiguration implements Serializable {
     return value;
   }
 
-  protected void setProperty(String key, String value) {
+  public void setProperty(String key, String value) {
     _properties.setProperty(key, value);
   }
 

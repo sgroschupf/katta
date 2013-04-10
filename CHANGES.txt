@@ -1,6 +1,7 @@
 Katta Change Log
 
 katta 0.7.0
+ fix KATTA-226, configurable "track-doc-scores-on-search-with-field-sort"
  fix KATTA-221, make LuceneServer.SearcherHandle protected
  fix KATTA-216, fixed issues that could occur when a Node is disconnected/reconnected during initialization
  fix KATTA-206, fix ConcurrentModificationException in One2ManyListMap
@@ -22,6 +23,7 @@ katta 0.7.0
  fix KATTA-195, simplify Katta build
 
 katta 0.6.5
+ fix KATTA-226, configurable "track-doc-scores-on-search-with-field-sort" 
  fix KATTA-196, LuceneServer leaks memory when using query filters
  fix KATTA-193, implement query filters 
 

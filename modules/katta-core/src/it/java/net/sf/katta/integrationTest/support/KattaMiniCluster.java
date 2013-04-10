@@ -66,8 +66,7 @@ public class KattaMiniCluster {
 
   public KattaMiniCluster(Class<? extends IContentServer> nodeServerClass, ZkConfiguration zkConfiguration,
           int nodeCount, int nodeStartPort) {
-    this(nodeServerClass, zkConfiguration, nodeCount, nodeStartPort, new MasterConfiguration(),
-      new NodeConfiguration());
+    this(nodeServerClass, zkConfiguration, nodeCount, nodeStartPort, new MasterConfiguration(), new NodeConfiguration());
   }
 
   public KattaMiniCluster(Class<? extends IContentServer> nodeServerClass, ZkConfiguration zkConfiguration,
@@ -117,7 +116,8 @@ public class KattaMiniCluster {
   }
 
   public Master startSecondaryMaster() throws KattaException {
-    _secondaryMaster = new Master(_protocol, false, new MasterConfiguration(_defaultMasterConfiguration.getPropertiesCopy()));
+    _secondaryMaster = new Master(_protocol, false, new MasterConfiguration(
+            _defaultMasterConfiguration.getPropertiesCopy()));
     _secondaryMaster.start();
     return _secondaryMaster;
   }
@@ -228,7 +228,7 @@ public class KattaMiniCluster {
   public ZkClient getZkClient() {
     return _zkServer.getZkClient();
   }
-  
+
   public NodeConfiguration getDefaultNodeConfiguration() {
     return _defaultNodeConfiguration;
   }
